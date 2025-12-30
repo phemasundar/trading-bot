@@ -1,0 +1,45 @@
+package com.hemasundar;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import tools.jackson.dataformat.javaprop.JavaPropsMapper;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+
+/**
+ * Immutable configuration record.
+ * Fields are final, making it naturally thread-safe.
+ */
+public record TestConfig(
+        @JsonProperty("refresh_token") String refreshToken,
+        @JsonProperty("app_key") String appKey,
+        @JsonProperty("pp_secret") String ppSecret,
+        @JsonProperty("db.timeout") Integer timeout
+) {
+    /**
+     * Lazy-loaded singleton holder.
+     * The JVM guarantees that 'INSTANCE' is initialized only once,
+     * when Holder is first accessed, ensuring only one IO read.
+     */
+    private static final class Holder {
+        private static final TestConfig INSTANCE = load();
+
+        private static TestConfig load() {
+            // Jackson 3 Builder pattern
+            JavaPropsMapper mapper = JavaPropsMapper.builder().build();
+
+            // USE Files.newInputStream for absolute filesystem paths
+            try (InputStream is = Files.newInputStream(FilePaths.testConfig)) {
+                TestConfig testConfig = mapper.readValue(is, TestConfig.class);
+                return testConfig;
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to load from filesystem: " + FilePaths.testConfig, e);
+            }
+        }
+    }
+
+    public static TestConfig getInstance() {
+        return Holder.INSTANCE;
+    }
+}
