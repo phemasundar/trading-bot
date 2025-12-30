@@ -1,5 +1,7 @@
-package com.hemasundar;
+package com.hemasundar.utils;
 
+import com.hemasundar.pojos.RefreshToken;
+import com.hemasundar.pojos.TestConfig;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import tools.jackson.databind.ObjectMapper;

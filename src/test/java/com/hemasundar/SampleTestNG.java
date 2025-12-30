@@ -1,5 +1,12 @@
 package com.hemasundar;
 
+import com.hemasundar.pojos.OptionChainResponse;
+import com.hemasundar.pojos.RefreshToken;
+import com.hemasundar.pojos.Securities;
+import com.hemasundar.pojos.TestConfig;
+import com.hemasundar.utils.FilePaths;
+import com.hemasundar.utils.JavaUtils;
+import com.hemasundar.utils.TokenProvider;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import org.testng.annotations.Test;
@@ -60,7 +67,7 @@ public class SampleTestNG {
 
             Map<String, List<OptionChainResponse.OptionData>> putMap = optionChainResponse.getOptionDataForASpecificExpiryDate("PUT", targetExpiryDate);
 
-            findValidPutCreditSpreads(putMap, 0.2, 1000, 12);
+            findValidPutCreditSpreads(putMap, optionChainResponse.getUnderlyingPrice(), 0.2, 1000, 12);
         });
 
     }
@@ -87,7 +94,8 @@ public class SampleTestNG {
      *
      * @param putMap The map of strike prices (as Strings) to OptionData lists.
      */
-    public void findValidPutCreditSpreads(Map<String, List<OptionChainResponse.OptionData>> putMap, double maxDelta, double maxLossLimit, int returnOnRiskPercentage) {
+    public void findValidPutCreditSpreads(Map<String, List<OptionChainResponse.OptionData>> putMap, double currentPrice,
+            double maxDelta, double maxLossLimit, int returnOnRiskPercentage) {
 
         // 1. Convert the Map keys into a sorted list of numeric strike prices (Ascending).
         // Sorting allows us to easily distinguish between the higher (Short) and lower (Long) strikes.
@@ -137,7 +145,7 @@ public class SampleTestNG {
                 double requiredProfit = maxLoss * ((double) returnOnRiskPercentage / 100);
 
                 if (netCredit >= requiredProfit) {
-                    displaySpread(shortPut, longPut, netCredit, maxLoss);
+                    displaySpread(shortPut, longPut, currentPrice, netCredit, maxLoss);
                 }
             }
         }
@@ -146,16 +154,21 @@ public class SampleTestNG {
     /**
      * Helper method to print the identified spread details.
      */
-    private void displaySpread(OptionChainResponse.OptionData shortPut,
-                               OptionChainResponse.OptionData longPut,
-                               double profit, double loss) {
+    private void displaySpread(OptionChainResponse.OptionData shortPut, OptionChainResponse.OptionData longPut,
+            double currentPrice, double profit, double loss) {
         System.out.println("--- Valid Put Credit Spread Found ---");
         System.out.printf("Strategy: Sell %s (Strike %.1f) / Buy %s (Strike %.1f)\n",
                 shortPut.getSymbol(), shortPut.getStrikePrice(),
                 longPut.getSymbol(), longPut.getStrikePrice());
         System.out.printf("Short Delta: %.3f | Max Profit: $%.2f | Max Loss: $%.2f\n",
                 shortPut.getDelta(), profit, loss);
-        System.out.printf("Return on Risk: %.2f%%\n\n", (profit / loss) * 100);
+        System.out.printf("Return on Risk: %.2f%%\n", (profit / loss) * 100);
+
+        double breakEvenPrice = shortPut.getStrikePrice() - (profit / 100);
+        double breakEvenPercentage = ((currentPrice - breakEvenPrice) / currentPrice) * 100;
+
+        System.out.printf("Break Even Price: $%.2f | Break Even Percentage: %.2f%%\n\n", breakEvenPrice,
+                breakEvenPercentage);
     }
 
 }

@@ -1,4 +1,4 @@
-package com.hemasundar;
+package com.hemasundar.utils;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;

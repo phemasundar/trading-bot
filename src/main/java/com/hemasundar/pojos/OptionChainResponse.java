@@ -1,6 +1,7 @@
-package com.hemasundar;
+package com.hemasundar.pojos;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.hemasundar.serializers.ExpirationKeyDeserializer;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

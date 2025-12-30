@@ -1,4 +1,4 @@
-package com.hemasundar;
+package com.hemasundar.pojos;
 
 import java.util.List;
 

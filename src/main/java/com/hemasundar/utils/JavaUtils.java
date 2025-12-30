@@ -1,4 +1,4 @@
-package com.hemasundar;
+package com.hemasundar.utils;
 
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;

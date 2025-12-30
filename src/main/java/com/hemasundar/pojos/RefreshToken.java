@@ -1,4 +1,4 @@
-package com.hemasundar;
+package com.hemasundar.pojos;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;

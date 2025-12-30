@@ -1,6 +1,7 @@
-package com.hemasundar;
+package com.hemasundar.pojos;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.hemasundar.utils.FilePaths;
 import tools.jackson.dataformat.javaprop.JavaPropsMapper;
 
 import java.io.IOException;
