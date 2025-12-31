@@ -38,14 +38,14 @@ public class OptionChainResponse {
     @JsonDeserialize(keyUsing = ExpirationKeyDeserializer.class)
     public Map<ExpirationDateKey, Map<String, List<OptionData>>> putExpDateMap;
 
-    public Map<String, List<OptionChainResponse.OptionData>> getOptionDataForASpecificExpiryDate(String optionType, String targetExpiryDate) {
-        Map<ExpirationDateKey, Map<String, List<OptionData>>> expDateMap = (optionType.equalsIgnoreCase("put")) ? this.getPutExpDateMap() : this.getCallExpDateMap();
+    public Map<String, List<OptionChainResponse.OptionData>> getOptionDataForASpecificExpiryDate(OptionType optionType, String targetExpiryDate) {
+        Map<ExpirationDateKey, Map<String, List<OptionData>>> expDateMap = (optionType == OptionType.PUT) ? this.getPutExpDateMap() : this.getCallExpDateMap();
         Map<String, List<OptionChainResponse.OptionData>> putMap = expDateMap.entrySet().stream()
                 .filter(entry ->
                         // Access the 'date' field within the complex key object
                         entry.getKey().getDate().equals(targetExpiryDate))
                 .map(Map.Entry::getValue)
-                .findFirst().orElse(null);
+                .findFirst().orElse(Map.of());
 //        System.out.println(putMap);
         return putMap;
     }
@@ -58,7 +58,7 @@ public class OptionChainResponse {
                         Math.abs(key.getDaysToExpiry() - targetDays)))
                 // Extract only the date field from that key
                 .map(OptionChainResponse.ExpirationDateKey::getDate)
-                .orElse("No Expiry Found");
+                .orElseThrow(() -> new RuntimeException("No Expiry Found"));
         System.out.println("Target Expiry Date: " + targetExpiryDate);
         return targetExpiryDate;
     }
