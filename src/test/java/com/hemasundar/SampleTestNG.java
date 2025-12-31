@@ -1,12 +1,14 @@
 package com.hemasundar;
 
+import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.pojos.OptionChainResponse;
 import com.hemasundar.pojos.RefreshToken;
 import com.hemasundar.pojos.Securities;
 import com.hemasundar.pojos.TestConfig;
 import com.hemasundar.utils.FilePaths;
 import com.hemasundar.utils.JavaUtils;
-import com.hemasundar.utils.TokenProvider;
+import com.hemasundar.pojos.CallCreditSpread;
+import com.hemasundar.pojos.IronCondor;
 import com.hemasundar.pojos.PutCreditSpread;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
@@ -64,34 +66,33 @@ public class SampleTestNG {
             System.out.println("---------------------------------------------------------");
             System.out.println("--------------------------" + currentSecurity + "--------------------------");
             System.out.println("---------------------------------------------------------");
-            OptionChainResponse optionChainResponse = getOptionChainResponse(currentSecurity);
 
-            String targetExpiryDate = optionChainResponse.getExpiryDateBasedOnDTE(30);
+
+            OptionChainResponse optionChainResponse = ThinkOrSwinAPIs.getOptionChainResponse(currentSecurity);
+
+            int targetDTE = 60;
+            String targetExpiryDate = optionChainResponse.getExpiryDateBasedOnDTE(targetDTE);
+
+            // Enable this to filter the trades if any earnings are there
+            /*earningsCalendarResponse earningsResponse = FinnHubAPIs.getEarningsByTicker(currentSecurity,
+                    LocalDate.parse(targetExpiryDate));
+            if (CollectionUtils.isEmpty(earningsResponse.getEarningsCalendar())) {
+                System.out.println("Skipping " + currentSecurity + " due to upcoming earnings on "
+                        + earningsResponse.getEarningsCalendar().get(0).getDate());
+                return;
+            }*/
 
             Map<String, List<OptionChainResponse.OptionData>> putMap = optionChainResponse
                     .getOptionDataForASpecificExpiryDate("PUT", targetExpiryDate);
 
-            findValidPutCreditSpreads(putMap, optionChainResponse.getUnderlyingPrice(), 0.2, 1000, 12);
+//            findValidPutCreditSpreads(putMap, optionChainResponse.getUnderlyingPrice(), 0.2, 1000, 12);
+
+            Map<String, List<OptionChainResponse.OptionData>> callMap = optionChainResponse
+                    .getOptionDataForASpecificExpiryDate("CALL", targetExpiryDate);
+
+            findValidIronCondors(putMap, callMap, optionChainResponse.getUnderlyingPrice(), 0.15, 1000, 24);
         });
 
-    }
-
-    private static OptionChainResponse getOptionChainResponse(String symbol) {
-        Response response = RestAssured.given()
-                .header("accept", "application/json")
-                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())
-                .queryParam("symbol", symbol)
-                .queryParam("strategy", "SINGLE")
-                // .log().all()
-                .get("https://api.schwabapi.com/marketdata/v1/chains");
-
-        System.out.println("Response code for Option chain API: " + response.getStatusCode());
-        // System.out.println("Response: \n" + response.asPrettyString());
-
-        OptionChainResponse optionChainResponse = JavaUtils.convertJsonToPojo(response.asString(),
-                OptionChainResponse.class);
-        System.out.println("Current Maket Price: " + optionChainResponse.getUnderlyingPrice());
-        return optionChainResponse;
     }
 
     /**
@@ -101,69 +102,45 @@ public class SampleTestNG {
      * @param putMap The map of strike prices (as Strings) to OptionData lists.
      */
     public void findValidPutCreditSpreads(Map<String, List<OptionChainResponse.OptionData>> putMap, double currentPrice,
-            double maxDelta, double maxLossLimit, int returnOnRiskPercentage) {
+                                          double maxDelta, double maxLossLimit, int returnOnRiskPercentage) {
+        List<PutCreditSpread> spreads = getValidPutCreditSpreads(putMap, currentPrice, maxDelta, maxLossLimit,
+                returnOnRiskPercentage);
+        spreads.forEach(System.out::println);
+    }
+
+    public List<PutCreditSpread> getValidPutCreditSpreads(Map<String, List<OptionChainResponse.OptionData>> putMap,
+                                                          double currentPrice, double maxDelta, double maxLossLimit, int returnOnRiskPercentage) {
 
         List<PutCreditSpread> spreads = new ArrayList<>();
 
-        /*
-         * 1. Convert the Map keys into a sorted list of numeric strike prices
-         * (Ascending).
-         * Sorting allows us to easily distinguish between the higher (Short) and lower
-         * (Long) strikes.
-         */
         List<Double> sortedStrikes = putMap.keySet().stream()
                 .map(Double::parseDouble)
                 .sorted()
                 .collect(Collectors.toList());
 
-        /*
-         * 2. Outer loop: Iterate through potential 'Short Put' strikes.
-         * In a Put Credit Spread, the Short Put is the one with the HIGHER strike
-         * price.
-         */
         for (int i = 0; i < sortedStrikes.size(); i++) {
             double shortStrikePrice = sortedStrikes.get(i);
-
-            /*
-             * 3. Retrieve the OptionData for the Short Put. We assume the list contains at
-             * least one entry.
-             */
             OptionChainResponse.OptionData shortPut = putMap.get(String.valueOf(shortStrikePrice)).get(0);
 
-            // 4. Filter: Short PUT Delta must be more than 0.6 in absolute terms.
-            // We use Math.abs to treat -0.65 as 0.65.
             if (Math.abs(shortPut.getDelta()) > maxDelta) {
-                continue; // Skip strikes that don't meet the aggressiveness requirement.
+                continue;
             }
 
-            // 5. Inner loop: Iterate through potential 'Long Put' strikes.
-            // The Long Put must have a LOWER strike price than the Short Put (indices 0 to
-            // i-1).
             for (int j = 0; j < i; j++) {
                 double longStrikePrice = sortedStrikes.get(j);
                 OptionChainResponse.OptionData longPut = putMap.get(String.valueOf(longStrikePrice)).get(0);
 
-                // 6. Calculate Net Credit (Max Profit).
-                // We sell the Short at the 'Bid' and buy the Long at the 'Ask'.
-                // Formula: (Bid of Short - Ask of Long) * 100
                 double netCredit = (shortPut.getBid() - longPut.getAsk()) * 100;
 
-                // 7. Ignore invalid data: If netCredit is zero or negative, it's not a credit
-                // spread.
                 if (netCredit <= 0)
                     continue;
 
-                // 8. Calculate Max Loss.
-                // Formula: ((Short Strike - Long Strike) * 100) - Net Credit.
                 double strikeWidth = (shortStrikePrice - longStrikePrice) * 100;
                 double maxLoss = strikeWidth - netCredit;
 
-                // 9. Filter: Max Loss should not be more than $1000.
                 if (maxLoss > maxLossLimit)
                     continue;
 
-                // 10. Filter: Max Profit must be at least 12% of Max Loss.
-                // Formula: netCredit >= (maxLoss * 0.12)
                 double requiredProfit = maxLoss * ((double) returnOnRiskPercentage / 100);
 
                 if (netCredit >= requiredProfit) {
@@ -183,8 +160,133 @@ public class SampleTestNG {
                 }
             }
         }
+        return spreads;
+    }
 
-        spreads.forEach(System.out::println);
+    public List<CallCreditSpread> getValidCallCreditSpreads(Map<String, List<OptionChainResponse.OptionData>> callMap,
+                                                            double currentPrice, double maxDelta, double maxLossLimit, int returnOnRiskPercentage) {
+        List<CallCreditSpread> spreads = new ArrayList<>();
+
+        List<Double> sortedStrikes = callMap.keySet().stream()
+                .map(Double::parseDouble)
+                .sorted()
+                .collect(Collectors.toList());
+
+        // For Call Spreads, Short Call lower strike, Long Call higher strike
+        // Iterate for Short Call
+        for (int i = 0; i < sortedStrikes.size(); i++) {
+            double shortStrikePrice = sortedStrikes.get(i);
+            OptionChainResponse.OptionData shortCall = callMap.get(String.valueOf(shortStrikePrice)).get(0);
+
+            // Short Call should be OTM (Strike > Current Price)
+            if (shortStrikePrice <= currentPrice)
+                continue;
+
+            if (Math.abs(shortCall.getDelta()) > maxDelta)
+                continue;
+
+            // Iterate for Long Call (Higher Strike)
+            for (int j = i + 1; j < sortedStrikes.size(); j++) {
+                double longStrikePrice = sortedStrikes.get(j);
+                OptionChainResponse.OptionData longCall = callMap.get(String.valueOf(longStrikePrice)).get(0);
+
+                double netCredit = (shortCall.getBid() - longCall.getAsk()) * 100;
+
+                if (netCredit <= 0)
+                    continue;
+
+                double strikeWidth = (longStrikePrice - shortStrikePrice) * 100;
+                double maxLoss = strikeWidth - netCredit;
+
+                if (maxLoss > maxLossLimit)
+                    continue;
+
+                double requiredProfit = maxLoss * ((double) returnOnRiskPercentage / 100);
+
+                if (netCredit >= requiredProfit) {
+                    double breakEvenPrice = shortCall.getStrikePrice() + (netCredit / 100);
+                    double breakEvenPercentage = ((breakEvenPrice - currentPrice) / currentPrice) * 100;
+                    double returnOnRisk = (netCredit / maxLoss) * 100;
+
+                    spreads.add(CallCreditSpread.builder()
+                            .shortCall(shortCall)
+                            .longCall(longCall)
+                            .netCredit(netCredit)
+                            .maxLoss(maxLoss)
+                            .breakEvenPrice(breakEvenPrice)
+                            .breakEvenPercentage(breakEvenPercentage)
+                            .returnOnRisk(returnOnRisk)
+                            .build());
+                }
+            }
+        }
+        return spreads;
+    }
+
+    public void findValidIronCondors(Map<String, List<OptionChainResponse.OptionData>> putMap,
+                                     Map<String, List<OptionChainResponse.OptionData>> callMap,
+                                     double currentPrice,
+                                     double maxDelta, double maxLossLimit, int minExpectedReturnOnRiskPercentage) {
+
+        // Get individual valid spreads (relaxing the individual limits slightly if
+        // needed, but for now using strict same limits)
+        // Pass 0 as return percentage to capture all valid spreads.
+        // We will filter based on the TOTAL Iron Condor return later.
+        List<PutCreditSpread> putSpreads = getValidPutCreditSpreads(putMap, currentPrice, maxDelta, maxLossLimit, 0);
+        List<CallCreditSpread> callSpreads = getValidCallCreditSpreads(callMap, currentPrice, maxDelta, maxLossLimit,
+                0);
+
+        List<IronCondor> condors = new ArrayList<>();
+
+        for (PutCreditSpread putSpread : putSpreads) {
+            for (CallCreditSpread callSpread : callSpreads) {
+                // Ensure no overlap (Short Put Strike < Short Call Strike is guaranteed by
+                // Delta checks/OTM logic usually, but specific check is good)
+                if (putSpread.getShortPut().getStrikePrice() >= callSpread.getShortCall().getStrikePrice())
+                    continue;
+
+                double totalCredit = putSpread.getNetCredit() + callSpread.getNetCredit();
+
+                // Max Loss for Iron Condor is max(PutSpreadRisk, CallSpreadRisk) -
+                // CreditReceived?
+                // Actually standard calculation: Width of widest wing * 100 - Total Credit.
+                // Or simplified: Max(PutWidth*100, CallWidth*100) - Total Credit.
+                double putWidth = (putSpread.getShortPut().getStrikePrice() - putSpread.getLongPut().getStrikePrice())
+                        * 100;
+                double callWidth = (callSpread.getLongCall().getStrikePrice()
+                        - callSpread.getShortCall().getStrikePrice()) * 100;
+                double maxRisk = Math.max(putWidth, callWidth) - totalCredit;
+
+                if (maxRisk > maxLossLimit)
+                    continue;
+
+                double requiredProfit = maxRisk * ((double) minExpectedReturnOnRiskPercentage / 100);
+
+                if (totalCredit < requiredProfit)
+                    continue;
+
+                double returnOnRisk = (totalCredit / maxRisk) * 100;
+                double lowerBreakEven = putSpread.getShortPut().getStrikePrice() - (totalCredit / 100);
+                double upperBreakEven = callSpread.getShortCall().getStrikePrice() + (totalCredit / 100);
+
+                double lowerBreakEvenPercentage = ((currentPrice - lowerBreakEven) / currentPrice) * 100;
+                double upperBreakEvenPercentage = ((upperBreakEven - currentPrice) / currentPrice) * 100;
+
+                condors.add(IronCondor.builder()
+                        .putLeg(putSpread)
+                        .callLeg(callSpread)
+                        .netCredit(totalCredit)
+                        .maxLoss(maxRisk)
+                        .returnOnRisk(returnOnRisk)
+                        .lowerBreakEven(lowerBreakEven)
+                        .upperBreakEven(upperBreakEven)
+                        .lowerBreakEvenPercentage(lowerBreakEvenPercentage)
+                        .upperBreakEvenPercentage(upperBreakEvenPercentage)
+                        .build());
+            }
+        }
+
+        condors.forEach(System.out::println);
     }
 
 }

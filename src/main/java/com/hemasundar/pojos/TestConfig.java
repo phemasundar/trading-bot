@@ -16,6 +16,8 @@ public record TestConfig(
         @JsonProperty("refresh_token") String refreshToken,
         @JsonProperty("app_key") String appKey,
         @JsonProperty("pp_secret") String ppSecret,
+        @JsonProperty("finnhub_api_key") String finnhubApiKey,
+        @JsonProperty("fmp_api_key") String fmpApiKey,
         @JsonProperty("db.timeout") Integer timeout
 ) {
     /**
