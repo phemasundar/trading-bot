@@ -32,10 +32,10 @@ pipeline {
     }
 
     post {
-        always {
-            // Archive test results
-            junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
-        }
+//         always {
+//             // Archive test results
+//             junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
+//         }
         success {
             echo 'Build and tests completed successfully!'
         }
