@@ -51,4 +51,6 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
 
     protected abstract List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
             StrategyFilter filter);
+
+    public abstract String getStrategyName ();
 }

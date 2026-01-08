@@ -130,6 +130,10 @@ public class OptionChainResponse {
         public boolean mini;
         public boolean nonStandard;
         public boolean pennyPilot;
+
+        public double getAbsDelta() {
+            return Math.abs(this.getDelta());
+        }
     }
 
     @Data

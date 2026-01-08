@@ -1,22 +1,19 @@
 package com.hemasundar;
 
 import com.hemasundar.apis.ThinkOrSwinAPIs;
-import com.hemasundar.pojos.OptionChainResponse;
-import com.hemasundar.pojos.RefreshToken;
-import com.hemasundar.pojos.Securities;
-import com.hemasundar.pojos.TestConfig;
+import com.hemasundar.pojos.*;
+import com.hemasundar.strategies.*;
 import com.hemasundar.utils.FilePaths;
 import com.hemasundar.utils.JavaUtils;
-import com.hemasundar.pojos.*;
-import com.hemasundar.strategies.CallCreditSpreadStrategy;
-import com.hemasundar.strategies.IronCondorStrategy;
-import com.hemasundar.strategies.PutCreditSpreadStrategy;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Scanner;
 
 public class SampleTestNG {
@@ -62,56 +59,57 @@ public class SampleTestNG {
     public void getOptionChainData() throws IOException {
         Securities securities = JavaUtils.convertYamlToPojo(Files.readString(FilePaths.securitiesConfig),
                 Securities.class);
-        securities.securities().forEach(currentSecurity -> {
-            System.out.println("---------------------------------------------------------");
-            System.out.println("--------------------------" + currentSecurity + "--------------------------");
-            System.out.println("---------------------------------------------------------");
+        List<OptionChainResponse> optionChainResponseList = securities.securities().stream()
+                .map(ThinkOrSwinAPIs::getOptionChainResponse).toList();
+        StrategyFilter pcsFilter = StrategyFilter.builder()
+                .targetDTE(30)
+                .maxDelta(0.20)
+                .maxLossLimit(1000)
+                .minReturnOnRisk(12)
+                .ignoreEarnings(false)
+                .build();
+        StrategyFilter ccsFilter = StrategyFilter.builder()
+                .targetDTE(30)
+                .maxDelta(0.20)
+                .maxLossLimit(1000)
+                .minReturnOnRisk(12)
+                .ignoreEarnings(false)
+                .build();
+        StrategyFilter icFilter = StrategyFilter.builder()
+                .targetDTE(60)
+                .maxDelta(0.15)
+                .maxLossLimit(1000)
+                .minReturnOnRisk(24)
+                .build();
+        StrategyFilter leapFilter = StrategyFilter.builder()
+                .minDTE((int) ChronoUnit.DAYS.between(LocalDate.now(), LocalDate.now().plusMonths(11)))
+                .minDelta(0.6)
+                .marginInterestRate(6.0)
+                .maxOptionPricePercent(50.0) // Option premium < 50% of underlying
+                .build();
+        printFilteredStrategies(optionChainResponseList, new PutCreditSpreadStrategy(), pcsFilter);
 
-            OptionChainResponse optionChainResponse = ThinkOrSwinAPIs.getOptionChainResponse(currentSecurity);
+//        printFilteredStrategies(optionChainResponseList, new CallCreditSpreadStrategy(), ccsFilter);
 
-            // Enable this to filter the trades if any earnings are there
-            /*
-             * earningsCalendarResponse earningsResponse =
-             * FinnHubAPIs.getEarningsByTicker(currentSecurity,
-             * LocalDate.parse(targetExpiryDate));
-             * if (CollectionUtils.isEmpty(earningsResponse.getEarningsCalendar())) {
-             * System.out.println("Skipping " + currentSecurity +
-             * " due to upcoming earnings on "
-             * + earningsResponse.getEarningsCalendar().get(0).getDate());
-             * return;
-             * }
-             */
+        printFilteredStrategies(optionChainResponseList, new IronCondorStrategy(), icFilter);
 
-            // 1. Put Credit Spreads
-            StrategyFilter pcsFilter = StrategyFilter.builder()
-                    .targetDTE(30)
-                    .maxDelta(0.20)
-                    .maxLossLimit(1000)
-                    .minReturnOnRisk(12)
-                    .ignoreEarnings(false)
-                    .build();
-//            new PutCreditSpreadStrategy().findTrades(optionChainResponse, pcsFilter).forEach(System.out::println);
+        printFilteredStrategies(optionChainResponseList, new LongCallLeapStrategy(), leapFilter);
+    }
 
-            // 2. Call Credit Spreads
-            StrategyFilter ccsFilter = StrategyFilter.builder()
-                    .targetDTE(30)
-                    .maxDelta(0.20)
-                    .maxLossLimit(1000)
-                    .minReturnOnRisk(12)
-                    .ignoreEarnings(false)
-                    .build();
-//            new CallCreditSpreadStrategy().findTrades(optionChainResponse, ccsFilter).forEach(System.out::println);
+    private static void printFilteredStrategies(List<OptionChainResponse> optionChainResponseList, AbstractTradingStrategy strategy, StrategyFilter strategyFilter) {
+        System.out.println("**********************************************************************************\n" +
+                "**********************************************************************************\n" +
+                "****************************** " + strategy.getStrategyName() + " ************************************\n" +
+                "**********************************************************************************\n" +
+                "**********************************************************************************\n");
 
-            // 3. Iron Condors
-            StrategyFilter icFilter = StrategyFilter.builder()
-                    .targetDTE(60)
-                    .maxDelta(0.15)
-                    .maxLossLimit(1000)
-                    .minReturnOnRisk(24)
-                    .build();
-            new IronCondorStrategy().findTrades(optionChainResponse, icFilter).forEach(System.out::println);
+        optionChainResponseList.forEach(optionChainResponse -> {
+            System.out.println("---------------------------------------------------------\n" +
+                    "--------------------------" + optionChainResponse.getSymbol() + "--------------------------\n" +
+                    "---------------------------------------------------------\n");
+
+            strategy.findTrades(optionChainResponse, strategyFilter).forEach(System.out::println);
         });
-
     }
 
 }

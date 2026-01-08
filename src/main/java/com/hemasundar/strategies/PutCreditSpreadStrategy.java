@@ -20,6 +20,11 @@ public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
         return findValidPutCreditSpreads(putMap, chain.getUnderlyingPrice(), filter);
     }
 
+    @Override
+    public String getStrategyName() {
+        return "Put Credit Spread Strategy";
+    }
+
     private List<TradeSetup> findValidPutCreditSpreads(Map<String, List<OptionChainResponse.OptionData>> putMap,
             double currentPrice, StrategyFilter filter) {
 
@@ -36,7 +41,7 @@ public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
                 continue;
             OptionChainResponse.OptionData shortPut = options.get(0);
 
-            if (Math.abs(shortPut.getDelta()) > filter.getMaxDelta()) {
+            if (shortPut.getAbsDelta() > filter.getMaxDelta()) {
                 continue;
             }
 

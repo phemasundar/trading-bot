@@ -43,6 +43,11 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
         return findValidIronCondors(putSpreads, callSpreads, chain.getUnderlyingPrice(), filter);
     }
 
+    @Override
+    public String getStrategyName() {
+        return "Iron Condor Strategy";
+    }
+
     private List<TradeSetup> findValidIronCondors(List<PutCreditSpread> putSpreads,
             List<CallCreditSpread> callSpreads,
             double currentPrice,

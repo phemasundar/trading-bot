@@ -21,6 +21,11 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
         return findValidCallCreditSpreads(callMap, chain.getUnderlyingPrice(), filter);
     }
 
+    @Override
+    public String getStrategyName() {
+        return "CALL Credit Spread Strategy";
+    }
+
     private List<TradeSetup> findValidCallCreditSpreads(Map<String, List<OptionChainResponse.OptionData>> callMap,
             double currentPrice, StrategyFilter filter) {
         List<TradeSetup> spreads = new ArrayList<>();
@@ -43,7 +48,7 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
             if (shortStrikePrice <= currentPrice)
                 continue;
 
-            if (Math.abs(shortCall.getDelta()) > filter.getMaxDelta())
+            if (shortCall.getAbsDelta() > filter.getMaxDelta())
                 continue;
 
             // Iterate for Long Call (Higher Strike)

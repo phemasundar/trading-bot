@@ -30,7 +30,7 @@ public class FinnHubAPIs {
         if (response.statusCode() != 200) {
             throw new RuntimeException("Error fetching earnings: " + response.statusLine());
         }
-        System.out.println(response.asPrettyString());
+//        System.out.println(response.asPrettyString());
         return JavaUtils.convertJsonToPojo(response.asPrettyString(), earningsCalendarResponse.class);
     }
 }
