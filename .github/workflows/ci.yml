@@ -1,0 +1,44 @@
+name: Trading Bot CI
+
+on:
+    schedule:
+        # 9:00 AM CST = 15:00 UTC (CST is UTC-6)
+        - cron: "0 15 * * *"
+        # 2:30 PM CST = 20:30 UTC
+        - cron: "30 20 * * *"
+    workflow_dispatch: # Allow manual trigger
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+
+        env:
+            # Inject secrets as environment variables
+            REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+            APP_KEY: ${{ secrets.APP_KEY }}
+            PP_SECRET: ${{ secrets.PP_SECRET }}
+            FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+            FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+            TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+            TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Set up JDK 21
+              uses: actions/setup-java@v4
+              with:
+                  java-version: "21"
+                  distribution: "temurin"
+                  cache: maven
+
+            - name: Run Tests
+              run: mvn clean test
+
+            - name: Upload Test Results
+              uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: test-results
+                  path: target/surefire-reports/
