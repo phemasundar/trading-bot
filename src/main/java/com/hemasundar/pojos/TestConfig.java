@@ -18,8 +18,9 @@ public record TestConfig(
         @JsonProperty("pp_secret") String ppSecret,
         @JsonProperty("finnhub_api_key") String finnhubApiKey,
         @JsonProperty("fmp_api_key") String fmpApiKey,
-        @JsonProperty("db.timeout") Integer timeout
-) {
+        @JsonProperty("telegram_bot_token") String telegramBotToken,
+        @JsonProperty("telegram_chat_id") String telegramChatId,
+        @JsonProperty("db.timeout") Integer timeout) {
     /**
      * Lazy-loaded singleton holder.
      * The JVM guarantees that 'INSTANCE' is initialized only once,

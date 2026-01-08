@@ -5,6 +5,7 @@ import com.hemasundar.pojos.*;
 import com.hemasundar.strategies.*;
 import com.hemasundar.utils.FilePaths;
 import com.hemasundar.utils.JavaUtils;
+import com.hemasundar.utils.TelegramUtils;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import org.testng.annotations.Test;
@@ -23,8 +24,10 @@ public class SampleTestNG {
 
         // 2. GET THE URL FROM BROWSER
         Scanner scanner = new Scanner(System.in);
-        System.out.println("1. Log in via your browser. \nhttps://api.schwabapi.com/v1/oauth/authorize?client_id="
-                + TestConfig.getInstance().appKey() + "&redirect_uri=https://127.0.0.1");
+        System.out.println(
+                "1. Log in via your browser. \nhttps://api.schwabapi.com/v1/oauth/authorize?client_id="
+                        + TestConfig.getInstance().appKey()
+                        + "&redirect_uri=https://127.0.0.1");
         System.out.println(
                 "2. Copy the FULL URL of the page you are redirected to (the one starting with https://127.0.0.1).");
         System.out.print("Paste the full URL here: ");
@@ -89,26 +92,34 @@ public class SampleTestNG {
                 .build();
         printFilteredStrategies(optionChainResponseList, new PutCreditSpreadStrategy(), pcsFilter);
 
-//        printFilteredStrategies(optionChainResponseList, new CallCreditSpreadStrategy(), ccsFilter);
+        printFilteredStrategies(optionChainResponseList, new CallCreditSpreadStrategy(), ccsFilter);
 
         printFilteredStrategies(optionChainResponseList, new IronCondorStrategy(), icFilter);
 
         printFilteredStrategies(optionChainResponseList, new LongCallLeapStrategy(), leapFilter);
     }
 
-    private static void printFilteredStrategies(List<OptionChainResponse> optionChainResponseList, AbstractTradingStrategy strategy, StrategyFilter strategyFilter) {
-        System.out.println("**********************************************************************************\n" +
-                "**********************************************************************************\n" +
-                "****************************** " + strategy.getStrategyName() + " ************************************\n" +
-                "**********************************************************************************\n" +
-                "**********************************************************************************\n");
+    private static void printFilteredStrategies(List<OptionChainResponse> optionChainResponseList,
+                                                AbstractTradingStrategy strategy, StrategyFilter strategyFilter) {
+        System.out.println("******************************************************************\n" +
+                "******************************************************************\n" +
+                "************* " + strategy.getStrategyName() + " **************\n" +
+                "****************************************************************\n" +
+                "****************************************************************\n");
 
         optionChainResponseList.forEach(optionChainResponse -> {
             System.out.println("---------------------------------------------------------\n" +
-                    "--------------------------" + optionChainResponse.getSymbol() + "--------------------------\n" +
+                    "----------------" + optionChainResponse.getSymbol() + "--------------\n" +
                     "---------------------------------------------------------\n");
 
-            strategy.findTrades(optionChainResponse, strategyFilter).forEach(System.out::println);
+            List<TradeSetup> trades = strategy.findTrades(optionChainResponse, strategyFilter);
+            trades.forEach(System.out::println);
+
+            // Send to Telegram
+            if (!trades.isEmpty()) {
+                TelegramUtils.sendTradeAlerts(strategy.getStrategyName(),
+                        optionChainResponse.getSymbol(), trades);
+            }
         });
     }
 
