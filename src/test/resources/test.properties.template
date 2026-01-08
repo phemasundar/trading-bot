@@ -1,0 +1,15 @@
+# Template configuration file - copy to test.properties and fill in your values
+# DO NOT commit test.properties with actual secrets to Git!
+
+# Schwab API - Refresh token is valid for a week
+refresh_token=YOUR_REFRESH_TOKEN_HERE
+app_key=YOUR_APP_KEY_HERE
+pp_secret=YOUR_PP_SECRET_HERE
+
+# Financial Data APIs
+finnhub_api_key=YOUR_FINNHUB_API_KEY_HERE
+fmp_api_key=YOUR_FMP_API_KEY_HERE
+
+# Telegram Bot Configuration (See README.md for setup instructions)
+telegram_bot_token=YOUR_BOT_TOKEN_HERE
+telegram_chat_id=YOUR_CHAT_ID_HERE

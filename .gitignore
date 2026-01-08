@@ -1,2 +1,5 @@
 /.idea/*
 /target/*
+
+# Secrets - use test.properties.template as reference
+src/test/resources/test.properties

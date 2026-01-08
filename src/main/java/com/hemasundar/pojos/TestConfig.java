@@ -11,6 +11,10 @@ import java.nio.file.Files;
 /**
  * Immutable configuration record.
  * Fields are final, making it naturally thread-safe.
+ * 
+ * Configuration priority:
+ * 1. Environment variables (for CI/CD pipelines)
+ * 2. Properties file (for local development)
  */
 public record TestConfig(
         @JsonProperty("refresh_token") String refreshToken,
@@ -21,6 +25,7 @@ public record TestConfig(
         @JsonProperty("telegram_bot_token") String telegramBotToken,
         @JsonProperty("telegram_chat_id") String telegramChatId,
         @JsonProperty("db.timeout") Integer timeout) {
+
     /**
      * Lazy-loaded singleton holder.
      * The JVM guarantees that 'INSTANCE' is initialized only once,
@@ -30,16 +35,33 @@ public record TestConfig(
         private static final TestConfig INSTANCE = load();
 
         private static TestConfig load() {
-            // Jackson 3 Builder pattern
-            JavaPropsMapper mapper = JavaPropsMapper.builder().build();
+            TestConfig fileConfig = loadFromFile();
 
-            // USE Files.newInputStream for absolute filesystem paths
+            // Override with environment variables if present
+            return new TestConfig(
+                    getEnvOrDefault("REFRESH_TOKEN", fileConfig.refreshToken()),
+                    getEnvOrDefault("APP_KEY", fileConfig.appKey()),
+                    getEnvOrDefault("PP_SECRET", fileConfig.ppSecret()),
+                    getEnvOrDefault("FINNHUB_API_KEY", fileConfig.finnhubApiKey()),
+                    getEnvOrDefault("FMP_API_KEY", fileConfig.fmpApiKey()),
+                    getEnvOrDefault("TELEGRAM_BOT_TOKEN", fileConfig.telegramBotToken()),
+                    getEnvOrDefault("TELEGRAM_CHAT_ID", fileConfig.telegramChatId()),
+                    fileConfig.timeout());
+        }
+
+        private static TestConfig loadFromFile() {
+            JavaPropsMapper mapper = JavaPropsMapper.builder().build();
             try (InputStream is = Files.newInputStream(FilePaths.testConfig)) {
-                TestConfig testConfig = mapper.readValue(is, TestConfig.class);
-                return testConfig;
+                return mapper.readValue(is, TestConfig.class);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to load from filesystem: " + FilePaths.testConfig, e);
+                // Return empty config if file doesn't exist (rely on env vars)
+                return new TestConfig(null, null, null, null, null, null, null, null);
             }
+        }
+
+        private static String getEnvOrDefault(String envVar, String defaultValue) {
+            String envValue = System.getenv(envVar);
+            return (envValue != null && !envValue.isBlank()) ? envValue : defaultValue;
         }
     }
 
