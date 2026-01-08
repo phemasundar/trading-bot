@@ -25,23 +25,10 @@ pipeline {
             }
         }
 
-        stage('Build & Test') {
+        stage('Test') {
             steps {
                 sh 'mvn clean test'
             }
-        }
-    }
-
-    post {
-//         always {
-//             // Archive test results
-//             junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
-//         }
-        success {
-            echo 'Build and tests completed successfully!'
-        }
-        failure {
-            echo 'Build or tests failed.'
         }
     }
 }
