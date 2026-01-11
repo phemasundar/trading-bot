@@ -12,7 +12,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class earningsCalendarResponse {
+public class EarningsCalendarResponse {
 
     private List<EarningCalendar> earningsCalendar;
 

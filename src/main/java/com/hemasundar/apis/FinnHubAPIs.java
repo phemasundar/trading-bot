@@ -1,6 +1,6 @@
 package com.hemasundar.apis;
 
-import com.hemasundar.pojos.earningsCalendarResponse;
+import com.hemasundar.pojos.EarningsCalendarResponse;
 import com.hemasundar.pojos.TestConfig;
 import com.hemasundar.utils.BaseURLs;
 import com.hemasundar.utils.JavaUtils;
@@ -16,7 +16,7 @@ public class FinnHubAPIs {
      *
      * @return
      */
-    public static earningsCalendarResponse getEarningsByTicker(String ticker, LocalDate toDate) {
+    public static EarningsCalendarResponse getEarningsByTicker(String ticker, LocalDate toDate) {
         System.out.println("====== EARNINGS CALENDAR FOR: " + ticker + " ======");
 
         Response response = RestAssured.given()
@@ -31,6 +31,6 @@ public class FinnHubAPIs {
             throw new RuntimeException("Error fetching earnings: " + response.statusLine());
         }
 //        System.out.println(response.asPrettyString());
-        return JavaUtils.convertJsonToPojo(response.asPrettyString(), earningsCalendarResponse.class);
+        return JavaUtils.convertJsonToPojo(response.asPrettyString(), EarningsCalendarResponse.class);
     }
 }

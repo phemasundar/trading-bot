@@ -4,7 +4,7 @@ import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.pojos.OptionChainResponse;
 import com.hemasundar.pojos.StrategyFilter;
 import com.hemasundar.pojos.TradeSetup;
-import com.hemasundar.pojos.earningsCalendarResponse;
+import com.hemasundar.pojos.EarningsCalendarResponse;
 import org.apache.commons.collections4.CollectionUtils;
 
 import java.time.LocalDate;
@@ -26,7 +26,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
                 // If getExpiryDateBasedOnDTE returns something else, we might need a formatter.
                 // Based on previous code in PutCreditSpreadStrategy,
                 // LocalDate.parse(targetExpiryDate) was used.
-                earningsCalendarResponse earningsResponse = FinnHubAPIs.getEarningsByTicker(chain.getSymbol(),
+                EarningsCalendarResponse earningsResponse = FinnHubAPIs.getEarningsByTicker(chain.getSymbol(),
                         LocalDate.parse(targetExpiryDate));
                 if (CollectionUtils.isNotEmpty(earningsResponse.getEarningsCalendar())) {
                     System.out.println("Skipping " + chain.getSymbol() + " due to upcoming earnings on "
