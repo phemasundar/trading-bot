@@ -44,9 +44,12 @@ public enum TokenProvider {
                 .when()
 //                .log().all()
                 .post("https://api.schwabapi.com/v1/oauth/token");
+        if (response.statusCode() != 200) {
+            throw new RuntimeException("Error fetching Access token: " + response.statusLine()
+                    + "\n"
+                    + response.asPrettyString());
+        }
 
-//        System.out.println("Response Code for Access Token API: " + response.statusCode());
-//        System.out.println("Response Body: \n" + response.asPrettyString());
         RefreshToken refreshToken = new ObjectMapper().readValue(response.asPrettyString(), RefreshToken.class);
         // Setting expiry 5 min earlier than the actual expiry (just to be on safer side)
         int newExpiresIn = refreshToken.getExpires_in() - 300;

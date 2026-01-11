@@ -83,12 +83,13 @@ public class SampleTestNG {
                 .maxDelta(0.15)
                 .maxLossLimit(1000)
                 .minReturnOnRisk(24)
+                .ignoreEarnings(false)
                 .build();
         StrategyFilter leapFilter = StrategyFilter.builder()
                 .minDTE((int) ChronoUnit.DAYS.between(LocalDate.now(), LocalDate.now().plusMonths(11)))
                 .minDelta(0.6)
                 .marginInterestRate(6.0)
-                .maxOptionPricePercent(50.0) // Option premium < 50% of underlying
+                .maxOptionPricePercent(40.0) // Option premium < 50% of underlying
                 .build();
         printFilteredStrategies(optionChainResponseList, new PutCreditSpreadStrategy(), pcsFilter);
 
