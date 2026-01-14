@@ -10,6 +10,9 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
   - Call Credit Spread (CCS)
   - Iron Condor
   - Long Call LEAP
+  - RSI Bollinger Bull Put Spread (oversold signal-based)
+  - RSI Bollinger Bear Call Spread (overbought signal-based)
+- **Technical Indicators**: RSI and Bollinger Bands analysis using ta4j library
 - **Telegram Notifications**: Receive trade alerts directly to your Telegram
 
 ## Prerequisites
@@ -69,15 +72,56 @@ This will:
 3. Print results to console
 4. Send alerts to Telegram (if configured)
 
+## Technical Indicator Strategies
+
+### RSI Bollinger Bull Put Spread
+Triggered when **oversold conditions** are detected:
+- RSI (14-day) < 30
+- Price touching or below Lower Bollinger Band (20-day, 2 SD)
+
+**Trade Setup:**
+- Sell Put at ~30 Delta (below current price)
+- Buy Put at ~15-20 Delta (further below)
+- DTE: 30 days
+
+### RSI Bollinger Bear Call Spread
+Triggered when **overbought conditions** are detected:
+- RSI (14-day) > 70
+- Price touching or above Upper Bollinger Band (20-day, 2 SD)
+
+**Trade Setup:**
+- Sell Call at ~30 Delta (above current price)
+- Buy Call at ~15-20 Delta (further above)
+- DTE: 30 days
+
+### Configuring Technical Filters
+
+Technical filters can be composed using the builder pattern:
+
+```java
+TechnicalFilterChain filterChain = TechnicalFilterChain.builder()
+    .withRSI(RSIFilter.builder()
+        .period(14)
+        .oversoldThreshold(30.0)
+        .overboughtThreshold(70.0)
+        .build())
+    .withBollingerBands(BollingerBandsFilter.builder()
+        .period(20)
+        .standardDeviations(2.0)
+        .build())
+    .build();
+```
+
 ## Project Structure
 
 ```
 src/
 ├── main/java/com/hemasundar/
-│   ├── apis/           # API integrations (Schwab, etc.)
+│   ├── apis/           # API integrations (Schwab, FinnHub)
 │   ├── pojos/          # Data models
+│   │   └── technicalfilters/  # Technical indicator filters
 │   ├── strategies/     # Trading strategy implementations
-│   └── utils/          # Utility classes (TelegramUtils, etc.)
+│   └── utils/          # Utility classes (TelegramUtils, TechnicalIndicators, etc.)
 └── test/
     ├── java/           # Test classes
     └── resources/      # Configuration files
@@ -89,3 +133,5 @@ src/
 - TestNG - Testing framework
 - Lombok - Boilerplate reduction
 - Jackson - JSON/YAML processing
+- ta4j-core - Technical analysis library (RSI, Bollinger Bands, etc.)
+

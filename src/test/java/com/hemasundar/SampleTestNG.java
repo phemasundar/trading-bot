@@ -2,6 +2,9 @@ package com.hemasundar;
 
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.pojos.*;
+import com.hemasundar.pojos.technicalfilters.BollingerBandsFilter;
+import com.hemasundar.pojos.technicalfilters.RSIFilter;
+import com.hemasundar.pojos.technicalfilters.TechnicalFilterChain;
 import com.hemasundar.strategies.*;
 import com.hemasundar.utils.FilePaths;
 import com.hemasundar.utils.JavaUtils;
@@ -18,110 +21,141 @@ import java.util.List;
 import java.util.Scanner;
 
 public class SampleTestNG {
-    public static void main(String[] args) {
-        // 1. YOUR CONFIGURATION
-        String redirectUri = "https://127.0.0.1";
+        public static void main(String[] args) {
+                // 1. YOUR CONFIGURATION
+                String redirectUri = "https://127.0.0.1";
 
-        // 2. GET THE URL FROM BROWSER
-        Scanner scanner = new Scanner(System.in);
-        System.out.println(
-                "1. Log in via your browser. \nhttps://api.schwabapi.com/v1/oauth/authorize?client_id="
-                        + TestConfig.getInstance().appKey()
-                        + "&redirect_uri=https://127.0.0.1");
-        System.out.println(
-                "2. Copy the FULL URL of the page you are redirected to (the one starting with https://127.0.0.1).");
-        System.out.print("Paste the full URL here: ");
-        String fullUrl = scanner.nextLine();
+                // 2. GET THE URL FROM BROWSER
+                Scanner scanner = new Scanner(System.in);
+                System.out.println(
+                                "1. Log in via your browser. \nhttps://api.schwabapi.com/v1/oauth/authorize?client_id="
+                                                + TestConfig.getInstance().appKey()
+                                                + "&redirect_uri=https://127.0.0.1");
+                System.out.println(
+                                "2. Copy the FULL URL of the page you are redirected to (the one starting with https://127.0.0.1).");
+                System.out.print("Paste the full URL here: ");
+                String fullUrl = scanner.nextLine();
 
-        // 3. AUTO-EXTRACT AND CLEAN THE CODE
-        String code = fullUrl.split("code=")[1].split("&")[0];
-        code = code.replace("%40", "@"); // Vital fix for Schwab's encoding
+                // 3. AUTO-EXTRACT AND CLEAN THE CODE
+                String code = fullUrl.split("code=")[1].split("&")[0];
+                code = code.replace("%40", "@"); // Vital fix for Schwab's encoding
 
-        System.out.println("Extracted Code: " + code);
-        System.out.println("Exchanging... (9-second timer active)");
+                System.out.println("Extracted Code: " + code);
+                System.out.println("Exchanging... (9-second timer active)");
 
-        // 4. REST-ASSURED REQUEST
-        Response response = RestAssured.given()
-                .auth()
-                .preemptive()
-                .basic(TestConfig.getInstance().appKey(), TestConfig.getInstance().ppSecret())
-                .contentType("application/x-www-form-urlencoded")
-                .formParam("grant_type", "authorization_code")
-                .formParam("code", code)
-                .formParam("redirect_uri", redirectUri)
-                .when()
-                .log().all()
-                .post("https://api.schwabapi.com/v1/oauth/token");
+                // 4. REST-ASSURED REQUEST
+                Response response = RestAssured.given()
+                                .auth()
+                                .preemptive()
+                                .basic(TestConfig.getInstance().appKey(), TestConfig.getInstance().ppSecret())
+                                .contentType("application/x-www-form-urlencoded")
+                                .formParam("grant_type", "authorization_code")
+                                .formParam("code", code)
+                                .formParam("redirect_uri", redirectUri)
+                                .when()
+                                .log().all()
+                                .post("https://api.schwabapi.com/v1/oauth/token");
 
-        System.out.println("Response Code: " + response.statusCode());
-        System.out.println("Response Body: \n" + response.asPrettyString());
-        RefreshToken refreshToken = JavaUtils.convertJsonToPojo(response.asString(), RefreshToken.class);
-    }
+                System.out.println("Response Code: " + response.statusCode());
+                System.out.println("Response Body: \n" + response.asPrettyString());
+                RefreshToken refreshToken = JavaUtils.convertJsonToPojo(response.asString(), RefreshToken.class);
+        }
 
-    @Test
-    public void getOptionChainData() throws IOException {
-        Securities securities = JavaUtils.convertYamlToPojo(Files.readString(FilePaths.securitiesConfig),
-                Securities.class);
-        List<OptionChainResponse> optionChainResponseList = securities.securities().stream()
-                .map(ThinkOrSwinAPIs::getOptionChainResponse).toList();
-        StrategyFilter pcsFilter = StrategyFilter.builder()
-                .targetDTE(30)
-                .maxDelta(0.20)
-                .maxLossLimit(1000)
-                .minReturnOnRisk(12)
-                .ignoreEarnings(false)
-                .build();
-        StrategyFilter ccsFilter = StrategyFilter.builder()
-                .targetDTE(30)
-                .maxDelta(0.20)
-                .maxLossLimit(1000)
-                .minReturnOnRisk(12)
-                .ignoreEarnings(false)
-                .build();
-        StrategyFilter icFilter = StrategyFilter.builder()
-                .targetDTE(60)
-                .maxDelta(0.15)
-                .maxLossLimit(1000)
-                .minReturnOnRisk(24)
-                .ignoreEarnings(false)
-                .build();
-        StrategyFilter leapFilter = StrategyFilter.builder()
-                .minDTE((int) ChronoUnit.DAYS.between(LocalDate.now(), LocalDate.now().plusMonths(11)))
-                .minDelta(0.6)
-                .marginInterestRate(6.0)
-                .maxOptionPricePercent(40.0) // Option premium < 50% of underlying
-                .build();
-        printFilteredStrategies(optionChainResponseList, new PutCreditSpreadStrategy(), pcsFilter);
+        @Test
+        public void getOptionChainData() throws IOException {
+                Securities securities = JavaUtils.convertYamlToPojo(Files.readString(FilePaths.securitiesConfig),
+                                Securities.class);
+                List<OptionChainResponse> optionChainResponseList = securities.securities().stream()
+                                .map(ThinkOrSwinAPIs::getOptionChainResponse).toList();
+                StrategyFilter pcsFilter = StrategyFilter.builder()
+                                .targetDTE(30)
+                                .maxDelta(0.20)
+                                .maxLossLimit(1000)
+                                .minReturnOnRisk(12)
+                                .ignoreEarnings(false)
+                                .build();
+                StrategyFilter ccsFilter = StrategyFilter.builder()
+                                .targetDTE(30)
+                                .maxDelta(0.20)
+                                .maxLossLimit(1000)
+                                .minReturnOnRisk(12)
+                                .ignoreEarnings(false)
+                                .build();
+                StrategyFilter icFilter = StrategyFilter.builder()
+                                .targetDTE(60)
+                                .maxDelta(0.15)
+                                .maxLossLimit(1000)
+                                .minReturnOnRisk(24)
+                                .ignoreEarnings(false)
+                                .build();
+                StrategyFilter leapFilter = StrategyFilter.builder()
+                                .minDTE((int) ChronoUnit.DAYS.between(LocalDate.now(), LocalDate.now().plusMonths(11)))
+                                .minDelta(0.6)
+                                .marginInterestRate(6.0)
+                                .maxOptionPricePercent(40.0) // Option premium < 50% of underlying
+                                .build();
+                printFilteredStrategies(optionChainResponseList, new PutCreditSpreadStrategy(), pcsFilter);
 
-        printFilteredStrategies(optionChainResponseList, new CallCreditSpreadStrategy(), ccsFilter);
+                printFilteredStrategies(optionChainResponseList, new CallCreditSpreadStrategy(), ccsFilter);
 
-        printFilteredStrategies(optionChainResponseList, new IronCondorStrategy(), icFilter);
+                printFilteredStrategies(optionChainResponseList, new IronCondorStrategy(), icFilter);
 
-        printFilteredStrategies(optionChainResponseList, new LongCallLeapStrategy(), leapFilter);
-    }
+                printFilteredStrategies(optionChainResponseList, new LongCallLeapStrategy(), leapFilter);
 
-    private static void printFilteredStrategies(List<OptionChainResponse> optionChainResponseList,
-                                                AbstractTradingStrategy strategy, StrategyFilter strategyFilter) {
-        System.out.println("******************************************************************\n" +
-                "******************************************************************\n" +
-                "************* " + strategy.getStrategyName() + " **************\n" +
-                "****************************************************************\n" +
-                "****************************************************************\n");
+                // RSI & Bollinger Bands based strategies
+                // Build technical filter chain with RSI and Bollinger Bands
+                TechnicalFilterChain filterChain = TechnicalFilterChain.builder()
+                                .withRSI(RSIFilter.builder()
+                                                .period(14)
+                                                .oversoldThreshold(30.0)
+                                                .overboughtThreshold(70.0)
+                                                .build())
+                                .withBollingerBands(BollingerBandsFilter.builder()
+                                                .period(20)
+                                                .standardDeviations(2.0)
+                                                .build())
+                                .build();
 
-        optionChainResponseList.forEach(optionChainResponse -> {
-            System.out.println("---------------------------------------------------------\n" +
-                    "----------------" + optionChainResponse.getSymbol() + "--------------\n" +
-                    "---------------------------------------------------------\n");
+                // Strategy filter for RSI Bollinger spreads
+                StrategyFilter rsiBBFilter = StrategyFilter.builder()
+                                .targetDTE(30)
+                                .maxDelta(0.35) // Short leg ~30 delta (with some tolerance)
+                                .maxLossLimit(1000)
+                                .minReturnOnRisk(12)
+                                .ignoreEarnings(false)
+                                .build();
 
-            List<TradeSetup> trades = strategy.findTrades(optionChainResponse, strategyFilter);
-            trades.forEach(System.out::println);
+                // Bull Put Spread Strategy (triggered on oversold conditions)
+                printFilteredStrategies(optionChainResponseList,
+                                new RSIBollingerBullPutSpreadStrategy(filterChain), rsiBBFilter);
 
-            // Send to Telegram
-            if (!trades.isEmpty()) {
-                TelegramUtils.sendTradeAlerts(strategy.getStrategyName(),
-                        optionChainResponse.getSymbol(), trades);
-            }
-        });
-    }
+                // Bear Call Spread Strategy (triggered on overbought conditions)
+                printFilteredStrategies(optionChainResponseList,
+                                new RSIBollingerBearCallSpreadStrategy(filterChain), rsiBBFilter);
+        }
+
+        private static void printFilteredStrategies(List<OptionChainResponse> optionChainResponseList,
+                        AbstractTradingStrategy strategy, StrategyFilter strategyFilter) {
+                System.out.println("******************************************************************\n" +
+                                "******************************************************************\n" +
+                                "************* " + strategy.getStrategyName() + " **************\n" +
+                                "****************************************************************\n" +
+                                "****************************************************************\n");
+
+                optionChainResponseList.forEach(optionChainResponse -> {
+                        System.out.println("---------------------------------------------------------\n" +
+                                        "----------------" + optionChainResponse.getSymbol() + "--------------\n" +
+                                        "---------------------------------------------------------\n");
+
+                        List<TradeSetup> trades = strategy.findTrades(optionChainResponse, strategyFilter);
+                        trades.forEach(System.out::println);
+
+                        // Send to Telegram
+                        if (!trades.isEmpty()) {
+                                TelegramUtils.sendTradeAlerts(strategy.getStrategyName(),
+                                                optionChainResponse.getSymbol(), trades);
+                        }
+                });
+        }
 
 }
