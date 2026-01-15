@@ -39,6 +39,10 @@ public class TechnicalStockValidator {
 
         try {
             QuotesResponse.QuoteData quoteData = ThinkOrSwinAPIs.getQuote(symbol);
+            if (quoteData == null) {
+                // 400 error was handled by ApiErrorHandler, continue execution
+                return true;
+            }
             long currentVolume = quoteData.getQuote().getTotalVolume();
             if (currentVolume < minVolume) {
                 log.debug("[{}] Volume: {:,} - BELOW threshold ({:,}). Skipping.",
@@ -48,6 +52,7 @@ public class TechnicalStockValidator {
             log.debug("[{}] Volume: {:,} - OK", symbol, currentVolume);
             return true;
         } catch (Exception e) {
+            // Non-400 error, log but continue
             log.warn("[{}] Failed to fetch quote for volume check: {}", symbol, e.getMessage());
             return true; // Allow through if we can't check
         }

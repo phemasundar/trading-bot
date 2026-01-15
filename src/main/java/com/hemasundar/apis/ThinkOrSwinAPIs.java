@@ -1,19 +1,14 @@
 package com.hemasundar.apis;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hemasundar.options.models.ExpirationChainResponse;
 import com.hemasundar.options.models.OptionChainResponse;
-import com.hemasundar.options.models.OptionType;
-import com.hemasundar.pojos.EarningsCalendarResponse;
 import com.hemasundar.pojos.QuotesResponse;
 import com.hemasundar.pojos.PriceHistoryResponse;
+import com.hemasundar.utils.ApiErrorHandler;
 import com.hemasundar.utils.TokenProvider;
 import com.hemasundar.utils.JavaUtils;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
-import lombok.experimental.UtilityClass;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2
@@ -26,8 +21,14 @@ public class ThinkOrSwinAPIs {
                 .queryParam("strategy", "SINGLE")
                 // .log().all()
                 .get("https://api.schwabapi.com/marketdata/v1/chains");
-        if (response.statusCode() != 200)
-            throw new RuntimeException("Option Chain API failed");
+        if (response.statusCode() != 200) {
+            if (response.statusCode() == 400) {
+                ApiErrorHandler.handle400Error("Option Chain API", symbol, response.asString());
+                return null;
+            }
+            throw new RuntimeException("Option Chain API failed for " + symbol + ": " + response.statusCode() + " - "
+                    + response.asString());
+        }
 
         // System.out.println("Response code for Option chain API: " +
         // response.getStatusCode());
@@ -87,6 +88,10 @@ public class ThinkOrSwinAPIs {
         Response response = request.get("https://api.schwabapi.com/marketdata/v1/pricehistory");
 
         if (response.statusCode() != 200) {
+            if (response.statusCode() == 400) {
+                ApiErrorHandler.handle400Error("Price History API", symbol, response.asString());
+                return null;
+            }
             throw new RuntimeException(
                     "Price History API failed: " + response.statusCode() + " - " + response.asString());
         }
@@ -176,6 +181,10 @@ public class ThinkOrSwinAPIs {
                 .get("https://api.schwabapi.com/marketdata/v1/" + symbol + "/quotes");
 
         if (response.statusCode() != 200) {
+            if (response.statusCode() == 400) {
+                ApiErrorHandler.handle400Error("Quote API", symbol, response.asString());
+                return null;
+            }
             throw new RuntimeException(
                     "Quote API failed for " + symbol + ": " + response.statusCode() + " - " + response.asString());
         }
@@ -211,6 +220,10 @@ public class ThinkOrSwinAPIs {
                 .get("https://api.schwabapi.com/marketdata/v1/expirationchain");
 
         if (response.statusCode() != 200) {
+            if (response.statusCode() == 400) {
+                ApiErrorHandler.handle400Error("Expiration Chain API", symbol, response.asString());
+                return null;
+            }
             throw new RuntimeException(
                     "Expiration Chain API failed for " + symbol + ": " + response.statusCode() + " - "
                             + response.asString());

@@ -2,6 +2,7 @@ package com.hemasundar.apis;
 
 import com.hemasundar.pojos.EarningsCalendarResponse;
 import com.hemasundar.pojos.TestConfig;
+import com.hemasundar.utils.ApiErrorHandler;
 import com.hemasundar.utils.BaseURLs;
 import com.hemasundar.utils.EarningsCacheManager;
 import com.hemasundar.utils.JavaUtils;
@@ -51,6 +52,10 @@ public class FinnHubAPIs {
                 .get("/calendar/earnings");
 
         if (response.statusCode() != 200) {
+            if (response.statusCode() == 400) {
+                ApiErrorHandler.handle400Error("FinnHub Earnings API", ticker, response.asString());
+                return new EarningsCalendarResponse(List.of());
+            }
             throw new RuntimeException("Error fetching earnings: " + response.statusLine());
         }
         log.debug("Earnings response for {}: {}", ticker, response.asPrettyString());
