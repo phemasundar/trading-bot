@@ -12,7 +12,7 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
   - Long Call LEAP
   - RSI Bollinger Bull Put Spread (oversold signal-based)
   - RSI Bollinger Bear Call Spread (overbought signal-based)
-- **Technical Indicators**: RSI and Bollinger Bands analysis using ta4j library
+- **Technical Indicators**: RSI, Bollinger Bands, and Volume analysis using ta4j library
 - **Telegram Notifications**: Receive trade alerts directly to your Telegram
 
 ## Prerequisites
@@ -72,12 +72,31 @@ This will:
 3. Print results to console
 4. Send alerts to Telegram (if configured)
 
+### Configuring Securities Files Per Strategy
+
+Each strategy can use a different securities file. Edit `SampleTestNG.java` to configure:
+
+```java
+// Default strategies use securities.yaml
+String defaultSecuritiesFile = "securities.yaml";
+
+// RSI Bollinger strategies can use a different file
+String rsiBollingerSecuritiesFile = "top100.yaml";
+```
+
+**Available securities files:**
+- `securities.yaml` - Custom watchlist
+- `top100.yaml` - Top 100 stocks
+
+**API Call Optimization:** The `OptionChainCache` ensures each symbol is fetched only once, even if used by multiple strategies. At the end of execution, cache statistics are printed showing the total API calls made.
+
 ## Technical Indicator Strategies
 
 ### RSI Bollinger Bull Put Spread
 Triggered when **oversold conditions** are detected:
 - RSI (14-day) < 30
 - Price touching or below Lower Bollinger Band (20-day, 2 SD)
+- Volume >= 100,000 shares (real-time via Quotes API, configurable)
 
 **Trade Setup:**
 - Sell Put at ~30 Delta (below current price)
@@ -88,6 +107,7 @@ Triggered when **oversold conditions** are detected:
 Triggered when **overbought conditions** are detected:
 - RSI (14-day) > 70
 - Price touching or above Upper Bollinger Band (20-day, 2 SD)
+- Volume >= 100,000 shares (real-time via Quotes API, configurable)
 
 **Trade Setup:**
 - Sell Call at ~30 Delta (above current price)
@@ -109,7 +129,55 @@ TechnicalFilterChain filterChain = TechnicalFilterChain.builder()
         .period(20)
         .standardDeviations(2.0)
         .build())
+    .withVolume(VolumeFilter.builder()
+        .minVolume(100_000L)  // Minimum 100K shares
+        .build())
     .build();
+```
+
+## API Methods
+
+The `ThinkOrSwinAPIs` class provides the following methods for interacting with Schwab's Market Data API:
+
+### Option Chain
+```java
+// Get full option chain for a symbol
+OptionChainResponse chain = ThinkOrSwinAPIs.getOptionChainResponse("AAPL");
+```
+
+### Price History
+```java
+// Get yearly price history with daily frequency
+PriceHistoryResponse history = ThinkOrSwinAPIs.getYearlyPriceHistory("AAPL", 1);
+
+// Get price history with custom parameters
+PriceHistoryResponse history = ThinkOrSwinAPIs.getPriceHistory(
+    "AAPL", "year", 1, "daily", 1, null, null, false, true);
+```
+
+### Quotes
+```java
+// Get quotes for multiple symbols
+Map<String, QuotesResponse.QuoteData> quotes = ThinkOrSwinAPIs.getQuotes(
+    List.of("AAPL", "TSLA", "AMZN"));
+
+// Get quote for a single symbol
+QuotesResponse.QuoteData quote = ThinkOrSwinAPIs.getQuote("TSLA");
+
+// Access quote data
+long volume = quote.getQuote().getTotalVolume();
+double lastPrice = quote.getQuote().getLastPrice();
+```
+
+### Expiration Chain
+```java
+// Get all available expiration dates for a symbol
+ExpirationChainResponse expirations = ThinkOrSwinAPIs.getExpirationChain("AAPL");
+
+// Access expiration dates
+expirations.getExpirationList().forEach(exp -> {
+    System.out.println(exp.getExpirationDate() + " - DTE: " + exp.getDaysToExpiration());
+});
 ```
 
 ## Project Structure

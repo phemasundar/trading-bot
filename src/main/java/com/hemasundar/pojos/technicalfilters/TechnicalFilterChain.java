@@ -100,6 +100,13 @@ public class TechnicalFilterChain {
         }
 
         /**
+         * Convenience method to add a Volume filter.
+         */
+        public TechnicalFilterChainBuilder withVolume(VolumeFilter volumeFilter) {
+            return addFilter(volumeFilter);
+        }
+
+        /**
          * Builds the TechnicalFilterChain.
          */
         public TechnicalFilterChain build() {

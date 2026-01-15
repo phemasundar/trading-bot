@@ -9,4 +9,5 @@ import java.nio.file.Path;
 public class FilePaths {
     public static final Path testConfig = Path.of("src/test/resources/test.properties");
     public static final Path securitiesConfig = Path.of("src/test/resources/securities.yaml");
+    public static final Path top100Config = Path.of("src/test/resources/top100.yaml");
 }

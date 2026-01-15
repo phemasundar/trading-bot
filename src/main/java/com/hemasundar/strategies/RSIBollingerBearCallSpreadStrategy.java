@@ -5,6 +5,7 @@ import com.hemasundar.pojos.*;
 import com.hemasundar.pojos.technicalfilters.BollingerBandsFilter;
 import com.hemasundar.pojos.technicalfilters.RSIFilter;
 import com.hemasundar.pojos.technicalfilters.TechnicalFilterChain;
+import com.hemasundar.pojos.technicalfilters.VolumeFilter;
 import com.hemasundar.utils.TechnicalIndicators;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.CollectionUtils;
@@ -43,7 +44,25 @@ public class RSIBollingerBearCallSpreadStrategy extends AbstractTradingStrategy 
             return new ArrayList<>();
         }
 
-        // 2. Check for OVERBOUGHT conditions (Bearish signal)
+        // 2. Check volume condition using Quotes API (real-time volume)
+        VolumeFilter volumeFilter = filterChain.getFilter(VolumeFilter.class);
+        if (volumeFilter != null) {
+            try {
+                QuotesResponse.QuoteData quoteData = ThinkOrSwinAPIs.getQuote(chain.getSymbol());
+                long currentVolume = quoteData.getQuote().getTotalVolume();
+                if (currentVolume < volumeFilter.getMinVolume()) {
+                    System.out.printf("  [%s] Volume: %,d - BELOW threshold (%,d). Skipping.%n",
+                            chain.getSymbol(), currentVolume, volumeFilter.getMinVolume());
+                    return new ArrayList<>();
+                }
+                System.out.printf("  [%s] Volume: %,d - OK%n", chain.getSymbol(), currentVolume);
+            } catch (Exception e) {
+                System.out.printf("  [%s] Failed to fetch quote for volume check: %s%n",
+                        chain.getSymbol(), e.getMessage());
+            }
+        }
+
+        // 3. Check for OVERBOUGHT conditions (Bearish signal)
         RSIFilter rsiFilter = filterChain.getFilter(RSIFilter.class);
         BollingerBandsFilter bbFilter = filterChain.getFilter(BollingerBandsFilter.class);
 
