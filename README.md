@@ -195,6 +195,33 @@ src/
     └── resources/      # Configuration files
 ```
 
+## Logging
+
+The application uses **Log4j2** for logging with JSON configuration.
+
+### Log Levels
+
+| Level | Usage |
+|-------|-------|
+| `DEBUG` | Technical indicators, cache operations, API details |
+| `INFO` | Strategy execution, trade signals, API calls |
+| `WARN` | Skipped symbols, missing configurations |
+| `ERROR` | API failures, exceptions |
+
+### Configuration
+
+Logs are configured in `src/main/resources/log4j2.json`:
+- **Console**: Outputs to stdout with pattern `HH:mm:ss.SSS LEVEL ClassName - message`
+- **RollingFile**: Writes to `logs/trading-bot.log` with daily rotation (max 10 files, 10MB each)
+
+To change log levels, edit the `log4j2.json` file:
+```json
+{
+  "name": "com.hemasundar",
+  "level": "debug"  // Change to "info", "warn", or "error"
+}
+```
+
 ## Dependencies
 
 - RestAssured - HTTP client
@@ -202,4 +229,5 @@ src/
 - Lombok - Boilerplate reduction
 - Jackson - JSON/YAML processing
 - ta4j-core - Technical analysis library (RSI, Bollinger Bands, etc.)
+- Log4j2 - Logging framework
 

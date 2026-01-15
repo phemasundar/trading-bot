@@ -7,10 +7,12 @@ import com.hemasundar.utils.EarningsCacheManager;
 import com.hemasundar.utils.JavaUtils;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
+import lombok.extern.log4j.Log4j2;
 
 import java.time.LocalDate;
 import java.util.List;
 
+@Log4j2
 public class FinnHubAPIs {
     /**
      * Fetches the Earnings Calendar for a specific ticker.
@@ -31,7 +33,7 @@ public class FinnHubAPIs {
             return new EarningsCalendarResponse(filteredCached);
         }
 
-        System.out.println("====== FETCHING FRESH EARNINGS FOR: " + ticker + " ======");
+        log.info("Fetching fresh earnings for: {}", ticker);
 
         // 2. Fetch Fresh Data (Always fetch 1 year ahead for better caching)
         LocalDate oneYearFromNow = LocalDate.now().plusYears(1);
@@ -51,7 +53,7 @@ public class FinnHubAPIs {
         if (response.statusCode() != 200) {
             throw new RuntimeException("Error fetching earnings: " + response.statusLine());
         }
-        System.out.println(response.asPrettyString());
+        log.debug("Earnings response for {}: {}", ticker, response.asPrettyString());
 
         EarningsCalendarResponse result = JavaUtils.convertJsonToPojo(response.asPrettyString(),
                 EarningsCalendarResponse.class);

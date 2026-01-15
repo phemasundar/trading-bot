@@ -8,6 +8,7 @@ import com.hemasundar.pojos.technicalfilters.TechnicalFilterChain;
 import com.hemasundar.pojos.technicalfilters.VolumeFilter;
 import com.hemasundar.utils.TechnicalIndicators;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.CollectionUtils;
 import org.ta4j.core.BarSeries;
 
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
  * - Buy: Call option at ~15-20 Delta (further above current price)
  * - DTE: 30 days
  */
+@Log4j2
 @RequiredArgsConstructor
 public class RSIBollingerBearCallSpreadStrategy extends AbstractTradingStrategy {
 
@@ -40,7 +42,7 @@ public class RSIBollingerBearCallSpreadStrategy extends AbstractTradingStrategy 
         BarSeries series = TechnicalIndicators.buildBarSeries(chain.getSymbol(), priceHistory);
 
         if (series.getBarCount() == 0) {
-            System.out.println("No price history available for " + chain.getSymbol());
+            log.warn("[{}] No price history available", chain.getSymbol());
             return new ArrayList<>();
         }
 
@@ -51,13 +53,13 @@ public class RSIBollingerBearCallSpreadStrategy extends AbstractTradingStrategy 
                 QuotesResponse.QuoteData quoteData = ThinkOrSwinAPIs.getQuote(chain.getSymbol());
                 long currentVolume = quoteData.getQuote().getTotalVolume();
                 if (currentVolume < volumeFilter.getMinVolume()) {
-                    System.out.printf("  [%s] Volume: %,d - BELOW threshold (%,d). Skipping.%n",
+                    log.debug("[{}] Volume: {} - BELOW threshold ({}). Skipping.",
                             chain.getSymbol(), currentVolume, volumeFilter.getMinVolume());
                     return new ArrayList<>();
                 }
-                System.out.printf("  [%s] Volume: %,d - OK%n", chain.getSymbol(), currentVolume);
+                log.debug("[{}] Volume: {} - OK", chain.getSymbol(), currentVolume);
             } catch (Exception e) {
-                System.out.printf("  [%s] Failed to fetch quote for volume check: %s%n",
+                log.warn("[{}] Failed to fetch quote for volume check: {}",
                         chain.getSymbol(), e.getMessage());
             }
         }
@@ -67,7 +69,7 @@ public class RSIBollingerBearCallSpreadStrategy extends AbstractTradingStrategy 
         BollingerBandsFilter bbFilter = filterChain.getFilter(BollingerBandsFilter.class);
 
         if (rsiFilter == null || bbFilter == null) {
-            System.out.println("RSI or Bollinger Bands filter not configured in filter chain");
+            log.error("RSI or Bollinger Bands filter not configured in filter chain");
             return new ArrayList<>();
         }
 
@@ -75,16 +77,16 @@ public class RSIBollingerBearCallSpreadStrategy extends AbstractTradingStrategy 
         double upperBand = bbFilter.getUpperBand(series);
         double currentPrice = chain.getUnderlyingPrice();
 
-        System.out.printf("  [%s] RSI: %.2f | Upper BB: %.2f | Price: %.2f%n",
+        log.debug("[{}] RSI: {} | Upper BB: {} | Price: {}",
                 chain.getSymbol(), currentRSI, upperBand, currentPrice);
 
         // OVERBOUGHT condition: RSI > threshold AND price touching/piercing upper band
         if (!rsiFilter.isOverbought(series) || !bbFilter.isPriceTouchingUpperBand(series)) {
-            System.out.println("  -> Conditions NOT met for Bear Call Spread (not overbought)");
+            log.debug("[{}] Conditions NOT met for Bear Call Spread (not overbought)", chain.getSymbol());
             return new ArrayList<>();
         }
 
-        System.out.println("  -> OVERBOUGHT conditions met! Looking for Bear Call Spread...");
+        log.info("[{}] OVERBOUGHT conditions met! Looking for Bear Call Spread...", chain.getSymbol());
 
         // 3. Find Bear Call Spread trades
         Map<String, List<OptionChainResponse.OptionData>> callMap = chain.getOptionDataForASpecificExpiryDate(

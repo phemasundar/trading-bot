@@ -6,17 +6,16 @@ import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import lombok.extern.java.Log;
+import lombok.extern.log4j.Log4j2;
 
 import java.util.List;
-import java.util.logging.Level;
 
 /**
  * Utility class for sending messages to Telegram via Bot API.
  * Requires telegram_bot_token and telegram_chat_id to be configured in
  * test.properties.
  */
-@Log
+@Log4j2
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class TelegramUtils {
 
@@ -33,7 +32,7 @@ public class TelegramUtils {
         String chatId = TestConfig.getInstance().telegramChatId();
 
         if (botToken == null || botToken.isBlank() || chatId == null || chatId.isBlank()) {
-            log.warning("Telegram not configured. Set telegram_bot_token and telegram_chat_id in test.properties");
+            log.warn("Telegram not configured. Set telegram_bot_token and telegram_chat_id in test.properties");
             return false;
         }
 
@@ -54,11 +53,11 @@ public class TelegramUtils {
                 log.info("Telegram message sent successfully");
                 return true;
             } else {
-                log.warning("Failed to send Telegram message: " + response.statusCode() + " - " + response.asString());
+                log.warn("Failed to send Telegram message: {} - {}", response.statusCode(), response.asString());
                 return false;
             }
         } catch (Exception e) {
-            log.log(Level.SEVERE, "Error sending Telegram message", e);
+            log.error("Error sending Telegram message", e);
             return false;
         }
     }

@@ -5,6 +5,7 @@ import com.hemasundar.serializers.ExpirationKeyDeserializer;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import tools.jackson.databind.annotation.JsonDeserialize;
 
 import java.util.Comparator;
@@ -12,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 @Data
+@Log4j2
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class OptionChainResponse {
     public String symbol;
@@ -38,15 +40,18 @@ public class OptionChainResponse {
     @JsonDeserialize(keyUsing = ExpirationKeyDeserializer.class)
     public Map<ExpirationDateKey, Map<String, List<OptionData>>> putExpDateMap;
 
-    public Map<String, List<OptionChainResponse.OptionData>> getOptionDataForASpecificExpiryDate(OptionType optionType, String targetExpiryDate) {
-        Map<ExpirationDateKey, Map<String, List<OptionData>>> expDateMap = (optionType == OptionType.PUT) ? this.getPutExpDateMap() : this.getCallExpDateMap();
+    public Map<String, List<OptionChainResponse.OptionData>> getOptionDataForASpecificExpiryDate(OptionType optionType,
+            String targetExpiryDate) {
+        Map<ExpirationDateKey, Map<String, List<OptionData>>> expDateMap = (optionType == OptionType.PUT)
+                ? this.getPutExpDateMap()
+                : this.getCallExpDateMap();
         Map<String, List<OptionChainResponse.OptionData>> putMap = expDateMap.entrySet().stream()
                 .filter(entry ->
-                        // Access the 'date' field within the complex key object
-                        entry.getKey().getDate().equals(targetExpiryDate))
+                // Access the 'date' field within the complex key object
+                entry.getKey().getDate().equals(targetExpiryDate))
                 .map(Map.Entry::getValue)
                 .findFirst().orElse(Map.of());
-//        System.out.println(putMap);
+        // System.out.println(putMap);
         return putMap;
     }
 
@@ -54,12 +59,11 @@ public class OptionChainResponse {
         String targetExpiryDate = this.getPutExpDateMap()
                 .keySet().stream()
                 // Find key with minimum absolute difference from target
-                .min(Comparator.comparingInt(key ->
-                        Math.abs(key.getDaysToExpiry() - targetDays)))
+                .min(Comparator.comparingInt(key -> Math.abs(key.getDaysToExpiry() - targetDays)))
                 // Extract only the date field from that key
                 .map(OptionChainResponse.ExpirationDateKey::getDate)
                 .orElseThrow(() -> new RuntimeException("No Expiry Found"));
-        System.out.println("Target Expiry Date: " + targetExpiryDate);
+        log.debug("[{}] Target Expiry Date: {}", this.symbol, targetExpiryDate);
         return targetExpiryDate;
     }
 
@@ -145,4 +149,3 @@ public class OptionChainResponse {
         public String currencyType;
     }
 }
-

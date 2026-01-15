@@ -1,0 +1,88 @@
+{
+  "Configuration": {
+    "status": "warn",
+    "name": "TradingBotConfig",
+    "properties": {
+      "property": [
+        {
+          "name": "logPath",
+          "value": "logs"
+        },
+        {
+          "name": "pattern",
+          "value": "%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %c{1} - %msg%n"
+        }
+      ]
+    },
+    "appenders": {
+      "Console": {
+        "name": "Console",
+        "target": "SYSTEM_OUT",
+        "PatternLayout": {
+          "pattern": "%d{HH:mm:ss.SSS} %-5level %c{1} - %msg%n"
+        }
+      },
+      "RollingFile": {
+        "name": "RollingFile",
+        "fileName": "${logPath}/trading-bot.log",
+        "filePattern": "${logPath}/trading-bot-%d{yyyy-MM-dd}-%i.log.gz",
+        "PatternLayout": {
+          "pattern": "${pattern}"
+        },
+        "Policies": {
+          "SizeBasedTriggeringPolicy": {
+            "size": "10 MB"
+          },
+          "TimeBasedTriggeringPolicy": {
+            "interval": "1",
+            "modulate": true
+          }
+        },
+        "DefaultRolloverStrategy": {
+          "max": "10"
+        }
+      }
+    },
+    "loggers": {
+      "root": {
+        "level": "info",
+        "AppenderRef": [
+          {
+            "ref": "Console"
+          },
+          {
+            "ref": "RollingFile"
+          }
+        ]
+      },
+      "logger": [
+        {
+          "name": "com.hemasundar",
+          "level": "info",
+          "additivity": false,
+          "AppenderRef": [
+            {
+              "ref": "Console"
+            },
+            {
+              "ref": "RollingFile"
+            }
+          ]
+        },
+        {
+          "name": "com.hemasundar.apis",
+          "level": "info",
+          "additivity": false,
+          "AppenderRef": [
+            {
+              "ref": "Console"
+            },
+            {
+              "ref": "RollingFile"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

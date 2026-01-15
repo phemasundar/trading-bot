@@ -8,7 +8,9 @@ import com.hemasundar.utils.JavaUtils;
 import com.hemasundar.utils.TokenProvider;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
+import lombok.extern.log4j.Log4j2;
 
+@Log4j2
 public class ThinkOrSwinAPIs {
     public static OptionChainResponse getOptionChainResponse(String symbol) {
         Response response = RestAssured.given()
@@ -27,7 +29,7 @@ public class ThinkOrSwinAPIs {
 
         OptionChainResponse optionChainResponse = JavaUtils.convertJsonToPojo(response.asString(),
                 OptionChainResponse.class);
-        System.out.println("Current Maket Price: " + optionChainResponse.getUnderlyingPrice());
+        log.debug("[{}] Current Market Price: {}", symbol, optionChainResponse.getUnderlyingPrice());
         return optionChainResponse;
     }
 

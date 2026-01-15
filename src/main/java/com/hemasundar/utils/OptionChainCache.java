@@ -3,6 +3,7 @@ package com.hemasundar.utils;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.pojos.OptionChainResponse;
 import lombok.Getter;
+import lombok.extern.log4j.Log4j2;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Subsequent requests for the same symbol return the cached response.
  * This minimizes API calls when multiple strategies use overlapping symbols.
  */
+@Log4j2
 public class OptionChainCache {
 
     private final Map<String, OptionChainResponse> cache = new ConcurrentHashMap<>();
@@ -32,7 +34,7 @@ public class OptionChainCache {
     public OptionChainResponse get(String symbol) {
         return cache.computeIfAbsent(symbol, s -> {
             apiCallCount++;
-            System.out.printf("  [Cache] Fetching from API: %s (API call #%d)%n", s, apiCallCount);
+            log.debug("Fetching from API: {} (API call #{})", s, apiCallCount);
             return ThinkOrSwinAPIs.getOptionChainResponse(s);
         });
     }
@@ -50,7 +52,7 @@ public class OptionChainCache {
             try {
                 responses.add(get(symbol));
             } catch (Exception e) {
-                System.err.printf("  [Cache] Failed to fetch %s: %s%n", symbol, e.getMessage());
+                log.error("Failed to fetch {}: {}", symbol, e.getMessage());
             }
         }
         return responses;
@@ -85,7 +87,6 @@ public class OptionChainCache {
      * Prints cache statistics.
      */
     public void printStats() {
-        System.out.printf("%n[Cache Stats] Total API calls: %d | Cached symbols: %d%n",
-                apiCallCount, cache.size());
+        log.info("Cache Stats - Total API calls: {} | Cached symbols: {}", apiCallCount, cache.size());
     }
 }

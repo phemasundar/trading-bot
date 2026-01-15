@@ -5,12 +5,14 @@ import com.hemasundar.pojos.OptionChainResponse;
 import com.hemasundar.pojos.StrategyFilter;
 import com.hemasundar.pojos.TradeSetup;
 import com.hemasundar.pojos.EarningsCalendarResponse;
+import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.CollectionUtils;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+@Log4j2
 public abstract class AbstractTradingStrategy implements TradingStrategy {
 
     @Override
@@ -29,12 +31,12 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
                 EarningsCalendarResponse earningsResponse = FinnHubAPIs.getEarningsByTicker(chain.getSymbol(),
                         LocalDate.parse(targetExpiryDate));
                 if (CollectionUtils.isNotEmpty(earningsResponse.getEarningsCalendar())) {
-                    System.out.println("Skipping " + chain.getSymbol() + " due to upcoming earnings on "
-                            + earningsResponse.getEarningsCalendar().get(0).getDate());
+                    log.info("[{}] Skipping due to upcoming earnings on {}",
+                            chain.getSymbol(), earningsResponse.getEarningsCalendar().get(0).getDate());
                     return new ArrayList<>();
                 }
             } catch (Exception e) {
-                System.err.println("Error checking earnings for " + chain.getSymbol() + ": " + e.getMessage());
+                log.error("[{}] Error checking earnings: {}", chain.getSymbol(), e.getMessage());
                 // Decide whether to proceed or fail safe. Proceeding might accept risky trades.
                 // Failing safe returns empty.
                 // Let's print and proceed, or we can return empty. The original code didn't
@@ -52,5 +54,5 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
     protected abstract List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
             StrategyFilter filter);
 
-    public abstract String getStrategyName ();
+    public abstract String getStrategyName();
 }

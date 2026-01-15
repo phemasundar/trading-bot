@@ -4,7 +4,7 @@ import com.hemasundar.pojos.EarningsCache;
 import com.hemasundar.pojos.EarningsCalendarResponse;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import lombok.extern.java.Log;
+import lombok.extern.log4j.Log4j2;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -20,7 +20,7 @@ import java.util.List;
  * Manages caching of earnings calendar data to minimize API calls.
  * Uses a local JSON file to persist data.
  */
-@Log
+@Log4j2
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class EarningsCacheManager {
 
@@ -70,21 +70,24 @@ public class EarningsCacheManager {
         }
 
         // Check 2: Coverage (contains data beyond targetDate)
-        /*boolean hasFutureCoverage = false;
-        if (entry.getEarnings() != null) {
-            for (EarningsCalendarResponse.EarningCalendar event : entry.getEarnings()) {
-                if (event.getDate() != null && event.getDate().isAfter(targetDate)) {
-                    hasFutureCoverage = true;
-                    break;
-                }
-            }
-        }
-
-        if (!hasFutureCoverage) {
-            log.info("Cache insufficient for " + symbol + " (no events found after " + targetDate
-                    + "). Requesting fresh data.");
-            return null;
-        }*/
+        /*
+         * boolean hasFutureCoverage = false;
+         * if (entry.getEarnings() != null) {
+         * for (EarningsCalendarResponse.EarningCalendar event : entry.getEarnings()) {
+         * if (event.getDate() != null && event.getDate().isAfter(targetDate)) {
+         * hasFutureCoverage = true;
+         * break;
+         * }
+         * }
+         * }
+         * 
+         * if (!hasFutureCoverage) {
+         * log.info("Cache insufficient for " + symbol + " (no events found after " +
+         * targetDate
+         * + "). Requesting fresh data.");
+         * return null;
+         * }
+         */
 
         log.info("Using cached earnings for " + symbol);
 
@@ -118,7 +121,7 @@ public class EarningsCacheManager {
             try {
                 earningsCache = objectMapper.readValue(file, EarningsCache.class);
             } catch (Exception e) {
-                log.warning("Failed to load earnings cache: " + e.getMessage());
+                log.warn("Failed to load earnings cache: {}", e.getMessage());
                 earningsCache = EarningsCache.builder().build();
             }
         } else {
@@ -134,7 +137,7 @@ public class EarningsCacheManager {
             }
             objectMapper.writerWithDefaultPrettyPrinter().writeValue(new File(CACHE_FILE_PATH), earningsCache);
         } catch (Exception e) {
-            log.severe("Failed to save earnings cache: " + e.getMessage());
+            log.error("Failed to save earnings cache: {}", e.getMessage());
         }
     }
 }
