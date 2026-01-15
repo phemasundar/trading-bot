@@ -1,8 +1,8 @@
 package com.hemasundar.serializers;
 
-import com.hemasundar.pojos.OptionChainResponse;
-import tools.jackson.databind.DeserializationContext;
-import tools.jackson.databind.KeyDeserializer;
+import com.hemasundar.options.models.OptionChainResponse;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.KeyDeserializer;
 
 public class ExpirationKeyDeserializer extends KeyDeserializer {
     @Override

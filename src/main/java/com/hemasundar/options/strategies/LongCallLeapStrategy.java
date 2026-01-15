@@ -1,14 +1,17 @@
-package com.hemasundar.strategies;
+package com.hemasundar.options.strategies;
 
-import com.hemasundar.pojos.LongCallLeap;
-import com.hemasundar.pojos.OptionChainResponse;
-import com.hemasundar.pojos.OptionsStrategyFilter;
-import com.hemasundar.pojos.TradeSetup;
+import com.hemasundar.options.models.LongCallLeap;
+import com.hemasundar.options.models.OptionChainResponse;
+import com.hemasundar.options.models.OptionsStrategyFilter;
+import com.hemasundar.options.models.TradeSetup;
 import org.apache.commons.collections4.CollectionUtils;
+import lombok.extern.log4j.Log4j2;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class LongCallLeapStrategy extends AbstractTradingStrategy {
 
@@ -53,7 +56,8 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
     }
 
     @Override
-    protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate, OptionsStrategyFilter filter) {
+    protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
+            OptionsStrategyFilter filter) {
         // Not used directly as we override findTrades, but required by abstract class.
         return new ArrayList<>();
     }
@@ -64,7 +68,7 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
     }
 
     private List<TradeSetup> findValidLeapsForExpiry(Map<String, List<OptionChainResponse.OptionData>> strikeMap,
-                                                     double currentPrice, int dte, double dividendYield, OptionsStrategyFilter filter) {
+            double currentPrice, int dte, double dividendYield, OptionsStrategyFilter filter) {
         List<TradeSetup> setups = new ArrayList<>();
 
         strikeMap.forEach((strike, options) -> {
@@ -91,7 +95,8 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                     // Rate = 6% default or filter value? User request: "6%". Plan said filter
                     // field.
                     // Let's use filter field if set, else 6.0.
-                    double marginInterestAmountPerStock = 0.5 * currentPrice * (filter.getMarginInterestRate() / 100.0) * (dte / 365.0);
+                    double marginInterestAmountPerStock = 0.5 * currentPrice * (filter.getMarginInterestRate() / 100.0)
+                            * (dte / 365.0);
                     // User correction: "As we are doing Dividend/100, multiplication of 0.01 can be
                     // removed"
                     // Implies: dividendYield is percent (e.g. 1.5). We want 0.015.
@@ -102,11 +107,14 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
 
                     double costOfOptionBuyingPerStock = extrinsic + dividendAmountPerStock;
 
-                    double moneySpentExtraFromPocketPerStockForBuyingStock = actualMoneySpentFromPocketPerStock - callPremium;
-                    double interestEarningOnExtraMoneySpentForBuyingStock = moneySpentExtraFromPocketPerStockForBuyingStock * (filter.getSavingsInterestRate() / 100) * (dte / 365.0);
-                    double costOfBuyingPerStock = marginInterestAmountPerStock + interestEarningOnExtraMoneySpentForBuyingStock;
+                    double moneySpentExtraFromPocketPerStockForBuyingStock = actualMoneySpentFromPocketPerStock
+                            - callPremium;
+                    double interestEarningOnExtraMoneySpentForBuyingStock = moneySpentExtraFromPocketPerStockForBuyingStock
+                            * (filter.getSavingsInterestRate() / 100) * (dte / 365.0);
+                    double costOfBuyingPerStock = marginInterestAmountPerStock
+                            + interestEarningOnExtraMoneySpentForBuyingStock;
 
-                    if (costOfOptionBuyingPerStock <= costOfBuyingPerStock * (90/100)) {
+                    if (costOfOptionBuyingPerStock <= costOfBuyingPerStock * (90 / 100)) {
                         double netCredit = -callPremium * 100; // Debit
                         double breakEven = strikePrice + callPremium;
                         double breakEvenPct = ((breakEven - currentPrice) / currentPrice) * 100;

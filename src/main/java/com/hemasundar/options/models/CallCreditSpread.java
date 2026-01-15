@@ -1,17 +1,18 @@
-package com.hemasundar.pojos;
+package com.hemasundar.options.models;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Getter;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PutCreditSpread implements TradeSetup {
-    private OptionChainResponse.OptionData shortPut;
-    private OptionChainResponse.OptionData longPut;
+public class CallCreditSpread implements TradeSetup {
+    private OptionChainResponse.OptionData shortCall;
+    private OptionChainResponse.OptionData longCall;
     private double netCredit;
     private double maxLoss;
     private double breakEvenPrice;
@@ -20,16 +21,16 @@ public class PutCreditSpread implements TradeSetup {
 
     @Override
     public String toString() {
-        return String.format("--- Valid Put Credit Spread Found ---\n" +
+        return String.format("--- Valid Call Credit Spread Found ---\n" +
                 "Expiry: %s\n" +
                 "Strategy: Sell %s (Strike %.1f) / Buy %s (Strike %.1f)\n" +
                 "Short Delta: %.3f | Max Profit: $%.2f | Max Loss: $%.2f\n" +
                 "Return on Risk: %.2f%%\n" +
                 "Break Even Price: $%.2f | Break Even Percentage: %.2f%%\n",
-                shortPut.getExpirationDate(),
-                shortPut.getSymbol(), shortPut.getStrikePrice(),
-                longPut.getSymbol(), longPut.getStrikePrice(),
-                shortPut.getDelta(), netCredit, maxLoss,
+                shortCall.getExpirationDate(),
+                shortCall.getSymbol(), shortCall.getStrikePrice(),
+                longCall.getSymbol(), longCall.getStrikePrice(),
+                shortCall.getDelta(), netCredit, maxLoss,
                 returnOnRisk,
                 breakEvenPrice, breakEvenPercentage);
     }

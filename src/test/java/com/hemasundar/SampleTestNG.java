@@ -1,15 +1,13 @@
 package com.hemasundar;
 
-import com.hemasundar.pojos.*;
-import com.hemasundar.pojos.technicalfilters.BollingerBandsFilter;
-import com.hemasundar.pojos.technicalfilters.BollingerCondition;
-import com.hemasundar.pojos.technicalfilters.FilterConditions;
-import com.hemasundar.pojos.technicalfilters.RSICondition;
-import com.hemasundar.pojos.technicalfilters.RSIFilter;
-import com.hemasundar.pojos.technicalfilters.TechnicalFilterChain;
-import com.hemasundar.pojos.technicalfilters.TechnicalIndicators;
-import com.hemasundar.pojos.technicalfilters.VolumeFilter;
-import com.hemasundar.strategies.*;
+import com.hemasundar.pojos.RefreshToken;
+import com.hemasundar.pojos.Securities;
+import com.hemasundar.pojos.TestConfig;
+import com.hemasundar.options.models.OptionChainResponse;
+import com.hemasundar.options.models.OptionsStrategyFilter;
+import com.hemasundar.options.models.TradeSetup;
+import com.hemasundar.options.strategies.*;
+import com.hemasundar.technical.*;
 import com.hemasundar.utils.FilePaths;
 import com.hemasundar.utils.JavaUtils;
 import com.hemasundar.utils.OptionChainCache;
@@ -157,10 +155,31 @@ public class SampleTestNG {
 
                 // Run RSI Bollinger strategies with their own securities file
                 List<String> rsiBBSecurities = loadSecurities(FilePaths.top100Config);
-                printFilteredStrategies(cache, rsiBBSecurities,
-                                new RSIBollingerBullPutSpreadStrategy(oversoldFilterChain), rsiBBFilter);
-                printFilteredStrategies(cache, rsiBBSecurities,
-                                new RSIBollingerBearCallSpreadStrategy(overboughtFilterChain), rsiBBFilter);
+
+                // 1. OVERSOLD Checks (Bull Put Spread)
+                log.info("Filtering stocks for OVERSOLD conditions...");
+                List<String> oversoldStocks = rsiBBSecurities.stream()
+                                .filter(symbol -> TechnicalStockValidator.validate(symbol, oversoldFilterChain))
+                                .toList();
+                log.info("Found {} stocks meeting OVERSOLD conditions: {}", oversoldStocks.size(), oversoldStocks);
+
+                if (!oversoldStocks.isEmpty()) {
+                        printFilteredStrategies(cache, oversoldStocks,
+                                        new RSIBollingerBullPutSpreadStrategy(), rsiBBFilter);
+                }
+
+                // 2. OVERBOUGHT Checks (Bear Call Spread)
+                log.info("Filtering stocks for OVERBOUGHT conditions...");
+                List<String> overboughtStocks = rsiBBSecurities.stream()
+                                .filter(symbol -> TechnicalStockValidator.validate(symbol, overboughtFilterChain))
+                                .toList();
+                log.info("Found {} stocks meeting OVERBOUGHT conditions: {}", overboughtStocks.size(),
+                                overboughtStocks);
+
+                if (!overboughtStocks.isEmpty()) {
+                        printFilteredStrategies(cache, overboughtStocks,
+                                        new RSIBollingerBearCallSpreadStrategy(), rsiBBFilter);
+                }
 
                 // Print cache statistics
                 cache.printStats();
@@ -191,7 +210,8 @@ public class SampleTestNG {
                                 OptionChainResponse optionChainResponse = cache.get(symbol);
                                 log.info("Processing symbol: {}", symbol);
 
-                                List<TradeSetup> trades = strategy.findTrades(optionChainResponse, optionsStrategyFilter);
+                                List<TradeSetup> trades = strategy.findTrades(optionChainResponse,
+                                                optionsStrategyFilter);
                                 trades.forEach(trade -> log.info("Trade: {}", trade));
 
                                 // Send to Telegram

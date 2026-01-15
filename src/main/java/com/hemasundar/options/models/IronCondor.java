@@ -1,9 +1,11 @@
-package com.hemasundar.pojos;
+package com.hemasundar.options.models;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Getter;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 
 @Data
 @Builder

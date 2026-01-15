@@ -1,53 +1,39 @@
-package com.hemasundar.strategies;
+package com.hemasundar.options.strategies;
 
-import com.hemasundar.pojos.CallCreditSpread;
-import com.hemasundar.pojos.OptionChainResponse;
-import com.hemasundar.pojos.OptionType;
-import com.hemasundar.pojos.OptionsStrategyFilter;
-import com.hemasundar.pojos.TradeSetup;
-import com.hemasundar.pojos.technicalfilters.TechnicalFilterChain;
-import lombok.extern.log4j.Log4j2;
+import com.hemasundar.options.models.CallCreditSpread;
+import com.hemasundar.options.models.OptionChainResponse;
+import com.hemasundar.options.models.OptionsStrategyFilter;
+import com.hemasundar.options.models.TradeSetup;
+import com.hemasundar.options.models.OptionType;
 import org.apache.commons.collections4.CollectionUtils;
+import lombok.extern.log4j.Log4j2;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * RSI & Bollinger Bands Bear Call Spread Strategy.
- * 
- * Entry Conditions (BEARISH signal - Overbought):
- * - RSI (14-day) > 70 (Overbought)
- * - Price is touching or piercing the Upper Bollinger Band (2 SD)
- * 
- * Trade Setup:
- * - Sell: Call option at ~30 Delta (above current price)
- * - Buy: Call option at ~15-20 Delta (further above current price)
- * - DTE: 30 days
- */
-@Log4j2
-public class RSIBollingerBearCallSpreadStrategy extends AbstractTechnicalStrategy {
+public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
+    @Override
+    protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
+            OptionsStrategyFilter filter) {
+        Map<String, List<OptionChainResponse.OptionData>> callMap = chain.getOptionDataForASpecificExpiryDate(
+                OptionType.CALL,
+                expiryDate);
 
-    public RSIBollingerBearCallSpreadStrategy(TechnicalFilterChain filterChain) {
-        super(filterChain);
+        if (callMap == null || callMap.isEmpty())
+            return new ArrayList<>();
+
+        return findValidCallCreditSpreads(callMap, chain.getUnderlyingPrice(), filter);
     }
 
     @Override
-    protected List<TradeSetup> findStrategySpecificTrades(OptionChainResponse chain, String expiryDate,
-            OptionsStrategyFilter filter) {
-        // Find Bear Call Spread trades
-        Map<String, List<OptionChainResponse.OptionData>> callMap = chain.getOptionDataForASpecificExpiryDate(
-                OptionType.CALL, expiryDate);
-
-        if (callMap == null || callMap.isEmpty()) {
-            return new ArrayList<>();
-        }
-
-        return findBearCallSpreads(callMap, chain.getUnderlyingPrice(), filter);
+    public String getStrategyName() {
+        return "CALL Credit Spread Strategy";
     }
 
-    private List<TradeSetup> findBearCallSpreads(Map<String, List<OptionChainResponse.OptionData>> callMap,
+    private List<TradeSetup> findValidCallCreditSpreads(Map<String, List<OptionChainResponse.OptionData>> callMap,
             double currentPrice, OptionsStrategyFilter filter) {
         List<TradeSetup> spreads = new ArrayList<>();
 
@@ -56,36 +42,32 @@ public class RSIBollingerBearCallSpreadStrategy extends AbstractTechnicalStrateg
                 .sorted()
                 .collect(Collectors.toList());
 
-        // Find short call at ~30 delta
+        // For Call Spreads, Short Call lower strike, Long Call higher strike
+        // Iterate for Short Call
         for (int i = 0; i < sortedStrikes.size(); i++) {
             double shortStrikePrice = sortedStrikes.get(i);
             List<OptionChainResponse.OptionData> options = callMap.get(String.valueOf(shortStrikePrice));
             if (CollectionUtils.isEmpty(options))
                 continue;
-
             OptionChainResponse.OptionData shortCall = options.get(0);
 
-            // Short call should be OTM (strike > current price) and around 30 delta
+            // Short Call should be OTM (Strike > Current Price)
             if (shortStrikePrice <= currentPrice)
                 continue;
-            double shortDelta = shortCall.getAbsDelta();
-            if (shortDelta > filter.getMaxDelta() || shortDelta < 0.25)
-                continue; // ~30 delta range
 
-            // Find long call at ~15-20 delta (further OTM)
+            if (shortCall.getAbsDelta() > filter.getMaxDelta())
+                continue;
+
+            // Iterate for Long Call (Higher Strike)
             for (int j = i + 1; j < sortedStrikes.size(); j++) {
                 double longStrikePrice = sortedStrikes.get(j);
                 List<OptionChainResponse.OptionData> longOptions = callMap.get(String.valueOf(longStrikePrice));
                 if (CollectionUtils.isEmpty(longOptions))
                     continue;
-
                 OptionChainResponse.OptionData longCall = longOptions.get(0);
 
-                double longDelta = longCall.getAbsDelta();
-                if (longDelta > 0.22 || longDelta < 0.12)
-                    continue; // ~15-20 delta range
-
                 double netCredit = (shortCall.getBid() - longCall.getAsk()) * 100;
+
                 if (netCredit <= 0)
                     continue;
 
@@ -114,12 +96,6 @@ public class RSIBollingerBearCallSpreadStrategy extends AbstractTechnicalStrateg
                 }
             }
         }
-
         return spreads;
-    }
-
-    @Override
-    public String getStrategyName() {
-        return "RSI Bollinger Bear Call Spread Strategy";
     }
 }

@@ -1,9 +1,9 @@
-package com.hemasundar.pojos;
+package com.hemasundar.options.models;
 
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 
-@Data
+@Getter
 @Builder
 public class OptionsStrategyFilter {
     private int targetDTE;

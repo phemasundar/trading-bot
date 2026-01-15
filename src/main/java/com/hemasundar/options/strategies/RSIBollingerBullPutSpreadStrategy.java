@@ -1,17 +1,19 @@
-package com.hemasundar.strategies;
+package com.hemasundar.options.strategies;
 
-import com.hemasundar.pojos.OptionChainResponse;
-import com.hemasundar.pojos.OptionType;
-import com.hemasundar.pojos.PutCreditSpread;
-import com.hemasundar.pojos.OptionsStrategyFilter;
-import com.hemasundar.pojos.TradeSetup;
-import com.hemasundar.pojos.technicalfilters.TechnicalFilterChain;
-import lombok.extern.log4j.Log4j2;
+import com.hemasundar.options.models.OptionChainResponse;
+import com.hemasundar.options.models.OptionsStrategyFilter;
+import com.hemasundar.options.models.OptionType;
+import com.hemasundar.options.models.PutCreditSpread;
+import com.hemasundar.options.models.TradeSetup;
+import com.hemasundar.technical.BollingerBandsFilter;
 import org.apache.commons.collections4.CollectionUtils;
+import lombok.extern.log4j.Log4j2;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * RSI & Bollinger Bands Bull Put Spread Strategy.
@@ -26,15 +28,11 @@ import java.util.Map;
  * - DTE: 30 days
  */
 @Log4j2
-public class RSIBollingerBullPutSpreadStrategy extends AbstractTechnicalStrategy {
-
-    public RSIBollingerBullPutSpreadStrategy(TechnicalFilterChain filterChain) {
-        super(filterChain);
-    }
+public class RSIBollingerBullPutSpreadStrategy extends AbstractTradingStrategy {
 
     @Override
-    protected List<TradeSetup> findStrategySpecificTrades(OptionChainResponse chain, String expiryDate,
-                                                          OptionsStrategyFilter filter) {
+    protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
+            OptionsStrategyFilter filter) {
         // Find Bull Put Spread trades
         Map<String, List<OptionChainResponse.OptionData>> putMap = chain.getOptionDataForASpecificExpiryDate(
                 OptionType.PUT, expiryDate);

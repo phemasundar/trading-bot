@@ -1,9 +1,17 @@
-package com.hemasundar.strategies;
+package com.hemasundar.options.strategies;
 
-import com.hemasundar.pojos.*;
+import com.hemasundar.options.models.IronCondor;
+import com.hemasundar.options.models.OptionChainResponse;
+import com.hemasundar.options.models.OptionsStrategyFilter;
+import com.hemasundar.options.models.TradeSetup;
+import com.hemasundar.options.models.PutCreditSpread;
+import com.hemasundar.options.models.CallCreditSpread;
+import lombok.extern.log4j.Log4j2;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class IronCondorStrategy extends AbstractTradingStrategy {
 
@@ -11,7 +19,8 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
     private final CallCreditSpreadStrategy callStrategy = new CallCreditSpreadStrategy();
 
     @Override
-    protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate, OptionsStrategyFilter filter) {
+    protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
+            OptionsStrategyFilter filter) {
         // Create a filter for legs with 0 min return to get all valid spreads
         // SET ignoreEarnings = true for legs to avoid redundant checks
         OptionsStrategyFilter legFilter = OptionsStrategyFilter.builder()

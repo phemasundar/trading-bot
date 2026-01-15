@@ -1,4 +1,4 @@
-package com.hemasundar.pojos.technicalfilters;
+package com.hemasundar.technical;
 
 import lombok.Getter;
 import lombok.extern.log4j.Log4j2;

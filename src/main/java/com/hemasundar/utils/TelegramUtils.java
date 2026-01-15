@@ -1,7 +1,7 @@
 package com.hemasundar.utils;
 
 import com.hemasundar.pojos.TestConfig;
-import com.hemasundar.pojos.TradeSetup;
+import com.hemasundar.options.models.TradeSetup;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import lombok.AccessLevel;

@@ -1,22 +1,28 @@
-package com.hemasundar.utils;
+package com.hemasundar.technical;
 
 import com.hemasundar.pojos.PriceHistoryResponse;
+import lombok.experimental.UtilityClass;
 import org.ta4j.core.BarSeries;
 import org.ta4j.core.BaseBarSeriesBuilder;
+import org.ta4j.core.indicators.RSIIndicator;
+import org.ta4j.core.indicators.bollinger.BollingerBandsLowerIndicator;
+import org.ta4j.core.indicators.bollinger.BollingerBandsMiddleIndicator;
+import org.ta4j.core.indicators.bollinger.BollingerBandsUpperIndicator;
+import org.ta4j.core.indicators.helpers.ClosePriceIndicator;
+import org.ta4j.core.num.Num;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Utility class for building ta4j BarSeries from price history data.
  */
-public class TechnicalIndicators {
-
-    private TechnicalIndicators() {
-        // Private constructor to prevent instantiation
-    }
+@UtilityClass
+public class TechnicalIndicatorUtils {
 
     /**
      * Builds a BarSeries from price history response for use with ta4j indicators.

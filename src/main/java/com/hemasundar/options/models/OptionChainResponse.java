@@ -1,12 +1,14 @@
-package com.hemasundar.pojos;
+package com.hemasundar.options.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.hemasundar.serializers.ExpirationKeyDeserializer;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import tools.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import java.util.Comparator;
 import java.util.List;
@@ -35,9 +37,7 @@ public class OptionChainResponse {
 
     // Map keys: Expiration Date String (e.g., "2026-01-02:6")
     // Nested Map keys: Strike Price String (e.g., "110.0")
-    @JsonDeserialize(keyUsing = ExpirationKeyDeserializer.class)
     public Map<ExpirationDateKey, Map<String, List<OptionData>>> callExpDateMap;
-    @JsonDeserialize(keyUsing = ExpirationKeyDeserializer.class)
     public Map<ExpirationDateKey, Map<String, List<OptionData>>> putExpDateMap;
 
     public Map<String, List<OptionChainResponse.OptionData>> getOptionDataForASpecificExpiryDate(OptionType optionType,
@@ -73,6 +73,18 @@ public class OptionChainResponse {
     public static class ExpirationDateKey {
         private String date;
         private int daysToExpiry;
+
+        // Constructor for Jackson Key Deserialization
+        public ExpirationDateKey(String source) {
+            if (source != null && source.contains(":")) {
+                String[] parts = source.split(":");
+                this.date = parts[0];
+                this.daysToExpiry = Integer.parseInt(parts[1]);
+            } else {
+                this.date = source;
+                this.daysToExpiry = 0;
+            }
+        }
 
         // This is required for the Map to look up keys correctly
         @Override

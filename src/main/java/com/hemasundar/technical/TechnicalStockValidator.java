@@ -1,40 +1,26 @@
-package com.hemasundar.utils;
+package com.hemasundar.technical;
 
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.pojos.QuotesResponse;
-import com.hemasundar.pojos.technicalfilters.*;
 import lombok.extern.log4j.Log4j2;
 import org.ta4j.core.BarSeries;
 
 /**
- * Validates stock symbols against technical conditions (Volume, RSI, Bollinger
- * Bands).
- * This class operates purely on stock data and is independent of Option Chains.
+ * Validates stock symbols against technical conditions.
  */
 @Log4j2
 public class TechnicalStockValidator {
 
-    /**
-     * Validates if the given stock symbol meets the criteria defined in the filter
-     * chain.
-     * Order of operations is optimized for performance:
-     * 1. Volume Check (Fast API call)
-     * 2. Price History Fetch & Technical Indicator Evaluation (Slower API call)
-     *
-     * @param symbol      The stock symbol to validate
-     * @param filterChain The set of indicators and conditions to check against
-     * @return true if all conditions are met, false otherwise
-     */
     public static boolean validate(String symbol, TechnicalFilterChain filterChain) {
-        // 1. Check Volume First (Fastest check)
+        // 1. Check Volume First
         if (!checkVolumeCondition(symbol, filterChain)) {
             return false;
         }
 
-        // 2. Fetch Price History for Technical Analysis (Heavier operation)
+        // 2. Fetch Price History
         PriceHistoryResponse priceHistory = ThinkOrSwinAPIs.getYearlyPriceHistory(symbol, 1);
-        BarSeries series = TechnicalIndicators.buildBarSeries(symbol, priceHistory);
+        BarSeries series = TechnicalIndicatorUtils.buildBarSeries(symbol, priceHistory);
 
         if (series.getBarCount() == 0) {
             log.warn("[{}] No price history available", symbol);

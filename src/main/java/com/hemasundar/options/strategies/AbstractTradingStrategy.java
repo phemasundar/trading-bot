@@ -1,12 +1,13 @@
-package com.hemasundar.strategies;
+package com.hemasundar.options.strategies;
 
 import com.hemasundar.apis.FinnHubAPIs;
-import com.hemasundar.pojos.OptionChainResponse;
-import com.hemasundar.pojos.OptionsStrategyFilter;
-import com.hemasundar.pojos.TradeSetup;
+import com.hemasundar.pojos.EarningsCache;
+import com.hemasundar.options.models.OptionChainResponse;
+import com.hemasundar.options.models.OptionsStrategyFilter;
+import com.hemasundar.options.models.TradeSetup;
 import com.hemasundar.pojos.EarningsCalendarResponse;
-import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.CollectionUtils;
+import lombok.extern.log4j.Log4j2;
 
 import java.time.LocalDate;
 import java.util.ArrayList;

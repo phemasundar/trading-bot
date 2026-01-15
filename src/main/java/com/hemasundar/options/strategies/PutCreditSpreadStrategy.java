@@ -1,15 +1,23 @@
-package com.hemasundar.strategies;
+package com.hemasundar.options.strategies;
 
-import com.hemasundar.pojos.*;
-import org.apache.commons.collections4.CollectionUtils;
+import com.hemasundar.options.models.OptionChainResponse;
+import com.hemasundar.options.models.OptionsStrategyFilter;
+import com.hemasundar.options.models.PutCreditSpread;
+import com.hemasundar.options.models.TradeSetup;
+import com.hemasundar.options.models.OptionType;
+import lombok.extern.log4j.Log4j2;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import org.apache.commons.collections4.CollectionUtils;
 
 public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
     @Override
-    protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate, OptionsStrategyFilter filter) {
+    protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
+            OptionsStrategyFilter filter) {
         Map<String, List<OptionChainResponse.OptionData>> putMap = chain.getOptionDataForASpecificExpiryDate(
                 OptionType.PUT,
                 expiryDate);
