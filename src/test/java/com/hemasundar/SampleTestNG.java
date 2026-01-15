@@ -165,7 +165,8 @@ public class SampleTestNG {
 
                 if (!oversoldStocks.isEmpty()) {
                         printFilteredStrategies(cache, oversoldStocks,
-                                        new RSIBollingerBullPutSpreadStrategy(), rsiBBFilter);
+                                        new PutCreditSpreadStrategy(StrategyType.RSI_BOLLINGER_BULL_PUT_SPREAD),
+                                        rsiBBFilter);
                 }
 
                 // 2. OVERBOUGHT Checks (Bear Call Spread)
@@ -178,7 +179,8 @@ public class SampleTestNG {
 
                 if (!overboughtStocks.isEmpty()) {
                         printFilteredStrategies(cache, overboughtStocks,
-                                        new RSIBollingerBearCallSpreadStrategy(), rsiBBFilter);
+                                        new CallCreditSpreadStrategy(StrategyType.RSI_BOLLINGER_BEAR_CALL_SPREAD),
+                                        rsiBBFilter);
                 }
 
                 // Print cache statistics

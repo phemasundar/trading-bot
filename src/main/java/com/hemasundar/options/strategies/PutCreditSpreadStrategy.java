@@ -15,6 +15,15 @@ import java.util.stream.Collectors;
 import org.apache.commons.collections4.CollectionUtils;
 
 public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
+
+    public PutCreditSpreadStrategy() {
+        super(StrategyType.PUT_CREDIT_SPREAD);
+    }
+
+    public PutCreditSpreadStrategy(StrategyType strategyType) {
+        super(strategyType);
+    }
+
     @Override
     protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
             OptionsStrategyFilter filter) {
@@ -26,11 +35,6 @@ public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
             return new ArrayList<>();
 
         return findValidPutCreditSpreads(putMap, chain.getUnderlyingPrice(), filter);
-    }
-
-    @Override
-    public String getStrategyName() {
-        return "Put Credit Spread Strategy";
     }
 
     private List<TradeSetup> findValidPutCreditSpreads(Map<String, List<OptionChainResponse.OptionData>> putMap,

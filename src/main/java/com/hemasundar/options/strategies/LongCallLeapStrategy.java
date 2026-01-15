@@ -15,6 +15,10 @@ import java.util.stream.Collectors;
 
 public class LongCallLeapStrategy extends AbstractTradingStrategy {
 
+    public LongCallLeapStrategy() {
+        super(StrategyType.LONG_CALL_LEAP);
+    }
+
     @Override
     public List<TradeSetup> findTrades(OptionChainResponse chain, OptionsStrategyFilter filter) {
         // LEAPS usually span multiple expiries, and we filter by minDTE.
@@ -60,11 +64,6 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
             OptionsStrategyFilter filter) {
         // Not used directly as we override findTrades, but required by abstract class.
         return new ArrayList<>();
-    }
-
-    @Override
-    public String getStrategyName() {
-        return "Long Call Leap Strategy";
     }
 
     private List<TradeSetup> findValidLeapsForExpiry(Map<String, List<OptionChainResponse.OptionData>> strikeMap,

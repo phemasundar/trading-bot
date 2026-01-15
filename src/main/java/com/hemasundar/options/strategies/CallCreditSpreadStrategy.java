@@ -15,6 +15,15 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
+
+    public CallCreditSpreadStrategy() {
+        super(StrategyType.CALL_CREDIT_SPREAD);
+    }
+
+    public CallCreditSpreadStrategy(StrategyType strategyType) {
+        super(strategyType);
+    }
+
     @Override
     protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
             OptionsStrategyFilter filter) {
@@ -26,11 +35,6 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
             return new ArrayList<>();
 
         return findValidCallCreditSpreads(callMap, chain.getUnderlyingPrice(), filter);
-    }
-
-    @Override
-    public String getStrategyName() {
-        return "CALL Credit Spread Strategy";
     }
 
     private List<TradeSetup> findValidCallCreditSpreads(Map<String, List<OptionChainResponse.OptionData>> callMap,

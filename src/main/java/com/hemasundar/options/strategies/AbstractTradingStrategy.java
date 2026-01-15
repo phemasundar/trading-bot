@@ -7,6 +7,7 @@ import com.hemasundar.options.models.OptionsStrategyFilter;
 import com.hemasundar.options.models.TradeSetup;
 import com.hemasundar.pojos.EarningsCalendarResponse;
 import org.apache.commons.collections4.CollectionUtils;
+import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 
 import java.time.LocalDate;
@@ -15,6 +16,13 @@ import java.util.List;
 
 @Log4j2
 public abstract class AbstractTradingStrategy implements TradingStrategy {
+
+    @Getter
+    private final StrategyType strategyType;
+
+    protected AbstractTradingStrategy(StrategyType strategyType) {
+        this.strategyType = strategyType;
+    }
 
     @Override
     public List<TradeSetup> findTrades(OptionChainResponse chain, OptionsStrategyFilter filter) {
@@ -55,5 +63,11 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
     protected abstract List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
             OptionsStrategyFilter filter);
 
-    public abstract String getStrategyName();
+    /**
+     * Returns the display name for this strategy.
+     * Derived from the StrategyType enum.
+     */
+    public String getStrategyName() {
+        return strategyType.getDisplayName();
+    }
 }

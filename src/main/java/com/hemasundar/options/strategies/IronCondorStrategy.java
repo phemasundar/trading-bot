@@ -18,6 +18,10 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
     private final PutCreditSpreadStrategy putStrategy = new PutCreditSpreadStrategy();
     private final CallCreditSpreadStrategy callStrategy = new CallCreditSpreadStrategy();
 
+    public IronCondorStrategy() {
+        super(StrategyType.IRON_CONDOR);
+    }
+
     @Override
     protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
             OptionsStrategyFilter filter) {
@@ -50,11 +54,6 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
         }
 
         return findValidIronCondors(putSpreads, callSpreads, chain.getUnderlyingPrice(), filter);
-    }
-
-    @Override
-    public String getStrategyName() {
-        return "Iron Condor Strategy";
     }
 
     private List<TradeSetup> findValidIronCondors(List<PutCreditSpread> putSpreads,
