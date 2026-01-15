@@ -11,10 +11,10 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
     private final CallCreditSpreadStrategy callStrategy = new CallCreditSpreadStrategy();
 
     @Override
-    protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate, StrategyFilter filter) {
+    protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate, OptionsStrategyFilter filter) {
         // Create a filter for legs with 0 min return to get all valid spreads
         // SET ignoreEarnings = true for legs to avoid redundant checks
-        StrategyFilter legFilter = StrategyFilter.builder()
+        OptionsStrategyFilter legFilter = OptionsStrategyFilter.builder()
                 .targetDTE(filter.getTargetDTE())
                 .maxDelta(filter.getMaxDelta())
                 .maxLossLimit(filter.getMaxLossLimit())
@@ -51,7 +51,7 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
     private List<TradeSetup> findValidIronCondors(List<PutCreditSpread> putSpreads,
             List<CallCreditSpread> callSpreads,
             double currentPrice,
-            StrategyFilter filter) {
+            OptionsStrategyFilter filter) {
         List<TradeSetup> condors = new ArrayList<>();
 
         for (PutCreditSpread putSpread : putSpreads) {

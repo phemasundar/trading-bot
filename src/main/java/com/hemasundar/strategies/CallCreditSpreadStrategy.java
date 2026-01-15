@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
 
 public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
     @Override
-    protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate, StrategyFilter filter) {
+    protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate, OptionsStrategyFilter filter) {
         Map<String, List<OptionChainResponse.OptionData>> callMap = chain.getOptionDataForASpecificExpiryDate(
                 OptionType.CALL,
                 expiryDate);
@@ -27,7 +27,7 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
     }
 
     private List<TradeSetup> findValidCallCreditSpreads(Map<String, List<OptionChainResponse.OptionData>> callMap,
-            double currentPrice, StrategyFilter filter) {
+            double currentPrice, OptionsStrategyFilter filter) {
         List<TradeSetup> spreads = new ArrayList<>();
 
         List<Double> sortedStrikes = callMap.keySet().stream()

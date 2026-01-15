@@ -116,24 +116,42 @@ Triggered when **overbought conditions** are detected:
 
 ### Configuring Technical Filters
 
-Technical filters can be composed using the builder pattern:
+Technical filters are configured in **3 steps** for clear separation:
 
 ```java
-TechnicalFilterChain filterChain = TechnicalFilterChain.builder()
-    .withRSI(RSIFilter.builder()
+// STEP 1: Define WHAT indicators to use (with their settings)
+TechnicalIndicators indicators = TechnicalIndicators.builder()
+    .rsiFilter(RSIFilter.builder()
         .period(14)
-        .oversoldThreshold(30.0)
-        .overboughtThreshold(70.0)
+        .oversoldThreshold(30.0)   // RSI < 30 = Oversold
+        .overboughtThreshold(70.0) // RSI > 70 = Overbought
         .build())
-    .withBollingerBands(BollingerBandsFilter.builder()
+    .bollingerFilter(BollingerBandsFilter.builder()
         .period(20)
         .standardDeviations(2.0)
         .build())
-    .withVolume(VolumeFilter.builder()
-        .minVolume(100_000L)  // Minimum 100K shares
-        .build())
+    .volumeFilter(VolumeFilter.builder().build()) // Volume indicator is used
     .build();
+
+// STEP 2: Define WHAT CONDITIONS to look for (separate from indicators)
+FilterConditions oversoldConditions = FilterConditions.builder()
+    .rsiCondition(RSICondition.OVERSOLD)           // RSI < 30
+    .bollingerCondition(BollingerCondition.LOWER_BAND)  // Price at lower band
+    .minVolume(1_000_000L)                         // Minimum 1M shares
+    .build();
+
+FilterConditions overboughtConditions = FilterConditions.builder()
+    .rsiCondition(RSICondition.OVERBOUGHT)         // RSI > 70
+    .bollingerCondition(BollingerCondition.UPPER_BAND)  // Price at upper band
+    .minVolume(1_000_000L)                         // Minimum 1M shares
+    .build();
+
+// STEP 3: Combine indicators + conditions into filter chains
+TechnicalFilterChain oversoldFilterChain = TechnicalFilterChain.of(indicators, oversoldConditions);
+TechnicalFilterChain overboughtFilterChain = TechnicalFilterChain.of(indicators, overboughtConditions);
 ```
+
+
 
 ## API Methods
 

@@ -1,16 +1,13 @@
 package com.hemasundar.strategies;
 
-import com.hemasundar.apis.ThinkOrSwinAPIs;
-import com.hemasundar.pojos.*;
-import com.hemasundar.pojos.technicalfilters.BollingerBandsFilter;
-import com.hemasundar.pojos.technicalfilters.RSIFilter;
+import com.hemasundar.pojos.OptionChainResponse;
+import com.hemasundar.pojos.OptionType;
+import com.hemasundar.pojos.PutCreditSpread;
+import com.hemasundar.pojos.OptionsStrategyFilter;
+import com.hemasundar.pojos.TradeSetup;
 import com.hemasundar.pojos.technicalfilters.TechnicalFilterChain;
-import com.hemasundar.pojos.technicalfilters.VolumeFilter;
-import com.hemasundar.utils.TechnicalIndicators;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.CollectionUtils;
-import org.ta4j.core.BarSeries;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,65 +26,16 @@ import java.util.Map;
  * - DTE: 30 days
  */
 @Log4j2
-@RequiredArgsConstructor
-public class RSIBollingerBullPutSpreadStrategy extends AbstractTradingStrategy {
+public class RSIBollingerBullPutSpreadStrategy extends AbstractTechnicalStrategy {
 
-    private final TechnicalFilterChain filterChain;
+    public RSIBollingerBullPutSpreadStrategy(TechnicalFilterChain filterChain) {
+        super(filterChain);
+    }
 
     @Override
-    protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate, StrategyFilter filter) {
-        // 1. Fetch price history for technical analysis
-        PriceHistoryResponse priceHistory = ThinkOrSwinAPIs.getYearlyPriceHistory(chain.getSymbol(), 1);
-        BarSeries series = TechnicalIndicators.buildBarSeries(chain.getSymbol(), priceHistory);
-
-        if (series.getBarCount() == 0) {
-            log.warn("[{}] No price history available", chain.getSymbol());
-            return new ArrayList<>();
-        }
-
-        // 2. Check volume condition using Quotes API (real-time volume)
-        VolumeFilter volumeFilter = filterChain.getFilter(VolumeFilter.class);
-        if (volumeFilter != null) {
-            try {
-                QuotesResponse.QuoteData quoteData = ThinkOrSwinAPIs.getQuote(chain.getSymbol());
-                long currentVolume = quoteData.getQuote().getTotalVolume();
-                if (currentVolume < volumeFilter.getMinVolume()) {
-                    log.debug("[{}] Volume: {:,} - BELOW threshold ({:,}). Skipping.",
-                            chain.getSymbol(), currentVolume, volumeFilter.getMinVolume());
-                    return new ArrayList<>();
-                }
-                log.debug("[{}] Volume: {} - OK", chain.getSymbol(), currentVolume);
-            } catch (Exception e) {
-                log.warn("[{}] Failed to fetch quote for volume check: {}",
-                        chain.getSymbol(), e.getMessage());
-            }
-        }
-
-        // 3. Check for OVERSOLD conditions (Bullish signal)
-        RSIFilter rsiFilter = filterChain.getFilter(RSIFilter.class);
-        BollingerBandsFilter bbFilter = filterChain.getFilter(BollingerBandsFilter.class);
-
-        if (rsiFilter == null || bbFilter == null) {
-            log.error("RSI or Bollinger Bands filter not configured in filter chain");
-            return new ArrayList<>();
-        }
-
-        double currentRSI = rsiFilter.getCurrentRSI(series);
-        double lowerBand = bbFilter.getLowerBand(series);
-        double currentPrice = chain.getUnderlyingPrice();
-
-        log.debug("[{}] RSI: {:.2f} | Lower BB: {:.2f} | Price: {:.2f}",
-                chain.getSymbol(), currentRSI, lowerBand, currentPrice);
-
-        // OVERSOLD condition: RSI < threshold AND price touching/piercing lower band
-        if (!rsiFilter.isOversold(series) || !bbFilter.isPriceTouchingLowerBand(series)) {
-            log.debug("[{}] Conditions NOT met for Bull Put Spread (not oversold)", chain.getSymbol());
-            return new ArrayList<>();
-        }
-
-        log.info("[{}] OVERSOLD conditions met! Looking for Bull Put Spread...", chain.getSymbol());
-
-        // 3. Find Bull Put Spread trades
+    protected List<TradeSetup> findStrategySpecificTrades(OptionChainResponse chain, String expiryDate,
+                                                          OptionsStrategyFilter filter) {
+        // Find Bull Put Spread trades
         Map<String, List<OptionChainResponse.OptionData>> putMap = chain.getOptionDataForASpecificExpiryDate(
                 OptionType.PUT, expiryDate);
 
@@ -99,7 +47,7 @@ public class RSIBollingerBullPutSpreadStrategy extends AbstractTradingStrategy {
     }
 
     private List<TradeSetup> findBullPutSpreads(Map<String, List<OptionChainResponse.OptionData>> putMap,
-            double currentPrice, StrategyFilter filter) {
+            double currentPrice, OptionsStrategyFilter filter) {
         List<TradeSetup> spreads = new ArrayList<>();
 
         List<Double> sortedStrikes = putMap.keySet().stream()

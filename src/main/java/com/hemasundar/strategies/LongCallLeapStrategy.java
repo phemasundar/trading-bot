@@ -2,7 +2,7 @@ package com.hemasundar.strategies;
 
 import com.hemasundar.pojos.LongCallLeap;
 import com.hemasundar.pojos.OptionChainResponse;
-import com.hemasundar.pojos.StrategyFilter;
+import com.hemasundar.pojos.OptionsStrategyFilter;
 import com.hemasundar.pojos.TradeSetup;
 import org.apache.commons.collections4.CollectionUtils;
 
@@ -13,7 +13,7 @@ import java.util.Map;
 public class LongCallLeapStrategy extends AbstractTradingStrategy {
 
     @Override
-    public List<TradeSetup> findTrades(OptionChainResponse chain, StrategyFilter filter) {
+    public List<TradeSetup> findTrades(OptionChainResponse chain, OptionsStrategyFilter filter) {
         // LEAPS usually span multiple expiries, and we filter by minDTE.
         // We override findTrades to handle iterating through multiple expiries.
 
@@ -53,7 +53,7 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
     }
 
     @Override
-    protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate, StrategyFilter filter) {
+    protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate, OptionsStrategyFilter filter) {
         // Not used directly as we override findTrades, but required by abstract class.
         return new ArrayList<>();
     }
@@ -64,7 +64,7 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
     }
 
     private List<TradeSetup> findValidLeapsForExpiry(Map<String, List<OptionChainResponse.OptionData>> strikeMap,
-                                                     double currentPrice, int dte, double dividendYield, StrategyFilter filter) {
+                                                     double currentPrice, int dte, double dividendYield, OptionsStrategyFilter filter) {
         List<TradeSetup> setups = new ArrayList<>();
 
         strikeMap.forEach((strike, options) -> {

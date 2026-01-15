@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 @Builder
-public class StrategyFilter {
+public class OptionsStrategyFilter {
     private int targetDTE;
     private double maxDelta;
     private double maxLossLimit;

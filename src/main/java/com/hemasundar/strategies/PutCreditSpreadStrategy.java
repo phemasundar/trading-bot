@@ -9,7 +9,7 @@ import java.util.Map;
 
 public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
     @Override
-    protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate, StrategyFilter filter) {
+    protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate, OptionsStrategyFilter filter) {
         Map<String, List<OptionChainResponse.OptionData>> putMap = chain.getOptionDataForASpecificExpiryDate(
                 OptionType.PUT,
                 expiryDate);
@@ -26,7 +26,7 @@ public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
     }
 
     private List<TradeSetup> findValidPutCreditSpreads(Map<String, List<OptionChainResponse.OptionData>> putMap,
-            double currentPrice, StrategyFilter filter) {
+            double currentPrice, OptionsStrategyFilter filter) {
 
         List<TradeSetup> spreads = new ArrayList<>();
 

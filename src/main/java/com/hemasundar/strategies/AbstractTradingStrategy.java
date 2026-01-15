@@ -2,7 +2,7 @@ package com.hemasundar.strategies;
 
 import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.pojos.OptionChainResponse;
-import com.hemasundar.pojos.StrategyFilter;
+import com.hemasundar.pojos.OptionsStrategyFilter;
 import com.hemasundar.pojos.TradeSetup;
 import com.hemasundar.pojos.EarningsCalendarResponse;
 import lombok.extern.log4j.Log4j2;
@@ -16,7 +16,7 @@ import java.util.List;
 public abstract class AbstractTradingStrategy implements TradingStrategy {
 
     @Override
-    public List<TradeSetup> findTrades(OptionChainResponse chain, StrategyFilter filter) {
+    public List<TradeSetup> findTrades(OptionChainResponse chain, OptionsStrategyFilter filter) {
         String targetExpiryDate = chain.getExpiryDateBasedOnDTE(filter.getTargetDTE());
         if (targetExpiryDate == null)
             return new ArrayList<>();
@@ -52,7 +52,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
     }
 
     protected abstract List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
-            StrategyFilter filter);
+            OptionsStrategyFilter filter);
 
     public abstract String getStrategyName();
 }

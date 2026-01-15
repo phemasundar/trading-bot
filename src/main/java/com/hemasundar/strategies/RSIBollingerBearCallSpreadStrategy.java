@@ -1,16 +1,13 @@
 package com.hemasundar.strategies;
 
-import com.hemasundar.apis.ThinkOrSwinAPIs;
-import com.hemasundar.pojos.*;
-import com.hemasundar.pojos.technicalfilters.BollingerBandsFilter;
-import com.hemasundar.pojos.technicalfilters.RSIFilter;
+import com.hemasundar.pojos.CallCreditSpread;
+import com.hemasundar.pojos.OptionChainResponse;
+import com.hemasundar.pojos.OptionType;
+import com.hemasundar.pojos.OptionsStrategyFilter;
+import com.hemasundar.pojos.TradeSetup;
 import com.hemasundar.pojos.technicalfilters.TechnicalFilterChain;
-import com.hemasundar.pojos.technicalfilters.VolumeFilter;
-import com.hemasundar.utils.TechnicalIndicators;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.CollectionUtils;
-import org.ta4j.core.BarSeries;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,65 +27,16 @@ import java.util.stream.Collectors;
  * - DTE: 30 days
  */
 @Log4j2
-@RequiredArgsConstructor
-public class RSIBollingerBearCallSpreadStrategy extends AbstractTradingStrategy {
+public class RSIBollingerBearCallSpreadStrategy extends AbstractTechnicalStrategy {
 
-    private final TechnicalFilterChain filterChain;
+    public RSIBollingerBearCallSpreadStrategy(TechnicalFilterChain filterChain) {
+        super(filterChain);
+    }
 
     @Override
-    protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate, StrategyFilter filter) {
-        // 1. Fetch price history for technical analysis
-        PriceHistoryResponse priceHistory = ThinkOrSwinAPIs.getYearlyPriceHistory(chain.getSymbol(), 1);
-        BarSeries series = TechnicalIndicators.buildBarSeries(chain.getSymbol(), priceHistory);
-
-        if (series.getBarCount() == 0) {
-            log.warn("[{}] No price history available", chain.getSymbol());
-            return new ArrayList<>();
-        }
-
-        // 2. Check volume condition using Quotes API (real-time volume)
-        VolumeFilter volumeFilter = filterChain.getFilter(VolumeFilter.class);
-        if (volumeFilter != null) {
-            try {
-                QuotesResponse.QuoteData quoteData = ThinkOrSwinAPIs.getQuote(chain.getSymbol());
-                long currentVolume = quoteData.getQuote().getTotalVolume();
-                if (currentVolume < volumeFilter.getMinVolume()) {
-                    log.debug("[{}] Volume: {} - BELOW threshold ({}). Skipping.",
-                            chain.getSymbol(), currentVolume, volumeFilter.getMinVolume());
-                    return new ArrayList<>();
-                }
-                log.debug("[{}] Volume: {} - OK", chain.getSymbol(), currentVolume);
-            } catch (Exception e) {
-                log.warn("[{}] Failed to fetch quote for volume check: {}",
-                        chain.getSymbol(), e.getMessage());
-            }
-        }
-
-        // 3. Check for OVERBOUGHT conditions (Bearish signal)
-        RSIFilter rsiFilter = filterChain.getFilter(RSIFilter.class);
-        BollingerBandsFilter bbFilter = filterChain.getFilter(BollingerBandsFilter.class);
-
-        if (rsiFilter == null || bbFilter == null) {
-            log.error("RSI or Bollinger Bands filter not configured in filter chain");
-            return new ArrayList<>();
-        }
-
-        double currentRSI = rsiFilter.getCurrentRSI(series);
-        double upperBand = bbFilter.getUpperBand(series);
-        double currentPrice = chain.getUnderlyingPrice();
-
-        log.debug("[{}] RSI: {} | Upper BB: {} | Price: {}",
-                chain.getSymbol(), currentRSI, upperBand, currentPrice);
-
-        // OVERBOUGHT condition: RSI > threshold AND price touching/piercing upper band
-        if (!rsiFilter.isOverbought(series) || !bbFilter.isPriceTouchingUpperBand(series)) {
-            log.debug("[{}] Conditions NOT met for Bear Call Spread (not overbought)", chain.getSymbol());
-            return new ArrayList<>();
-        }
-
-        log.info("[{}] OVERBOUGHT conditions met! Looking for Bear Call Spread...", chain.getSymbol());
-
-        // 3. Find Bear Call Spread trades
+    protected List<TradeSetup> findStrategySpecificTrades(OptionChainResponse chain, String expiryDate,
+            OptionsStrategyFilter filter) {
+        // Find Bear Call Spread trades
         Map<String, List<OptionChainResponse.OptionData>> callMap = chain.getOptionDataForASpecificExpiryDate(
                 OptionType.CALL, expiryDate);
 
@@ -100,7 +48,7 @@ public class RSIBollingerBearCallSpreadStrategy extends AbstractTradingStrategy 
     }
 
     private List<TradeSetup> findBearCallSpreads(Map<String, List<OptionChainResponse.OptionData>> callMap,
-            double currentPrice, StrategyFilter filter) {
+            double currentPrice, OptionsStrategyFilter filter) {
         List<TradeSetup> spreads = new ArrayList<>();
 
         List<Double> sortedStrikes = callMap.keySet().stream()

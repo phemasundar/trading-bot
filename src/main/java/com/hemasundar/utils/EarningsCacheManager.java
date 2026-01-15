@@ -89,7 +89,7 @@ public class EarningsCacheManager {
          * }
          */
 
-        log.info("Using cached earnings for " + symbol);
+        log.debug("Using cached earnings for " + symbol);
 
         // Return only relevant earnings between now and target date (plus a buffer if
         // needed)

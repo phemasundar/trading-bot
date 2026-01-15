@@ -1,10 +1,13 @@
 package com.hemasundar;
 
-import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.pojos.*;
 import com.hemasundar.pojos.technicalfilters.BollingerBandsFilter;
+import com.hemasundar.pojos.technicalfilters.BollingerCondition;
+import com.hemasundar.pojos.technicalfilters.FilterConditions;
+import com.hemasundar.pojos.technicalfilters.RSICondition;
 import com.hemasundar.pojos.technicalfilters.RSIFilter;
 import com.hemasundar.pojos.technicalfilters.TechnicalFilterChain;
+import com.hemasundar.pojos.technicalfilters.TechnicalIndicators;
 import com.hemasundar.pojos.technicalfilters.VolumeFilter;
 import com.hemasundar.strategies.*;
 import com.hemasundar.utils.FilePaths;
@@ -72,28 +75,28 @@ public class SampleTestNG {
                 OptionChainCache cache = new OptionChainCache();
 
                 // Strategy Filters
-                StrategyFilter pcsFilter = StrategyFilter.builder()
+                OptionsStrategyFilter pcsFilter = OptionsStrategyFilter.builder()
                                 .targetDTE(30)
                                 .maxDelta(0.20)
                                 .maxLossLimit(1000)
                                 .minReturnOnRisk(12)
                                 .ignoreEarnings(false)
                                 .build();
-                StrategyFilter ccsFilter = StrategyFilter.builder()
+                OptionsStrategyFilter ccsFilter = OptionsStrategyFilter.builder()
                                 .targetDTE(30)
                                 .maxDelta(0.20)
                                 .maxLossLimit(1000)
                                 .minReturnOnRisk(12)
                                 .ignoreEarnings(false)
                                 .build();
-                StrategyFilter icFilter = StrategyFilter.builder()
+                OptionsStrategyFilter icFilter = OptionsStrategyFilter.builder()
                                 .targetDTE(60)
                                 .maxDelta(0.15)
                                 .maxLossLimit(1000)
                                 .minReturnOnRisk(24)
                                 .ignoreEarnings(false)
                                 .build();
-                StrategyFilter leapFilter = StrategyFilter.builder()
+                OptionsStrategyFilter leapFilter = OptionsStrategyFilter.builder()
                                 .minDTE((int) ChronoUnit.DAYS.between(LocalDate.now(), LocalDate.now().plusMonths(11)))
                                 .minDelta(0.6)
                                 .marginInterestRate(6.0)
@@ -107,23 +110,44 @@ public class SampleTestNG {
                 printFilteredStrategies(cache, defaultSecurities, new IronCondorStrategy(), icFilter);
                 printFilteredStrategies(cache, defaultSecurities, new LongCallLeapStrategy(), leapFilter);
 
-                // RSI & Bollinger Bands based strategies
-                TechnicalFilterChain filterChain = TechnicalFilterChain.builder()
-                                .withRSI(RSIFilter.builder()
+                // =============================================================
+                // RSI & Bollinger Bands Technical Filters
+                // =============================================================
+
+                // STEP 1: Define WHAT indicators to use (with their settings)
+                TechnicalIndicators indicators = TechnicalIndicators.builder()
+                                .rsiFilter(RSIFilter.builder()
                                                 .period(14)
-                                                .oversoldThreshold(30.0)
-                                                .overboughtThreshold(70.0)
+                                                .oversoldThreshold(30.0) // RSI < 30 = Oversold
+                                                .overboughtThreshold(70.0) // RSI > 70 = Overbought
                                                 .build())
-                                .withBollingerBands(BollingerBandsFilter.builder()
+                                .bollingerFilter(BollingerBandsFilter.builder()
                                                 .period(20)
                                                 .standardDeviations(2.0)
                                                 .build())
-                                .withVolume(VolumeFilter.builder()
-                                                .minVolume(1_000_000L)
-                                                .build())
+                                .volumeFilter(VolumeFilter.builder().build()) // Volume indicator is used
                                 .build();
 
-                StrategyFilter rsiBBFilter = StrategyFilter.builder()
+                // STEP 2: Define WHAT CONDITIONS to look for (separate from indicators)
+                // For Bull Put Spread - looking for OVERSOLD signals
+                FilterConditions oversoldConditions = FilterConditions.builder()
+                                .rsiCondition(RSICondition.OVERSOLD) // RSI < 30
+                                .bollingerCondition(BollingerCondition.LOWER_BAND) // Price at lower band
+                                .minVolume(1_000_000L) // Minimum 1M shares
+                                .build();
+
+                // For Bear Call Spread - looking for OVERBOUGHT signals
+                FilterConditions overboughtConditions = FilterConditions.builder()
+                                .rsiCondition(RSICondition.OVERBOUGHT) // RSI > 70
+                                .bollingerCondition(BollingerCondition.UPPER_BAND) // Price at upper band
+                                .minVolume(1_000_000L) // Minimum 1M shares
+                                .build();
+
+                // STEP 3: Combine indicators + conditions into filter chains
+                TechnicalFilterChain oversoldFilterChain = TechnicalFilterChain.of(indicators, oversoldConditions);
+                TechnicalFilterChain overboughtFilterChain = TechnicalFilterChain.of(indicators, overboughtConditions);
+
+                OptionsStrategyFilter rsiBBFilter = OptionsStrategyFilter.builder()
                                 .targetDTE(30)
                                 .maxDelta(0.35)
                                 .maxLossLimit(1000)
@@ -134,9 +158,9 @@ public class SampleTestNG {
                 // Run RSI Bollinger strategies with their own securities file
                 List<String> rsiBBSecurities = loadSecurities(FilePaths.top100Config);
                 printFilteredStrategies(cache, rsiBBSecurities,
-                                new RSIBollingerBullPutSpreadStrategy(filterChain), rsiBBFilter);
+                                new RSIBollingerBullPutSpreadStrategy(oversoldFilterChain), rsiBBFilter);
                 printFilteredStrategies(cache, rsiBBSecurities,
-                                new RSIBollingerBearCallSpreadStrategy(filterChain), rsiBBFilter);
+                                new RSIBollingerBearCallSpreadStrategy(overboughtFilterChain), rsiBBFilter);
 
                 // Print cache statistics
                 cache.printStats();
@@ -155,7 +179,7 @@ public class SampleTestNG {
          * Runs strategy against securities loaded from cache (lazy-loading).
          */
         private static void printFilteredStrategies(OptionChainCache cache, List<String> symbols,
-                        AbstractTradingStrategy strategy, StrategyFilter strategyFilter) {
+                        AbstractTradingStrategy strategy, OptionsStrategyFilter optionsStrategyFilter) {
                 log.info("\n" +
                                 "******************************************************************\n" +
                                 "************* {} **************\n" +
@@ -167,7 +191,7 @@ public class SampleTestNG {
                                 OptionChainResponse optionChainResponse = cache.get(symbol);
                                 log.info("Processing symbol: {}", symbol);
 
-                                List<TradeSetup> trades = strategy.findTrades(optionChainResponse, strategyFilter);
+                                List<TradeSetup> trades = strategy.findTrades(optionChainResponse, optionsStrategyFilter);
                                 trades.forEach(trade -> log.info("Trade: {}", trade));
 
                                 // Send to Telegram
