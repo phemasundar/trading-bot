@@ -154,11 +154,11 @@ public class SampleTestNG {
                                 .build();
 
                 // Run RSI Bollinger strategies with their own securities file
-                List<String> rsiBBSecurities = loadSecurities(FilePaths.top100Config);
+                List<String> top100Securities = loadSecurities(FilePaths.top100Config);
 
                 // 1. OVERSOLD Checks (Bull Put Spread)
                 log.info("Filtering stocks for OVERSOLD conditions...");
-                List<String> oversoldStocks = rsiBBSecurities.stream()
+                List<String> oversoldStocks = top100Securities.stream()
                                 .filter(symbol -> TechnicalStockValidator.validate(symbol, oversoldFilterChain))
                                 .toList();
                 log.info("Found {} stocks meeting OVERSOLD conditions: {}", oversoldStocks.size(), oversoldStocks);
@@ -171,7 +171,7 @@ public class SampleTestNG {
 
                 // 2. OVERBOUGHT Checks (Bear Call Spread)
                 log.info("Filtering stocks for OVERBOUGHT conditions...");
-                List<String> overboughtStocks = rsiBBSecurities.stream()
+                List<String> overboughtStocks = top100Securities.stream()
                                 .filter(symbol -> TechnicalStockValidator.validate(symbol, overboughtFilterChain))
                                 .toList();
                 log.info("Found {} stocks meeting OVERBOUGHT conditions: {}", overboughtStocks.size(),
@@ -182,6 +182,8 @@ public class SampleTestNG {
                                         new CallCreditSpreadStrategy(StrategyType.RSI_BOLLINGER_BEAR_CALL_SPREAD),
                                         rsiBBFilter);
                 }
+
+                technicalScreening(top100Securities);
 
                 // Print cache statistics
                 cache.printStats();
@@ -236,17 +238,12 @@ public class SampleTestNG {
          * 
          * Prints all technical parameter values for matching stocks.
          */
-        @Test
-        public void technicalScreening() throws IOException {
+        public static void technicalScreening(List<String> securities) throws IOException {
                 log.info("\n" +
                                 "╔═══════════════════════════════════════════════════════════════════╗\n" +
                                 "║          TECHNICAL-ONLY STOCK SCREENING STRATEGY                  ║\n" +
                                 "║   RSI Oversold + Lower BB + Price < MA20 + Price < MA50           ║\n" +
                                 "╚═══════════════════════════════════════════════════════════════════╝");
-
-                // Load securities from top100.yaml
-                List<String> securities = loadSecurities(FilePaths.top100Config);
-                log.info("Loaded {} securities for screening", securities.size());
 
                 // Configure all technical indicators
                 TechnicalIndicators indicators = TechnicalIndicators.builder()
