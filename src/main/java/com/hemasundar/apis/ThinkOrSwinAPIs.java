@@ -106,7 +106,7 @@ public class ThinkOrSwinAPIs {
         return getQuote(symbol, "quote,reference");
     }
 
-    public static OptionChainResponse getOptionChainResponse(String symbol) {
+    public static OptionChainResponse getOptionChain(String symbol) {
         Response response = RestAssured.given()
                 .header("accept", "application/json")
                 .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())

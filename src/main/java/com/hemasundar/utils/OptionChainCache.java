@@ -1,7 +1,5 @@
 package com.hemasundar.utils;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.hemasundar.options.models.ExpirationChainResponse;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.options.models.OptionChainResponse;
 import lombok.Getter;
@@ -37,7 +35,7 @@ public class OptionChainCache {
         return cache.computeIfAbsent(symbol, s -> {
             apiCallCount++;
             log.debug("Fetching from API: {} (API call #{})", s, apiCallCount);
-            return ThinkOrSwinAPIs.getOptionChainResponse(s);
+            return ThinkOrSwinAPIs.getOptionChain(s);
         });
     }
 
