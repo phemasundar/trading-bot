@@ -129,14 +129,14 @@ public class SampleTestNG {
                 // STEP 2: Define WHAT CONDITIONS to look for (separate from indicators)
                 // For Bull Put Spread - looking for OVERSOLD signals
                 FilterConditions oversoldConditions = FilterConditions.builder()
-                                .rsiCondition(RSICondition.OVERSOLD) // RSI < 30
+                                .rsiCondition(RSICondition.BULLISH_CROSSOVER) // RSI < 30
                                 .bollingerCondition(BollingerCondition.LOWER_BAND) // Price at lower band
                                 .minVolume(1_000_000L) // Minimum 1M shares
                                 .build();
 
                 // For Bear Call Spread - looking for OVERBOUGHT signals
                 FilterConditions overboughtConditions = FilterConditions.builder()
-                                .rsiCondition(RSICondition.OVERBOUGHT) // RSI > 70
+                                .rsiCondition(RSICondition.BEARISH_CROSSOVER) // RSI > 70
                                 .bollingerCondition(BollingerCondition.UPPER_BAND) // Price at upper band
                                 .minVolume(1_000_000L) // Minimum 1M shares
                                 .build();
