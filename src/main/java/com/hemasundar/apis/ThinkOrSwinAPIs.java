@@ -11,8 +11,101 @@ import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import lombok.extern.log4j.Log4j2;
 
+import java.util.List;
+
 @Log4j2
 public class ThinkOrSwinAPIs {
+    /**
+     * Fetches quotes for multiple symbols in a single API call.
+     * Returns quote and reference data for each symbol.
+     *
+     * @param symbols    List of symbols to fetch quotes for (e.g., ["AAPL", "TSLA",
+     *                   "AMZN"]) - REQUIRED
+     * @param fields     Optional: Comma-separated fields (quote, fundamental,
+     *                   extended, reference, regular)
+     *                   Default: all fields if not specified
+     * @param indicative Optional: Include indicative quotes for ETF symbols (e.g.,
+     *                   $ABC.IV)
+     * @return Map of symbol to QuoteData containing quote and reference information
+     */
+    public static java.util.Map<String, QuotesResponse.QuoteData> getQuotes(List<String> symbols, String fields,
+            Boolean indicative) {
+
+        String symbolsParam = String.join(",", symbols);
+
+        var requestSpec = RestAssured.given()
+                .header("accept", "application/json")
+                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())
+                .queryParam("symbols", symbolsParam);
+
+        // Only add optional params if provided
+        if (fields != null && !fields.isBlank()) {
+            requestSpec.queryParam("fields", fields);
+        }
+        if (indicative != null) {
+            requestSpec.queryParam("indicative", indicative);
+        }
+
+        Response response = requestSpec.get("https://api.schwabapi.com/marketdata/v1/quotes");
+
+        if (response.statusCode() != 200) {
+            throw new RuntimeException(
+                    "Quotes API failed: " + response.statusCode() + " - " + response.asString());
+        }
+
+        // The response is a direct map of symbol -> quote data
+        return JavaUtils.convertJsonToMap(response.asString(), QuotesResponse.QuoteData.class);
+    }
+
+    /**
+     * Fetches quotes for multiple symbols with all available fields.
+     *
+     * @param symbols List of symbols to fetch quotes for (REQUIRED)
+     * @return Map of symbol to QuoteData with all fields
+     */
+    public static java.util.Map<String, QuotesResponse.QuoteData> getQuotes(List<String> symbols) {
+        return getQuotes(symbols, null, null); // Gets all fields by default
+    }
+
+    /**
+     * Fetches quote for a single symbol.
+     *
+     * @param symbol The symbol to fetch quote for (e.g., "TSLA")
+     * @param fields Comma-separated fields to include (e.g., "quote,reference")
+     * @return QuoteData containing quote and reference information
+     */
+    public static QuotesResponse.QuoteData getQuote(String symbol, String fields) {
+        Response response = RestAssured.given()
+                .header("accept", "application/json")
+                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())
+                .queryParam("fields", fields)
+                .get("https://api.schwabapi.com/marketdata/v1/" + symbol + "/quotes");
+
+        if (response.statusCode() != 200) {
+            if (response.statusCode() == 400) {
+                ApiErrorHandler.handle400Error("Quote API", symbol, response.asString());
+                return null;
+            }
+            throw new RuntimeException(
+                    "Quote API failed for " + symbol + ": " + response.statusCode() + " - " + response.asString());
+        }
+
+        // The response is a map with the symbol as key
+        java.util.Map<String, QuotesResponse.QuoteData> result = JavaUtils.convertJsonToMap(response.asString(),
+                QuotesResponse.QuoteData.class);
+        return result.get(symbol);
+    }
+
+    /**
+     * Fetches quote for a single symbol with default fields (quote and reference).
+     *
+     * @param symbol The symbol to fetch quote for
+     * @return QuoteData containing quote and reference information
+     */
+    public static QuotesResponse.QuoteData getQuote(String symbol) {
+        return getQuote(symbol, "quote,reference");
+    }
+
     public static OptionChainResponse getOptionChainResponse(String symbol) {
         Response response = RestAssured.given()
                 .header("accept", "application/json")
@@ -38,6 +131,33 @@ public class ThinkOrSwinAPIs {
                 OptionChainResponse.class);
         log.debug("[{}] Current Market Price: {}", symbol, optionChainResponse.getUnderlyingPrice());
         return optionChainResponse;
+    }
+
+    /**
+     * Fetches the expiration chain for a symbol.
+     * Returns all available expiration dates for options on the symbol.
+     *
+     * @param symbol The symbol to fetch expiration chain for (e.g., "AAPL")
+     * @return ExpirationChainResponse containing list of expiration dates
+     */
+    public static ExpirationChainResponse getExpirationChain(String symbol) {
+        Response response = RestAssured.given()
+                .header("accept", "application/json")
+                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())
+                .queryParam("symbol", symbol)
+                .get("https://api.schwabapi.com/marketdata/v1/expirationchain");
+
+        if (response.statusCode() != 200) {
+            if (response.statusCode() == 400) {
+                ApiErrorHandler.handle400Error("Expiration Chain API", symbol, response.asString());
+                return null;
+            }
+            throw new RuntimeException(
+                    "Expiration Chain API failed for " + symbol + ": " + response.statusCode() + " - "
+                            + response.asString());
+        }
+
+        return JavaUtils.convertJsonToPojo(response.asString(), ExpirationChainResponse.class);
     }
 
     /**
@@ -118,118 +238,6 @@ public class ThinkOrSwinAPIs {
                 null,
                 false,
                 true);
-    }
-
-    /**
-     * Fetches quotes for multiple symbols in a single API call.
-     * Returns quote and reference data for each symbol.
-     *
-     * @param symbols    List of symbols to fetch quotes for (e.g., ["AAPL", "TSLA",
-     *                   "AMZN"])
-     * @param fields     Comma-separated fields to include (e.g., "quote,reference")
-     * @param indicative Whether to include indicative quotes for non-tradeable
-     *                   symbols
-     * @return Map of symbol to QuoteData containing quote and reference information
-     */
-    public static java.util.Map<String, QuotesResponse.QuoteData> getQuotes(
-            java.util.List<String> symbols,
-            String fields,
-            boolean indicative) {
-
-        String symbolsParam = String.join(",", symbols);
-
-        Response response = RestAssured.given()
-                .header("accept", "application/json")
-                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())
-                .queryParam("symbols", symbolsParam)
-                .queryParam("fields", fields)
-                .queryParam("indicative", indicative)
-                .get("https://api.schwabapi.com/marketdata/v1/quotes");
-
-        if (response.statusCode() != 200) {
-            throw new RuntimeException(
-                    "Quotes API failed: " + response.statusCode() + " - " + response.asString());
-        }
-
-        // The response is a direct map of symbol -> quote data
-        return JavaUtils.convertJsonToMap(response.asString(), QuotesResponse.QuoteData.class);
-    }
-
-    /**
-     * Fetches quotes for multiple symbols with default fields (quote and
-     * reference).
-     *
-     * @param symbols List of symbols to fetch quotes for
-     * @return Map of symbol to QuoteData
-     */
-    public static java.util.Map<String, QuotesResponse.QuoteData> getQuotes(java.util.List<String> symbols) {
-        return getQuotes(symbols, "quote,reference", true);
-    }
-
-    /**
-     * Fetches quote for a single symbol.
-     *
-     * @param symbol The symbol to fetch quote for (e.g., "TSLA")
-     * @param fields Comma-separated fields to include (e.g., "quote,reference")
-     * @return QuoteData containing quote and reference information
-     */
-    public static QuotesResponse.QuoteData getQuote(String symbol, String fields) {
-        Response response = RestAssured.given()
-                .header("accept", "application/json")
-                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())
-                .queryParam("fields", fields)
-                .get("https://api.schwabapi.com/marketdata/v1/" + symbol + "/quotes");
-
-        if (response.statusCode() != 200) {
-            if (response.statusCode() == 400) {
-                ApiErrorHandler.handle400Error("Quote API", symbol, response.asString());
-                return null;
-            }
-            throw new RuntimeException(
-                    "Quote API failed for " + symbol + ": " + response.statusCode() + " - " + response.asString());
-        }
-
-        // The response is a map with the symbol as key
-        java.util.Map<String, QuotesResponse.QuoteData> result = JavaUtils.convertJsonToMap(response.asString(),
-                QuotesResponse.QuoteData.class);
-        return result.get(symbol);
-    }
-
-    /**
-     * Fetches quote for a single symbol with default fields (quote and reference).
-     *
-     * @param symbol The symbol to fetch quote for
-     * @return QuoteData containing quote and reference information
-     */
-    public static QuotesResponse.QuoteData getQuote(String symbol) {
-        return getQuote(symbol, "quote,reference");
-    }
-
-    /**
-     * Fetches the expiration chain for a symbol.
-     * Returns all available expiration dates for options on the symbol.
-     *
-     * @param symbol The symbol to fetch expiration chain for (e.g., "AAPL")
-     * @return ExpirationChainResponse containing list of expiration dates
-     */
-    public static ExpirationChainResponse getExpirationChain(String symbol) {
-        Response response = RestAssured.given()
-                .header("accept", "application/json")
-                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())
-                .queryParam("symbol", symbol)
-                .get("https://api.schwabapi.com/marketdata/v1/expirationchain");
-
-        if (response.statusCode() != 200) {
-            if (response.statusCode() == 400) {
-                ApiErrorHandler.handle400Error("Expiration Chain API", symbol, response.asString());
-                return null;
-            }
-            throw new RuntimeException(
-                    "Expiration Chain API failed for " + symbol + ": " + response.statusCode() + " - "
-                            + response.asString());
-        }
-
-        return JavaUtils.convertJsonToPojo(response.asString(), ExpirationChainResponse.class);
     }
 
 }
