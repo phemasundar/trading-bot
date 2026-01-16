@@ -15,6 +15,8 @@ import lombok.Getter;
  * TechnicalIndicators indicators = TechnicalIndicators.builder()
  *         .rsiFilter(RSIFilter.builder().period(14).oversoldThreshold(30.0).overboughtThreshold(70.0).build())
  *         .bollingerFilter(BollingerBandsFilter.builder().period(20).standardDeviations(2.0).build())
+ *         .ma20Filter(MovingAverageFilter.builder().period(20).build())
+ *         .ma50Filter(MovingAverageFilter.builder().period(50).build())
  *         .volumeFilter(VolumeFilter.builder().minVolume(1_000_000L).build())
  *         .build();
  * </pre>
@@ -32,6 +34,16 @@ public class TechnicalIndicators {
      * Bollinger Bands indicator configuration.
      */
     private final BollingerBandsFilter bollingerFilter;
+
+    /**
+     * 20-day Moving Average filter.
+     */
+    private final MovingAverageFilter ma20Filter;
+
+    /**
+     * 50-day Moving Average filter.
+     */
+    private final MovingAverageFilter ma50Filter;
 
     /**
      * Volume filter configuration.

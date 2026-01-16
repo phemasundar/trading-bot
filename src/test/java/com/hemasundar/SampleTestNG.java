@@ -226,4 +226,63 @@ public class SampleTestNG {
                 }
         }
 
+        /**
+         * Technical-Only Stock Screening Strategy.
+         * Filters stocks based on:
+         * - RSI < 30 (Oversold / Bullish Divergence signal)
+         * - Price touching lower Bollinger Band
+         * - Price below 20-day Moving Average
+         * - Price below 50-day Moving Average
+         * 
+         * Prints all technical parameter values for matching stocks.
+         */
+        @Test
+        public void technicalScreening() throws IOException {
+                log.info("\n" +
+                                "╔═══════════════════════════════════════════════════════════════════╗\n" +
+                                "║          TECHNICAL-ONLY STOCK SCREENING STRATEGY                  ║\n" +
+                                "║   RSI Oversold + Lower BB + Price < MA20 + Price < MA50           ║\n" +
+                                "╚═══════════════════════════════════════════════════════════════════╝");
+
+                // Load securities from top100.yaml
+                List<String> securities = loadSecurities(FilePaths.top100Config);
+                log.info("Loaded {} securities for screening", securities.size());
+
+                // Configure all technical indicators
+                TechnicalIndicators indicators = TechnicalIndicators.builder()
+                                .rsiFilter(RSIFilter.builder()
+                                                .period(14)
+                                                .oversoldThreshold(30.0) // RSI < 30 = Oversold (Bullish Divergence
+                                                                         // signal)
+                                                .overboughtThreshold(70.0)
+                                                .build())
+                                .bollingerFilter(BollingerBandsFilter.builder()
+                                                .period(20)
+                                                .standardDeviations(2.0)
+                                                .build())
+                                .ma20Filter(MovingAverageFilter.builder()
+                                                .period(20)
+                                                .build())
+                                .ma50Filter(MovingAverageFilter.builder()
+                                                .period(50)
+                                                .build())
+                                .build();
+
+                // Run the screening - prints all matching stocks with their indicator values
+                List<TechnicalScreener.ScreeningResult> results = TechnicalScreener.screenStocks(securities,
+                                indicators);
+
+                // Summary
+                log.info("\n" +
+                                "══════════════════════════════════════════════════════════════════════\n" +
+                                " SCREENING COMPLETE: Found {} stocks matching ALL criteria\n" +
+                                "══════════════════════════════════════════════════════════════════════",
+                                results.size());
+
+                if (!results.isEmpty()) {
+                        log.info("Matching stocks: {}",
+                                        results.stream().map(TechnicalScreener.ScreeningResult::getSymbol).toList());
+                }
+        }
+
 }
