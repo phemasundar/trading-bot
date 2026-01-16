@@ -142,10 +142,12 @@ public class OptionChainResponse {
         public double extrinsicValue;
         public String optionRoot;
         public String exerciseType;
+        public double high52Week; // 52-week high for the option
+        public double low52Week; // 52-week low for the option
+        public boolean pennyPilot;
         public boolean inTheMoney;
         public boolean mini;
         public boolean nonStandard;
-        public boolean pennyPilot;
 
         public double getAbsDelta() {
             return Math.abs(this.getDelta());
