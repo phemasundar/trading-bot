@@ -2,6 +2,7 @@ package com.hemasundar.utils;
 
 import com.hemasundar.pojos.TestConfig;
 import com.hemasundar.options.models.TradeSetup;
+import com.hemasundar.technical.TechnicalScreener;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import lombok.AccessLevel;
@@ -88,6 +89,29 @@ public class TelegramUtils {
     }
 
     /**
+     * Sends technical screening alerts to Telegram.
+     *
+     * @param results List of screening results to send
+     */
+    public static void sendTechnicalScreenerAlert(List<TechnicalScreener.ScreeningResult> results) {
+        if (results == null || results.isEmpty()) {
+            return;
+        }
+
+        StringBuilder message = new StringBuilder();
+        message.append("<b>🔍 Technical Screener Alert</b>\n");
+        message.append("<b>Found ").append(results.size()).append(" stocks matching criteria</b>\n");
+        message.append("━━━━━━━━━━━━━━━━━━━━\n\n");
+
+        for (TechnicalScreener.ScreeningResult result : results) {
+            message.append(formatScreeningResult(result));
+            message.append("\n");
+        }
+
+        sendMessage(message.toString());
+    }
+
+    /**
      * Formats a single trade setup for Telegram display.
      *
      * @param trade The trade setup to format
@@ -103,6 +127,38 @@ public class TelegramUtils {
                 .replaceAll(", ", "\n• ");
 
         return tradeStr;
+    }
+
+    /**
+     * Formats a screening result for Telegram display.
+     */
+    private static String formatScreeningResult(TechnicalScreener.ScreeningResult result) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<b>").append(result.getSymbol()).append("</b>\n");
+        sb.append("  💰 Price: $").append(String.format("%.2f", result.getCurrentPrice())).append("\n");
+        sb.append("  📈 RSI: ").append(String.format("%.2f", result.getRsi()));
+        if (result.isRsiBullishCrossover()) {
+            sb.append(" ⬆️ CROSSOVER");
+        } else if (result.isRsiOversold()) {
+            sb.append(" 🔴 OVERSOLD");
+        }
+        sb.append("\n");
+        sb.append("  📉 BB Lower: $").append(String.format("%.2f", result.getBollingerLower()));
+        if (result.isPriceTouchingLowerBand()) {
+            sb.append(" ✓");
+        }
+        sb.append("\n");
+        sb.append("  📊 MA20: $").append(String.format("%.2f", result.getMa20()));
+        if (result.isPriceBelowMA20()) {
+            sb.append(" (below)");
+        }
+        sb.append("\n");
+        sb.append("  📊 MA50: $").append(String.format("%.2f", result.getMa50()));
+        if (result.isPriceBelowMA50()) {
+            sb.append(" (below)");
+        }
+        sb.append("\n");
+        return sb.toString();
     }
 
     /**

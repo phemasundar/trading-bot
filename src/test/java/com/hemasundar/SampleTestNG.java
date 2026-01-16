@@ -288,6 +288,9 @@ public class SampleTestNG {
                 if (!results.isEmpty()) {
                         log.info("Matching stocks: {}",
                                         results.stream().map(TechnicalScreener.ScreeningResult::getSymbol).toList());
+
+                        // Send one Telegram message with all matching stocks
+                        TelegramUtils.sendTechnicalScreenerAlert(results);
                 }
         }
 
