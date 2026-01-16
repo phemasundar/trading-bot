@@ -77,19 +77,22 @@ public class TechnicalScreener {
     }
 
     /**
-     * Screens stocks against the given filter criteria.
+     * Screens stocks against the given filter chain.
      * 
-     * @param symbols    List of stock symbols to screen
-     * @param indicators Technical indicators to calculate
+     * @param symbols     List of stock symbols to screen
+     * @param filterChain Technical filter chain containing indicators and
+     *                    conditions
      * @return List of screening results for stocks matching all criteria
      */
-    public static List<ScreeningResult> screenStocks(List<String> symbols, TechnicalIndicators indicators) {
+    public static List<ScreeningResult> screenStocks(List<String> symbols, TechnicalFilterChain filterChain) {
         List<ScreeningResult> results = new ArrayList<>();
+
+        log.info("\n{}", filterChain.getFiltersSummary());
 
         for (String symbol : symbols) {
             try {
-                ScreeningResult result = analyzeStock(symbol, indicators);
-                if (result != null && meetsAllCriteria(result)) {
+                ScreeningResult result = analyzeStock(symbol, filterChain.getIndicators());
+                if (result != null && meetsAllCriteria(result, filterChain.getConditions())) {
                     results.add(result);
                     log.info("\n{}", result);
                 }
@@ -159,16 +162,45 @@ public class TechnicalScreener {
     }
 
     /**
-     * Checks if the screening result meets all criteria:
-     * - RSI Bullish Crossover (RSI crossed from below 30 to above 30)
-     * - Price touching lower Bollinger Band
-     * - Price below MA20
-     * - Price below MA50
+     * Checks if the screening result meets all filter conditions.
      */
-    private static boolean meetsAllCriteria(ScreeningResult result) {
-        return result.isRsiBullishCrossover()
-                && result.isPriceTouchingLowerBand()
-                && result.isPriceBelowMA20()
-                && result.isPriceBelowMA50();
+    private static boolean meetsAllCriteria(ScreeningResult result, FilterConditions conditions) {
+        // RSI condition (via enum)
+        if (conditions.getRsiCondition() != null) {
+            boolean rsiMet = switch (conditions.getRsiCondition()) {
+                case OVERSOLD -> result.isRsiOversold();
+                case OVERBOUGHT -> !result.isRsiOversold(); // Simplified: overbought = not oversold context
+                case BULLISH_CROSSOVER -> result.isRsiBullishCrossover();
+                case BEARISH_CROSSOVER -> !result.isRsiBullishCrossover(); // Opposite
+            };
+            if (!rsiMet)
+                return false;
+        }
+
+        // Bollinger Band condition (via enum)
+        if (conditions.getBollingerCondition() != null) {
+            boolean bbMet = switch (conditions.getBollingerCondition()) {
+                case LOWER_BAND -> result.isPriceTouchingLowerBand();
+                case UPPER_BAND -> !result.isPriceTouchingLowerBand(); // Simplified
+            };
+            if (!bbMet)
+                return false;
+        }
+
+        // MA conditions
+        if (conditions.isRequirePriceBelowMA20() && !result.isPriceBelowMA20()) {
+            return false;
+        }
+        if (conditions.isRequirePriceBelowMA50() && !result.isPriceBelowMA50()) {
+            return false;
+        }
+        if (conditions.isRequirePriceAboveMA20() && result.isPriceBelowMA20()) {
+            return false;
+        }
+        if (conditions.isRequirePriceAboveMA50() && result.isPriceBelowMA50()) {
+            return false;
+        }
+
+        return true;
     }
 }

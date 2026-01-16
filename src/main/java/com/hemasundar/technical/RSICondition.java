@@ -27,6 +27,28 @@ public enum RSICondition {
         public boolean evaluate(RSIFilter filter, BarSeries series) {
             return filter.isOverbought(series);
         }
+    },
+
+    /**
+     * Bullish Crossover: RSI was below oversold threshold and crossed above.
+     * (Previous RSI < 30 AND Current RSI >= 30)
+     */
+    BULLISH_CROSSOVER {
+        @Override
+        public boolean evaluate(RSIFilter filter, BarSeries series) {
+            return filter.isBullishCrossover(series);
+        }
+    },
+
+    /**
+     * Bearish Crossover: RSI was above overbought threshold and crossed below.
+     * (Previous RSI > 70 AND Current RSI <= 70)
+     */
+    BEARISH_CROSSOVER {
+        @Override
+        public boolean evaluate(RSIFilter filter, BarSeries series) {
+            return filter.isBearishCrossover(series);
+        }
     };
 
     /**

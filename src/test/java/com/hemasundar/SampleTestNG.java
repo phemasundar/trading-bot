@@ -156,10 +156,12 @@ public class SampleTestNG {
                 // Run RSI Bollinger strategies with their own securities file
                 List<String> top100Securities = loadSecurities(FilePaths.top100Config);
 
-                // 1. OVERSOLD Checks (Bull Put Spread)
+                // 1. OVERSOLD Checks (Bull Put Spread) - using TechnicalScreener
                 log.info("Filtering stocks for OVERSOLD conditions...");
-                List<String> oversoldStocks = top100Securities.stream()
-                                .filter(symbol -> TechnicalStockValidator.validate(symbol, oversoldFilterChain))
+                List<TechnicalScreener.ScreeningResult> oversoldResults = TechnicalScreener.screenStocks(
+                                top100Securities, oversoldFilterChain);
+                List<String> oversoldStocks = oversoldResults.stream()
+                                .map(TechnicalScreener.ScreeningResult::getSymbol)
                                 .toList();
                 log.info("Found {} stocks meeting OVERSOLD conditions: {}", oversoldStocks.size(), oversoldStocks);
 
@@ -169,10 +171,12 @@ public class SampleTestNG {
                                         rsiBBFilter);
                 }
 
-                // 2. OVERBOUGHT Checks (Bear Call Spread)
+                // 2. OVERBOUGHT Checks (Bear Call Spread) - using TechnicalScreener
                 log.info("Filtering stocks for OVERBOUGHT conditions...");
-                List<String> overboughtStocks = top100Securities.stream()
-                                .filter(symbol -> TechnicalStockValidator.validate(symbol, overboughtFilterChain))
+                List<TechnicalScreener.ScreeningResult> overboughtResults = TechnicalScreener.screenStocks(
+                                top100Securities, overboughtFilterChain);
+                List<String> overboughtStocks = overboughtResults.stream()
+                                .map(TechnicalScreener.ScreeningResult::getSymbol)
                                 .toList();
                 log.info("Found {} stocks meeting OVERBOUGHT conditions: {}", overboughtStocks.size(),
                                 overboughtStocks);
@@ -183,7 +187,35 @@ public class SampleTestNG {
                                         rsiBBFilter);
                 }
 
-                technicalScreening(top100Securities);
+                // Technical-Only Screening (no options) with TechnicalFilterChain
+                // Define indicators (WHAT to measure)
+                TechnicalIndicators technicalIndicators = TechnicalIndicators.builder()
+                                .rsiFilter(RSIFilter.builder()
+                                                .period(14)
+                                                .oversoldThreshold(30.0)
+                                                .overboughtThreshold(70.0)
+                                                .build())
+                                .bollingerFilter(BollingerBandsFilter.builder()
+                                                .period(20)
+                                                .standardDeviations(2.0)
+                                                .build())
+                                .ma20Filter(MovingAverageFilter.builder().period(20).build())
+                                .ma50Filter(MovingAverageFilter.builder().period(50).build())
+                                .build();
+
+                // Define conditions (WHAT conditions to look for)
+                FilterConditions technicalConditions = FilterConditions.builder()
+                                .rsiCondition(RSICondition.BULLISH_CROSSOVER) // RSI crossed from below 30 to above
+                                .bollingerCondition(BollingerCondition.LOWER_BAND) // Price touching lower BB
+                                .requirePriceBelowMA20(true) // Price below MA(20)
+                                .requirePriceBelowMA50(true) // Price below MA(50)
+                                .build();
+
+                // Combine into filter chain
+                TechnicalFilterChain technicalFilterChain = TechnicalFilterChain.of(technicalIndicators,
+                                technicalConditions);
+
+                technicalScreening(top100Securities, technicalFilterChain);
 
                 // Print cache statistics
                 cache.printStats();
@@ -230,44 +262,21 @@ public class SampleTestNG {
 
         /**
          * Technical-Only Stock Screening Strategy.
-         * Filters stocks based on:
-         * - RSI < 30 (Oversold / Bullish Divergence signal)
-         * - Price touching lower Bollinger Band
-         * - Price below 20-day Moving Average
-         * - Price below 50-day Moving Average
+         * Filters stocks based on a configured filter chain.
          * 
-         * Prints all technical parameter values for matching stocks.
+         * @param securities  List of stock symbols to screen
+         * @param filterChain Technical filter chain containing indicators and
+         *                    conditions
          */
-        public static void technicalScreening(List<String> securities) throws IOException {
+        public static void technicalScreening(List<String> securities, TechnicalFilterChain filterChain) {
                 log.info("\n" +
                                 "╔═══════════════════════════════════════════════════════════════════╗\n" +
                                 "║          TECHNICAL-ONLY STOCK SCREENING STRATEGY                  ║\n" +
-                                "║   RSI Oversold + Lower BB + Price < MA20 + Price < MA50           ║\n" +
                                 "╚═══════════════════════════════════════════════════════════════════╝");
 
-                // Configure all technical indicators
-                TechnicalIndicators indicators = TechnicalIndicators.builder()
-                                .rsiFilter(RSIFilter.builder()
-                                                .period(14)
-                                                .oversoldThreshold(30.0) // RSI < 30 = Oversold (Bullish Divergence
-                                                                         // signal)
-                                                .overboughtThreshold(70.0)
-                                                .build())
-                                .bollingerFilter(BollingerBandsFilter.builder()
-                                                .period(20)
-                                                .standardDeviations(2.0)
-                                                .build())
-                                .ma20Filter(MovingAverageFilter.builder()
-                                                .period(20)
-                                                .build())
-                                .ma50Filter(MovingAverageFilter.builder()
-                                                .period(50)
-                                                .build())
-                                .build();
-
-                // Run the screening - prints all matching stocks with their indicator values
+                // Run the screening with the filter chain
                 List<TechnicalScreener.ScreeningResult> results = TechnicalScreener.screenStocks(securities,
-                                indicators);
+                                filterChain);
 
                 // Summary
                 log.info("\n" +

@@ -13,8 +13,10 @@ import lombok.Getter;
  * 
  * <pre>
  * FilterConditions oversoldConditions = FilterConditions.builder()
- *         .rsiCondition(RSICondition.OVERSOLD) // RSI < 30
+ *         .rsiCondition(RSICondition.BULLISH_CROSSOVER) // RSI crossed from <30 to >=30
  *         .bollingerCondition(BollingerCondition.LOWER_BAND) // Price at lower band
+ *         .requirePriceBelowMA20(true) // Price below MA(20)
+ *         .requirePriceBelowMA50(true) // Price below MA(50)
  *         .minVolume(1_000_000L) // Minimum 1M shares
  *         .build();
  * </pre>
@@ -24,8 +26,8 @@ import lombok.Getter;
 public class FilterConditions {
 
     /**
-     * RSI condition to check: OVERSOLD (RSI < threshold) or OVERBOUGHT (RSI >
-     * threshold).
+     * RSI condition to check: OVERSOLD, OVERBOUGHT, BULLISH_CROSSOVER, or
+     * BEARISH_CROSSOVER.
      */
     private final RSICondition rsiCondition;
 
@@ -41,15 +43,60 @@ public class FilterConditions {
     private final Long minVolume;
 
     /**
+     * When true, requires price to be below MA(20).
+     */
+    @Builder.Default
+    private final boolean requirePriceBelowMA20 = false;
+
+    /**
+     * When true, requires price to be above MA(20).
+     */
+    @Builder.Default
+    private final boolean requirePriceAboveMA20 = false;
+
+    /**
+     * When true, requires price to be below MA(50).
+     */
+    @Builder.Default
+    private final boolean requirePriceBelowMA50 = false;
+
+    /**
+     * When true, requires price to be above MA(50).
+     */
+    @Builder.Default
+    private final boolean requirePriceAboveMA50 = false;
+
+    /**
      * Returns a readable summary of the conditions.
      */
     public String getSummary() {
-        String volumeStr = minVolume != null && minVolume > 0
-                ? String.format("%,d", minVolume)
-                : "N/A";
-        return String.format("RSI: %s | Bollinger: %s | Volume >= %s",
-                rsiCondition != null ? rsiCondition.name() : "N/A",
-                bollingerCondition != null ? bollingerCondition.name() : "N/A",
-                volumeStr);
+        StringBuilder sb = new StringBuilder();
+
+        if (rsiCondition != null) {
+            sb.append("RSI: ").append(rsiCondition.name()).append(" | ");
+        }
+        if (bollingerCondition != null) {
+            sb.append("BB: ").append(bollingerCondition.name()).append(" | ");
+        }
+        if (requirePriceBelowMA20) {
+            sb.append("Price < MA20 | ");
+        }
+        if (requirePriceAboveMA20) {
+            sb.append("Price > MA20 | ");
+        }
+        if (requirePriceBelowMA50) {
+            sb.append("Price < MA50 | ");
+        }
+        if (requirePriceAboveMA50) {
+            sb.append("Price > MA50 | ");
+        }
+        if (minVolume != null && minVolume > 0) {
+            sb.append(String.format("Volume >= %,d", minVolume));
+        }
+
+        if (sb.length() == 0)
+            return "No conditions set";
+        String result = sb.toString();
+        return result.endsWith(" | ") ? result.substring(0, result.length() - 3) : result;
     }
 }

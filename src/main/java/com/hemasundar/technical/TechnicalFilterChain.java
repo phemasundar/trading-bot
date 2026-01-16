@@ -65,6 +65,12 @@ public class TechnicalFilterChain {
         if (indicators.getBollingerFilter() != null) {
             list.add(indicators.getBollingerFilter());
         }
+        if (indicators.getMa20Filter() != null) {
+            list.add(indicators.getMa20Filter());
+        }
+        if (indicators.getMa50Filter() != null) {
+            list.add(indicators.getMa50Filter());
+        }
         if (indicators.getVolumeFilter() != null) {
             list.add(indicators.getVolumeFilter());
         }
@@ -95,6 +101,15 @@ public class TechnicalFilterChain {
 
     public Long getMinVolume() {
         return conditions != null ? conditions.getMinVolume() : null;
+    }
+
+    // Convenience getters for MA filters
+    public MovingAverageFilter getMa20Filter() {
+        return indicators != null ? indicators.getMa20Filter() : null;
+    }
+
+    public MovingAverageFilter getMa50Filter() {
+        return indicators != null ? indicators.getMa50Filter() : null;
     }
 
     /**
