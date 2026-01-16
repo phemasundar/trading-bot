@@ -26,6 +26,7 @@ public class TechnicalScreener {
         private String symbol;
         private double currentPrice;
         private double rsi;
+        private double previousRsi;
         private double bollingerLower;
         private double bollingerMiddle;
         private double bollingerUpper;
@@ -35,30 +36,37 @@ public class TechnicalScreener {
         private boolean priceBelowMA50;
         private boolean priceTouchingLowerBand;
         private boolean rsiOversold;
+        private boolean rsiBullishCrossover;
 
         @Override
         public String toString() {
+            String rsiStatus = rsiBullishCrossover ? "(BULLISH CROSSOVER ↑)"
+                    : rsiOversold ? "(OVERSOLD)"
+                            : "";
             return String.format(
-                    "╔══════════════════════════════════════════════════╗\n" +
-                            "║ %-48s ║\n" +
-                            "╠══════════════════════════════════════════════════╣\n" +
-                            "║ Current Price:        $%-25.2f ║\n" +
-                            "╠══════════════════════════════════════════════════╣\n" +
-                            "║ RSI (14):             %-8.2f %s ║\n" +
-                            "╠══════════════════════════════════════════════════╣\n" +
-                            "║ Bollinger Bands:                                 ║\n" +
-                            "║   Upper:              $%-25.2f ║\n" +
-                            "║   Middle (SMA20):     $%-25.2f ║\n" +
-                            "║   Lower:              $%-25.2f ║\n" +
-                            "║   Price @ Lower:      %-27s ║\n" +
-                            "╠══════════════════════════════════════════════════╣\n" +
-                            "║ Moving Averages:                                 ║\n" +
-                            "║   MA(20):             $%-8.2f  Price < MA: %-5s ║\n" +
-                            "║   MA(50):             $%-8.2f  Price < MA: %-5s ║\n" +
-                            "╚══════════════════════════════════════════════════╝",
+                    "╔══════════════════════════════════════════════════════════╗\n" +
+                            "║ %-56s ║\n" +
+                            "╠══════════════════════════════════════════════════════════╣\n" +
+                            "║ Current Price:        $%-33.2f ║\n" +
+                            "╠══════════════════════════════════════════════════════════╣\n" +
+                            "║ RSI (14):                                                ║\n" +
+                            "║   Previous:           %-36.2f ║\n" +
+                            "║   Current:            %-8.2f %-27s ║\n" +
+                            "╠══════════════════════════════════════════════════════════╣\n" +
+                            "║ Bollinger Bands:                                         ║\n" +
+                            "║   Upper:              $%-33.2f ║\n" +
+                            "║   Middle (SMA20):     $%-33.2f ║\n" +
+                            "║   Lower:              $%-33.2f ║\n" +
+                            "║   Price @ Lower:      %-35s ║\n" +
+                            "╠══════════════════════════════════════════════════════════╣\n" +
+                            "║ Moving Averages:                                         ║\n" +
+                            "║   MA(20):             $%-10.2f  Price < MA: %-11s ║\n" +
+                            "║   MA(50):             $%-10.2f  Price < MA: %-11s ║\n" +
+                            "╚══════════════════════════════════════════════════════════╝",
                     symbol,
                     currentPrice,
-                    rsi, rsiOversold ? "(OVERSOLD)" : "          ",
+                    previousRsi,
+                    rsi, rsiStatus,
                     bollingerUpper,
                     bollingerMiddle,
                     bollingerLower,
@@ -119,7 +127,9 @@ public class TechnicalScreener {
         if (indicators.getRsiFilter() != null) {
             RSIFilter rsi = indicators.getRsiFilter();
             builder.rsi(rsi.getCurrentRSI(series))
-                    .rsiOversold(rsi.isOversold(series));
+                    .previousRsi(rsi.getPreviousRSI(series))
+                    .rsiOversold(rsi.isOversold(series))
+                    .rsiBullishCrossover(rsi.isBullishCrossover(series));
         }
 
         // Bollinger Bands
@@ -150,13 +160,13 @@ public class TechnicalScreener {
 
     /**
      * Checks if the screening result meets all criteria:
-     * - RSI oversold (< 30)
+     * - RSI Bullish Crossover (RSI crossed from below 30 to above 30)
      * - Price touching lower Bollinger Band
      * - Price below MA20
      * - Price below MA50
      */
     private static boolean meetsAllCriteria(ScreeningResult result) {
-        return result.isRsiOversold()
+        return result.isRsiBullishCrossover()
                 && result.isPriceTouchingLowerBand()
                 && result.isPriceBelowMA20()
                 && result.isPriceBelowMA50();
