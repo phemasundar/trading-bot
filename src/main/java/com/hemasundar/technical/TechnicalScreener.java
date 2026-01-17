@@ -32,8 +32,12 @@ public class TechnicalScreener {
         private double bollingerUpper;
         private double ma20;
         private double ma50;
+        private double ma100;
+        private double ma200;
         private boolean priceBelowMA20;
         private boolean priceBelowMA50;
+        private boolean priceBelowMA100;
+        private boolean priceBelowMA200;
         private boolean priceTouchingLowerBand;
         private boolean rsiOversold;
         private boolean rsiBullishCrossover;
@@ -62,6 +66,8 @@ public class TechnicalScreener {
                             "║ Moving Averages:                                         ║\n" +
                             "║   MA(20):             $%-10.2f  Price < MA: %-11s ║\n" +
                             "║   MA(50):             $%-10.2f  Price < MA: %-11s ║\n" +
+                            "║   MA(100):            $%-10.2f  Price < MA: %-11s ║\n" +
+                            "║   MA(200):            $%-10.2f  Price < MA: %-11s ║\n" +
                             "╚══════════════════════════════════════════════════════════╝",
                     symbol,
                     currentPrice,
@@ -72,7 +78,9 @@ public class TechnicalScreener {
                     bollingerLower,
                     priceTouchingLowerBand ? "YES ✓" : "NO",
                     ma20, priceBelowMA20 ? "YES ✓" : "NO",
-                    ma50, priceBelowMA50 ? "YES ✓" : "NO");
+                    ma50, priceBelowMA50 ? "YES ✓" : "NO",
+                    ma100, priceBelowMA100 ? "YES ✓" : "NO",
+                    ma200, priceBelowMA200 ? "YES ✓" : "NO");
         }
     }
 
@@ -158,6 +166,20 @@ public class TechnicalScreener {
                     .priceBelowMA50(ma50.isPriceBelowMA(series));
         }
 
+        // MA100
+        if (indicators.getMa100Filter() != null) {
+            MovingAverageFilter ma100 = indicators.getMa100Filter();
+            builder.ma100(ma100.getCurrentMA(series))
+                    .priceBelowMA100(ma100.isPriceBelowMA(series));
+        }
+
+        // MA200
+        if (indicators.getMa200Filter() != null) {
+            MovingAverageFilter ma200 = indicators.getMa200Filter();
+            builder.ma200(ma200.getCurrentMA(series))
+                    .priceBelowMA200(ma200.isPriceBelowMA(series));
+        }
+
         return builder.build();
     }
 
@@ -198,6 +220,20 @@ public class TechnicalScreener {
             return false;
         }
         if (conditions.isRequirePriceAboveMA50() && result.isPriceBelowMA50()) {
+            return false;
+        }
+        // MA100 conditions
+        if (conditions.isRequirePriceBelowMA100() && !result.isPriceBelowMA100()) {
+            return false;
+        }
+        if (conditions.isRequirePriceAboveMA100() && result.isPriceBelowMA100()) {
+            return false;
+        }
+        // MA200 conditions
+        if (conditions.isRequirePriceBelowMA200() && !result.isPriceBelowMA200()) {
+            return false;
+        }
+        if (conditions.isRequirePriceAboveMA200() && result.isPriceBelowMA200()) {
             return false;
         }
 

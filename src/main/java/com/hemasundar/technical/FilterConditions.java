@@ -67,6 +67,30 @@ public class FilterConditions {
     private final boolean requirePriceAboveMA50 = false;
 
     /**
+     * When true, requires price to be below MA(100).
+     */
+    @Builder.Default
+    private final boolean requirePriceBelowMA100 = false;
+
+    /**
+     * When true, requires price to be above MA(100).
+     */
+    @Builder.Default
+    private final boolean requirePriceAboveMA100 = false;
+
+    /**
+     * When true, requires price to be below MA(200).
+     */
+    @Builder.Default
+    private final boolean requirePriceBelowMA200 = false;
+
+    /**
+     * When true, requires price to be above MA(200).
+     */
+    @Builder.Default
+    private final boolean requirePriceAboveMA200 = false;
+
+    /**
      * Returns a readable summary of the conditions.
      */
     public String getSummary() {
@@ -89,6 +113,18 @@ public class FilterConditions {
         }
         if (requirePriceAboveMA50) {
             sb.append("Price > MA50 | ");
+        }
+        if (requirePriceBelowMA100) {
+            sb.append("Price < MA100 | ");
+        }
+        if (requirePriceAboveMA100) {
+            sb.append("Price > MA100 | ");
+        }
+        if (requirePriceBelowMA200) {
+            sb.append("Price < MA200 | ");
+        }
+        if (requirePriceAboveMA200) {
+            sb.append("Price > MA200 | ");
         }
         if (minVolume != null && minVolume > 0) {
             sb.append(String.format("Volume >= %,d", minVolume));

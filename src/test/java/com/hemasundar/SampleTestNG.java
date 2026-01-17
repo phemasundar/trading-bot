@@ -126,6 +126,8 @@ public class SampleTestNG {
                                                 .build())
                                 .ma20Filter(MovingAverageFilter.builder().period(20).build())
                                 .ma50Filter(MovingAverageFilter.builder().period(50).build())
+                                .ma100Filter(MovingAverageFilter.builder().period(100).build())
+                                .ma200Filter(MovingAverageFilter.builder().period(200).build())
                                 .volumeFilter(VolumeFilter.builder().build())
                                 .build();
 
@@ -190,18 +192,45 @@ public class SampleTestNG {
                                         rsiBBFilter);
                 }
 
-                // Define conditions (WHAT conditions to look for) for technical-only screening
-                FilterConditions technicalConditions = FilterConditions.builder()
-                                .rsiCondition(RSICondition.BULLISH_CROSSOVER) // RSI crossed from below 30 to above
-                                .bollingerCondition(BollingerCondition.LOWER_BAND) // Price touching lower BB
-                                .requirePriceBelowMA20(true) // Price below MA(20)
-                                .requirePriceBelowMA50(true) // Price below MA(50)
-                                .build();
+                // =============================================================
+                // TECHNICAL-ONLY STOCK SCREENERS (Configuration-Driven)
+                // =============================================================
+                // Define all screeners as a list of configs - easy to add more
+                List<ScreenerConfig> technicalScreeners = List.of(
+                                ScreenerConfig.builder()
+                                                .name("RSI BB Bullish Crossover")
+                                                .conditions(FilterConditions.builder()
+                                                                .rsiCondition(RSICondition.BULLISH_CROSSOVER)
+                                                                .bollingerCondition(BollingerCondition.LOWER_BAND)
+                                                                .requirePriceBelowMA20(true)
+                                                                .requirePriceBelowMA50(true)
+                                                                .build())
+                                                .build(),
+                                ScreenerConfig.builder()
+                                                .name("Below 50 Day MA")
+                                                .conditions(FilterConditions.builder()
+                                                                .requirePriceBelowMA50(true)
+                                                                .build())
+                                                .build()
+                // Add more screeners here as needed...
+                );
 
-                // Combine into filter chain (reuse same indicators)
-                TechnicalFilterChain technicalFilterChain = TechnicalFilterChain.of(indicators, technicalConditions);
+                // Run all screeners with single loop
+                for (ScreenerConfig config : technicalScreeners) {
+                        log.info("Running screener: {}", config.getName());
+                        TechnicalFilterChain filterChain = TechnicalFilterChain.of(indicators, config.getConditions());
+                        List<TechnicalScreener.ScreeningResult> results = TechnicalScreener.screenStocks(
+                                        top100Securities, filterChain);
 
-                technicalScreening(top100Securities, technicalFilterChain);
+                        log.info("[{}] Found {} stocks matching criteria", config.getName(), results.size());
+
+                        if (!results.isEmpty()) {
+                                log.info("[{}] Matching stocks: {}", config.getName(),
+                                                results.stream().map(TechnicalScreener.ScreeningResult::getSymbol)
+                                                                .toList());
+                                TelegramUtils.sendTechnicalScreenerAlert(config.getName(), results);
+                        }
+                }
 
                 // Print cache statistics
                 cache.printStats();
@@ -243,40 +272,6 @@ public class SampleTestNG {
                         } catch (Exception e) {
                                 log.error("Error processing {}: {}", symbol, e.getMessage());
                         }
-                }
-        }
-
-        /**
-         * Technical-Only Stock Screening Strategy.
-         * Filters stocks based on a configured filter chain.
-         * 
-         * @param securities  List of stock symbols to screen
-         * @param filterChain Technical filter chain containing indicators and
-         *                    conditions
-         */
-        public static void technicalScreening(List<String> securities, TechnicalFilterChain filterChain) {
-                log.info("\n" +
-                                "╔═══════════════════════════════════════════════════════════════════╗\n" +
-                                "║          TECHNICAL-ONLY STOCK SCREENING STRATEGY                  ║\n" +
-                                "╚═══════════════════════════════════════════════════════════════════╝");
-
-                // Run the screening with the filter chain
-                List<TechnicalScreener.ScreeningResult> results = TechnicalScreener.screenStocks(securities,
-                                filterChain);
-
-                // Summary
-                log.info("\n" +
-                                "══════════════════════════════════════════════════════════════════════\n" +
-                                " SCREENING COMPLETE: Found {} stocks matching ALL criteria\n" +
-                                "══════════════════════════════════════════════════════════════════════",
-                                results.size());
-
-                if (!results.isEmpty()) {
-                        log.info("Matching stocks: {}",
-                                        results.stream().map(TechnicalScreener.ScreeningResult::getSymbol).toList());
-
-                        // Send one Telegram message with all matching stocks
-                        TelegramUtils.sendTechnicalScreenerAlert(results);
                 }
         }
 

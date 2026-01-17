@@ -46,6 +46,16 @@ public class TechnicalIndicators {
     private final MovingAverageFilter ma50Filter;
 
     /**
+     * 100-day Moving Average filter.
+     */
+    private final MovingAverageFilter ma100Filter;
+
+    /**
+     * 200-day Moving Average filter.
+     */
+    private final MovingAverageFilter ma200Filter;
+
+    /**
      * Volume filter configuration.
      */
     private final VolumeFilter volumeFilter;

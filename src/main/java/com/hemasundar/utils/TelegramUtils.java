@@ -91,15 +91,17 @@ public class TelegramUtils {
     /**
      * Sends technical screening alerts to Telegram.
      *
-     * @param results List of screening results to send
+     * @param screenerName Name of the screener for display in the alert
+     * @param results      List of screening results to send
      */
-    public static void sendTechnicalScreenerAlert(List<TechnicalScreener.ScreeningResult> results) {
+    public static void sendTechnicalScreenerAlert(String screenerName,
+            List<TechnicalScreener.ScreeningResult> results) {
         if (results == null || results.isEmpty()) {
             return;
         }
 
         StringBuilder message = new StringBuilder();
-        message.append("<b>🔍 Technical Screener Alert</b>\n");
+        message.append("<b>🔍 ").append(screenerName).append("</b>\n");
         message.append("<b>Found ").append(results.size()).append(" stocks matching criteria</b>\n");
         message.append("━━━━━━━━━━━━━━━━━━━━\n\n");
 
