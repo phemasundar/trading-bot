@@ -113,6 +113,7 @@ public class SampleTestNG {
                 // =============================================================
 
                 // STEP 1: Define WHAT indicators to use (with their settings)
+                // This single indicators object is shared across all filter chains
                 TechnicalIndicators indicators = TechnicalIndicators.builder()
                                 .rsiFilter(RSIFilter.builder()
                                                 .period(14)
@@ -123,7 +124,9 @@ public class SampleTestNG {
                                                 .period(20)
                                                 .standardDeviations(2.0)
                                                 .build())
-                                .volumeFilter(VolumeFilter.builder().build()) // Volume indicator is used
+                                .ma20Filter(MovingAverageFilter.builder().period(20).build())
+                                .ma50Filter(MovingAverageFilter.builder().period(50).build())
+                                .volumeFilter(VolumeFilter.builder().build())
                                 .build();
 
                 // STEP 2: Define WHAT CONDITIONS to look for (separate from indicators)
@@ -187,23 +190,7 @@ public class SampleTestNG {
                                         rsiBBFilter);
                 }
 
-                // Technical-Only Screening (no options) with TechnicalFilterChain
-                // Define indicators (WHAT to measure)
-                TechnicalIndicators technicalIndicators = TechnicalIndicators.builder()
-                                .rsiFilter(RSIFilter.builder()
-                                                .period(14)
-                                                .oversoldThreshold(30.0)
-                                                .overboughtThreshold(70.0)
-                                                .build())
-                                .bollingerFilter(BollingerBandsFilter.builder()
-                                                .period(20)
-                                                .standardDeviations(2.0)
-                                                .build())
-                                .ma20Filter(MovingAverageFilter.builder().period(20).build())
-                                .ma50Filter(MovingAverageFilter.builder().period(50).build())
-                                .build();
-
-                // Define conditions (WHAT conditions to look for)
+                // Define conditions (WHAT conditions to look for) for technical-only screening
                 FilterConditions technicalConditions = FilterConditions.builder()
                                 .rsiCondition(RSICondition.BULLISH_CROSSOVER) // RSI crossed from below 30 to above
                                 .bollingerCondition(BollingerCondition.LOWER_BAND) // Price touching lower BB
@@ -211,9 +198,8 @@ public class SampleTestNG {
                                 .requirePriceBelowMA50(true) // Price below MA(50)
                                 .build();
 
-                // Combine into filter chain
-                TechnicalFilterChain technicalFilterChain = TechnicalFilterChain.of(technicalIndicators,
-                                technicalConditions);
+                // Combine into filter chain (reuse same indicators)
+                TechnicalFilterChain technicalFilterChain = TechnicalFilterChain.of(indicators, technicalConditions);
 
                 technicalScreening(top100Securities, technicalFilterChain);
 
