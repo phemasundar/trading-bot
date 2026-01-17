@@ -187,9 +187,9 @@ public class SampleTestNG {
                                 overboughtStocks);
 
                 if (!overboughtStocks.isEmpty()) {
-                        printFilteredStrategies(cache, overboughtStocks,
-                                        new CallCreditSpreadStrategy(StrategyType.RSI_BOLLINGER_BEAR_CALL_SPREAD),
-                                        rsiBBFilter);
+                        // printFilteredStrategies(cache, overboughtStocks,
+                        // new CallCreditSpreadStrategy(StrategyType.RSI_BOLLINGER_BEAR_CALL_SPREAD),
+                        // rsiBBFilter);
                 }
 
                 // =============================================================
@@ -207,10 +207,18 @@ public class SampleTestNG {
                                                                 .build())
                                                 .build(),
                                 ScreenerConfig.builder()
-                                                .name("Below 50 Day MA")
+                                                .name("Below 200 Day MA")
                                                 .conditions(FilterConditions.builder()
-                                                                .requirePriceBelowMA50(true)
+                                                                .requirePriceBelowMA200(true)
                                                                 .build())
+                                                .build(),
+                                ScreenerConfig.builder()
+                                                .name("OVER BOUGHT")
+                                                .conditions(overboughtConditions)
+                                                .build(),
+                                ScreenerConfig.builder()
+                                                .name("OVER SOLD")
+                                                .conditions(oversoldConditions)
                                                 .build()
                 // Add more screeners here as needed...
                 );
