@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Utility class for sending messages to Telegram via Bot API.
@@ -96,6 +97,23 @@ public class TelegramUtils {
         }
 
         sendMessage(message.toString());
+    }
+
+    /**
+     * Sends trade alerts for a strategy to Telegram.
+     * Processes a map of symbol -> trades (batch of results).
+     *
+     * @param strategyName The name of the trading strategy
+     * @param tradesMap    Map of symbol -> trade setups
+     */
+    public static void sendTradeAlerts(String strategyName, Map<String, List<TradeSetup>> tradesMap) {
+        if (tradesMap == null || tradesMap.isEmpty()) {
+            return;
+        }
+
+        for (Map.Entry<String, List<TradeSetup>> entry : tradesMap.entrySet()) {
+            sendTradeAlerts(strategyName, entry.getKey(), entry.getValue());
+        }
     }
 
     /**

@@ -23,7 +23,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 
 @Log4j2
@@ -208,8 +210,13 @@ public class SampleTestNG {
                         }
 
                         if (!securitiesToUse.isEmpty()) {
-                                printFilteredStrategies(cache, securitiesToUse, config.getStrategy(),
-                                                config.getFilter());
+                                Map<String, List<TradeSetup>> trades = findTradesForStrategy(cache, securitiesToUse,
+                                                config.getStrategy(), config.getFilter());
+
+                                // Send to Telegram (consistent with Technical Screener pattern)
+                                if (!trades.isEmpty()) {
+                                        TelegramUtils.sendTradeAlerts(config.getName(), trades);
+                                }
                         }
                 }
 
@@ -275,15 +282,19 @@ public class SampleTestNG {
         }
 
         /**
-         * Runs strategy against securities loaded from cache (lazy-loading).
+         * Finds trades for the given strategy and filter across all symbols.
+         * Returns a map of symbol -> trades for further processing (logging, Telegram,
+         * etc.).
          */
-        private static void printFilteredStrategies(OptionChainCache cache, List<String> symbols,
+        private static Map<String, List<TradeSetup>> findTradesForStrategy(OptionChainCache cache, List<String> symbols,
                         AbstractTradingStrategy strategy, OptionsStrategyFilter optionsStrategyFilter) {
                 log.info("\n" +
                                 "******************************************************************\n" +
                                 "************* {} **************\n" +
                                 "****************************************************************",
                                 strategy.getStrategyName());
+
+                Map<String, List<TradeSetup>> allTrades = new LinkedHashMap<>();
 
                 for (String symbol : symbols) {
                         try {
@@ -294,14 +305,15 @@ public class SampleTestNG {
                                                 optionsStrategyFilter);
                                 trades.forEach(trade -> log.info("Trade: {}", trade));
 
-                                // Send to Telegram
                                 if (!trades.isEmpty()) {
-                                        TelegramUtils.sendTradeAlerts(strategy.getStrategyName(), symbol, trades);
+                                        allTrades.put(symbol, trades);
                                 }
                         } catch (Exception e) {
                                 log.error("Error processing {}: {}", symbol, e.getMessage());
                         }
                 }
+
+                return allTrades;
         }
 
 }
