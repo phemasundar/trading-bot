@@ -22,6 +22,10 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
         super(StrategyType.IRON_CONDOR);
     }
 
+    public IronCondorStrategy(StrategyType strategyType) {
+        super(strategyType);
+    }
+
     @Override
     protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
             OptionsStrategyFilter filter) {

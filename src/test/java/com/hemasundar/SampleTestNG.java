@@ -120,6 +120,7 @@ public class SampleTestNG {
                 // Load securities lists first (used by different strategies)
                 List<String> portfolioSecurities = loadSecurities(FilePaths.portfolioSecurities);
                 List<String> top100Securities = loadSecurities(FilePaths.top100Securities);
+                List<String> bullishSecurities = loadSecurities(FilePaths.bullishSecurities);
 
                 OptionsStrategyFilter rsiBBFilter = OptionsStrategyFilter.builder()
                                 .targetDTE(30)
@@ -175,6 +176,32 @@ public class SampleTestNG {
                                                                 .maxOptionPricePercent(40.0)
                                                                 .build())
                                                 .securities(portfolioSecurities)
+                                                .build(),
+                                // Bullish Long Put Credit Spread (no technical filter)
+                                OptionsConfig.builder()
+                                                .strategy(new PutCreditSpreadStrategy(
+                                                                StrategyType.BULLISH_LONG_PUT_CREDIT_SPREAD))
+                                                .filter(OptionsStrategyFilter.builder()
+                                                                .targetDTE(180)
+                                                                .maxDelta(0.20)
+                                                                .maxLossLimit(2000)
+                                                                .minReturnOnRisk(48)
+                                                                .ignoreEarnings(true)
+                                                                .build())
+                                                .securities(bullishSecurities)
+                                                .build(),
+                                // Bullish Long Iron Condor (no technical filter)
+                                OptionsConfig.builder()
+                                                .strategy(new IronCondorStrategy(
+                                                                StrategyType.BULLISH_LONG_IRON_CONDOR))
+                                                .filter(OptionsStrategyFilter.builder()
+                                                                .targetDTE(180)
+                                                                .maxDelta(0.15)
+                                                                .maxLossLimit(2000)
+                                                                .minReturnOnRisk(98)
+                                                                .ignoreEarnings(true)
+                                                                .build())
+                                                .securities(bullishSecurities)
                                                 .build(),
                                 // RSI Bollinger strategies (with technical filter)
                                 OptionsConfig.builder()

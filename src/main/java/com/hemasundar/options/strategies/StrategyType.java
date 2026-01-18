@@ -14,6 +14,7 @@ public enum StrategyType {
     // Put Credit Spread Strategies
     PUT_CREDIT_SPREAD("Put Credit Spread"),
     RSI_BOLLINGER_BULL_PUT_SPREAD("RSI Bollinger Bull Put Spread"),
+    BULLISH_LONG_PUT_CREDIT_SPREAD("Bullish Long Put Credit Spread"),
 
     // Call Credit Spread Strategies
     CALL_CREDIT_SPREAD("Call Credit Spread"),
@@ -21,6 +22,7 @@ public enum StrategyType {
 
     // Other Strategies
     IRON_CONDOR("Iron Condor"),
+    BULLISH_LONG_IRON_CONDOR("Bullish Long Iron Condor"),
     LONG_CALL_LEAP("Long Call LEAP");
 
     private final String displayName;
