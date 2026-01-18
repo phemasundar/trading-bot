@@ -7,6 +7,7 @@ import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionsConfig;
 import com.hemasundar.options.models.OptionsStrategyFilter;
 import com.hemasundar.options.models.TradeSetup;
+import com.hemasundar.options.config.StrategyRuntimeConfig;
 import com.hemasundar.options.strategies.*;
 import com.hemasundar.technical.*;
 import com.hemasundar.utils.FilePaths;
@@ -219,8 +220,17 @@ public class SampleTestNG {
                                                 .technicalFilterChain(overboughtFilterChain)
                                                 .build());
 
+                // Load strategy runtime config
+                StrategyRuntimeConfig strategyRuntimeConfig = StrategyRuntimeConfig.load(FilePaths.strategiesConfig);
+
                 // Run all options strategies with unified loop
                 for (OptionsConfig config : optionsStrategies) {
+                        // Check if strategy is enabled in runtime config
+                        if (!strategyRuntimeConfig.isEnabled(config.getStrategy().getStrategyType())) {
+                                log.info("Skipping disabled strategy: {}", config.getName());
+                                continue;
+                        }
+
                         log.info("Running strategy: {}", config.getName());
 
                         List<String> securitiesToUse = config.getSecurities();
@@ -257,8 +267,16 @@ public class SampleTestNG {
                                                 .conditions(FilterConditions.builder()
                                                                 .rsiCondition(RSICondition.BULLISH_CROSSOVER)
                                                                 .bollingerCondition(BollingerCondition.LOWER_BAND)
-                                                                .requirePriceBelowMA20(true)
-                                                                .requirePriceBelowMA50(true)
+                                                                // .requirePriceBelowMA20(true)
+                                                                // .requirePriceBelowMA50(true)
+                                                                .minVolume(1_000_000L)
+                                                                .build())
+                                                .build(),
+                                ScreenerConfig.builder()
+                                                .name("RSI BB Bearish Crossover")
+                                                .conditions(FilterConditions.builder()
+                                                                .rsiCondition(RSICondition.BEARISH_CROSSOVER)
+                                                                .bollingerCondition(BollingerCondition.UPPER_BAND)
                                                                 .minVolume(1_000_000L)
                                                                 .build())
                                                 .build(),
@@ -268,14 +286,6 @@ public class SampleTestNG {
                                                                 .requirePriceBelowMA200(true)
                                                                 .minVolume(1_000_000L)
                                                                 .build())
-                                                .build(),
-                                ScreenerConfig.builder()
-                                                .name("OVER BOUGHT")
-                                                .conditions(overboughtConditions)
-                                                .build(),
-                                ScreenerConfig.builder()
-                                                .name("OVER SOLD")
-                                                .conditions(oversoldConditions)
                                                 .build()
                 // Add more screeners here as needed...
                 );

@@ -12,4 +12,6 @@ public class FilePaths {
     public static final Path portfolioSecurities = Path.of("src/test/resources/securities/portfolio.yaml");
     public static final Path top100Securities = Path.of("src/test/resources/securities/top100.yaml");
     public static final Path bullishSecurities = Path.of("src/test/resources/securities/bullish.yaml");
+
+    public static final Path strategiesConfig = Path.of("src/test/resources/strategies-config.json");
 }

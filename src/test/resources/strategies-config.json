@@ -1,0 +1,28 @@
+{
+    "strategies": {
+        "PUT_CREDIT_SPREAD": {
+            "enabled": true
+        },
+        "CALL_CREDIT_SPREAD": {
+            "enabled": true
+        },
+        "IRON_CONDOR": {
+            "enabled": true
+        },
+        "LONG_CALL_LEAP": {
+            "enabled": true
+        },
+        "BULLISH_LONG_PUT_CREDIT_SPREAD": {
+            "enabled": true
+        },
+        "BULLISH_LONG_IRON_CONDOR": {
+            "enabled": true
+        },
+        "RSI_BOLLINGER_BULL_PUT_SPREAD": {
+            "enabled": true
+        },
+        "RSI_BOLLINGER_BEAR_CALL_SPREAD": {
+            "enabled": false
+        }
+    }
+}
