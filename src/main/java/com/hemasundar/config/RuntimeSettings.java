@@ -1,20 +1,20 @@
-package com.hemasundar.options.config;
+package com.hemasundar.config;
 
 import lombok.Data;
 
 /**
- * Runtime settings for an individual options strategy.
+ * Runtime settings for an individual strategy or screener.
  * Loaded from JSON config file to control execution behavior.
  * 
- * Currently supports enabling/disabling strategies.
+ * Currently supports enabling/disabling.
  * Future: Can be extended with filter overrides (minDelta, targetDTE, etc.)
  */
 @Data
-public class StrategyRuntimeSettings {
+public class RuntimeSettings {
 
     /**
-     * Whether this strategy should be executed.
-     * Default is true (strategy enabled).
+     * Whether this strategy/screener should be executed.
+     * Default is true (enabled).
      */
     private boolean enabled = true;
 

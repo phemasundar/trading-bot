@@ -5,23 +5,18 @@ import lombok.Getter;
 
 /**
  * Configuration for a technical stock screener.
- * Encapsulates the screener name and the filter conditions to apply.
+ * Encapsulates the screener type and the filter conditions to apply.
+ * Screener name is derived from screenerType.toString().
  * 
  * Example usage:
  * 
  * <pre>
  * List&lt;ScreenerConfig&gt; screeners = List.of(
  *         ScreenerConfig.builder()
- *                 .name("RSI BB Crossover")
+ *                 .screenerType(ScreenerType.RSI_BB_BULLISH_CROSSOVER)
  *                 .conditions(FilterConditions.builder()
  *                         .rsiCondition(RSICondition.BULLISH_CROSSOVER)
  *                         .bollingerCondition(BollingerCondition.LOWER_BAND)
- *                         .build())
- *                 .build(),
- *         ScreenerConfig.builder()
- *                 .name("Below 50 Day MA")
- *                 .conditions(FilterConditions.builder()
- *                         .requirePriceBelowMA50(true)
  *                         .build())
  *                 .build());
  * </pre>
@@ -31,12 +26,19 @@ import lombok.Getter;
 public class ScreenerConfig {
 
     /**
-     * Display name for the screener (used in logs and Telegram alerts).
+     * The screener type (enum value).
      */
-    private final String name;
+    private final ScreenerType screenerType;
 
     /**
      * Filter conditions defining what to screen for.
      */
     private final FilterConditions conditions;
+
+    /**
+     * Gets the display name from the screener type.
+     */
+    public String getName() {
+        return screenerType.toString();
+    }
 }

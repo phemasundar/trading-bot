@@ -22,7 +22,18 @@
             "enabled": true
         },
         "RSI_BOLLINGER_BEAR_CALL_SPREAD": {
-            "enabled": false
+            "enabled": true
+        }
+    },
+    "screeners": {
+        "RSI_BB_BULLISH_CROSSOVER": {
+            "enabled": true
+        },
+        "RSI_BB_BEARISH_CROSSOVER": {
+            "enabled": true
+        },
+        "BELOW_200_DAY_MA": {
+            "enabled": true
         }
     }
 }

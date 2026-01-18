@@ -7,7 +7,7 @@ import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionsConfig;
 import com.hemasundar.options.models.OptionsStrategyFilter;
 import com.hemasundar.options.models.TradeSetup;
-import com.hemasundar.options.config.StrategyRuntimeConfig;
+import com.hemasundar.config.RuntimeConfig;
 import com.hemasundar.options.strategies.*;
 import com.hemasundar.technical.*;
 import com.hemasundar.utils.FilePaths;
@@ -125,7 +125,7 @@ public class SampleTestNG {
 
                 OptionsStrategyFilter rsiBBFilter = OptionsStrategyFilter.builder()
                                 .targetDTE(30)
-                                .maxDelta(0.35)
+                                .maxDelta(0.3)
                                 .maxLossLimit(1000)
                                 .minReturnOnRisk(12)
                                 .ignoreEarnings(false)
@@ -186,7 +186,7 @@ public class SampleTestNG {
                                                                 .targetDTE(180)
                                                                 .maxDelta(0.20)
                                                                 .maxLossLimit(2000)
-                                                                .minReturnOnRisk(48)
+                                                                .minReturnOnRisk(24)
                                                                 .ignoreEarnings(true)
                                                                 .build())
                                                 .securities(bullishSecurities)
@@ -199,7 +199,7 @@ public class SampleTestNG {
                                                                 .targetDTE(180)
                                                                 .maxDelta(0.15)
                                                                 .maxLossLimit(2000)
-                                                                .minReturnOnRisk(98)
+                                                                .minReturnOnRisk(36)
                                                                 .ignoreEarnings(true)
                                                                 .build())
                                                 .securities(bullishSecurities)
@@ -220,13 +220,13 @@ public class SampleTestNG {
                                                 .technicalFilterChain(overboughtFilterChain)
                                                 .build());
 
-                // Load strategy runtime config
-                StrategyRuntimeConfig strategyRuntimeConfig = StrategyRuntimeConfig.load(FilePaths.strategiesConfig);
+                // Load unified runtime config (strategies + screeners)
+                RuntimeConfig runtimeConfig = RuntimeConfig.load(FilePaths.runtimeConfig);
 
                 // Run all options strategies with unified loop
                 for (OptionsConfig config : optionsStrategies) {
                         // Check if strategy is enabled in runtime config
-                        if (!strategyRuntimeConfig.isEnabled(config.getStrategy().getStrategyType())) {
+                        if (!runtimeConfig.isStrategyEnabled(config.getStrategy().getStrategyType())) {
                                 log.info("Skipping disabled strategy: {}", config.getName());
                                 continue;
                         }
@@ -263,7 +263,7 @@ public class SampleTestNG {
                 // Define all screeners as a list of configs - easy to add more
                 List<ScreenerConfig> technicalScreeners = List.of(
                                 ScreenerConfig.builder()
-                                                .name("RSI BB Bullish Crossover")
+                                                .screenerType(ScreenerType.RSI_BB_BULLISH_CROSSOVER)
                                                 .conditions(FilterConditions.builder()
                                                                 .rsiCondition(RSICondition.BULLISH_CROSSOVER)
                                                                 .bollingerCondition(BollingerCondition.LOWER_BAND)
@@ -273,7 +273,7 @@ public class SampleTestNG {
                                                                 .build())
                                                 .build(),
                                 ScreenerConfig.builder()
-                                                .name("RSI BB Bearish Crossover")
+                                                .screenerType(ScreenerType.RSI_BB_BEARISH_CROSSOVER)
                                                 .conditions(FilterConditions.builder()
                                                                 .rsiCondition(RSICondition.BEARISH_CROSSOVER)
                                                                 .bollingerCondition(BollingerCondition.UPPER_BAND)
@@ -281,7 +281,7 @@ public class SampleTestNG {
                                                                 .build())
                                                 .build(),
                                 ScreenerConfig.builder()
-                                                .name("Below 200 Day MA")
+                                                .screenerType(ScreenerType.BELOW_200_DAY_MA)
                                                 .conditions(FilterConditions.builder()
                                                                 .requirePriceBelowMA200(true)
                                                                 .minVolume(1_000_000L)
@@ -292,6 +292,12 @@ public class SampleTestNG {
 
                 // Run all screeners with single loop
                 for (ScreenerConfig config : technicalScreeners) {
+                        // Check if screener is enabled in runtime config
+                        if (!runtimeConfig.isScreenerEnabled(config.getScreenerType())) {
+                                log.info("Skipping disabled screener: {}", config.getName());
+                                continue;
+                        }
+
                         log.info("Running screener: {}", config.getName());
                         TechnicalFilterChain filterChain = TechnicalFilterChain.of(indicators, config.getConditions());
                         List<TechnicalScreener.ScreeningResult> results = TechnicalScreener.screenStocks(
