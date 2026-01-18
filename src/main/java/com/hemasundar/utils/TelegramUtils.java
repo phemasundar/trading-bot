@@ -24,16 +24,26 @@ public class TelegramUtils {
 
     /**
      * Sends a text message to the configured Telegram chat.
+     * If telegram_enabled is false, logs the message to console instead.
      *
      * @param message The message to send
-     * @return true if message was sent successfully, false otherwise
+     * @return true if message was sent/logged successfully, false otherwise
      */
     public static boolean sendMessage(String message) {
+        Boolean telegramEnabled = TestConfig.getInstance().telegramEnabled();
+
+        // If Telegram is disabled, just log to console
+        if (telegramEnabled != null && !telegramEnabled) {
+            log.info("[TELEGRAM DISABLED] Message would be sent:\n{}", message);
+            return true;
+        }
+
         String botToken = TestConfig.getInstance().telegramBotToken();
         String chatId = TestConfig.getInstance().telegramChatId();
 
         if (botToken == null || botToken.isBlank() || chatId == null || chatId.isBlank()) {
             log.warn("Telegram not configured. Set telegram_bot_token and telegram_chat_id in test.properties");
+            log.info("[TELEGRAM] Message:\n{}", message);
             return false;
         }
 

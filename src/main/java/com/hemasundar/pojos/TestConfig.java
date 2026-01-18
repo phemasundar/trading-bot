@@ -24,6 +24,7 @@ public record TestConfig(
         @JsonProperty("fmp_api_key") String fmpApiKey,
         @JsonProperty("telegram_bot_token") String telegramBotToken,
         @JsonProperty("telegram_chat_id") String telegramChatId,
+        @JsonProperty("telegram_enabled") Boolean telegramEnabled,
         @JsonProperty("db.timeout") Integer timeout) {
 
     /**
@@ -46,6 +47,7 @@ public record TestConfig(
                     getEnvOrDefault("FMP_API_KEY", fileConfig.fmpApiKey()),
                     getEnvOrDefault("TELEGRAM_BOT_TOKEN", fileConfig.telegramBotToken()),
                     getEnvOrDefault("TELEGRAM_CHAT_ID", fileConfig.telegramChatId()),
+                    getBooleanEnvOrDefault("TELEGRAM_ENABLED", fileConfig.telegramEnabled()),
                     fileConfig.timeout());
         }
 
@@ -55,13 +57,21 @@ public record TestConfig(
                 return mapper.readValue(is, TestConfig.class);
             } catch (IOException e) {
                 // Return empty config if file doesn't exist (rely on env vars)
-                return new TestConfig(null, null, null, null, null, null, null, null);
+                return new TestConfig(null, null, null, null, null, null, null, null, null);
             }
         }
 
         private static String getEnvOrDefault(String envVar, String defaultValue) {
             String envValue = System.getenv(envVar);
             return (envValue != null && !envValue.isBlank()) ? envValue : defaultValue;
+        }
+
+        private static Boolean getBooleanEnvOrDefault(String envVar, Boolean defaultValue) {
+            String envValue = System.getenv(envVar);
+            if (envValue != null && !envValue.isBlank()) {
+                return Boolean.parseBoolean(envValue);
+            }
+            return defaultValue != null ? defaultValue : true; // Default to enabled
         }
     }
 

@@ -4,6 +4,7 @@ import com.hemasundar.pojos.RefreshToken;
 import com.hemasundar.pojos.Securities;
 import com.hemasundar.pojos.TestConfig;
 import com.hemasundar.options.models.OptionChainResponse;
+import com.hemasundar.options.models.OptionsConfig;
 import com.hemasundar.options.models.OptionsStrategyFilter;
 import com.hemasundar.options.models.TradeSetup;
 import com.hemasundar.options.strategies.*;
@@ -72,53 +73,16 @@ public class SampleTestNG {
                 // Shared cache for lazy-loading option chains (minimizes API calls)
                 OptionChainCache cache = new OptionChainCache();
 
-                // Strategy Filters
-                OptionsStrategyFilter pcsFilter = OptionsStrategyFilter.builder()
-                                .targetDTE(30)
-                                .maxDelta(0.20)
-                                .maxLossLimit(1000)
-                                .minReturnOnRisk(12)
-                                .ignoreEarnings(false)
-                                .build();
-                OptionsStrategyFilter ccsFilter = OptionsStrategyFilter.builder()
-                                .targetDTE(30)
-                                .maxDelta(0.20)
-                                .maxLossLimit(1000)
-                                .minReturnOnRisk(12)
-                                .ignoreEarnings(false)
-                                .build();
-                OptionsStrategyFilter icFilter = OptionsStrategyFilter.builder()
-                                .targetDTE(60)
-                                .maxDelta(0.15)
-                                .maxLossLimit(1000)
-                                .minReturnOnRisk(24)
-                                .ignoreEarnings(false)
-                                .build();
-                OptionsStrategyFilter leapFilter = OptionsStrategyFilter.builder()
-                                .minDTE((int) ChronoUnit.DAYS.between(LocalDate.now(), LocalDate.now().plusMonths(11)))
-                                .minDelta(0.6)
-                                .marginInterestRate(6.0)
-                                .maxOptionPricePercent(40.0)
-                                .build();
-
-                // Run strategies with default securities file
-                List<String> defaultSecurities = loadSecurities(FilePaths.securitiesConfig);
-                printFilteredStrategies(cache, defaultSecurities, new PutCreditSpreadStrategy(), pcsFilter);
-                printFilteredStrategies(cache, defaultSecurities, new CallCreditSpreadStrategy(), ccsFilter);
-                printFilteredStrategies(cache, defaultSecurities, new IronCondorStrategy(), icFilter);
-                printFilteredStrategies(cache, defaultSecurities, new LongCallLeapStrategy(), leapFilter);
-
                 // =============================================================
-                // RSI & Bollinger Bands Technical Filters
+                // TECHNICAL INDICATORS SETUP (used by some strategies)
                 // =============================================================
 
-                // STEP 1: Define WHAT indicators to use (with their settings)
-                // This single indicators object is shared across all filter chains
+                // Define WHAT indicators to use (with their settings)
                 TechnicalIndicators indicators = TechnicalIndicators.builder()
                                 .rsiFilter(RSIFilter.builder()
                                                 .period(14)
-                                                .oversoldThreshold(30.0) // RSI < 30 = Oversold
-                                                .overboughtThreshold(70.0) // RSI > 70 = Overbought
+                                                .oversoldThreshold(30.0)
+                                                .overboughtThreshold(70.0)
                                                 .build())
                                 .bollingerFilter(BollingerBandsFilter.builder()
                                                 .period(20)
@@ -131,24 +95,29 @@ public class SampleTestNG {
                                 .volumeFilter(VolumeFilter.builder().build())
                                 .build();
 
-                // STEP 2: Define WHAT CONDITIONS to look for (separate from indicators)
-                // For Bull Put Spread - looking for OVERSOLD signals
+                // Define technical filter conditions
                 FilterConditions oversoldConditions = FilterConditions.builder()
-                                .rsiCondition(RSICondition.BULLISH_CROSSOVER) // RSI < 30
-                                .bollingerCondition(BollingerCondition.LOWER_BAND) // Price at lower band
-                                .minVolume(1_000_000L) // Minimum 1M shares
+                                .rsiCondition(RSICondition.BULLISH_CROSSOVER)
+                                .bollingerCondition(BollingerCondition.LOWER_BAND)
+                                .minVolume(1_000_000L)
                                 .build();
 
-                // For Bear Call Spread - looking for OVERBOUGHT signals
                 FilterConditions overboughtConditions = FilterConditions.builder()
-                                .rsiCondition(RSICondition.BEARISH_CROSSOVER) // RSI > 70
-                                .bollingerCondition(BollingerCondition.UPPER_BAND) // Price at upper band
-                                .minVolume(1_000_000L) // Minimum 1M shares
+                                .rsiCondition(RSICondition.BEARISH_CROSSOVER)
+                                .bollingerCondition(BollingerCondition.UPPER_BAND)
+                                .minVolume(1_000_000L)
                                 .build();
 
-                // STEP 3: Combine indicators + conditions into filter chains
+                // Combine indicators + conditions into filter chains
                 TechnicalFilterChain oversoldFilterChain = TechnicalFilterChain.of(indicators, oversoldConditions);
                 TechnicalFilterChain overboughtFilterChain = TechnicalFilterChain.of(indicators, overboughtConditions);
+
+                // =============================================================
+                // OPTIONS STRATEGIES (Unified Configuration-Driven List)
+                // =============================================================
+                // Load securities lists first (used by different strategies)
+                List<String> portfolioSecurities = loadSecurities(FilePaths.portfolioSecurities);
+                List<String> top100Securities = loadSecurities(FilePaths.top100Securities);
 
                 OptionsStrategyFilter rsiBBFilter = OptionsStrategyFilter.builder()
                                 .targetDTE(30)
@@ -158,38 +127,90 @@ public class SampleTestNG {
                                 .ignoreEarnings(false)
                                 .build();
 
-                // Run RSI Bollinger strategies with their own securities file
-                List<String> top100Securities = loadSecurities(FilePaths.top100Config);
+                // ALL options strategies in one unified list
+                List<OptionsConfig> optionsStrategies = List.of(
+                                // Basic strategies (no technical filter)
+                                OptionsConfig.builder()
+                                                .strategy(new PutCreditSpreadStrategy())
+                                                .filter(OptionsStrategyFilter.builder()
+                                                                .targetDTE(30)
+                                                                .maxDelta(0.20)
+                                                                .maxLossLimit(1000)
+                                                                .minReturnOnRisk(12)
+                                                                .ignoreEarnings(false)
+                                                                .build())
+                                                .securities(portfolioSecurities)
+                                                .build(),
+                                OptionsConfig.builder()
+                                                .strategy(new CallCreditSpreadStrategy())
+                                                .filter(OptionsStrategyFilter.builder()
+                                                                .targetDTE(30)
+                                                                .maxDelta(0.20)
+                                                                .maxLossLimit(1000)
+                                                                .minReturnOnRisk(12)
+                                                                .ignoreEarnings(false)
+                                                                .build())
+                                                .securities(portfolioSecurities)
+                                                .build(),
+                                OptionsConfig.builder()
+                                                .strategy(new IronCondorStrategy())
+                                                .filter(OptionsStrategyFilter.builder()
+                                                                .targetDTE(60)
+                                                                .maxDelta(0.15)
+                                                                .maxLossLimit(1000)
+                                                                .minReturnOnRisk(24)
+                                                                .ignoreEarnings(false)
+                                                                .build())
+                                                .securities(portfolioSecurities)
+                                                .build(),
+                                OptionsConfig.builder()
+                                                .strategy(new LongCallLeapStrategy())
+                                                .filter(OptionsStrategyFilter.builder()
+                                                                .minDTE((int) ChronoUnit.DAYS.between(LocalDate.now(),
+                                                                                LocalDate.now().plusMonths(11)))
+                                                                .minDelta(0.6)
+                                                                .marginInterestRate(6.0)
+                                                                .maxOptionPricePercent(40.0)
+                                                                .build())
+                                                .securities(portfolioSecurities)
+                                                .build(),
+                                // RSI Bollinger strategies (with technical filter)
+                                OptionsConfig.builder()
+                                                .strategy(new PutCreditSpreadStrategy(
+                                                                StrategyType.RSI_BOLLINGER_BULL_PUT_SPREAD))
+                                                .filter(rsiBBFilter)
+                                                .securities(top100Securities)
+                                                .technicalFilterChain(oversoldFilterChain)
+                                                .build(),
+                                OptionsConfig.builder()
+                                                .strategy(new CallCreditSpreadStrategy(
+                                                                StrategyType.RSI_BOLLINGER_BEAR_CALL_SPREAD))
+                                                .filter(rsiBBFilter)
+                                                .securities(top100Securities)
+                                                .technicalFilterChain(overboughtFilterChain)
+                                                .build());
 
-                // 1. OVERSOLD Checks (Bull Put Spread) - using TechnicalScreener
-                log.info("Filtering stocks for OVERSOLD conditions...");
-                List<TechnicalScreener.ScreeningResult> oversoldResults = TechnicalScreener.screenStocks(
-                                top100Securities, oversoldFilterChain);
-                List<String> oversoldStocks = oversoldResults.stream()
-                                .map(TechnicalScreener.ScreeningResult::getSymbol)
-                                .toList();
-                log.info("Found {} stocks meeting OVERSOLD conditions: {}", oversoldStocks.size(), oversoldStocks);
+                // Run all options strategies with unified loop
+                for (OptionsConfig config : optionsStrategies) {
+                        log.info("Running strategy: {}", config.getName());
 
-                if (!oversoldStocks.isEmpty()) {
-                        printFilteredStrategies(cache, oversoldStocks,
-                                        new PutCreditSpreadStrategy(StrategyType.RSI_BOLLINGER_BULL_PUT_SPREAD),
-                                        rsiBBFilter);
-                }
+                        List<String> securitiesToUse = config.getSecurities();
 
-                // 2. OVERBOUGHT Checks (Bear Call Spread) - using TechnicalScreener
-                log.info("Filtering stocks for OVERBOUGHT conditions...");
-                List<TechnicalScreener.ScreeningResult> overboughtResults = TechnicalScreener.screenStocks(
-                                top100Securities, overboughtFilterChain);
-                List<String> overboughtStocks = overboughtResults.stream()
-                                .map(TechnicalScreener.ScreeningResult::getSymbol)
-                                .toList();
-                log.info("Found {} stocks meeting OVERBOUGHT conditions: {}", overboughtStocks.size(),
-                                overboughtStocks);
+                        // Apply technical filter if present
+                        if (config.hasTechnicalFilter()) {
+                                List<TechnicalScreener.ScreeningResult> results = TechnicalScreener.screenStocks(
+                                                securitiesToUse, config.getTechnicalFilterChain());
+                                securitiesToUse = results.stream()
+                                                .map(TechnicalScreener.ScreeningResult::getSymbol)
+                                                .toList();
+                                log.info("[{}] Found {} stocks matching technical criteria: {}",
+                                                config.getName(), securitiesToUse.size(), securitiesToUse);
+                        }
 
-                if (!overboughtStocks.isEmpty()) {
-                        // printFilteredStrategies(cache, overboughtStocks,
-                        // new CallCreditSpreadStrategy(StrategyType.RSI_BOLLINGER_BEAR_CALL_SPREAD),
-                        // rsiBBFilter);
+                        if (!securitiesToUse.isEmpty()) {
+                                printFilteredStrategies(cache, securitiesToUse, config.getStrategy(),
+                                                config.getFilter());
+                        }
                 }
 
                 // =============================================================
