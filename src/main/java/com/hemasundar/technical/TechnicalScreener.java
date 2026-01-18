@@ -25,6 +25,7 @@ public class TechnicalScreener {
     public static class ScreeningResult {
         private String symbol;
         private double currentPrice;
+        private long volume;
         private double rsi;
         private double previousRsi;
         private double bollingerLower;
@@ -39,8 +40,11 @@ public class TechnicalScreener {
         private boolean priceBelowMA100;
         private boolean priceBelowMA200;
         private boolean priceTouchingLowerBand;
+        private boolean priceTouchingUpperBand;
         private boolean rsiOversold;
+        private boolean rsiOverbought;
         private boolean rsiBullishCrossover;
+        private boolean rsiBearishCrossover;
 
         @Override
         public String toString() {
@@ -140,7 +144,9 @@ public class TechnicalScreener {
             builder.rsi(rsi.getCurrentRSI(series))
                     .previousRsi(rsi.getPreviousRSI(series))
                     .rsiOversold(rsi.isOversold(series))
-                    .rsiBullishCrossover(rsi.isBullishCrossover(series));
+                    .rsiOverbought(rsi.isOverbought(series))
+                    .rsiBullishCrossover(rsi.isBullishCrossover(series))
+                    .rsiBearishCrossover(rsi.isBearishCrossover(series));
         }
 
         // Bollinger Bands
@@ -149,7 +155,8 @@ public class TechnicalScreener {
             builder.bollingerLower(bb.getLowerBand(series))
                     .bollingerMiddle(bb.getMiddleBand(series))
                     .bollingerUpper(bb.getUpperBand(series))
-                    .priceTouchingLowerBand(bb.isPriceTouchingLowerBand(series));
+                    .priceTouchingLowerBand(bb.isPriceTouchingLowerBand(series))
+                    .priceTouchingUpperBand(bb.isPriceTouchingUpperBand(series));
         }
 
         // MA20
@@ -180,6 +187,15 @@ public class TechnicalScreener {
                     .priceBelowMA200(ma200.isPriceBelowMA(series));
         }
 
+        // Volume
+        if (indicators.getVolumeFilter() != null) {
+            VolumeFilter volumeFilter = indicators.getVolumeFilter();
+            builder.volume(volumeFilter.getCurrentVolume(series));
+        } else {
+            // Default: get volume directly from series
+            builder.volume(series.getBar(series.getEndIndex()).getVolume().longValue());
+        }
+
         return builder.build();
     }
 
@@ -191,9 +207,9 @@ public class TechnicalScreener {
         if (conditions.getRsiCondition() != null) {
             boolean rsiMet = switch (conditions.getRsiCondition()) {
                 case OVERSOLD -> result.isRsiOversold();
-                case OVERBOUGHT -> !result.isRsiOversold(); // Simplified: overbought = not oversold context
+                case OVERBOUGHT -> result.isRsiOverbought();
                 case BULLISH_CROSSOVER -> result.isRsiBullishCrossover();
-                case BEARISH_CROSSOVER -> !result.isRsiBullishCrossover(); // Opposite
+                case BEARISH_CROSSOVER -> result.isRsiBearishCrossover();
             };
             if (!rsiMet)
                 return false;
@@ -203,7 +219,7 @@ public class TechnicalScreener {
         if (conditions.getBollingerCondition() != null) {
             boolean bbMet = switch (conditions.getBollingerCondition()) {
                 case LOWER_BAND -> result.isPriceTouchingLowerBand();
-                case UPPER_BAND -> !result.isPriceTouchingLowerBand(); // Simplified
+                case UPPER_BAND -> result.isPriceTouchingUpperBand();
             };
             if (!bbMet)
                 return false;
@@ -235,6 +251,13 @@ public class TechnicalScreener {
         }
         if (conditions.isRequirePriceAboveMA200() && result.isPriceBelowMA200()) {
             return false;
+        }
+
+        // Volume condition
+        if (conditions.getMinVolume() != null && conditions.getMinVolume() > 0) {
+            if (result.getVolume() < conditions.getMinVolume()) {
+                return false;
+            }
         }
 
         return true;
