@@ -259,12 +259,14 @@ public class SampleTestNG {
                                                                 .bollingerCondition(BollingerCondition.LOWER_BAND)
                                                                 .requirePriceBelowMA20(true)
                                                                 .requirePriceBelowMA50(true)
+                                                                .minVolume(1_000_000L)
                                                                 .build())
                                                 .build(),
                                 ScreenerConfig.builder()
                                                 .name("Below 200 Day MA")
                                                 .conditions(FilterConditions.builder()
                                                                 .requirePriceBelowMA200(true)
+                                                                .minVolume(1_000_000L)
                                                                 .build())
                                                 .build(),
                                 ScreenerConfig.builder()
