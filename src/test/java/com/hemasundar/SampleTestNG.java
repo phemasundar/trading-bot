@@ -218,6 +218,21 @@ public class SampleTestNG {
                                                 .filter(rsiBBFilter)
                                                 .securities(top100Securities)
                                                 .technicalFilterChain(overboughtFilterChain)
+                                                .build(),
+                                // Bullish Broken Wing Butterfly Strategy
+                                OptionsConfig.builder()
+                                                .strategy(new BrokenWingButterflyStrategy())
+                                                .filter(OptionsStrategyFilter.builder()
+                                                                .targetDTE(45)
+                                                                .longCallMaxDelta(0.5) // Max Delta for Leg 1 (Long
+                                                                                       // Call)
+                                                                .shortCallsMaxDelta(0.2) // Max Delta for Leg 2 (Short
+                                                                                         // Calls)
+                                                                .maxTotalDebit(100) // Total debit <= $100
+                                                                .maxLossLimit(1000) // Max loss limit
+                                                                .ignoreEarnings(true)
+                                                                .build())
+                                                .securities(portfolioSecurities)
                                                 .build());
 
                 // Load unified runtime config (strategies + screeners)

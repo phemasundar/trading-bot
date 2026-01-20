@@ -23,7 +23,8 @@ public enum StrategyType {
     // Other Strategies
     IRON_CONDOR("Iron Condor"),
     BULLISH_LONG_IRON_CONDOR("Bullish Long Iron Condor"),
-    LONG_CALL_LEAP("Long Call LEAP");
+    LONG_CALL_LEAP("Long Call LEAP"),
+    BULLISH_BROKEN_WING_BUTTERFLY("Bullish Broken Wing Butterfly");
 
     private final String displayName;
 

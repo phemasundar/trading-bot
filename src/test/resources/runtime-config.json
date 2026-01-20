@@ -23,6 +23,9 @@
         },
         "RSI_BOLLINGER_BEAR_CALL_SPREAD": {
             "enabled": true
+        },
+        "BULLISH_BROKEN_WING_BUTTERFLY": {
+            "enabled": true
         }
     },
     "screeners": {
