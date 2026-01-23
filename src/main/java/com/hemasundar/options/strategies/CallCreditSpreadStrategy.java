@@ -110,6 +110,7 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
                             .breakEvenPrice(breakEvenPrice)
                             .breakEvenPercentage(breakEvenPercentage)
                             .returnOnRisk(returnOnRisk)
+                            .currentPrice(currentPrice)
                             .build());
                 }
             }

@@ -110,6 +110,7 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                             .interestRatePaidForMargin(filter.getMarginInterestRate())
                             .netCredit(netCredit)
                             .maxLoss(callPremium * 100)
+                            .currentPrice(currentPrice)
                             .build());
                 }
             }

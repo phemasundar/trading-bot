@@ -119,6 +119,9 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
                     double maxProfit = lowerWingWidth - totalDebit;
                     double returnOnRisk = (maxProfit > 0 && maxLoss > 0) ? (maxProfit / maxLoss) * 100 : 0;
 
+                    double breakEvenPrice = leg1StrikePrice + (totalDebit / 100);
+                    double breakEvenPercentage = ((breakEvenPrice - currentPrice) / currentPrice) * 100;
+
                     trades.add(BrokenWingButterfly.builder()
                             .leg1LongCall(leg1)
                             .leg2ShortCalls(leg2)
@@ -130,6 +133,9 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
                             .maxLossDownside(maxLossDownside)
                             .maxLoss(maxLoss)
                             .returnOnRisk(returnOnRisk)
+                            .currentPrice(currentPrice)
+                            .breakEvenPrice(breakEvenPrice)
+                            .breakEvenPercentage(breakEvenPercentage)
                             .build());
                 }
             }

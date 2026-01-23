@@ -1,10 +1,11 @@
 package com.hemasundar.options.models;
 
 import lombok.Builder;
-import lombok.Getter;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+
+import java.util.List;
 
 @Data
 @Builder
@@ -18,20 +19,35 @@ public class PutCreditSpread implements TradeSetup {
     private double breakEvenPrice;
     private double breakEvenPercentage;
     private double returnOnRisk;
+    private double currentPrice; // Underlying stock price
 
     @Override
-    public String toString() {
-        return String.format("--- Valid Put Credit Spread Found ---\n" +
-                "Expiry: %s\n" +
-                "Strategy: Sell %s (Strike %.1f) / Buy %s (Strike %.1f)\n" +
-                "Short Delta: %.3f | Max Profit: $%.2f | Max Loss: $%.2f\n" +
-                "Return on Risk: %.2f%%\n" +
-                "Break Even Price: $%.2f | Break Even Percentage: %.2f%%\n",
-                shortPut.getExpirationDate(),
-                shortPut.getSymbol(), shortPut.getStrikePrice(),
-                longPut.getSymbol(), longPut.getStrikePrice(),
-                shortPut.getDelta(), netCredit, maxLoss,
-                returnOnRisk,
-                breakEvenPrice, breakEvenPercentage);
+    public String getExpiryDate() {
+        return shortPut != null ? shortPut.getExpirationDate() : null;
     }
+
+    @Override
+    public int getDaysToExpiration() {
+        return shortPut != null ? shortPut.getDaysToExpiration() : 0;
+    }
+
+    @Override
+    public List<TradeLeg> getLegs() {
+        return List.of(
+                TradeLeg.builder()
+                        .action("SELL")
+                        .optionType("PUT")
+                        .strike(shortPut.getStrikePrice())
+                        .delta(shortPut.getDelta())
+                        .premium(shortPut.getMark())
+                        .build(),
+                TradeLeg.builder()
+                        .action("BUY")
+                        .optionType("PUT")
+                        .strike(longPut.getStrikePrice())
+                        .delta(longPut.getDelta())
+                        .premium(longPut.getMark())
+                        .build());
+    }
+
 }

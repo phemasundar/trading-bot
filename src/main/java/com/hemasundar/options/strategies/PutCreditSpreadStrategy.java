@@ -103,6 +103,7 @@ public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
                             .breakEvenPrice(breakEvenPrice)
                             .breakEvenPercentage(breakEvenPercentage)
                             .returnOnRisk(returnOnRisk)
+                            .currentPrice(currentPrice)
                             .build());
                 }
             }

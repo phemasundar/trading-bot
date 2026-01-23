@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -21,6 +23,9 @@ public class BrokenWingButterfly implements TradeSetup {
     private double maxLossDownside; // Debit Paid
     private double maxLoss; // Max of Upside & Downside
     private double returnOnRisk;
+    private double currentPrice; // Underlying stock price
+    private double breakEvenPrice;
+    private double breakEvenPercentage;
 
     @Override
     public double getNetCredit() {
@@ -29,19 +34,39 @@ public class BrokenWingButterfly implements TradeSetup {
     }
 
     @Override
-    public String toString() {
-        return String.format("--- Valid Bullish Broken Wing Butterfly Found ---\n" +
-                "Expiry: %s\n" +
-                "Leg 1 (Buy): %s (Strike %.1f, Delta %.3f)\n" +
-                "Leg 2 (Sell 2x): %s (Strike %.1f, Delta %.3f)\n" +
-                "Leg 3 (Buy): %s (Strike %.1f, Delta %.3f)\n" +
-                "Lower Wing: $%.2f | Upper Wing: $%.2f\n" +
-                "Total Debit: $%.2f | Max Loss: $%.2f | Return on Risk: %.2f%%\n",
-                leg1LongCall.getExpirationDate(),
-                leg1LongCall.getSymbol(), leg1LongCall.getStrikePrice(), leg1LongCall.getDelta(),
-                leg2ShortCalls.getSymbol(), leg2ShortCalls.getStrikePrice(), leg2ShortCalls.getDelta(),
-                leg3LongCall.getSymbol(), leg3LongCall.getStrikePrice(), leg3LongCall.getDelta(),
-                lowerWingWidth, upperWingWidth,
-                totalDebit, maxLoss, returnOnRisk);
+    public String getExpiryDate() {
+        return leg1LongCall != null ? leg1LongCall.getExpirationDate() : null;
     }
+
+    @Override
+    public int getDaysToExpiration() {
+        return leg1LongCall != null ? leg1LongCall.getDaysToExpiration() : 0;
+    }
+
+    @Override
+    public List<TradeLeg> getLegs() {
+        return List.of(
+                TradeLeg.builder()
+                        .action("BUY")
+                        .optionType("CALL")
+                        .strike(leg1LongCall.getStrikePrice())
+                        .delta(leg1LongCall.getDelta())
+                        .premium(leg1LongCall.getMark())
+                        .build(),
+                TradeLeg.builder()
+                        .action("SELL 2x")
+                        .optionType("CALL")
+                        .strike(leg2ShortCalls.getStrikePrice())
+                        .delta(leg2ShortCalls.getDelta())
+                        .premium(leg2ShortCalls.getMark())
+                        .build(),
+                TradeLeg.builder()
+                        .action("BUY")
+                        .optionType("CALL")
+                        .strike(leg3LongCall.getStrikePrice())
+                        .delta(leg3LongCall.getDelta())
+                        .premium(leg3LongCall.getMark())
+                        .build());
+    }
+
 }

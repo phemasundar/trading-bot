@@ -111,6 +111,7 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
                         .upperBreakEven(upperBreakEven)
                         .lowerBreakEvenPercentage(lowerBreakEvenPercentage)
                         .upperBreakEvenPercentage(upperBreakEvenPercentage)
+                        .currentPrice(currentPrice)
                         .build());
             }
         }

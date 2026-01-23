@@ -1,10 +1,11 @@
 package com.hemasundar.options.models;
 
 import lombok.Builder;
-import lombok.Getter;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+
+import java.util.List;
 
 @Data
 @Builder
@@ -18,20 +19,35 @@ public class CallCreditSpread implements TradeSetup {
     private double breakEvenPrice;
     private double breakEvenPercentage;
     private double returnOnRisk;
+    private double currentPrice; // Underlying stock price
 
     @Override
-    public String toString() {
-        return String.format("--- Valid Call Credit Spread Found ---\n" +
-                "Expiry: %s\n" +
-                "Strategy: Sell %s (Strike %.1f) / Buy %s (Strike %.1f)\n" +
-                "Short Delta: %.3f | Max Profit: $%.2f | Max Loss: $%.2f\n" +
-                "Return on Risk: %.2f%%\n" +
-                "Break Even Price: $%.2f | Break Even Percentage: %.2f%%\n",
-                shortCall.getExpirationDate(),
-                shortCall.getSymbol(), shortCall.getStrikePrice(),
-                longCall.getSymbol(), longCall.getStrikePrice(),
-                shortCall.getDelta(), netCredit, maxLoss,
-                returnOnRisk,
-                breakEvenPrice, breakEvenPercentage);
+    public String getExpiryDate() {
+        return shortCall != null ? shortCall.getExpirationDate() : null;
     }
+
+    @Override
+    public int getDaysToExpiration() {
+        return shortCall != null ? shortCall.getDaysToExpiration() : 0;
+    }
+
+    @Override
+    public List<TradeLeg> getLegs() {
+        return List.of(
+                TradeLeg.builder()
+                        .action("SELL")
+                        .optionType("CALL")
+                        .strike(shortCall.getStrikePrice())
+                        .delta(shortCall.getDelta())
+                        .premium(shortCall.getMark())
+                        .build(),
+                TradeLeg.builder()
+                        .action("BUY")
+                        .optionType("CALL")
+                        .strike(longCall.getStrikePrice())
+                        .delta(longCall.getDelta())
+                        .premium(longCall.getMark())
+                        .build());
+    }
+
 }

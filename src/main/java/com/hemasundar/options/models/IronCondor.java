@@ -1,11 +1,12 @@
 package com.hemasundar.options.models;
 
 import lombok.Builder;
-import lombok.Getter;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
-import lombok.Getter;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @Builder
@@ -21,18 +22,66 @@ public class IronCondor implements TradeSetup {
     private double upperBreakEven;
     private double lowerBreakEvenPercentage;
     private double upperBreakEvenPercentage;
+    private double currentPrice; // Underlying stock price
 
     @Override
-    public String toString() {
-        return String.format("--- Valid Iron Condor Found ---\n" +
-                "Expiry: %s\n" +
-                "Put Leg: Sell %.1f / Buy %.1f | Call Leg: Sell %.1f / Buy %.1f\n" +
-                "Net Credit: $%.2f | Max Loss: $%.2f | Return on Risk: %.2f%%\n" +
-                "Break Evens: $%.2f (%.2f%%) - $%.2f (%.2f%%)\n",
-                putLeg.getShortPut().getExpirationDate(),
-                putLeg.getShortPut().getStrikePrice(), putLeg.getLongPut().getStrikePrice(),
-                callLeg.getShortCall().getStrikePrice(), callLeg.getLongCall().getStrikePrice(),
-                netCredit, maxLoss, returnOnRisk,
-                lowerBreakEven, lowerBreakEvenPercentage, upperBreakEven, upperBreakEvenPercentage);
+    public double getBreakEvenPrice() {
+        return lowerBreakEven; // Return lower break-even as primary
     }
+
+    @Override
+    public double getBreakEvenPercentage() {
+        return lowerBreakEvenPercentage;
+    }
+
+    @Override
+    public String getExpiryDate() {
+        return putLeg != null && putLeg.getShortPut() != null
+                ? putLeg.getShortPut().getExpirationDate()
+                : null;
+    }
+
+    @Override
+    public int getDaysToExpiration() {
+        return putLeg != null && putLeg.getShortPut() != null
+                ? putLeg.getShortPut().getDaysToExpiration()
+                : 0;
+    }
+
+    @Override
+    public List<TradeLeg> getLegs() {
+        List<TradeLeg> legs = new ArrayList<>();
+        // Put side
+        legs.add(TradeLeg.builder()
+                .action("SELL")
+                .optionType("PUT")
+                .strike(putLeg.getShortPut().getStrikePrice())
+                .delta(putLeg.getShortPut().getDelta())
+                .premium(putLeg.getShortPut().getMark())
+                .build());
+        legs.add(TradeLeg.builder()
+                .action("BUY")
+                .optionType("PUT")
+                .strike(putLeg.getLongPut().getStrikePrice())
+                .delta(putLeg.getLongPut().getDelta())
+                .premium(putLeg.getLongPut().getMark())
+                .build());
+        // Call side
+        legs.add(TradeLeg.builder()
+                .action("SELL")
+                .optionType("CALL")
+                .strike(callLeg.getShortCall().getStrikePrice())
+                .delta(callLeg.getShortCall().getDelta())
+                .premium(callLeg.getShortCall().getMark())
+                .build());
+        legs.add(TradeLeg.builder()
+                .action("BUY")
+                .optionType("CALL")
+                .strike(callLeg.getLongCall().getStrikePrice())
+                .delta(callLeg.getLongCall().getDelta())
+                .premium(callLeg.getLongCall().getMark())
+                .build());
+        return legs;
+    }
+
 }

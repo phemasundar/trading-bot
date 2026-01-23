@@ -2,6 +2,7 @@ package com.hemasundar.utils;
 
 import com.hemasundar.pojos.TestConfig;
 import com.hemasundar.options.models.TradeSetup;
+import com.hemasundar.options.models.TradeLeg;
 import com.hemasundar.technical.TechnicalScreener;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
@@ -186,13 +187,22 @@ public class TelegramUtils {
             return;
         }
 
+        // Get common info from first trade
+        TradeSetup firstTrade = trades.get(0);
+        String expiryDate = formatExpiryDate(firstTrade.getExpiryDate());
+        int dte = firstTrade.getDaysToExpiration();
+        double currentPrice = firstTrade.getCurrentPrice();
+
         StringBuilder message = new StringBuilder();
         message.append("<b>📊 ").append(strategyName).append("</b>\n");
-        message.append("<b>Symbol: ").append(symbol).append("</b>\n");
+        message.append("<b>💰 ").append(symbol).append(" @ $").append(String.format("%.2f", currentPrice))
+                .append("</b>\n");
+        message.append("<b>📅 Expiry: ").append(expiryDate).append(" (").append(dte).append(" DTE)</b>\n");
         message.append("━━━━━━━━━━━━━━━━━━━━\n\n");
 
+        int tradeNum = 1;
         for (TradeSetup trade : trades) {
-            message.append(formatTradeForTelegram(trade));
+            message.append(formatTradeForTelegram(trade, tradeNum++));
             message.append("\n");
         }
 
@@ -242,21 +252,57 @@ public class TelegramUtils {
     }
 
     /**
-     * Formats a single trade setup for Telegram display.
+     * Formats a single trade setup for Telegram display using OO approach.
      *
-     * @param trade The trade setup to format
+     * @param trade    The trade setup to format
+     * @param tradeNum The trade number for display
      * @return Formatted string representation
      */
-    private static String formatTradeForTelegram(TradeSetup trade) {
-        // Use the toString() method which contains all trade details
-        String tradeStr = trade.toString();
+    private static String formatTradeForTelegram(TradeSetup trade, int tradeNum) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<b>Trade ").append(tradeNum).append(":</b>\n");
 
-        // Replace curly braces and format for better readability
-        tradeStr = tradeStr.replaceAll("\\{", "\n")
-                .replaceAll("}", "")
-                .replaceAll(", ", "\n• ");
+        // Format each leg
+        for (TradeLeg leg : trade.getLegs()) {
+            sb.append("  ").append(leg.getAction()).append(" ")
+                    .append(String.format("%.0f", leg.getStrike())).append(" ")
+                    .append(leg.getOptionType())
+                    .append(" (δ ").append(String.format("%.2f", leg.getDelta())).append(")")
+                    .append(" → $").append(String.format("%.2f", leg.getPremium()))
+                    .append("\n");
+        }
 
-        return tradeStr;
+        // Financial summary - handle both credit and debit strategies
+        double netAmount = trade.getNetCredit();
+        if (netAmount >= 0) {
+            sb.append("  💵 Credit: $").append(String.format("%.0f", netAmount));
+        } else {
+            sb.append("  💵 Debit: $").append(String.format("%.0f", -netAmount));
+        }
+        sb.append(" | Max Loss: $").append(String.format("%.0f", trade.getMaxLoss())).append("\n");
+
+        // Return on Risk and Break Even
+        double ror = trade.getReturnOnRisk();
+        if (ror > 0) {
+            sb.append("  📈 RoR: ").append(String.format("%.2f", ror)).append("%");
+        }
+        sb.append(" | BE: $").append(String.format("%.2f", trade.getBreakEvenPrice()))
+                .append(" (").append(String.format("%.2f", trade.getBreakEvenPercentage())).append("%)");
+        sb.append("\n");
+
+        return sb.toString();
+    }
+
+    /**
+     * Formats expiry date from ISO format to readable format.
+     */
+    private static String formatExpiryDate(String isoDate) {
+        if (isoDate == null || isoDate.isEmpty()) {
+            return "Unknown";
+        }
+        // Extract just the date part (YYYY-MM-DD)
+        String datePart = isoDate.length() >= 10 ? isoDate.substring(0, 10) : isoDate;
+        return datePart;
     }
 
     /**
