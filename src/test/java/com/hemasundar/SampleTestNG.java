@@ -224,7 +224,7 @@ public class SampleTestNG {
                                                 .strategy(new BrokenWingButterflyStrategy())
                                                 .filter(OptionsStrategyFilter.builder()
                                                                 .targetDTE(45)
-                                                                .longCallMaxDelta(0.5) // Max Delta for Leg 1 (Long
+                                                                .longCallMinDelta(0.5) // Min Delta for Leg 1 (Long
                                                                                        // Call)
                                                                 .shortCallsMaxDelta(0.2) // Max Delta for Leg 2 (Short
                                                                                          // Calls)

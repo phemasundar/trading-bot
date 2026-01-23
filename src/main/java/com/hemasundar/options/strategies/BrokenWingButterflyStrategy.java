@@ -50,7 +50,7 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
             OptionChainResponse.OptionData leg1 = leg1Options.get(0);
 
             // Leg 1 Delta Check (longCallMaxDelta from filter)
-            if (leg1.getAbsDelta() > filter.getLongCallMaxDelta())
+            if (leg1.getAbsDelta() < filter.getLongCallMinDelta())
                 continue;
 
             // Leg 2: Sell 2 Calls (Middle Strike)

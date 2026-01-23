@@ -22,7 +22,7 @@ public class OptionsStrategyFilter {
     private double maxOptionPricePercent = 50.0;
 
     // Bullish Broken Wing Butterfly specific filters
-    private double longCallMaxDelta; // Max delta for Leg 1 (Long Call)
+    private double longCallMinDelta; // Max delta for Leg 1 (Long Call)
     private double shortCallsMaxDelta; // Max delta for Leg 2 (Short Calls)
     private double maxTotalDebit; // Max total debit for the strategy
 }
