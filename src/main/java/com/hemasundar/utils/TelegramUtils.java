@@ -9,6 +9,7 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -22,13 +23,21 @@ import java.util.Map;
 public class TelegramUtils {
 
     private static final String TELEGRAM_API_BASE = "https://api.telegram.org/bot";
+    /**
+     * Telegram's maximum message length is 4096 characters.
+     * We use a slightly smaller limit to account for HTML escaping overhead.
+     */
+    private static final int MAX_MESSAGE_LENGTH = 4000;
 
     /**
      * Sends a text message to the configured Telegram chat.
+     * If the message exceeds Telegram's limit, it will be automatically split
+     * into multiple messages at newline boundaries.
      * If telegram_enabled is false, logs the message to console instead.
      *
      * @param message The message to send
-     * @return true if message was sent/logged successfully, false otherwise
+     * @return true if all message parts were sent/logged successfully, false
+     *         otherwise
      */
     public static boolean sendMessage(String message) {
         Boolean telegramEnabled = TestConfig.getInstance().telegramEnabled();
@@ -48,6 +57,38 @@ public class TelegramUtils {
             return false;
         }
 
+        // Split message if too long
+        List<String> messageParts = splitMessage(message, MAX_MESSAGE_LENGTH);
+        boolean allSuccess = true;
+
+        for (int i = 0; i < messageParts.size(); i++) {
+            String part = messageParts.get(i);
+            // Add part indicator if message was split
+            if (messageParts.size() > 1) {
+                part = String.format("(%d/%d)\n%s", i + 1, messageParts.size(), part);
+            }
+
+            if (!sendSingleMessage(botToken, chatId, part)) {
+                allSuccess = false;
+            }
+
+            // Small delay between messages to avoid rate limiting
+            if (i < messageParts.size() - 1) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+
+        return allSuccess;
+    }
+
+    /**
+     * Sends a single message part to Telegram.
+     */
+    private static boolean sendSingleMessage(String botToken, String chatId, String message) {
         try {
             Response response = RestAssured.given()
                     .contentType("application/json")
@@ -72,6 +113,65 @@ public class TelegramUtils {
             log.error("Error sending Telegram message", e);
             return false;
         }
+    }
+
+    /**
+     * Splits a message into multiple parts respecting the maximum length.
+     * Tries to split at newline boundaries to preserve formatting.
+     *
+     * @param message   The message to split
+     * @param maxLength Maximum length of each part
+     * @return List of message parts
+     */
+    private static List<String> splitMessage(String message, int maxLength) {
+        if (message == null || message.length() <= maxLength) {
+            return List.of(message == null ? "" : message);
+        }
+
+        List<String> parts = new ArrayList<>();
+        String remaining = message;
+
+        while (!remaining.isEmpty()) {
+            if (remaining.length() <= maxLength) {
+                parts.add(remaining);
+                break;
+            }
+
+            // Find the best split point (prefer newlines)
+            int splitPoint = findSplitPoint(remaining, maxLength);
+            parts.add(remaining.substring(0, splitPoint).trim());
+            remaining = remaining.substring(splitPoint).trim();
+        }
+
+        return parts;
+    }
+
+    /**
+     * Finds the best point to split the message.
+     * Prefers splitting at double newlines (paragraph breaks), then single
+     * newlines.
+     */
+    private static int findSplitPoint(String text, int maxLength) {
+        // Look for double newline (paragraph break) first
+        int doubleNewline = text.lastIndexOf("\n\n", maxLength);
+        if (doubleNewline > maxLength / 2) {
+            return doubleNewline + 2;
+        }
+
+        // Look for single newline
+        int singleNewline = text.lastIndexOf("\n", maxLength);
+        if (singleNewline > maxLength / 2) {
+            return singleNewline + 1;
+        }
+
+        // Look for space
+        int space = text.lastIndexOf(" ", maxLength);
+        if (space > maxLength / 2) {
+            return space + 1;
+        }
+
+        // No good break point found, just cut at max length
+        return maxLength;
     }
 
     /**
@@ -166,29 +266,81 @@ public class TelegramUtils {
         StringBuilder sb = new StringBuilder();
         sb.append("<b>").append(result.getSymbol()).append("</b>\n");
         sb.append("  💰 Price: $").append(String.format("%.2f", result.getCurrentPrice())).append("\n");
+
+        // Volume
+        sb.append("  📊 Volume: ").append(formatVolume(result.getVolume())).append("\n");
+
+        // RSI Section
         sb.append("  📈 RSI: ").append(String.format("%.2f", result.getRsi()));
+        sb.append(" (prev: ").append(String.format("%.2f", result.getPreviousRsi())).append(")");
         if (result.isRsiBullishCrossover()) {
             sb.append(" ⬆️ CROSSOVER");
+        } else if (result.isRsiBearishCrossover()) {
+            sb.append(" ⬇️ CROSSOVER");
         } else if (result.isRsiOversold()) {
             sb.append(" 🔴 OVERSOLD");
+        } else if (result.isRsiOverbought()) {
+            sb.append(" 🟢 OVERBOUGHT");
         }
         sb.append("\n");
-        sb.append("  📉 BB Lower: $").append(String.format("%.2f", result.getBollingerLower()));
+
+        // Bollinger Bands Section - Condensed
+        sb.append("  📉 BB: ");
         if (result.isPriceTouchingLowerBand()) {
-            sb.append(" ✓");
+            sb.append("Touching Lower ($").append(String.format("%.2f", result.getBollingerLower())).append(")");
+        } else if (result.isPriceTouchingUpperBand()) {
+            sb.append("Touching Upper ($").append(String.format("%.2f", result.getBollingerUpper())).append(")");
+        } else {
+            sb.append("Within bands ($").append(String.format("%.2f", result.getBollingerLower()))
+                    .append(" - $").append(String.format("%.2f", result.getBollingerUpper())).append(")");
         }
         sb.append("\n");
-        sb.append("  📊 MA20: $").append(String.format("%.2f", result.getMa20()));
-        if (result.isPriceBelowMA20()) {
-            sb.append(" (below)");
+
+        // Moving Averages Section - Condensed summary
+        List<String> belowMAs = new ArrayList<>();
+        List<String> aboveMAs = new ArrayList<>();
+
+        if (result.isPriceBelowMA20())
+            belowMAs.add("MA20");
+        else
+            aboveMAs.add("MA20");
+        if (result.isPriceBelowMA50())
+            belowMAs.add("MA50");
+        else
+            aboveMAs.add("MA50");
+        if (result.isPriceBelowMA100())
+            belowMAs.add("MA100");
+        else
+            aboveMAs.add("MA100");
+        if (result.isPriceBelowMA200())
+            belowMAs.add("MA200");
+        else
+            aboveMAs.add("MA200");
+
+        sb.append("  📊 MAs: ");
+        if (!belowMAs.isEmpty()) {
+            sb.append("Below ").append(String.join(", ", belowMAs));
         }
-        sb.append("\n");
-        sb.append("  📊 MA50: $").append(String.format("%.2f", result.getMa50()));
-        if (result.isPriceBelowMA50()) {
-            sb.append(" (below)");
+        if (!belowMAs.isEmpty() && !aboveMAs.isEmpty()) {
+            sb.append(" | ");
+        }
+        if (!aboveMAs.isEmpty()) {
+            sb.append("Above ").append(String.join(", ", aboveMAs));
         }
         sb.append("\n");
         return sb.toString();
+    }
+
+    /**
+     * Formats volume for display (e.g., 1.5M, 500K).
+     */
+    private static String formatVolume(long volume) {
+        if (volume >= 1_000_000) {
+            return String.format("%.2fM", volume / 1_000_000.0);
+        } else if (volume >= 1_000) {
+            return String.format("%.2fK", volume / 1_000.0);
+        }
+        return String.valueOf(volume);
     }
 
     /**
