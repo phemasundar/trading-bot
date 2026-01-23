@@ -1,18 +1,18 @@
 package com.hemasundar.options.strategies;
 
+import com.hemasundar.options.models.CreditSpreadFilter;
+import com.hemasundar.options.models.LegFilter;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionsStrategyFilter;
 import com.hemasundar.options.models.PutCreditSpread;
 import com.hemasundar.options.models.TradeSetup;
 import com.hemasundar.options.models.OptionType;
-import lombok.extern.log4j.Log4j2;
+import org.apache.commons.collections4.CollectionUtils;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.apache.commons.collections4.CollectionUtils;
 
 public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
 
@@ -42,6 +42,15 @@ public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
 
         List<TradeSetup> spreads = new ArrayList<>();
 
+        // Get leg filters if available
+        LegFilter shortLegFilter = null;
+        LegFilter longLegFilter = null;
+        if (filter instanceof CreditSpreadFilter) {
+            CreditSpreadFilter csFilter = (CreditSpreadFilter) filter;
+            shortLegFilter = csFilter.getShortLeg();
+            longLegFilter = csFilter.getLongLeg();
+        }
+
         List<Double> sortedStrikes = putMap.keySet().stream()
                 .map(Double::parseDouble)
                 .sorted().toList();
@@ -53,9 +62,9 @@ public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
                 continue;
             OptionChainResponse.OptionData shortPut = options.get(0);
 
-            if (shortPut.getAbsDelta() > filter.getMaxDelta()) {
+            // Short leg delta filter (null-safe)
+            if (shortLegFilter != null && !shortLegFilter.passesMaxDelta(shortPut.getAbsDelta()))
                 continue;
-            }
 
             for (int j = 0; j < i; j++) {
                 double longStrikePrice = sortedStrikes.get(j);
@@ -63,6 +72,10 @@ public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
                 if (CollectionUtils.isEmpty(longOptions))
                     continue;
                 OptionChainResponse.OptionData longPut = longOptions.get(0);
+
+                // Long leg delta filter (null-safe)
+                if (longLegFilter != null && !longLegFilter.passesDeltaFilter(longPut.getAbsDelta()))
+                    continue;
 
                 double netCredit = (shortPut.getBid() - longPut.getAsk()) * 100;
 

@@ -1,28 +1,42 @@
 package com.hemasundar.options.models;
 
-import lombok.Builder;
 import lombok.Getter;
+import lombok.experimental.SuperBuilder;
 
+/**
+ * Base filter class containing common strategy-level filters.
+ * Strategy-specific filters should extend this class.
+ */
 @Getter
-@Builder
+@SuperBuilder
 public class OptionsStrategyFilter {
+    // Time-based filters
     private int targetDTE;
-    private double maxDelta;
+    private int minDTE;
+
+    // Risk/Return filters
     private double maxLossLimit;
     private int minReturnOnRisk;
-    @Builder.Default
+    private double maxTotalDebit;
+    private double maxTotalCredit;
+
+    // Behavior flags
+    @lombok.Builder.Default
     private boolean ignoreEarnings = true;
-    private int minDTE;
-    private double minDelta;
-    @Builder.Default
+
+    // Interest rates (for LEAP calculations)
+    @lombok.Builder.Default
     private double marginInterestRate = 6.0;
-    @Builder.Default
+    @lombok.Builder.Default
     private double savingsInterestRate = 10.0;
-    @Builder.Default
+    @lombok.Builder.Default
     private double maxOptionPricePercent = 50.0;
 
-    // Bullish Broken Wing Butterfly specific filters
-    private double longCallMinDelta; // Max delta for Leg 1 (Long Call)
-    private double shortCallsMaxDelta; // Max delta for Leg 2 (Short Calls)
-    private double maxTotalDebit; // Max total debit for the strategy
+    /**
+     * Static helper for null-safe leg filter delta checks.
+     * Returns true if filter is null or delta passes the filter.
+     */
+    public static boolean passesFilter(LegFilter legFilter, double absDelta) {
+        return legFilter == null || legFilter.passesDeltaFilter(absDelta);
+    }
 }

@@ -1,17 +1,16 @@
 package com.hemasundar.options.strategies;
 
+import com.hemasundar.options.models.CreditSpreadFilter;
 import com.hemasundar.options.models.IronCondor;
+import com.hemasundar.options.models.LegFilter;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionsStrategyFilter;
 import com.hemasundar.options.models.TradeSetup;
 import com.hemasundar.options.models.PutCreditSpread;
 import com.hemasundar.options.models.CallCreditSpread;
-import lombok.extern.log4j.Log4j2;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class IronCondorStrategy extends AbstractTradingStrategy {
 
@@ -31,12 +30,19 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
             OptionsStrategyFilter filter) {
         // Create a filter for legs with 0 min return to get all valid spreads
         // SET ignoreEarnings = true for legs to avoid redundant checks
-        OptionsStrategyFilter legFilter = OptionsStrategyFilter.builder()
+
+        // Get the short leg filter from the parent filter if available
+        LegFilter shortLegFilter = null;
+        if (filter instanceof CreditSpreadFilter) {
+            shortLegFilter = ((CreditSpreadFilter) filter).getShortLeg();
+        }
+
+        CreditSpreadFilter legFilter = CreditSpreadFilter.builder()
                 .targetDTE(filter.getTargetDTE())
-                .maxDelta(filter.getMaxDelta())
                 .maxLossLimit(filter.getMaxLossLimit())
                 .minReturnOnRisk(0) // Get all valid spreads
                 .ignoreEarnings(true) // Don't check earnings again for legs
+                .shortLeg(shortLegFilter)
                 .build();
 
         List<TradeSetup> putSetups = putStrategy.findTrades(chain, legFilter);

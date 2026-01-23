@@ -1,6 +1,8 @@
 package com.hemasundar.options.strategies;
 
 import com.hemasundar.options.models.BrokenWingButterfly;
+import com.hemasundar.options.models.BrokenWingButterflyFilter;
+import com.hemasundar.options.models.LegFilter;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionType;
 import com.hemasundar.options.models.OptionsStrategyFilter;
@@ -36,6 +38,17 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
             double currentPrice, OptionsStrategyFilter filter) {
         List<TradeSetup> trades = new ArrayList<>();
 
+        // Get leg filters if available
+        LegFilter leg1Filter = null;
+        LegFilter leg2Filter = null;
+        LegFilter leg3Filter = null;
+        if (filter instanceof BrokenWingButterflyFilter) {
+            BrokenWingButterflyFilter bwbFilter = (BrokenWingButterflyFilter) filter;
+            leg1Filter = bwbFilter.getLeg1Long();
+            leg2Filter = bwbFilter.getLeg2Short();
+            leg3Filter = bwbFilter.getLeg3Long();
+        }
+
         List<Double> sortedStrikes = callMap.keySet().stream()
                 .map(Double::parseDouble)
                 .sorted()
@@ -49,8 +62,8 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
                 continue;
             OptionChainResponse.OptionData leg1 = leg1Options.get(0);
 
-            // Leg 1 Delta Check (longCallMaxDelta from filter)
-            if (leg1.getAbsDelta() < filter.getLongCallMinDelta())
+            // Leg 1 Delta Check (null-safe)
+            if (leg1Filter != null && !leg1Filter.passesMinDelta(leg1.getAbsDelta()))
                 continue;
 
             // Leg 2: Sell 2 Calls (Middle Strike)
@@ -61,8 +74,8 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
                     continue;
                 OptionChainResponse.OptionData leg2 = leg2Options.get(0);
 
-                // Leg 2 Delta Check (shortCallsMaxDelta from filter)
-                if (leg2.getAbsDelta() > filter.getShortCallsMaxDelta())
+                // Leg 2 Delta Check (null-safe)
+                if (leg2Filter != null && !leg2Filter.passesMaxDelta(leg2.getAbsDelta()))
                     continue;
 
                 // Leg 3: Buy 1 Call (Higher Strike, Protection)
@@ -73,6 +86,10 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
                         continue;
                     OptionChainResponse.OptionData leg3 = leg3Options.get(0);
 
+                    // Leg 3 Delta Check (null-safe)
+                    if (leg3Filter != null && !leg3Filter.passesDeltaFilter(leg3.getAbsDelta()))
+                        continue;
+
                     // Calculate wing widths
                     double lowerWingWidth = (leg2StrikePrice - leg1StrikePrice) * 100;
                     double upperWingWidth = (leg3StrikePrice - leg2StrikePrice) * 100;
@@ -81,7 +98,7 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
                     double totalDebit = (leg1.getAsk() + leg3.getAsk() - (leg2.getBid() * 2)) * 100;
 
                     // Check max total debit filter
-                    if (totalDebit > filter.getMaxTotalDebit())
+                    if (filter.getMaxTotalDebit() > 0 && totalDebit > filter.getMaxTotalDebit())
                         continue;
 
                     // Max Loss Calculations
@@ -95,7 +112,7 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
                     double maxLoss = Math.max(maxLossUpside, maxLossDownside);
 
                     // Check max loss limit from filter
-                    if (maxLoss > filter.getMaxLossLimit())
+                    if (filter.getMaxLossLimit() > 0 && maxLoss > filter.getMaxLossLimit())
                         continue;
 
                     // Calculate return on risk (max profit / max risk)

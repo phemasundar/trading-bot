@@ -1,15 +1,15 @@
 package com.hemasundar.options.strategies;
 
 import com.hemasundar.options.models.CallCreditSpread;
+import com.hemasundar.options.models.CreditSpreadFilter;
+import com.hemasundar.options.models.LegFilter;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionsStrategyFilter;
 import com.hemasundar.options.models.TradeSetup;
 import com.hemasundar.options.models.OptionType;
 import org.apache.commons.collections4.CollectionUtils;
-import lombok.extern.log4j.Log4j2;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -41,6 +41,15 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
             double currentPrice, OptionsStrategyFilter filter) {
         List<TradeSetup> spreads = new ArrayList<>();
 
+        // Get leg filters if available
+        LegFilter shortLegFilter = null;
+        LegFilter longLegFilter = null;
+        if (filter instanceof CreditSpreadFilter) {
+            CreditSpreadFilter csFilter = (CreditSpreadFilter) filter;
+            shortLegFilter = csFilter.getShortLeg();
+            longLegFilter = csFilter.getLongLeg();
+        }
+
         List<Double> sortedStrikes = callMap.keySet().stream()
                 .map(Double::parseDouble)
                 .sorted()
@@ -59,7 +68,8 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
             if (shortStrikePrice <= currentPrice)
                 continue;
 
-            if (shortCall.getAbsDelta() > filter.getMaxDelta())
+            // Short leg delta filter (null-safe)
+            if (shortLegFilter != null && !shortLegFilter.passesMaxDelta(shortCall.getAbsDelta()))
                 continue;
 
             // Iterate for Long Call (Higher Strike)
@@ -69,6 +79,10 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
                 if (CollectionUtils.isEmpty(longOptions))
                     continue;
                 OptionChainResponse.OptionData longCall = longOptions.get(0);
+
+                // Long leg delta filter (null-safe)
+                if (longLegFilter != null && !longLegFilter.passesDeltaFilter(longCall.getAbsDelta()))
+                    continue;
 
                 double netCredit = (shortCall.getBid() - longCall.getAsk()) * 100;
 

@@ -13,6 +13,7 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
   - RSI Bollinger Bull Put Spread (oversold signal-based)
   - RSI Bollinger Bear Call Spread (overbought signal-based)
   - Bullish Broken Wing Butterfly (3-leg directional strategy)
+- **Object-Oriented Filter System**: Extensible filter hierarchy with strategy-specific and leg-specific filters
 - **Technical Indicators**: RSI, Bollinger Bands, and Volume analysis using ta4j library
 - **Telegram Notifications**: Receive trade alerts directly to your Telegram
 

@@ -6,6 +6,10 @@ import com.hemasundar.pojos.TestConfig;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionsConfig;
 import com.hemasundar.options.models.OptionsStrategyFilter;
+import com.hemasundar.options.models.LegFilter;
+import com.hemasundar.options.models.CreditSpreadFilter;
+import com.hemasundar.options.models.LongCallLeapFilter;
+import com.hemasundar.options.models.BrokenWingButterflyFilter;
 import com.hemasundar.options.models.TradeSetup;
 import com.hemasundar.config.RuntimeConfig;
 import com.hemasundar.options.strategies.*;
@@ -123,12 +127,12 @@ public class SampleTestNG {
                 List<String> top100Securities = loadSecurities(FilePaths.top100Securities);
                 List<String> bullishSecurities = loadSecurities(FilePaths.bullishSecurities);
 
-                OptionsStrategyFilter rsiBBFilter = OptionsStrategyFilter.builder()
+                CreditSpreadFilter rsiBBFilter = CreditSpreadFilter.builder()
                                 .targetDTE(30)
-                                .maxDelta(0.3)
                                 .maxLossLimit(1000)
                                 .minReturnOnRisk(12)
                                 .ignoreEarnings(false)
+                                .shortLeg(LegFilter.builder().maxDelta(0.3).build())
                                 .build();
 
                 // ALL options strategies in one unified list
@@ -136,45 +140,45 @@ public class SampleTestNG {
                                 // Basic strategies (no technical filter)
                                 OptionsConfig.builder()
                                                 .strategy(new PutCreditSpreadStrategy())
-                                                .filter(OptionsStrategyFilter.builder()
+                                                .filter(CreditSpreadFilter.builder()
                                                                 .targetDTE(30)
-                                                                .maxDelta(0.20)
                                                                 .maxLossLimit(1000)
                                                                 .minReturnOnRisk(12)
                                                                 .ignoreEarnings(false)
+                                                                .shortLeg(LegFilter.builder().maxDelta(0.20).build())
                                                                 .build())
                                                 .securities(portfolioSecurities)
                                                 .build(),
                                 OptionsConfig.builder()
                                                 .strategy(new CallCreditSpreadStrategy())
-                                                .filter(OptionsStrategyFilter.builder()
+                                                .filter(CreditSpreadFilter.builder()
                                                                 .targetDTE(30)
-                                                                .maxDelta(0.20)
                                                                 .maxLossLimit(1000)
                                                                 .minReturnOnRisk(12)
                                                                 .ignoreEarnings(false)
+                                                                .shortLeg(LegFilter.builder().maxDelta(0.20).build())
                                                                 .build())
                                                 .securities(portfolioSecurities)
                                                 .build(),
                                 OptionsConfig.builder()
                                                 .strategy(new IronCondorStrategy())
-                                                .filter(OptionsStrategyFilter.builder()
+                                                .filter(CreditSpreadFilter.builder()
                                                                 .targetDTE(60)
-                                                                .maxDelta(0.15)
                                                                 .maxLossLimit(1000)
                                                                 .minReturnOnRisk(24)
                                                                 .ignoreEarnings(false)
+                                                                .shortLeg(LegFilter.builder().maxDelta(0.15).build())
                                                                 .build())
                                                 .securities(portfolioSecurities)
                                                 .build(),
                                 OptionsConfig.builder()
                                                 .strategy(new LongCallLeapStrategy())
-                                                .filter(OptionsStrategyFilter.builder()
+                                                .filter(LongCallLeapFilter.builder()
                                                                 .minDTE((int) ChronoUnit.DAYS.between(LocalDate.now(),
                                                                                 LocalDate.now().plusMonths(11)))
-                                                                .minDelta(0.6)
                                                                 .marginInterestRate(6.0)
                                                                 .maxOptionPricePercent(40.0)
+                                                                .longCall(LegFilter.builder().minDelta(0.6).build())
                                                                 .build())
                                                 .securities(portfolioSecurities)
                                                 .build(),
@@ -182,12 +186,12 @@ public class SampleTestNG {
                                 OptionsConfig.builder()
                                                 .strategy(new PutCreditSpreadStrategy(
                                                                 StrategyType.BULLISH_LONG_PUT_CREDIT_SPREAD))
-                                                .filter(OptionsStrategyFilter.builder()
+                                                .filter(CreditSpreadFilter.builder()
                                                                 .targetDTE(180)
-                                                                .maxDelta(0.20)
                                                                 .maxLossLimit(2000)
                                                                 .minReturnOnRisk(24)
                                                                 .ignoreEarnings(true)
+                                                                .shortLeg(LegFilter.builder().maxDelta(0.20).build())
                                                                 .build())
                                                 .securities(bullishSecurities)
                                                 .build(),
@@ -195,12 +199,12 @@ public class SampleTestNG {
                                 OptionsConfig.builder()
                                                 .strategy(new IronCondorStrategy(
                                                                 StrategyType.BULLISH_LONG_IRON_CONDOR))
-                                                .filter(OptionsStrategyFilter.builder()
+                                                .filter(CreditSpreadFilter.builder()
                                                                 .targetDTE(180)
-                                                                .maxDelta(0.15)
                                                                 .maxLossLimit(2000)
                                                                 .minReturnOnRisk(36)
                                                                 .ignoreEarnings(true)
+                                                                .shortLeg(LegFilter.builder().maxDelta(0.15).build())
                                                                 .build())
                                                 .securities(bullishSecurities)
                                                 .build(),
@@ -222,15 +226,14 @@ public class SampleTestNG {
                                 // Bullish Broken Wing Butterfly Strategy
                                 OptionsConfig.builder()
                                                 .strategy(new BrokenWingButterflyStrategy())
-                                                .filter(OptionsStrategyFilter.builder()
+                                                .filter(BrokenWingButterflyFilter.builder()
                                                                 .targetDTE(45)
-                                                                .longCallMinDelta(0.5) // Min Delta for Leg 1 (Long
-                                                                                       // Call)
-                                                                .shortCallsMaxDelta(0.2) // Max Delta for Leg 2 (Short
-                                                                                         // Calls)
-                                                                .maxTotalDebit(100) // Total debit <= $100
-                                                                .maxLossLimit(1000) // Max loss limit
+                                                                .maxTotalDebit(100)
+                                                                .maxLossLimit(1000)
                                                                 .ignoreEarnings(true)
+                                                                .leg1Long(LegFilter.builder().minDelta(0.5).build())
+                                                                .leg2Short(LegFilter.builder().maxDelta(0.2).build())
+                                                                // leg3Long not set - no filter applied
                                                                 .build())
                                                 .securities(portfolioSecurities)
                                                 .build());
