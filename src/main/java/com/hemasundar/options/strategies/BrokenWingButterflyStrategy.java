@@ -112,7 +112,7 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
                     double maxLoss = Math.max(maxLossUpside, maxLossDownside);
 
                     // Check max loss limit from filter
-                    if (filter.getMaxLossLimit() > 0 && maxLoss > filter.getMaxLossLimit())
+                    if (maxLoss > filter.getMaxLossLimit())
                         continue;
 
                     // Calculate return on risk (max profit / max risk)
