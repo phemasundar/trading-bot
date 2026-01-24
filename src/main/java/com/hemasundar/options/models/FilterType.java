@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 public enum FilterType {
 
     CREDIT_SPREAD("CreditSpreadFilter", CreditSpreadFilter.class),
+    IRON_CONDOR("IronCondorFilter", IronCondorFilter.class),
     LONG_CALL_LEAP("LongCallLeapFilter", LongCallLeapFilter.class),
     BROKEN_WING_BUTTERFLY("BrokenWingButterflyFilter", BrokenWingButterflyFilter.class);
 

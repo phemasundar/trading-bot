@@ -99,13 +99,16 @@
         {
             "enabled": true,
             "strategyType": "IRON_CONDOR",
-            "filterType": "CreditSpreadFilter",
+            "filterType": "IronCondorFilter",
             "filter": {
                 "targetDTE": 60,
                 "maxLossLimit": 1000,
                 "minReturnOnRisk": 24,
                 "ignoreEarnings": false,
-                "shortLeg": {
+                "putShortLeg": {
+                    "maxDelta": 0.15
+                },
+                "callShortLeg": {
                     "maxDelta": 0.15
                 }
             },
@@ -114,14 +117,17 @@
         {
             "enabled": true,
             "strategyType": "IRON_CONDOR",
-            "filterType": "CreditSpreadFilter",
+            "filterType": "IronCondorFilter",
             "filter": {
                 "minDTE": 55,
                 "maxDTE": 185,
                 "maxLossLimit": 2000,
                 "minReturnOnRisk": 36,
                 "ignoreEarnings": true,
-                "shortLeg": {
+                "putShortLeg": {
+                    "maxDelta": 0.15
+                },
+                "callShortLeg": {
                     "maxDelta": 0.15
                 }
             },

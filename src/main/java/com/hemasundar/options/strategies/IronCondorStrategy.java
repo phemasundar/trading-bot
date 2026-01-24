@@ -2,6 +2,7 @@ package com.hemasundar.options.strategies;
 
 import com.hemasundar.options.models.CreditSpreadFilter;
 import com.hemasundar.options.models.IronCondor;
+import com.hemasundar.options.models.IronCondorFilter;
 import com.hemasundar.options.models.LegFilter;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionsStrategyFilter;
@@ -28,25 +29,43 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
     @Override
     protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
             OptionsStrategyFilter filter) {
-        // Create a filter for legs with 0 min return to get all valid spreads
-        // SET ignoreEarnings = true for legs to avoid redundant checks
+        // Create separate filters for put and call legs
+        // Supports both new IronCondorFilter (separate legs) and legacy
+        // CreditSpreadFilter (shared leg)
 
-        // Get the short leg filter from the parent filter if available
-        LegFilter shortLegFilter = null;
-        if (filter instanceof CreditSpreadFilter) {
-            shortLegFilter = ((CreditSpreadFilter) filter).getShortLeg();
+        LegFilter putShortLegFilter = null;
+        LegFilter callShortLegFilter = null;
+
+        if (filter instanceof IronCondorFilter ironCondorFilter) {
+            // New format: use separate put and call short leg filters
+            putShortLegFilter = ironCondorFilter.getPutShortLeg();
+            callShortLegFilter = ironCondorFilter.getCallShortLeg();
+        } else if (filter instanceof CreditSpreadFilter creditSpreadFilter) {
+            // Legacy format: use same shortLeg for both
+            putShortLegFilter = creditSpreadFilter.getShortLeg();
+            callShortLegFilter = creditSpreadFilter.getShortLeg();
         }
 
-        CreditSpreadFilter legFilter = CreditSpreadFilter.builder()
+        // Create put leg filter
+        CreditSpreadFilter putLegFilter = CreditSpreadFilter.builder()
                 .targetDTE(filter.getTargetDTE())
                 .maxLossLimit(filter.getMaxLossLimit())
                 .minReturnOnRisk(0) // Get all valid spreads
                 .ignoreEarnings(true) // Don't check earnings again for legs
-                .shortLeg(shortLegFilter)
+                .shortLeg(putShortLegFilter)
                 .build();
 
-        List<TradeSetup> putSetups = putStrategy.findTrades(chain, legFilter);
-        List<TradeSetup> callSetups = callStrategy.findTrades(chain, legFilter);
+        // Create call leg filter (may have different delta)
+        CreditSpreadFilter callLegFilter = CreditSpreadFilter.builder()
+                .targetDTE(filter.getTargetDTE())
+                .maxLossLimit(filter.getMaxLossLimit())
+                .minReturnOnRisk(0)
+                .ignoreEarnings(true)
+                .shortLeg(callShortLegFilter)
+                .build();
+
+        List<TradeSetup> putSetups = putStrategy.findTrades(chain, putLegFilter);
+        List<TradeSetup> callSetups = callStrategy.findTrades(chain, callLegFilter);
 
         // Cast back to specific types
         List<PutCreditSpread> putSpreads = new ArrayList<>();

@@ -150,6 +150,20 @@ Moved all hardcoded filter configurations and screeners from `SampleTestNG.java`
 - **POJO-based Parsing**: Uses Jackson's automatic `ObjectMapper.readValue()`
 - **Factory Methods**: `StrategyType.createStrategy()` and `StrategiesConfigLoader.loadScreeners()`
 
+### IronCondorFilter (2026-01-24)
+Added `IronCondorFilter` to support independent put and call short leg filters:
+```json
+{
+    "filterType": "IronCondorFilter",
+    "filter": {
+        "putShortLeg": { "maxDelta": 0.15 },
+        "callShortLeg": { "maxDelta": 0.20 }
+    }
+}
+```
+- Allows different `maxDelta` values for put vs call short legs
+- Backward compatible: `CreditSpreadFilter` still works with shared `shortLeg`
+
 ### Deleted Files
 - `runtime-config.json` - No longer needed (all config in strategies-config.json)
 - `runtimeConfig` path from `FilePaths.java`
