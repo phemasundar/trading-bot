@@ -202,7 +202,7 @@ public class TechnicalScreener {
     /**
      * Checks if the screening result meets all filter conditions.
      */
-    private static boolean meetsAllCriteria(ScreeningResult result, FilterConditions conditions) {
+    private static boolean meetsAllCriteria(ScreeningResult result, TechFilterConditions conditions) {
         // RSI condition (via enum)
         if (conditions.getRsiCondition() != null) {
             boolean rsiMet = switch (conditions.getRsiCondition()) {

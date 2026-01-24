@@ -33,7 +33,7 @@ public class ScreenerConfig {
     /**
      * Filter conditions defining what to screen for.
      */
-    private final FilterConditions conditions;
+    private final TechFilterConditions conditions;
 
     /**
      * Gets the display name from the screener type.

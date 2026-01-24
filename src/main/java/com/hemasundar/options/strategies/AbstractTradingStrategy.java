@@ -34,6 +34,8 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             return new ArrayList<>();
         }
 
+        log.info("[{}] Processing {} expiry dates: {}", chain.getSymbol(), expiryDates.size(), expiryDates);
+
         List<TradeSetup> allTrades = new ArrayList<>();
 
         for (String expiryDate : expiryDates) {
@@ -56,9 +58,11 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
 
             // Find trades for this expiry
             List<TradeSetup> trades = findValidTrades(chain, expiryDate, filter);
+            log.info("[{}] Found {} trades for expiry {}", chain.getSymbol(), trades.size(), expiryDate);
             allTrades.addAll(trades);
         }
 
+        log.info("[{}] Total trades found: {}", chain.getSymbol(), allTrades.size());
         return allTrades;
     }
 

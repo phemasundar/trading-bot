@@ -23,7 +23,7 @@ import lombok.Getter;
  */
 @Getter
 @Builder
-public class FilterConditions {
+public class TechFilterConditions {
 
     /**
      * RSI condition to check: OVERSOLD, OVERBOUGHT, BULLISH_CROSSOVER, or

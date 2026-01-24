@@ -33,10 +33,10 @@ import java.util.List;
 @Getter
 public class TechnicalFilterChain {
     private final TechnicalIndicators indicators;
-    private final FilterConditions conditions;
+    private final TechFilterConditions conditions;
     private final List<TechnicalFilter> filters;
 
-    private TechnicalFilterChain(TechnicalIndicators indicators, FilterConditions conditions) {
+    private TechnicalFilterChain(TechnicalIndicators indicators, TechFilterConditions conditions) {
         this.indicators = indicators;
         this.conditions = conditions;
         this.filters = buildFilterList(indicators);
@@ -46,7 +46,7 @@ public class TechnicalFilterChain {
      * Creates a TechnicalFilterChain from indicators and conditions.
      * This is the recommended way to create a filter chain.
      */
-    public static TechnicalFilterChain of(TechnicalIndicators indicators, FilterConditions conditions) {
+    public static TechnicalFilterChain of(TechnicalIndicators indicators, TechFilterConditions conditions) {
         return new TechnicalFilterChain(indicators, conditions);
     }
 
@@ -179,7 +179,7 @@ public class TechnicalFilterChain {
                     .volumeFilter(volumeFilter)
                     .build();
 
-            FilterConditions conditions = FilterConditions.builder()
+            TechFilterConditions conditions = TechFilterConditions.builder()
                     .rsiCondition(rsiCondition)
                     .bollingerCondition(bollingerCondition)
                     .build();

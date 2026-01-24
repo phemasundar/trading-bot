@@ -85,7 +85,7 @@ public class SampleTestNG {
                 // =============================================================
 
                 // Define WHAT indicators to use (with their settings)
-                TechnicalIndicators indicators = TechnicalIndicators.builder()
+                TechnicalIndicators allIndicators = TechnicalIndicators.builder()
                                 .rsiFilter(RSIFilter.builder()
                                                 .period(14)
                                                 .oversoldThreshold(30.0)
@@ -103,21 +103,22 @@ public class SampleTestNG {
                                 .build();
 
                 // Define technical filter conditions
-                FilterConditions oversoldConditions = FilterConditions.builder()
+                TechFilterConditions oversoldConditions = TechFilterConditions.builder()
                                 .rsiCondition(RSICondition.BULLISH_CROSSOVER)
                                 .bollingerCondition(BollingerCondition.LOWER_BAND)
                                 .minVolume(1_000_000L)
                                 .build();
 
-                FilterConditions overboughtConditions = FilterConditions.builder()
+                TechFilterConditions overboughtConditions = TechFilterConditions.builder()
                                 .rsiCondition(RSICondition.BEARISH_CROSSOVER)
                                 .bollingerCondition(BollingerCondition.UPPER_BAND)
                                 .minVolume(1_000_000L)
                                 .build();
 
                 // Combine indicators + conditions into filter chains
-                TechnicalFilterChain oversoldFilterChain = TechnicalFilterChain.of(indicators, oversoldConditions);
-                TechnicalFilterChain overboughtFilterChain = TechnicalFilterChain.of(indicators, overboughtConditions);
+                TechnicalFilterChain oversoldFilterChain = TechnicalFilterChain.of(allIndicators, oversoldConditions);
+                TechnicalFilterChain overboughtFilterChain = TechnicalFilterChain.of(allIndicators,
+                                overboughtConditions);
 
                 // =============================================================
                 // OPTIONS STRATEGIES (Unified Configuration-Driven List)
@@ -187,7 +188,8 @@ public class SampleTestNG {
                                                 .strategy(new PutCreditSpreadStrategy(
                                                                 StrategyType.BULLISH_LONG_PUT_CREDIT_SPREAD))
                                                 .filter(CreditSpreadFilter.builder()
-                                                                .targetDTE(180)
+                                                                .minDTE(55)
+                                                                .maxDTE(185)
                                                                 .maxLossLimit(2000)
                                                                 .minReturnOnRisk(24)
                                                                 .ignoreEarnings(true)
@@ -200,7 +202,8 @@ public class SampleTestNG {
                                                 .strategy(new IronCondorStrategy(
                                                                 StrategyType.BULLISH_LONG_IRON_CONDOR))
                                                 .filter(CreditSpreadFilter.builder()
-                                                                .targetDTE(180)
+                                                                .minDTE(55)
+                                                                .maxDTE(185)
                                                                 .maxLossLimit(2000)
                                                                 .minReturnOnRisk(36)
                                                                 .ignoreEarnings(true)
@@ -282,7 +285,7 @@ public class SampleTestNG {
                 List<ScreenerConfig> technicalScreeners = List.of(
                                 ScreenerConfig.builder()
                                                 .screenerType(ScreenerType.RSI_BB_BULLISH_CROSSOVER)
-                                                .conditions(FilterConditions.builder()
+                                                .conditions(TechFilterConditions.builder()
                                                                 .rsiCondition(RSICondition.BULLISH_CROSSOVER)
                                                                 .bollingerCondition(BollingerCondition.LOWER_BAND)
                                                                 // .requirePriceBelowMA20(true)
@@ -292,7 +295,7 @@ public class SampleTestNG {
                                                 .build(),
                                 ScreenerConfig.builder()
                                                 .screenerType(ScreenerType.RSI_BB_BEARISH_CROSSOVER)
-                                                .conditions(FilterConditions.builder()
+                                                .conditions(TechFilterConditions.builder()
                                                                 .rsiCondition(RSICondition.BEARISH_CROSSOVER)
                                                                 .bollingerCondition(BollingerCondition.UPPER_BAND)
                                                                 .minVolume(1_000_000L)
@@ -300,7 +303,7 @@ public class SampleTestNG {
                                                 .build(),
                                 ScreenerConfig.builder()
                                                 .screenerType(ScreenerType.BELOW_200_DAY_MA)
-                                                .conditions(FilterConditions.builder()
+                                                .conditions(TechFilterConditions.builder()
                                                                 .requirePriceBelowMA200(true)
                                                                 .minVolume(1_000_000L)
                                                                 .build())
@@ -317,7 +320,8 @@ public class SampleTestNG {
                         }
 
                         log.info("Running screener: {}", config.getName());
-                        TechnicalFilterChain filterChain = TechnicalFilterChain.of(indicators, config.getConditions());
+                        TechnicalFilterChain filterChain = TechnicalFilterChain.of(allIndicators,
+                                        config.getConditions());
                         List<TechnicalScreener.ScreeningResult> results = TechnicalScreener.screenStocks(
                                         top100Securities, filterChain);
 
@@ -348,6 +352,7 @@ public class SampleTestNG {
          * Finds trades for the given strategy and filter across all symbols.
          * Returns a map of symbol -> trades for further processing (logging, Telegram,
          * etc.).
+         * Trades are grouped by expiry date so each entry represents a single DTE.
          */
         private static Map<String, List<TradeSetup>> findTradesForStrategy(OptionChainCache cache, List<String> symbols,
                         AbstractTradingStrategy strategy, OptionsStrategyFilter optionsStrategyFilter) {
@@ -369,7 +374,17 @@ public class SampleTestNG {
                                 trades.forEach(trade -> log.info("Trade: {}", trade));
 
                                 if (!trades.isEmpty()) {
-                                        allTrades.put(symbol, trades);
+                                        // Group trades by expiry date and add as separate entries
+                                        Map<String, List<TradeSetup>> tradesByExpiry = trades.stream()
+                                                        .collect(java.util.stream.Collectors.groupingBy(
+                                                                        TradeSetup::getExpiryDate,
+                                                                        LinkedHashMap::new,
+                                                                        java.util.stream.Collectors.toList()));
+
+                                        for (Map.Entry<String, List<TradeSetup>> entry : tradesByExpiry.entrySet()) {
+                                                // Key format: "NVDA" (each expiry gets its own Telegram message)
+                                                allTrades.put(symbol + "_" + entry.getKey(), entry.getValue());
+                                        }
                                 }
                         } catch (Exception e) {
                                 log.error("Error processing {}: {}", symbol, e.getMessage());

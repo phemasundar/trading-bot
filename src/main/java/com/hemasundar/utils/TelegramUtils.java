@@ -180,14 +180,14 @@ public class TelegramUtils {
      *
      * @param strategyName The name of the trading strategy
      * @param symbol       The stock symbol
-     * @param trades       List of trade setups to send
+     * @param trades       List of trade setups to send (should be for same expiry)
      */
     public static void sendTradeAlerts(String strategyName, String symbol, List<? extends TradeSetup> trades) {
         if (trades == null || trades.isEmpty()) {
             return;
         }
 
-        // Get common info from first trade
+        // Get common info from first trade (assumes all trades have same expiry)
         TradeSetup firstTrade = trades.get(0);
         String expiryDate = formatExpiryDate(firstTrade.getExpiryDate());
         int dte = firstTrade.getDaysToExpiration();
@@ -214,7 +214,8 @@ public class TelegramUtils {
      * Processes a map of symbol -> trades (batch of results).
      *
      * @param strategyName The name of the trading strategy
-     * @param tradesMap    Map of symbol -> trade setups
+     * @param tradesMap    Map of symbolKey -> trade setups (key may be "SYMBOL" or
+     *                     "SYMBOL_expiryDate")
      */
     public static void sendTradeAlerts(String strategyName, Map<String, List<TradeSetup>> tradesMap) {
         if (tradesMap == null || tradesMap.isEmpty()) {
@@ -222,7 +223,10 @@ public class TelegramUtils {
         }
 
         for (Map.Entry<String, List<TradeSetup>> entry : tradesMap.entrySet()) {
-            sendTradeAlerts(strategyName, entry.getKey(), entry.getValue());
+            // Extract symbol from key (handles both "NVDA" and "NVDA_2026-06-18" formats)
+            String key = entry.getKey();
+            String symbol = key.contains("_") ? key.substring(0, key.indexOf("_")) : key;
+            sendTradeAlerts(strategyName, symbol, entry.getValue());
         }
     }
 
