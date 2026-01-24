@@ -15,6 +15,45 @@
             "securitiesFile": "portfolio"
         },
         {
+            "strategyType": "BULLISH_LONG_PUT_CREDIT_SPREAD",
+            "filterType": "CreditSpreadFilter",
+            "filter": {
+                "minDTE": 55,
+                "maxDTE": 185,
+                "maxLossLimit": 2000,
+                "minReturnOnRisk": 24,
+                "ignoreEarnings": true,
+                "shortLeg": {
+                    "maxDelta": 0.20
+                }
+            },
+            "securitiesFile": "bullish"
+        },
+        {
+            "strategyType": "RSI_BOLLINGER_BULL_PUT_SPREAD",
+            "filterType": "CreditSpreadFilter",
+            "filter": {
+                "targetDTE": 30,
+                "maxLossLimit": 1000,
+                "minReturnOnRisk": 12,
+                "ignoreEarnings": false,
+                "shortLeg": {
+                    "maxDelta": 0.3
+                }
+            },
+            "securitiesFile": "top100",
+            "technicalFilter": {
+                "rsiPeriod": 14,
+                "oversoldThreshold": 30.0,
+                "overboughtThreshold": 70.0,
+                "bollingerPeriod": 20,
+                "bollingerStdDev": 2.0,
+                "rsiCondition": "BULLISH_CROSSOVER",
+                "bollingerCondition": "LOWER_BAND",
+                "minVolume": 1000000
+            }
+        },
+        {
             "strategyType": "CALL_CREDIT_SPREAD",
             "filterType": "CreditSpreadFilter",
             "filter": {
@@ -56,21 +95,6 @@
             "securitiesFile": "portfolio"
         },
         {
-            "strategyType": "BULLISH_LONG_PUT_CREDIT_SPREAD",
-            "filterType": "CreditSpreadFilter",
-            "filter": {
-                "minDTE": 55,
-                "maxDTE": 185,
-                "maxLossLimit": 2000,
-                "minReturnOnRisk": 24,
-                "ignoreEarnings": true,
-                "shortLeg": {
-                    "maxDelta": 0.20
-                }
-            },
-            "securitiesFile": "bullish"
-        },
-        {
             "strategyType": "BULLISH_LONG_IRON_CONDOR",
             "filterType": "CreditSpreadFilter",
             "filter": {
@@ -86,21 +110,6 @@
             "securitiesFile": "bullish"
         },
         {
-            "strategyType": "RSI_BOLLINGER_BULL_PUT_SPREAD",
-            "filterType": "CreditSpreadFilter",
-            "filter": {
-                "targetDTE": 30,
-                "maxLossLimit": 1000,
-                "minReturnOnRisk": 12,
-                "ignoreEarnings": false,
-                "shortLeg": {
-                    "maxDelta": 0.3
-                }
-            },
-            "securitiesFile": "top100",
-            "technicalFilter": "oversold"
-        },
-        {
             "strategyType": "RSI_BOLLINGER_BEAR_CALL_SPREAD",
             "filterType": "CreditSpreadFilter",
             "filter": {
@@ -113,7 +122,16 @@
                 }
             },
             "securitiesFile": "top100",
-            "technicalFilter": "overbought"
+            "technicalFilter": {
+                "rsiPeriod": 14,
+                "oversoldThreshold": 30.0,
+                "overboughtThreshold": 70.0,
+                "bollingerPeriod": 20,
+                "bollingerStdDev": 2.0,
+                "rsiCondition": "BEARISH_CROSSOVER",
+                "bollingerCondition": "UPPER_BAND",
+                "minVolume": 1000000
+            }
         },
         {
             "strategyType": "BULLISH_BROKEN_WING_BUTTERFLY",

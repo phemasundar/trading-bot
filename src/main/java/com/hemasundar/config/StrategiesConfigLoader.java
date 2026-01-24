@@ -92,11 +92,18 @@ public class StrategiesConfigLoader {
         // Get securities list
         List<String> securities = securitiesMap.getOrDefault(securitiesFileKey, List.of());
 
-        // Get optional technical filter
+        // Get optional technical filter (supports both string reference and inline
+        // object)
         TechnicalFilterChain technicalFilterChain = null;
         if (node.has("technicalFilter")) {
-            String techFilterKey = node.get("technicalFilter").asText();
-            technicalFilterChain = filterChains.get(techFilterKey);
+            JsonNode techNode = node.get("technicalFilter");
+            if (techNode.isTextual()) {
+                // String reference to predefined filter (backward compatible)
+                technicalFilterChain = filterChains.get(techNode.asText());
+            } else if (techNode.isObject()) {
+                // Inline object with full configuration
+                technicalFilterChain = parseTechnicalFilterInline(techNode);
+            }
         }
 
         return OptionsConfig.builder()
@@ -109,6 +116,45 @@ public class StrategiesConfigLoader {
 
     // createStrategy and parseFilter logic moved to StrategyType.createStrategy()
     // and FilterType.parseFilter()
+
+    /**
+     * Parses an inline technical filter object from JSON.
+     * Allows per-strategy technical filter configuration.
+     */
+    private static TechnicalFilterChain parseTechnicalFilterInline(JsonNode node) {
+        // Parse indicators from inline config or use defaults
+        JsonNode indicatorsNode = node.get("indicators");
+        TechnicalIndicators indicators;
+        if (indicatorsNode != null) {
+            indicators = parseIndicators(indicatorsNode);
+        } else {
+            // Use defaults
+            indicators = TechnicalIndicators.builder()
+                    .rsiFilter(RSIFilter.builder()
+                            .period(node.path("rsiPeriod").asInt(14))
+                            .oversoldThreshold(node.path("oversoldThreshold").asDouble(30.0))
+                            .overboughtThreshold(node.path("overboughtThreshold").asDouble(70.0))
+                            .build())
+                    .bollingerFilter(BollingerBandsFilter.builder()
+                            .period(node.path("bollingerPeriod").asInt(20))
+                            .standardDeviations(node.path("bollingerStdDev").asDouble(2.0))
+                            .build())
+                    .build();
+        }
+
+        // Parse conditions
+        TechFilterConditions conditions = TechFilterConditions.builder()
+                .rsiCondition(parseRsiCondition(node.path("rsiCondition").asText()))
+                .bollingerCondition(parseBollingerCondition(node.path("bollingerCondition").asText()))
+                .minVolume(node.path("minVolume").asLong(0))
+                .requirePriceBelowMA20(node.path("requirePriceBelowMA20").asBoolean(false))
+                .requirePriceBelowMA50(node.path("requirePriceBelowMA50").asBoolean(false))
+                .requirePriceBelowMA100(node.path("requirePriceBelowMA100").asBoolean(false))
+                .requirePriceBelowMA200(node.path("requirePriceBelowMA200").asBoolean(false))
+                .build();
+
+        return TechnicalFilterChain.of(indicators, conditions);
+    }
 
     private static TechnicalIndicators parseIndicators(JsonNode node) {
         if (node == null) {
