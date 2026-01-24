@@ -1,6 +1,8 @@
 package com.hemasundar.options.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 /**
@@ -12,6 +14,8 @@ import lombok.experimental.SuperBuilder;
  */
 @Getter
 @SuperBuilder
+@NoArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class BrokenWingButterflyFilter extends OptionsStrategyFilter {
     private LegFilter leg1Long; // First long option at lower strike (optional)
     private LegFilter leg2Short; // Middle short options (optional)

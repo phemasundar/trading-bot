@@ -5,28 +5,79 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * Enum defining available trading strategy types with their display names.
- * Used for consistent strategy naming across the application.
+ * Each type knows how to create its own strategy instance (Factory Pattern).
  */
 @Getter
 @RequiredArgsConstructor
 public enum StrategyType {
 
     // Put Credit Spread Strategies
-    PUT_CREDIT_SPREAD("Put Credit Spread"),
-    RSI_BOLLINGER_BULL_PUT_SPREAD("RSI Bollinger Bull Put Spread"),
-    BULLISH_LONG_PUT_CREDIT_SPREAD("Bullish Long Put Credit Spread"),
+    PUT_CREDIT_SPREAD("Put Credit Spread") {
+        @Override
+        public AbstractTradingStrategy createStrategy() {
+            return new PutCreditSpreadStrategy();
+        }
+    },
+    RSI_BOLLINGER_BULL_PUT_SPREAD("RSI Bollinger Bull Put Spread") {
+        @Override
+        public AbstractTradingStrategy createStrategy() {
+            return new PutCreditSpreadStrategy(this);
+        }
+    },
+    BULLISH_LONG_PUT_CREDIT_SPREAD("Bullish Long Put Credit Spread") {
+        @Override
+        public AbstractTradingStrategy createStrategy() {
+            return new PutCreditSpreadStrategy(this);
+        }
+    },
 
     // Call Credit Spread Strategies
-    CALL_CREDIT_SPREAD("Call Credit Spread"),
-    RSI_BOLLINGER_BEAR_CALL_SPREAD("RSI Bollinger Bear Call Spread"),
+    CALL_CREDIT_SPREAD("Call Credit Spread") {
+        @Override
+        public AbstractTradingStrategy createStrategy() {
+            return new CallCreditSpreadStrategy();
+        }
+    },
+    RSI_BOLLINGER_BEAR_CALL_SPREAD("RSI Bollinger Bear Call Spread") {
+        @Override
+        public AbstractTradingStrategy createStrategy() {
+            return new CallCreditSpreadStrategy(this);
+        }
+    },
 
     // Other Strategies
-    IRON_CONDOR("Iron Condor"),
-    BULLISH_LONG_IRON_CONDOR("Bullish Long Iron Condor"),
-    LONG_CALL_LEAP("Long Call LEAP"),
-    BULLISH_BROKEN_WING_BUTTERFLY("Bullish Broken Wing Butterfly");
+    IRON_CONDOR("Iron Condor") {
+        @Override
+        public AbstractTradingStrategy createStrategy() {
+            return new IronCondorStrategy();
+        }
+    },
+    BULLISH_LONG_IRON_CONDOR("Bullish Long Iron Condor") {
+        @Override
+        public AbstractTradingStrategy createStrategy() {
+            return new IronCondorStrategy(this);
+        }
+    },
+    LONG_CALL_LEAP("Long Call LEAP") {
+        @Override
+        public AbstractTradingStrategy createStrategy() {
+            return new LongCallLeapStrategy();
+        }
+    },
+    BULLISH_BROKEN_WING_BUTTERFLY("Bullish Broken Wing Butterfly") {
+        @Override
+        public AbstractTradingStrategy createStrategy() {
+            return new BrokenWingButterflyStrategy();
+        }
+    };
 
     private final String displayName;
+
+    /**
+     * Creates a new strategy instance for this type.
+     * Factory method pattern - each enum value knows how to create its strategy.
+     */
+    public abstract AbstractTradingStrategy createStrategy();
 
     @Override
     public String toString() {

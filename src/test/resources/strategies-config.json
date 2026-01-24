@@ -1,0 +1,155 @@
+{
+    "optionsStrategies": [
+        {
+            "strategyType": "PUT_CREDIT_SPREAD",
+            "filterType": "CreditSpreadFilter",
+            "filter": {
+                "targetDTE": 30,
+                "maxLossLimit": 1000,
+                "minReturnOnRisk": 12,
+                "ignoreEarnings": false,
+                "shortLeg": {
+                    "maxDelta": 0.20
+                }
+            },
+            "securitiesFile": "portfolio"
+        },
+        {
+            "strategyType": "CALL_CREDIT_SPREAD",
+            "filterType": "CreditSpreadFilter",
+            "filter": {
+                "targetDTE": 30,
+                "maxLossLimit": 1000,
+                "minReturnOnRisk": 12,
+                "ignoreEarnings": false,
+                "shortLeg": {
+                    "maxDelta": 0.20
+                }
+            },
+            "securitiesFile": "portfolio"
+        },
+        {
+            "strategyType": "IRON_CONDOR",
+            "filterType": "CreditSpreadFilter",
+            "filter": {
+                "targetDTE": 60,
+                "maxLossLimit": 1000,
+                "minReturnOnRisk": 24,
+                "ignoreEarnings": false,
+                "shortLeg": {
+                    "maxDelta": 0.15
+                }
+            },
+            "securitiesFile": "portfolio"
+        },
+        {
+            "strategyType": "LONG_CALL_LEAP",
+            "filterType": "LongCallLeapFilter",
+            "filter": {
+                "minDTE": 330,
+                "marginInterestRate": 6.0,
+                "maxOptionPricePercent": 40.0,
+                "longCall": {
+                    "minDelta": 0.6
+                }
+            },
+            "securitiesFile": "portfolio"
+        },
+        {
+            "strategyType": "BULLISH_LONG_PUT_CREDIT_SPREAD",
+            "filterType": "CreditSpreadFilter",
+            "filter": {
+                "minDTE": 55,
+                "maxDTE": 185,
+                "maxLossLimit": 2000,
+                "minReturnOnRisk": 24,
+                "ignoreEarnings": true,
+                "shortLeg": {
+                    "maxDelta": 0.20
+                }
+            },
+            "securitiesFile": "bullish"
+        },
+        {
+            "strategyType": "BULLISH_LONG_IRON_CONDOR",
+            "filterType": "CreditSpreadFilter",
+            "filter": {
+                "minDTE": 55,
+                "maxDTE": 185,
+                "maxLossLimit": 2000,
+                "minReturnOnRisk": 36,
+                "ignoreEarnings": true,
+                "shortLeg": {
+                    "maxDelta": 0.15
+                }
+            },
+            "securitiesFile": "bullish"
+        },
+        {
+            "strategyType": "RSI_BOLLINGER_BULL_PUT_SPREAD",
+            "filterType": "CreditSpreadFilter",
+            "filter": {
+                "targetDTE": 30,
+                "maxLossLimit": 1000,
+                "minReturnOnRisk": 12,
+                "ignoreEarnings": false,
+                "shortLeg": {
+                    "maxDelta": 0.3
+                }
+            },
+            "securitiesFile": "top100",
+            "technicalFilter": "oversold"
+        },
+        {
+            "strategyType": "RSI_BOLLINGER_BEAR_CALL_SPREAD",
+            "filterType": "CreditSpreadFilter",
+            "filter": {
+                "targetDTE": 30,
+                "maxLossLimit": 1000,
+                "minReturnOnRisk": 12,
+                "ignoreEarnings": false,
+                "shortLeg": {
+                    "maxDelta": 0.3
+                }
+            },
+            "securitiesFile": "top100",
+            "technicalFilter": "overbought"
+        },
+        {
+            "strategyType": "BULLISH_BROKEN_WING_BUTTERFLY",
+            "filterType": "BrokenWingButterflyFilter",
+            "filter": {
+                "targetDTE": 45,
+                "maxTotalDebit": 100,
+                "maxLossLimit": 1000,
+                "ignoreEarnings": true,
+                "leg1Long": {
+                    "minDelta": 0.5
+                },
+                "leg2Short": {
+                    "maxDelta": 0.2
+                }
+            },
+            "securitiesFile": "portfolio"
+        }
+    ],
+    "technicalIndicators": {
+        "rsiPeriod": 14,
+        "oversoldThreshold": 30.0,
+        "overboughtThreshold": 70.0,
+        "bollingerPeriod": 20,
+        "bollingerStdDev": 2.0
+    },
+    "technicalFilters": {
+        "oversold": {
+            "rsiCondition": "BULLISH_CROSSOVER",
+            "bollingerCondition": "LOWER_BAND",
+            "minVolume": 1000000
+        },
+        "overbought": {
+            "rsiCondition": "BEARISH_CROSSOVER",
+            "bollingerCondition": "UPPER_BAND",
+            "minVolume": 1000000
+        }
+    }
+}

@@ -121,125 +121,20 @@ public class SampleTestNG {
                                 overboughtConditions);
 
                 // =============================================================
-                // OPTIONS STRATEGIES (Unified Configuration-Driven List)
-                // =============================================================
-                // Load securities lists first (used by different strategies)
+                // Load securities lists (used by strategies)
                 List<String> portfolioSecurities = loadSecurities(FilePaths.portfolioSecurities);
                 List<String> top100Securities = loadSecurities(FilePaths.top100Securities);
                 List<String> bullishSecurities = loadSecurities(FilePaths.bullishSecurities);
 
-                CreditSpreadFilter rsiBBFilter = CreditSpreadFilter.builder()
-                                .targetDTE(30)
-                                .maxLossLimit(1000)
-                                .minReturnOnRisk(12)
-                                .ignoreEarnings(false)
-                                .shortLeg(LegFilter.builder().maxDelta(0.3).build())
-                                .build();
+                // Build securities map for config loader
+                Map<String, List<String>> securitiesMap = Map.of(
+                                "portfolio", portfolioSecurities,
+                                "top100", top100Securities,
+                                "bullish", bullishSecurities);
 
-                // ALL options strategies in one unified list
-                List<OptionsConfig> optionsStrategies = List.of(
-                                // Basic strategies (no technical filter)
-                                OptionsConfig.builder()
-                                                .strategy(new PutCreditSpreadStrategy())
-                                                .filter(CreditSpreadFilter.builder()
-                                                                .targetDTE(30)
-                                                                .maxLossLimit(1000)
-                                                                .minReturnOnRisk(12)
-                                                                .ignoreEarnings(false)
-                                                                .shortLeg(LegFilter.builder().maxDelta(0.20).build())
-                                                                .build())
-                                                .securities(portfolioSecurities)
-                                                .build(),
-                                OptionsConfig.builder()
-                                                .strategy(new CallCreditSpreadStrategy())
-                                                .filter(CreditSpreadFilter.builder()
-                                                                .targetDTE(30)
-                                                                .maxLossLimit(1000)
-                                                                .minReturnOnRisk(12)
-                                                                .ignoreEarnings(false)
-                                                                .shortLeg(LegFilter.builder().maxDelta(0.20).build())
-                                                                .build())
-                                                .securities(portfolioSecurities)
-                                                .build(),
-                                OptionsConfig.builder()
-                                                .strategy(new IronCondorStrategy())
-                                                .filter(CreditSpreadFilter.builder()
-                                                                .targetDTE(60)
-                                                                .maxLossLimit(1000)
-                                                                .minReturnOnRisk(24)
-                                                                .ignoreEarnings(false)
-                                                                .shortLeg(LegFilter.builder().maxDelta(0.15).build())
-                                                                .build())
-                                                .securities(portfolioSecurities)
-                                                .build(),
-                                OptionsConfig.builder()
-                                                .strategy(new LongCallLeapStrategy())
-                                                .filter(LongCallLeapFilter.builder()
-                                                                .minDTE((int) ChronoUnit.DAYS.between(LocalDate.now(),
-                                                                                LocalDate.now().plusMonths(11)))
-                                                                .marginInterestRate(6.0)
-                                                                .maxOptionPricePercent(40.0)
-                                                                .longCall(LegFilter.builder().minDelta(0.6).build())
-                                                                .build())
-                                                .securities(portfolioSecurities)
-                                                .build(),
-                                // Bullish Long Put Credit Spread (no technical filter)
-                                OptionsConfig.builder()
-                                                .strategy(new PutCreditSpreadStrategy(
-                                                                StrategyType.BULLISH_LONG_PUT_CREDIT_SPREAD))
-                                                .filter(CreditSpreadFilter.builder()
-                                                                .minDTE(55)
-                                                                .maxDTE(185)
-                                                                .maxLossLimit(2000)
-                                                                .minReturnOnRisk(24)
-                                                                .ignoreEarnings(true)
-                                                                .shortLeg(LegFilter.builder().maxDelta(0.20).build())
-                                                                .build())
-                                                .securities(bullishSecurities)
-                                                .build(),
-                                // Bullish Long Iron Condor (no technical filter)
-                                OptionsConfig.builder()
-                                                .strategy(new IronCondorStrategy(
-                                                                StrategyType.BULLISH_LONG_IRON_CONDOR))
-                                                .filter(CreditSpreadFilter.builder()
-                                                                .minDTE(55)
-                                                                .maxDTE(185)
-                                                                .maxLossLimit(2000)
-                                                                .minReturnOnRisk(36)
-                                                                .ignoreEarnings(true)
-                                                                .shortLeg(LegFilter.builder().maxDelta(0.15).build())
-                                                                .build())
-                                                .securities(bullishSecurities)
-                                                .build(),
-                                // RSI Bollinger strategies (with technical filter)
-                                OptionsConfig.builder()
-                                                .strategy(new PutCreditSpreadStrategy(
-                                                                StrategyType.RSI_BOLLINGER_BULL_PUT_SPREAD))
-                                                .filter(rsiBBFilter)
-                                                .securities(top100Securities)
-                                                .technicalFilterChain(oversoldFilterChain)
-                                                .build(),
-                                OptionsConfig.builder()
-                                                .strategy(new CallCreditSpreadStrategy(
-                                                                StrategyType.RSI_BOLLINGER_BEAR_CALL_SPREAD))
-                                                .filter(rsiBBFilter)
-                                                .securities(top100Securities)
-                                                .technicalFilterChain(overboughtFilterChain)
-                                                .build(),
-                                // Bullish Broken Wing Butterfly Strategy
-                                OptionsConfig.builder()
-                                                .strategy(new BrokenWingButterflyStrategy())
-                                                .filter(BrokenWingButterflyFilter.builder()
-                                                                .targetDTE(45)
-                                                                .maxTotalDebit(100)
-                                                                .maxLossLimit(1000)
-                                                                .ignoreEarnings(true)
-                                                                .leg1Long(LegFilter.builder().minDelta(0.5).build())
-                                                                .leg2Short(LegFilter.builder().maxDelta(0.2).build())
-                                                                // leg3Long not set - no filter applied
-                                                                .build())
-                                                .securities(portfolioSecurities)
-                                                .build());
+                // Load ALL options strategies from JSON config file
+                List<OptionsConfig> optionsStrategies = com.hemasundar.config.StrategiesConfigLoader.load(
+                                FilePaths.strategiesConfig, securitiesMap);
 
                 // Load unified runtime config (strategies + screeners)
                 RuntimeConfig runtimeConfig = RuntimeConfig.load(FilePaths.runtimeConfig);

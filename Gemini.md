@@ -99,3 +99,52 @@ Implemented automatic message splitting in `TelegramUtils` to handle Telegram's 
 ### Configuration:
 - `MAX_MESSAGE_LENGTH = 4000` (slightly below Telegram's 4096 limit for HTML escaping overhead)
 
+---
+
+## Externalized Strategy Configuration to JSON (2026-01-23)
+
+Moved all hardcoded filter configurations from `SampleTestNG.java` to a JSON file for easier maintenance.
+
+### New Files
+- `strategies-config.json` - Contains all 9 strategy configurations with filters
+- `StrategiesConfigLoader.java` - Parses JSON into `OptionsConfig` objects
+
+### JSON Structure
+```json
+{
+  "optionsStrategies": [
+    {
+      "strategyType": "PUT_CREDIT_SPREAD",
+      "filterType": "CreditSpreadFilter",
+      "filter": {
+        "targetDTE": 30,
+        "maxLossLimit": 1000,
+        "shortLeg": { "maxDelta": 0.20 }
+      },
+      "securitiesFile": "portfolio"
+    }
+  ],
+  "technicalIndicators": { ... },
+  "technicalFilters": { "oversold": { ... }, "overbought": { ... } }
+}
+```
+
+### Modified Filter POJOs
+Added `@NoArgsConstructor` and `@JsonIgnoreProperties(ignoreUnknown = true)` to:
+- `OptionsStrategyFilter.java`
+- `CreditSpreadFilter.java`
+- `LongCallLeapFilter.java`
+- `BrokenWingButterflyFilter.java`
+- `LegFilter.java`
+
+### Usage in SampleTestNG
+```java
+Map<String, List<String>> securitiesMap = Map.of(
+        "portfolio", portfolioSecurities,
+        "top100", top100Securities,
+        "bullish", bullishSecurities);
+
+List<OptionsConfig> strategies = StrategiesConfigLoader.load(
+        FilePaths.strategiesConfig, securitiesMap);
+```
+
