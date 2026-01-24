@@ -18,10 +18,10 @@
         "BULLISH_LONG_IRON_CONDOR": {
             "enabled": true
         },
-        "RSI_BOLLINGER_BULL_PUT_SPREAD": {
+        "TECH_PUT_CREDIT_SPREAD": {
             "enabled": true
         },
-        "RSI_BOLLINGER_BEAR_CALL_SPREAD": {
+        "TECH_CALL_CREDIT_SPREAD": {
             "enabled": true
         },
         "BULLISH_BROKEN_WING_BUTTERFLY": {

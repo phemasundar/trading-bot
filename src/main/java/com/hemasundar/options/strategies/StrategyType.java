@@ -18,7 +18,7 @@ public enum StrategyType {
             return new PutCreditSpreadStrategy();
         }
     },
-    RSI_BOLLINGER_BULL_PUT_SPREAD("RSI Bollinger Bull Put Spread") {
+    TECH_PUT_CREDIT_SPREAD("Technical Put Credit Spread") {
         @Override
         public AbstractTradingStrategy createStrategy() {
             return new PutCreditSpreadStrategy(this);
@@ -38,7 +38,7 @@ public enum StrategyType {
             return new CallCreditSpreadStrategy();
         }
     },
-    RSI_BOLLINGER_BEAR_CALL_SPREAD("RSI Bollinger Bear Call Spread") {
+    TECH_CALL_CREDIT_SPREAD("Technical Call Credit Spread") {
         @Override
         public AbstractTradingStrategy createStrategy() {
             return new CallCreditSpreadStrategy(this);

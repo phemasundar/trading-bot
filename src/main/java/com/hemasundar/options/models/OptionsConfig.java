@@ -24,7 +24,7 @@ import java.util.List;
  * 
  * // With technical filter
  * OptionsConfig.builder()
- *         .strategy(new PutCreditSpreadStrategy(StrategyType.RSI_BOLLINGER_BULL_PUT_SPREAD))
+ *         .strategy(new PutCreditSpreadStrategy(StrategyType.TECH_PUT_CREDIT_SPREAD))
  *         .filter(OptionsStrategyFilter.builder().targetDTE(30).maxDelta(0.35).build())
  *         .securities(top100Securities)
  *         .technicalFilterChain(TechnicalFilterChain.of(indicators, oversoldConditions))

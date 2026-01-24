@@ -15,7 +15,7 @@
             "securitiesFile": "portfolio"
         },
         {
-            "strategyType": "BULLISH_LONG_PUT_CREDIT_SPREAD",
+            "strategyType": "PUT_CREDIT_SPREAD",
             "filterType": "CreditSpreadFilter",
             "filter": {
                 "minDTE": 55,
@@ -30,7 +30,7 @@
             "securitiesFile": "bullish"
         },
         {
-            "strategyType": "RSI_BOLLINGER_BULL_PUT_SPREAD",
+            "strategyType": "TECH_PUT_CREDIT_SPREAD",
             "filterType": "CreditSpreadFilter",
             "filter": {
                 "targetDTE": 30,
@@ -68,49 +68,7 @@
             "securitiesFile": "portfolio"
         },
         {
-            "strategyType": "IRON_CONDOR",
-            "filterType": "CreditSpreadFilter",
-            "filter": {
-                "targetDTE": 60,
-                "maxLossLimit": 1000,
-                "minReturnOnRisk": 24,
-                "ignoreEarnings": false,
-                "shortLeg": {
-                    "maxDelta": 0.15
-                }
-            },
-            "securitiesFile": "portfolio"
-        },
-        {
-            "strategyType": "LONG_CALL_LEAP",
-            "filterType": "LongCallLeapFilter",
-            "filter": {
-                "minDTE": 330,
-                "marginInterestRate": 6.0,
-                "maxOptionPricePercent": 40.0,
-                "longCall": {
-                    "minDelta": 0.6
-                }
-            },
-            "securitiesFile": "portfolio"
-        },
-        {
-            "strategyType": "BULLISH_LONG_IRON_CONDOR",
-            "filterType": "CreditSpreadFilter",
-            "filter": {
-                "minDTE": 55,
-                "maxDTE": 185,
-                "maxLossLimit": 2000,
-                "minReturnOnRisk": 36,
-                "ignoreEarnings": true,
-                "shortLeg": {
-                    "maxDelta": 0.15
-                }
-            },
-            "securitiesFile": "bullish"
-        },
-        {
-            "strategyType": "RSI_BOLLINGER_BEAR_CALL_SPREAD",
+            "strategyType": "TECH_CALL_CREDIT_SPREAD",
             "filterType": "CreditSpreadFilter",
             "filter": {
                 "targetDTE": 30,
@@ -132,6 +90,48 @@
                 "bollingerCondition": "UPPER_BAND",
                 "minVolume": 1000000
             }
+        },
+        {
+            "strategyType": "IRON_CONDOR",
+            "filterType": "CreditSpreadFilter",
+            "filter": {
+                "targetDTE": 60,
+                "maxLossLimit": 1000,
+                "minReturnOnRisk": 24,
+                "ignoreEarnings": false,
+                "shortLeg": {
+                    "maxDelta": 0.15
+                }
+            },
+            "securitiesFile": "portfolio"
+        },
+        {
+            "strategyType": "IRON_CONDOR",
+            "filterType": "CreditSpreadFilter",
+            "filter": {
+                "minDTE": 55,
+                "maxDTE": 185,
+                "maxLossLimit": 2000,
+                "minReturnOnRisk": 36,
+                "ignoreEarnings": true,
+                "shortLeg": {
+                    "maxDelta": 0.15
+                }
+            },
+            "securitiesFile": "bullish"
+        },
+        {
+            "strategyType": "LONG_CALL_LEAP",
+            "filterType": "LongCallLeapFilter",
+            "filter": {
+                "minDTE": 330,
+                "marginInterestRate": 6.0,
+                "maxOptionPricePercent": 40.0,
+                "longCall": {
+                    "minDelta": 0.6
+                }
+            },
+            "securitiesFile": "portfolio"
         },
         {
             "strategyType": "BULLISH_BROKEN_WING_BUTTERFLY",
