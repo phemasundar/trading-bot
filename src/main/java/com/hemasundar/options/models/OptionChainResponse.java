@@ -1,6 +1,9 @@
 package com.hemasundar.options.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.hemasundar.options.models.OptionChainResponse.ExpirationDateKey;
+import com.hemasundar.options.models.OptionChainResponse.OptionData;
+import com.hemasundar.options.models.OptionChainResponse.OptionDeliverable;
 import com.hemasundar.serializers.ExpirationKeyDeserializer;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -65,6 +68,30 @@ public class OptionChainResponse {
                 .orElseThrow(() -> new RuntimeException("No Expiry Found"));
         log.debug("[{}] Target Expiry Date: {}", this.symbol, targetExpiryDate);
         return targetExpiryDate;
+    }
+
+    /**
+     * Returns all expiry dates where DTE falls within the specified range
+     * (inclusive).
+     * 
+     * @param minDTE Minimum days to expiration
+     * @param maxDTE Maximum days to expiration
+     * @return List of expiry date strings (YYYY-MM-DD format)
+     */
+    public List<String> getExpiryDatesInRange(int targetDays, int minDTE, int maxDTE) {
+        if (targetDays > 0) {
+            return List.of(this.getExpiryDateBasedOnDTE(targetDays));
+        } else {
+            List<String> expiryDates = this.getPutExpDateMap()
+                    .keySet().stream()
+                    .filter(key -> key.getDaysToExpiry() >= minDTE && key.getDaysToExpiry() <= maxDTE)
+                    .sorted(Comparator.comparingInt(ExpirationDateKey::getDaysToExpiry))
+                    .map(ExpirationDateKey::getDate)
+                    .toList();
+            log.debug("[{}] Found {} expiry dates in range [{}-{}]: {}",
+                    this.symbol, expiryDates.size(), minDTE, maxDTE, expiryDates);
+            return expiryDates;
+        }
     }
 
     @Data

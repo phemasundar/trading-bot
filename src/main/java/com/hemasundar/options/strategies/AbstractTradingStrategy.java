@@ -26,38 +26,40 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
 
     @Override
     public List<TradeSetup> findTrades(OptionChainResponse chain, OptionsStrategyFilter filter) {
-        String targetExpiryDate = chain.getExpiryDateBasedOnDTE(filter.getTargetDTE());
-        if (targetExpiryDate == null)
+        List<String> expiryDates = chain.getExpiryDatesInRange(filter.getTargetDTE(), filter.getMinDTE(),
+                filter.getMaxDTE());
+        if (expiryDates.isEmpty()) {
+            log.debug("[{}] No expiry dates found in range [{}-{}]",
+                    chain.getSymbol(), filter.getMinDTE(), filter.getMaxDTE());
             return new ArrayList<>();
-
-        if (!filter.isIgnoreEarnings()) {
-            try {
-                // Assuming targetExpiryDate format is YYYY-MM-DD which is standard for
-                // LocalDate.parse
-                // If getExpiryDateBasedOnDTE returns something else, we might need a formatter.
-                // Based on previous code in PutCreditSpreadStrategy,
-                // LocalDate.parse(targetExpiryDate) was used.
-                EarningsCalendarResponse earningsResponse = FinnHubAPIs.getEarningsByTicker(chain.getSymbol(),
-                        LocalDate.parse(targetExpiryDate));
-                if (CollectionUtils.isNotEmpty(earningsResponse.getEarningsCalendar())) {
-                    log.info("[{}] Skipping due to upcoming earnings on {}",
-                            chain.getSymbol(), earningsResponse.getEarningsCalendar().get(0).getDate());
-                    return new ArrayList<>();
-                }
-            } catch (Exception e) {
-                log.error("[{}] Error checking earnings: {}", chain.getSymbol(), e.getMessage());
-                // Decide whether to proceed or fail safe. Proceeding might accept risky trades.
-                // Failing safe returns empty.
-                // Let's print and proceed, or we can return empty. The original code didn't
-                // try-catch, but FinnHubAPIs throws RuntimeException.
-                // Let's stick to the user's logic: strict check. If API fails, maybe we
-                // shouldn't block?
-                // But the user's previous code would throw exception up.
-                // Let's assume FinnHubAPIs handles basic errors or throws.
-            }
         }
 
-        return findValidTrades(chain, targetExpiryDate, filter);
+        List<TradeSetup> allTrades = new ArrayList<>();
+
+        for (String expiryDate : expiryDates) {
+            // Check earnings for this expiry if not ignored
+            if (!filter.isIgnoreEarnings()) {
+                try {
+                    EarningsCalendarResponse earningsResponse = FinnHubAPIs.getEarningsByTicker(
+                            chain.getSymbol(), LocalDate.parse(expiryDate));
+                    if (CollectionUtils.isNotEmpty(earningsResponse.getEarningsCalendar())) {
+                        log.info("[{}] Skipping expiry {} due to upcoming earnings on {}",
+                                chain.getSymbol(), expiryDate,
+                                earningsResponse.getEarningsCalendar().get(0).getDate());
+                        continue; // Skip this expiry, try next
+                    }
+                } catch (Exception e) {
+                    log.error("[{}] Error checking earnings for {}: {}",
+                            chain.getSymbol(), expiryDate, e.getMessage());
+                }
+            }
+
+            // Find trades for this expiry
+            List<TradeSetup> trades = findValidTrades(chain, expiryDate, filter);
+            allTrades.addAll(trades);
+        }
+
+        return allTrades;
     }
 
     protected abstract List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
