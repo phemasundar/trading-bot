@@ -19,6 +19,19 @@ public class JavaUtils {
     }
 
     /**
+     * Converts an Object (e.g., Map from deserialized JSON) to a typed POJO.
+     * Useful for converting nested objects within a larger JSON structure.
+     *
+     * @param fromValue The source object (Map, LinkedHashMap, etc.)
+     * @param toClass   The target class type
+     * @param <T>       The target type
+     * @return The converted POJO
+     */
+    public static <T> T convertValue(Object fromValue, Class<T> toClass) {
+        return JSON_MAPPER.convertValue(fromValue, toClass);
+    }
+
+    /**
      * Converts JSON string to a Map with String keys and typed values.
      * Useful for API responses that return a map of symbol -> data.
      *

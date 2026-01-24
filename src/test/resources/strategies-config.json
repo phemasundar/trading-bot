@@ -1,6 +1,7 @@
 {
     "optionsStrategies": [
         {
+            "enabled": true,
             "strategyType": "PUT_CREDIT_SPREAD",
             "filterType": "CreditSpreadFilter",
             "filter": {
@@ -15,6 +16,7 @@
             "securitiesFile": "portfolio"
         },
         {
+            "enabled": true,
             "strategyType": "PUT_CREDIT_SPREAD",
             "filterType": "CreditSpreadFilter",
             "filter": {
@@ -30,6 +32,7 @@
             "securitiesFile": "bullish"
         },
         {
+            "enabled": true,
             "strategyType": "TECH_PUT_CREDIT_SPREAD",
             "filterType": "CreditSpreadFilter",
             "filter": {
@@ -54,6 +57,7 @@
             }
         },
         {
+            "enabled": true,
             "strategyType": "CALL_CREDIT_SPREAD",
             "filterType": "CreditSpreadFilter",
             "filter": {
@@ -68,6 +72,7 @@
             "securitiesFile": "portfolio"
         },
         {
+            "enabled": true,
             "strategyType": "TECH_CALL_CREDIT_SPREAD",
             "filterType": "CreditSpreadFilter",
             "filter": {
@@ -92,6 +97,7 @@
             }
         },
         {
+            "enabled": true,
             "strategyType": "IRON_CONDOR",
             "filterType": "CreditSpreadFilter",
             "filter": {
@@ -106,6 +112,7 @@
             "securitiesFile": "portfolio"
         },
         {
+            "enabled": true,
             "strategyType": "IRON_CONDOR",
             "filterType": "CreditSpreadFilter",
             "filter": {
@@ -121,6 +128,7 @@
             "securitiesFile": "bullish"
         },
         {
+            "enabled": true,
             "strategyType": "LONG_CALL_LEAP",
             "filterType": "LongCallLeapFilter",
             "filter": {
@@ -134,6 +142,7 @@
             "securitiesFile": "portfolio"
         },
         {
+            "enabled": true,
             "strategyType": "BULLISH_BROKEN_WING_BUTTERFLY",
             "filterType": "BrokenWingButterflyFilter",
             "filter": {
@@ -149,6 +158,34 @@
                 }
             },
             "securitiesFile": "portfolio"
+        }
+    ],
+    "technicalScreeners": [
+        {
+            "enabled": true,
+            "screenerType": "RSI_BB_BULLISH_CROSSOVER",
+            "conditions": {
+                "rsiCondition": "BULLISH_CROSSOVER",
+                "bollingerCondition": "LOWER_BAND",
+                "minVolume": 1000000
+            }
+        },
+        {
+            "enabled": true,
+            "screenerType": "RSI_BB_BEARISH_CROSSOVER",
+            "conditions": {
+                "rsiCondition": "BEARISH_CROSSOVER",
+                "bollingerCondition": "UPPER_BAND",
+                "minVolume": 1000000
+            }
+        },
+        {
+            "enabled": true,
+            "screenerType": "BELOW_200_DAY_MA",
+            "conditions": {
+                "requirePriceBelowMA200": true,
+                "minVolume": 1000000
+            }
         }
     ],
     "technicalIndicators": {

@@ -1,5 +1,6 @@
 package com.hemasundar.technical;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -16,6 +17,15 @@ public enum ScreenerType {
     BELOW_200_DAY_MA("Below 200 Day MA");
 
     private final String displayName;
+
+    /**
+     * Jackson deserializer - allows parsing from enum name (e.g.,
+     * "RSI_BB_BULLISH_CROSSOVER").
+     */
+    @JsonCreator
+    public static ScreenerType fromString(String value) {
+        return ScreenerType.valueOf(value);
+    }
 
     @Override
     public String toString() {

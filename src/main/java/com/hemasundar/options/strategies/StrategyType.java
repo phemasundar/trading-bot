@@ -2,6 +2,7 @@ package com.hemasundar.options.strategies;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonCreator;
 
 /**
  * Enum defining available trading strategy types with their display names.
@@ -78,6 +79,15 @@ public enum StrategyType {
      * Factory method pattern - each enum value knows how to create its strategy.
      */
     public abstract AbstractTradingStrategy createStrategy();
+
+    /**
+     * Jackson deserializer - allows parsing from enum name (e.g.,
+     * "PUT_CREDIT_SPREAD").
+     */
+    @JsonCreator
+    public static StrategyType fromString(String value) {
+        return StrategyType.valueOf(value);
+    }
 
     @Override
     public String toString() {

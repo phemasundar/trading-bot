@@ -6,14 +6,12 @@ import com.hemasundar.pojos.TestConfig;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionsConfig;
 import com.hemasundar.options.models.OptionsStrategyFilter;
-import com.hemasundar.options.models.LegFilter;
-import com.hemasundar.options.models.CreditSpreadFilter;
-import com.hemasundar.options.models.LongCallLeapFilter;
-import com.hemasundar.options.models.BrokenWingButterflyFilter;
 import com.hemasundar.options.models.TradeSetup;
-import com.hemasundar.config.RuntimeConfig;
+import com.hemasundar.config.StrategiesConfigLoader;
 import com.hemasundar.options.strategies.*;
+
 import com.hemasundar.technical.*;
+
 import com.hemasundar.utils.FilePaths;
 import com.hemasundar.utils.JavaUtils;
 import com.hemasundar.utils.OptionChainCache;
@@ -131,20 +129,12 @@ public class SampleTestNG {
                                 "bullish", bullishSecurities);
 
                 // Load ALL options strategies from JSON config file
-                List<OptionsConfig> optionsStrategies = com.hemasundar.config.StrategiesConfigLoader.load(
+                List<OptionsConfig> optionsStrategies = StrategiesConfigLoader.load(
                                 FilePaths.strategiesConfig, securitiesMap);
 
-                // Load unified runtime config (strategies + screeners)
-                RuntimeConfig runtimeConfig = RuntimeConfig.load(FilePaths.runtimeConfig);
-
                 // Run all options strategies with unified loop
+                // (disabled strategies already filtered by StrategiesConfigLoader)
                 for (OptionsConfig config : optionsStrategies) {
-                        // Check if strategy is enabled in runtime config
-                        if (!runtimeConfig.isStrategyEnabled(config.getStrategy().getStrategyType())) {
-                                log.info("Skipping disabled strategy: {}", config.getName());
-                                continue;
-                        }
-
                         log.info("Running strategy: {}", config.getName());
 
                         List<String> securitiesToUse = config.getSecurities();
@@ -174,44 +164,11 @@ public class SampleTestNG {
                 // =============================================================
                 // TECHNICAL-ONLY STOCK SCREENERS (Configuration-Driven)
                 // =============================================================
-                // Define all screeners as a list of configs - easy to add more
-                List<ScreenerConfig> technicalScreeners = List.of(
-                                ScreenerConfig.builder()
-                                                .screenerType(ScreenerType.RSI_BB_BULLISH_CROSSOVER)
-                                                .conditions(TechFilterConditions.builder()
-                                                                .rsiCondition(RSICondition.BULLISH_CROSSOVER)
-                                                                .bollingerCondition(BollingerCondition.LOWER_BAND)
-                                                                // .requirePriceBelowMA20(true)
-                                                                // .requirePriceBelowMA50(true)
-                                                                .minVolume(1_000_000L)
-                                                                .build())
-                                                .build(),
-                                ScreenerConfig.builder()
-                                                .screenerType(ScreenerType.RSI_BB_BEARISH_CROSSOVER)
-                                                .conditions(TechFilterConditions.builder()
-                                                                .rsiCondition(RSICondition.BEARISH_CROSSOVER)
-                                                                .bollingerCondition(BollingerCondition.UPPER_BAND)
-                                                                .minVolume(1_000_000L)
-                                                                .build())
-                                                .build(),
-                                ScreenerConfig.builder()
-                                                .screenerType(ScreenerType.BELOW_200_DAY_MA)
-                                                .conditions(TechFilterConditions.builder()
-                                                                .requirePriceBelowMA200(true)
-                                                                .minVolume(1_000_000L)
-                                                                .build())
-                                                .build()
-                // Add more screeners here as needed...
-                );
+                // Load screeners from strategies-config.json (enabled flag handled by loader)
+                List<ScreenerConfig> technicalScreeners = StrategiesConfigLoader.loadScreeners();
 
                 // Run all screeners with single loop
                 for (ScreenerConfig config : technicalScreeners) {
-                        // Check if screener is enabled in runtime config
-                        if (!runtimeConfig.isScreenerEnabled(config.getScreenerType())) {
-                                log.info("Skipping disabled screener: {}", config.getName());
-                                continue;
-                        }
-
                         log.info("Running screener: {}", config.getName());
                         TechnicalFilterChain filterChain = TechnicalFilterChain.of(allIndicators,
                                         config.getConditions());

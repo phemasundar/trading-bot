@@ -1,7 +1,6 @@
 package com.hemasundar.options.models;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hemasundar.utils.JavaUtils;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -20,13 +19,11 @@ public enum FilterType {
     private final String jsonName;
     private final Class<? extends OptionsStrategyFilter> filterClass;
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
-
     /**
-     * Parses a filter from JSON using this filter type's class.
+     * Parses a filter from an Object (e.g., Map from deserialized JSON).
      */
-    public OptionsStrategyFilter parseFilter(JsonNode filterNode) throws Exception {
-        return MAPPER.treeToValue(filterNode, filterClass);
+    public OptionsStrategyFilter parseFilter(Object filterObject) {
+        return JavaUtils.convertValue(filterObject, filterClass);
     }
 
     /**
