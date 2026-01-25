@@ -96,17 +96,8 @@ public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
     // ========== FILTER PREDICATES ==========
 
     private Predicate<PutSpreadCandidate> deltaFilter(LegFilter shortLegFilter, LegFilter longLegFilter) {
-        return candidate -> {
-            // Short leg: check max delta
-            if (shortLegFilter != null && !shortLegFilter.passesMaxDelta(candidate.shortLeg().getAbsDelta())) {
-                return false;
-            }
-            // Long leg: check delta (min/max)
-            if (longLegFilter != null && !longLegFilter.passesDeltaFilter(candidate.longLeg().getAbsDelta())) {
-                return false;
-            }
-            return true;
-        };
+        return candidate -> LegFilter.passesMaxDelta(shortLegFilter, candidate.shortLeg().getAbsDelta())
+                && LegFilter.passes(longLegFilter, candidate.longLeg().getAbsDelta());
     }
 
     private Predicate<PutSpreadCandidate> creditFilter() {
@@ -114,14 +105,11 @@ public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
     }
 
     private Predicate<PutSpreadCandidate> maxLossFilter(OptionsStrategyFilter filter) {
-        return candidate -> candidate.maxLoss() <= filter.getMaxLossLimit();
+        return candidate -> filter.passesMaxLoss(candidate.maxLoss());
     }
 
     private Predicate<PutSpreadCandidate> minReturnOnRiskFilter(OptionsStrategyFilter filter) {
-        return candidate -> {
-            double requiredProfit = candidate.maxLoss() * ((double) filter.getMinReturnOnRisk() / 100);
-            return candidate.netCredit() >= requiredProfit;
-        };
+        return candidate -> filter.passesMinReturnOnRisk(candidate.netCredit(), candidate.maxLoss());
     }
 
     // ========== TRADE BUILDER ==========

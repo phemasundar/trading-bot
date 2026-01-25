@@ -106,26 +106,18 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
     // ========== FILTER PREDICATES ==========
 
     /**
-     * Combined delta filter for all three legs.
+     * Combined delta filter for all three legs using simplified LegFilter API.
      */
     private Predicate<BWBCandidate> deltaFilter(LegFilter leg1Filter, LegFilter leg2Filter, LegFilter leg3Filter) {
         return candidate -> {
-            // Leg 1: Must pass minDelta
-            if (leg1Filter != null && !leg1Filter.passesMinDelta(candidate.leg1().getAbsDelta())) {
-                log.trace("[BWB] Leg1 @ {} REJECTED - Delta {} < minDelta",
-                        candidate.leg1().getStrikePrice(), candidate.leg1().getAbsDelta());
+            // All null checks handled by LegFilter static helpers
+            if (!LegFilter.passesMinDelta(leg1Filter, candidate.leg1().getAbsDelta())) {
                 return false;
             }
-            // Leg 2: Must pass maxDelta
-            if (leg2Filter != null && !leg2Filter.passesMaxDelta(candidate.leg2().getAbsDelta())) {
-                log.trace("[BWB] Leg2 @ {} REJECTED - Delta {} > maxDelta",
-                        candidate.leg2().getStrikePrice(), candidate.leg2().getAbsDelta());
+            if (!LegFilter.passesMaxDelta(leg2Filter, candidate.leg2().getAbsDelta())) {
                 return false;
             }
-            // Leg 3: Must pass both min and max delta
-            if (leg3Filter != null && !leg3Filter.passesDeltaFilter(candidate.leg3().getAbsDelta())) {
-                log.trace("[BWB] Leg3 @ {} REJECTED - Delta {} failed filter",
-                        candidate.leg3().getStrikePrice(), candidate.leg3().getAbsDelta());
+            if (!LegFilter.passes(leg3Filter, candidate.leg3().getAbsDelta())) {
                 return false;
             }
             return true;
@@ -133,11 +125,11 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
     }
 
     /**
-     * Max total debit filter.
+     * Max total debit filter using OptionsStrategyFilter helper.
      */
     private Predicate<BWBCandidate> debitFilter(OptionsStrategyFilter filter) {
         return candidate -> {
-            if (filter.getMaxTotalDebit() > 0 && candidate.totalDebit() > filter.getMaxTotalDebit()) {
+            if (!filter.passesDebitLimit(candidate.totalDebit())) {
                 log.trace("[BWB] Combo {} REJECTED - Debit ${} > MaxDebit ${}",
                         candidate.strikeCombo(), String.format("%.2f", candidate.totalDebit()),
                         filter.getMaxTotalDebit());
@@ -148,11 +140,11 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
     }
 
     /**
-     * Max loss limit filter.
+     * Max loss limit filter using OptionsStrategyFilter helper.
      */
     private Predicate<BWBCandidate> maxLossFilter(OptionsStrategyFilter filter) {
         return candidate -> {
-            if (candidate.maxLoss() > filter.getMaxLossLimit()) {
+            if (!filter.passesMaxLoss(candidate.maxLoss())) {
                 log.trace("[BWB] Combo {} REJECTED - MaxLoss ${} > Limit ${}",
                         candidate.strikeCombo(), String.format("%.2f", candidate.maxLoss()),
                         filter.getMaxLossLimit());

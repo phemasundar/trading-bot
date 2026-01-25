@@ -103,17 +103,8 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
     // ========== FILTER PREDICATES ==========
 
     private Predicate<CallSpreadCandidate> deltaFilter(LegFilter shortLegFilter, LegFilter longLegFilter) {
-        return candidate -> {
-            // Short leg: check max delta
-            if (shortLegFilter != null && !shortLegFilter.passesMaxDelta(candidate.shortLeg().getAbsDelta())) {
-                return false;
-            }
-            // Long leg: check delta (min/max)
-            if (longLegFilter != null && !longLegFilter.passesDeltaFilter(candidate.longLeg().getAbsDelta())) {
-                return false;
-            }
-            return true;
-        };
+        return candidate -> LegFilter.passesMaxDelta(shortLegFilter, candidate.shortLeg().getAbsDelta())
+                && LegFilter.passes(longLegFilter, candidate.longLeg().getAbsDelta());
     }
 
     private Predicate<CallSpreadCandidate> creditFilter() {
@@ -121,14 +112,11 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
     }
 
     private Predicate<CallSpreadCandidate> maxLossFilter(OptionsStrategyFilter filter) {
-        return candidate -> candidate.maxLoss() <= filter.getMaxLossLimit();
+        return candidate -> filter.passesMaxLoss(candidate.maxLoss());
     }
 
     private Predicate<CallSpreadCandidate> minReturnOnRiskFilter(OptionsStrategyFilter filter) {
-        return candidate -> {
-            double requiredProfit = candidate.maxLoss() * ((double) filter.getMinReturnOnRisk() / 100);
-            return candidate.netCredit() >= requiredProfit;
-        };
+        return candidate -> filter.passesMinReturnOnRisk(candidate.netCredit(), candidate.maxLoss());
     }
 
     // ========== TRADE BUILDER ==========

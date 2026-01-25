@@ -45,4 +45,30 @@ public class LegFilter {
     public boolean passesDeltaFilter(double absDelta) {
         return passesMinDelta(absDelta) && passesMaxDelta(absDelta);
     }
+
+    // ========== NULL-SAFE STATIC HELPERS ==========
+
+    /**
+     * Null-safe helper for minimum delta check.
+     * Returns true if filter is null (no restriction) or passes minDelta.
+     */
+    public static boolean passesMinDelta(LegFilter filter, double absDelta) {
+        return filter == null || filter.passesMinDelta(absDelta);
+    }
+
+    /**
+     * Null-safe helper for maximum delta check.
+     * Returns true if filter is null (no restriction) or passes maxDelta.
+     */
+    public static boolean passesMaxDelta(LegFilter filter, double absDelta) {
+        return filter == null || filter.passesMaxDelta(absDelta);
+    }
+
+    /**
+     * Null-safe helper for full delta filter (both min and max).
+     * Returns true if filter is null (no restriction) or passes the filter.
+     */
+    public static boolean passes(LegFilter filter, double absDelta) {
+        return filter == null || filter.passesDeltaFilter(absDelta);
+    }
 }
