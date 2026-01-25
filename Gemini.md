@@ -170,6 +170,29 @@ Refactored options strategies to use **Java Streams and Lambdas** instead of nes
 - **Candidate Records**: Intermediate `TradeCandidate` records hold calculation logic (maxLoss, netCredit, etc).
 - **Refactored Strategies**: `BrokenWingButterflyStrategy`, `PutCreditSpreadStrategy`, `CallCreditSpreadStrategy`.
 
+### Hybrid Filter Approach (2026-01-24)
+Moved validation logic to filter classes for better reusability and testability.
+
+#### OptionsStrategyFilter
+Added reusable validation methods:
+- `passesMaxLoss(double maxLoss)` - Checks if max loss is within limit
+- `passesDebitLimit(double debit)` - Checks if total debit is within limit  
+- `passesCreditLimit(double credit)` - Checks if total credit is within limit
+- `passesMinReturnOnRisk(double profit, double maxLoss)` - Checks if profit meets minimum return on risk
+
+#### LegFilter
+Consolidated delta checking with **null-safe instance and static methods**:
+- Instance methods handle null field values (`minDelta`, `maxDelta`)
+- Static helpers handle null LegFilter objects:
+  - `passesMinDelta(LegFilter, double)` - Null-safe min delta check
+  - `passesMaxDelta(LegFilter, double)` - Null-safe max delta check
+  - `passes(LegFilter, double)` - Null-safe full delta filter (both min and max)
+
+#### Benefits
+- **Zero null checks in strategies** - All null handling is in `LegFilter`
+- **DRY principle** - No duplicated validation logic
+- **Cleaner strategy code** - e.g., `!LegFilter.passesMaxDelta(filter, delta)` instead of `filter != null && !filter.passesMaxDelta(delta)`
+
 ### Deleted Files
 - `runtime-config.json` - No longer needed (all config in strategies-config.json)
 - `runtimeConfig` path from `FilePaths.java`
