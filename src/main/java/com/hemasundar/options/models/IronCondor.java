@@ -35,6 +35,16 @@ public class IronCondor implements TradeSetup {
     }
 
     @Override
+    public double getUpperBreakEvenPrice() {
+        return upperBreakEven;
+    }
+
+    @Override
+    public double getUpperBreakEvenPercentage() {
+        return upperBreakEvenPercentage;
+    }
+
+    @Override
     public String getExpiryDate() {
         return putLeg != null && putLeg.getShortPut() != null
                 ? putLeg.getShortPut().getExpirationDate()

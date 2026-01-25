@@ -26,6 +26,10 @@ public class OptionsStrategyFilter {
     private int minReturnOnRisk;
     private double maxTotalDebit;
     private double maxTotalCredit;
+    private double minTotalCredit;
+
+    // Advanced Filters
+    private Double maxUpperBreakevenDelta;
 
     // Behavior flags
     @lombok.Builder.Default
@@ -58,7 +62,7 @@ public class OptionsStrategyFilter {
      * @return true if debit is within limit or no limit is set
      */
     public boolean passesDebitLimit(double debit) {
-        return this.maxTotalDebit <= 0 || debit <= this.maxTotalDebit;
+        return debit <= this.maxTotalDebit;
     }
 
     /**
@@ -69,6 +73,16 @@ public class OptionsStrategyFilter {
      */
     public boolean passesCreditLimit(double credit) {
         return this.maxTotalCredit <= 0 || credit <= this.maxTotalCredit;
+    }
+
+    /**
+     * Checks if a total credit passes the minTotalCredit filter.
+     * 
+     * @param credit the calculated total credit for a trade
+     * @return true if credit is greater than or equal to limit or no limit is set
+     */
+    public boolean passesMinCredit(double credit) {
+        return credit >= this.minTotalCredit;
     }
 
     /**

@@ -290,8 +290,20 @@ public class TelegramUtils {
         if (ror > 0) {
             sb.append("  📈 RoR: ").append(String.format("%.2f", ror)).append("%");
         }
-        sb.append(" | BE: $").append(String.format("%.2f", trade.getBreakEvenPrice()))
+
+        double lowerBE = trade.getBreakEvenPrice();
+        double upperBE = trade.getUpperBreakEvenPrice();
+
+        sb.append(" | BE: $").append(String.format("%.2f", lowerBE))
                 .append(" (").append(String.format("%.2f", trade.getBreakEvenPercentage())).append("%)");
+
+        // Generic check for Upper BE
+        // Display if > 0 and sufficiently different from Lower BE
+        if (upperBE > 0 && Math.abs(upperBE - lowerBE) > 0.01) {
+            sb.append(" | Upper BE: $").append(String.format("%.2f", upperBE))
+                    .append(" (").append(String.format("%.2f", trade.getUpperBreakEvenPercentage())).append("%)");
+        }
+
         sb.append("\n");
 
         return sb.toString();

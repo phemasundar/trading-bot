@@ -21,4 +21,12 @@ public interface TradeSetup {
     int getDaysToExpiration();
 
     List<TradeLeg> getLegs();
+
+    default double getUpperBreakEvenPrice() {
+        return 0;
+    }
+
+    default double getUpperBreakEvenPercentage() {
+        return 0;
+    }
 }

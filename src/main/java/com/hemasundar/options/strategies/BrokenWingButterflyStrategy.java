@@ -62,7 +62,9 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
         List<TradeSetup> trades = generateCandidates(callMap, sortedStrikes, chain.getUnderlyingPrice())
                 .filter(deltaFilter(leg1Filter, leg2Filter, leg3Filter))
                 .filter(debitFilter(filter))
+                .filter(creditFilter(filter))
                 .filter(maxLossFilter(filter))
+                .filter(upperBreakevenFilter(filter, callMap, sortedStrikes))
                 .map(this::buildTradeSetup)
                 .toList();
 
@@ -131,11 +133,33 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
     private Predicate<BWBCandidate> debitFilter(OptionsStrategyFilter filter) {
         return candidate -> {
             if (!filter.passesDebitLimit(candidate.totalDebit())) {
-                log.trace("[BWB] Combo {} REJECTED - Debit ${} > MaxDebit ${}",
-                        candidate.strikeCombo(), String.format("%.2f", candidate.totalDebit()),
-                        filter.getMaxTotalDebit());
+                log.trace("[BWB] Rejected by Debit Limit: {} > Max={}",
+                        String.format("%.2f", candidate.totalDebit()), filter.getMaxTotalDebit());
                 return false;
             }
+            return true;
+        };
+    }
+
+    private Predicate<BWBCandidate> creditFilter(OptionsStrategyFilter filter) {
+        return candidate -> {
+            // Net Credit is -TotalDebit
+            double netCredit = -candidate.totalDebit();
+
+            // Check max credit limit (if set)
+            if (!filter.passesCreditLimit(netCredit)) {
+                log.trace("[BWB] Rejected by Max Credit Limit: {} > Max={}",
+                        String.format("%.2f", netCredit), filter.getMaxTotalCredit());
+                return false;
+            }
+
+            // Check min credit limit (if set)
+            if (!filter.passesMinCredit(netCredit)) {
+                log.trace("[BWB] Rejected by Min Credit Limit: {} < Min={}",
+                        String.format("%.2f", netCredit), filter.getMinTotalCredit());
+                return false;
+            }
+
             return true;
         };
     }
@@ -151,6 +175,65 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
                         filter.getMaxLossLimit());
                 return false;
             }
+            return true;
+        };
+    }
+
+    // ========== TRADE BUILDER ==========
+
+    /**
+     * Filters candidates based on the delta of the option at the Upper Breakeven
+     * Price.
+     * Upper BE = Short Strike + (Lower Wing - Net Debit)
+     * Checks if delta of nearest strike <= maxUpperBreakevenDelta
+     */
+    private Predicate<BWBCandidate> upperBreakevenFilter(OptionsStrategyFilter filter,
+            Map<String, List<OptionData>> callMap,
+            List<Double> sortedStrikes) {
+        if (filter.getMaxUpperBreakevenDelta() == null) {
+            return c -> true;
+        }
+
+        double maxDelta = filter.getMaxUpperBreakevenDelta();
+
+        return candidate -> {
+            double upperBreakeven = candidate.upperBreakevenPrice();
+
+            // Find nearest strike
+            Double nearestStrike = null;
+            double minDiff = Double.MAX_VALUE;
+
+            for (Double strike : sortedStrikes) {
+                double diff = Math.abs(strike - upperBreakeven);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    nearestStrike = strike;
+                }
+            }
+
+            if (nearestStrike == null)
+                return false;
+
+            OptionData optionAtBE = getOption(callMap, nearestStrike);
+            if (optionAtBE == null) {
+                return false;
+            }
+
+            // Validate delta (use absolute value to be safe, though calls are positive)
+            double currentDelta = Math.abs(optionAtBE.getAbsDelta());
+            // Note: OptionData has getAbsDelta() helper, use it if available or
+            // Math.abs(getDelta())
+            // Let's use getAbsDelta() directly if available from OptionData, otherwise
+            // abs(getDelta)
+            // OptionData in OptionChainResponse has getAbsDelta() per previous steps.
+
+            if (currentDelta > maxDelta) {
+                log.trace("[BWB] Rejected by Upper BE Delta: BE=${}, NearestStrike=${}, Delta={} > Max={}",
+                        String.format("%.2f", upperBreakeven), nearestStrike,
+                        String.format("%.2f", currentDelta), maxDelta);
+                return false;
+            }
+
             return true;
         };
     }
@@ -179,6 +262,8 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
                 .currentPrice(c.currentPrice())
                 .breakEvenPrice(c.breakEvenPrice())
                 .breakEvenPercentage(c.breakEvenPercentage())
+                .upperBreakEvenPrice(c.upperBreakevenPrice())
+                .upperBreakEvenPercentage(c.upperBreakevenPercentage())
                 .build();
     }
 
@@ -227,6 +312,14 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
 
         double breakEvenPercentage() {
             return ((breakEvenPrice() - currentPrice) / currentPrice) * 100;
+        }
+
+        double upperBreakevenPrice() {
+            return leg2.getStrikePrice() + ((lowerWingWidth() - totalDebit()) / 100.0);
+        }
+
+        double upperBreakevenPercentage() {
+            return ((upperBreakevenPrice() - currentPrice) / currentPrice) * 100;
         }
 
         String strikeCombo() {

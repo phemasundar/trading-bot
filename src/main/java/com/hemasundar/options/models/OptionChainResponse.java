@@ -64,6 +64,38 @@ public class OptionChainResponse {
     }
 
     /**
+     * Removes invalid options (e.g., bad data from API) from the internal maps.
+     * Prevents bad data from reaching strategies.
+     */
+    public void removeInvalidOptions() {
+        removeInvalidFromMap(callExpDateMap);
+        removeInvalidFromMap(putExpDateMap);
+    }
+
+    private void removeInvalidFromMap(Map<ExpirationDateKey, Map<String, List<OptionData>>> dateMap) {
+        if (dateMap == null)
+            return;
+
+        for (Map<String, List<OptionData>> strikeMap : dateMap.values()) {
+            if (strikeMap == null)
+                continue;
+
+            for (List<OptionData> options : strikeMap.values()) {
+                if (options == null)
+                    continue;
+
+                options.removeIf(option -> {
+                    // Check logic: abs(delta) > 10 usually indicates error code like -999.00
+                    if (Math.abs(option.getDelta()) > 10) {
+                        return true;
+                    }
+                    return false;
+                });
+            }
+        }
+    }
+
+    /**
      * Returns all expiry dates where DTE falls within the specified range
      * (inclusive).
      * 

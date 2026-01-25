@@ -129,6 +129,7 @@ public class ThinkOrSwinAPIs {
 
         OptionChainResponse optionChainResponse = JavaUtils.convertJsonToPojo(response.asString(),
                 OptionChainResponse.class);
+        optionChainResponse.removeInvalidOptions();
         log.debug("[{}] Current Market Price: {}", symbol, optionChainResponse.getUnderlyingPrice());
         return optionChainResponse;
     }

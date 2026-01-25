@@ -214,4 +214,25 @@ Added `@NoArgsConstructor` and `@JsonIgnoreProperties(ignoreUnknown = true)` to:
 
 ### Bug Fixes (2026-01-24)
 - **Critical Logic Fix**: Fixed `LegFilter` using `||` instead of `&&` for delta checks, which was causing all trades to be rejected if any filter was configured.
+- **Data Validation Fix**: Added sanity check in `LegFilter` to reject options with absolute Delta > 10, filtering out invalid API data (e.g., -999.00 delta).
+- **Data Cleaning at Source**: Implemented `removeInvalidOptions()` in `OptionChainResponse` and integrated it into `ThinkOrSwinAPIs` to filter invalid options (abs(delta) > 10) immediately after API response parsing.
+
+### Upper Breakeven Delta Filter (2026-01-25)
+Added new filter capability for `BrokenWingButterflyStrategy` (and available for others in future):
+- **Field**: `maxUpperBreakevenDelta` in `OptionsStrategyFilter`
+- **Logic**: Calculates Upper BE Price `(Short Strike + Lower Wing Width - Net Debit)`, finds nearest strike, and verifies its delta is ≤ limit.
+- **Goal**: Ensure the trade doesn't have too much risk if the price shoots up past the short strikes.
+
+### Telegram Message Enhancement - Dual Break Evens (2026-01-25)
+Updated Telegram alert format to support strategies with multiple break-even points:
+- **Generic Support**: Updated `TradeSetup` interface with `getUpperBreakEvenPrice()` (default 0).
+- **Dual Display**: `TelegramUtils` now checks if `Upper BE > 0` and is different from `Lower BE`. If so, it displays both.
+  - Example: `BE: $86.91 (0.92%) | Upper BE: $95.50 (10.1%)`
+- **Strategies Supported**: Automatically works for `BrokenWingButterfly` and `IronCondor`.
+
+### MinTotalCredit Filter (2026-01-25)
+Added explicitly named filter for minimum credit requirement (replacing the need for negative debit values):
+- **New Field**: `minTotalCredit` in `OptionsStrategyFilter`.
+- **Usage**: Set `"minTotalCredit": 0.5` to ensure trade generates at least $0.50 credit.
+- **Implemented In**: `BrokenWingButterflyStrategy`.
 
