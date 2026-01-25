@@ -212,3 +212,6 @@ All strategies now use comprehensive `LegFilter.passes(filter, leg)` method:
 Added `@NoArgsConstructor` and `@JsonIgnoreProperties(ignoreUnknown = true)` to:
 - `OptionsStrategyFilter.java`, `CreditSpreadFilter.java`, `LongCallLeapFilter.java`, `BrokenWingButterflyFilter.java`, `LegFilter.java`
 
+### Bug Fixes (2026-01-24)
+- **Critical Logic Fix**: Fixed `LegFilter` using `||` instead of `&&` for delta checks, which was causing all trades to be rejected if any filter was configured.
+

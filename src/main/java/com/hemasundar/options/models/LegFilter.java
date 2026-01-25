@@ -58,9 +58,9 @@ public class LegFilter {
             return false;
 
         // Delta filters
-        if (minDelta != null || leg.getAbsDelta() < minDelta)
+        if (minDelta != null && leg.getAbsDelta() < minDelta)
             return false;
-        if (maxDelta != null || leg.getAbsDelta() > maxDelta)
+        if (maxDelta != null && leg.getAbsDelta() > maxDelta)
             return false;
 
         // Premium filters
