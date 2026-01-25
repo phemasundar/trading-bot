@@ -3,17 +3,23 @@ package com.hemasundar.options.strategies;
 import com.hemasundar.options.models.CreditSpreadFilter;
 import com.hemasundar.options.models.LegFilter;
 import com.hemasundar.options.models.OptionChainResponse;
+import com.hemasundar.options.models.OptionChainResponse.OptionData;
 import com.hemasundar.options.models.OptionsStrategyFilter;
 import com.hemasundar.options.models.PutCreditSpread;
 import com.hemasundar.options.models.TradeSetup;
 import com.hemasundar.options.models.OptionType;
+import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
+@Log4j2
 public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
 
     public PutCreditSpreadStrategy() {
@@ -27,87 +33,138 @@ public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
     @Override
     protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
             OptionsStrategyFilter filter) {
-        Map<String, List<OptionChainResponse.OptionData>> putMap = chain.getOptionDataForASpecificExpiryDate(
-                OptionType.PUT,
-                expiryDate);
+        Map<String, List<OptionData>> putMap = chain.getOptionDataForASpecificExpiryDate(
+                OptionType.PUT, expiryDate);
 
         if (putMap == null || putMap.isEmpty())
             return new ArrayList<>();
 
-        return findValidPutCreditSpreads(putMap, chain.getUnderlyingPrice(), filter);
-    }
-
-    private List<TradeSetup> findValidPutCreditSpreads(Map<String, List<OptionChainResponse.OptionData>> putMap,
-            double currentPrice, OptionsStrategyFilter filter) {
-
-        List<TradeSetup> spreads = new ArrayList<>();
-
-        // Get leg filters if available
-        LegFilter shortLegFilter = null;
-        LegFilter longLegFilter = null;
-        if (filter instanceof CreditSpreadFilter) {
-            CreditSpreadFilter csFilter = (CreditSpreadFilter) filter;
+        // Extract leg filters
+        LegFilter shortLegFilter = null, longLegFilter = null;
+        if (filter instanceof CreditSpreadFilter csFilter) {
             shortLegFilter = csFilter.getShortLeg();
             longLegFilter = csFilter.getLongLeg();
         }
 
         List<Double> sortedStrikes = putMap.keySet().stream()
                 .map(Double::parseDouble)
-                .sorted().toList();
+                .sorted()
+                .toList();
 
-        for (int i = 0; i < sortedStrikes.size(); i++) {
-            double shortStrikePrice = sortedStrikes.get(i);
-            List<OptionChainResponse.OptionData> options = putMap.get(String.valueOf(shortStrikePrice));
-            if (CollectionUtils.isEmpty(options))
-                continue;
-            OptionChainResponse.OptionData shortPut = options.get(0);
+        return generateCandidates(putMap, sortedStrikes, chain.getUnderlyingPrice())
+                .filter(deltaFilter(shortLegFilter, longLegFilter))
+                .filter(creditFilter())
+                .filter(maxLossFilter(filter))
+                .filter(minReturnOnRiskFilter(filter))
+                .map(this::buildTradeSetup)
+                .toList();
+    }
 
-            // Short leg delta filter (null-safe)
-            if (shortLegFilter != null && !shortLegFilter.passesMaxDelta(shortPut.getAbsDelta()))
-                continue;
+    /**
+     * Generates all valid 2-leg combinations as a stream of PutSpreadCandidate
+     * records.
+     * For Put Spreads: Short Strike > Long Strike
+     */
+    private Stream<PutSpreadCandidate> generateCandidates(Map<String, List<OptionData>> putMap,
+            List<Double> strikes, double currentPrice) {
+        // Iterate short leg (i) from high to low?
+        // Logic: Short Strike (i) must be higher than Long Strike (j) for Put Credit
+        // So j < i
+        return IntStream.range(0, strikes.size()).boxed()
+                .flatMap(i -> IntStream.range(0, i).boxed()
+                        .map(j -> createCandidate(putMap, strikes, i, j, currentPrice)))
+                .filter(Optional::isPresent)
+                .map(Optional::get);
+    }
 
-            for (int j = 0; j < i; j++) {
-                double longStrikePrice = sortedStrikes.get(j);
-                List<OptionChainResponse.OptionData> longOptions = putMap.get(String.valueOf(longStrikePrice));
-                if (CollectionUtils.isEmpty(longOptions))
-                    continue;
-                OptionChainResponse.OptionData longPut = longOptions.get(0);
+    private Optional<PutSpreadCandidate> createCandidate(Map<String, List<OptionData>> putMap,
+            List<Double> strikes, int shortIndex, int longIndex, double currentPrice) {
+        OptionData shortLeg = getOption(putMap, strikes.get(shortIndex));
+        OptionData longLeg = getOption(putMap, strikes.get(longIndex));
 
-                // Long leg delta filter (null-safe)
-                if (longLegFilter != null && !longLegFilter.passesDeltaFilter(longPut.getAbsDelta()))
-                    continue;
-
-                double netCredit = (shortPut.getBid() - longPut.getAsk()) * 100;
-
-                if (netCredit <= 0)
-                    continue;
-
-                double strikeWidth = (shortStrikePrice - longStrikePrice) * 100;
-                double maxLoss = strikeWidth - netCredit;
-
-                if (maxLoss > filter.getMaxLossLimit())
-                    continue;
-
-                double requiredProfit = maxLoss * ((double) filter.getMinReturnOnRisk() / 100);
-
-                if (netCredit >= requiredProfit) {
-                    double breakEvenPrice = shortPut.getStrikePrice() - (netCredit / 100);
-                    double breakEvenPercentage = ((currentPrice - breakEvenPrice) / currentPrice) * 100;
-                    double returnOnRisk = (netCredit / maxLoss) * 100;
-
-                    spreads.add(PutCreditSpread.builder()
-                            .shortPut(shortPut)
-                            .longPut(longPut)
-                            .netCredit(netCredit)
-                            .maxLoss(maxLoss)
-                            .breakEvenPrice(breakEvenPrice)
-                            .breakEvenPercentage(breakEvenPercentage)
-                            .returnOnRisk(returnOnRisk)
-                            .currentPrice(currentPrice)
-                            .build());
-                }
-            }
+        if (shortLeg == null || longLeg == null) {
+            return Optional.empty();
         }
-        return spreads;
+        return Optional.of(new PutSpreadCandidate(shortLeg, longLeg, currentPrice));
+    }
+
+    private OptionData getOption(Map<String, List<OptionData>> map, Double strike) {
+        List<OptionData> options = map.get(String.valueOf(strike));
+        return CollectionUtils.isEmpty(options) ? null : options.get(0);
+    }
+
+    // ========== FILTER PREDICATES ==========
+
+    private Predicate<PutSpreadCandidate> deltaFilter(LegFilter shortLegFilter, LegFilter longLegFilter) {
+        return candidate -> {
+            // Short leg: check max delta
+            if (shortLegFilter != null && !shortLegFilter.passesMaxDelta(candidate.shortLeg().getAbsDelta())) {
+                return false;
+            }
+            // Long leg: check delta (min/max)
+            if (longLegFilter != null && !longLegFilter.passesDeltaFilter(candidate.longLeg().getAbsDelta())) {
+                return false;
+            }
+            return true;
+        };
+    }
+
+    private Predicate<PutSpreadCandidate> creditFilter() {
+        return candidate -> candidate.netCredit() > 0;
+    }
+
+    private Predicate<PutSpreadCandidate> maxLossFilter(OptionsStrategyFilter filter) {
+        return candidate -> candidate.maxLoss() <= filter.getMaxLossLimit();
+    }
+
+    private Predicate<PutSpreadCandidate> minReturnOnRiskFilter(OptionsStrategyFilter filter) {
+        return candidate -> {
+            double requiredProfit = candidate.maxLoss() * ((double) filter.getMinReturnOnRisk() / 100);
+            return candidate.netCredit() >= requiredProfit;
+        };
+    }
+
+    // ========== TRADE BUILDER ==========
+
+    private TradeSetup buildTradeSetup(PutSpreadCandidate c) {
+        return PutCreditSpread.builder()
+                .shortPut(c.shortLeg())
+                .longPut(c.longLeg())
+                .netCredit(c.netCredit())
+                .maxLoss(c.maxLoss())
+                .breakEvenPrice(c.breakEvenPrice())
+                .breakEvenPercentage(c.breakEvenPercentage())
+                .returnOnRisk(c.returnOnRisk())
+                .currentPrice(c.currentPrice())
+                .build();
+    }
+
+    // ========== CANDIDATE RECORD ==========
+
+    private record PutSpreadCandidate(OptionData shortLeg, OptionData longLeg, double currentPrice) {
+
+        double netCredit() {
+            return (shortLeg.getBid() - longLeg.getAsk()) * 100;
+        }
+
+        double strikeWidth() {
+            return (shortLeg.getStrikePrice() - longLeg.getStrikePrice()) * 100;
+        }
+
+        double maxLoss() {
+            return strikeWidth() - netCredit();
+        }
+
+        double returnOnRisk() {
+            return (maxLoss() > 0) ? (netCredit() / maxLoss()) * 100 : 0;
+        }
+
+        double breakEvenPrice() {
+            return shortLeg.getStrikePrice() - (netCredit() / 100);
+        }
+
+        double breakEvenPercentage() {
+            return ((currentPrice - breakEvenPrice()) / currentPrice) * 100;
+        }
     }
 }

@@ -77,10 +77,21 @@ public class SampleTestNG {
                 OptionChainCache cache = new OptionChainCache();
 
                 // =============================================================
-                // TECHNICAL INDICATORS SETUP (used by some strategies)
+                // Load securities lists (used by strategies)
                 // =============================================================
+                List<String> portfolioSecurities = loadSecurities(FilePaths.portfolioSecurities);
+                List<String> top100Securities = loadSecurities(FilePaths.top100Securities);
+                List<String> bullishSecurities = loadSecurities(FilePaths.bullishSecurities);
 
-                // Define WHAT indicators to use (with their settings)
+                // Build securities map for config loader
+                Map<String, List<String>> securitiesMap = Map.of(
+                                "portfolio", portfolioSecurities,
+                                "top100", top100Securities,
+                                "bullish", bullishSecurities);
+
+                // =============================================================
+                // TECHNICAL INDICATORS (shared across screeners)
+                // =============================================================
                 TechnicalIndicators allIndicators = TechnicalIndicators.builder()
                                 .rsiFilter(RSIFilter.builder()
                                                 .period(14)
@@ -98,37 +109,9 @@ public class SampleTestNG {
                                 .volumeFilter(VolumeFilter.builder().build())
                                 .build();
 
-                // Define technical filter conditions
-                TechFilterConditions oversoldConditions = TechFilterConditions.builder()
-                                .rsiCondition(RSICondition.BULLISH_CROSSOVER)
-                                .bollingerCondition(BollingerCondition.LOWER_BAND)
-                                .minVolume(1_000_000L)
-                                .build();
-
-                TechFilterConditions overboughtConditions = TechFilterConditions.builder()
-                                .rsiCondition(RSICondition.BEARISH_CROSSOVER)
-                                .bollingerCondition(BollingerCondition.UPPER_BAND)
-                                .minVolume(1_000_000L)
-                                .build();
-
-                // Combine indicators + conditions into filter chains
-                TechnicalFilterChain oversoldFilterChain = TechnicalFilterChain.of(allIndicators, oversoldConditions);
-                TechnicalFilterChain overboughtFilterChain = TechnicalFilterChain.of(allIndicators,
-                                overboughtConditions);
-
                 // =============================================================
-                // Load securities lists (used by strategies)
-                List<String> portfolioSecurities = loadSecurities(FilePaths.portfolioSecurities);
-                List<String> top100Securities = loadSecurities(FilePaths.top100Securities);
-                List<String> bullishSecurities = loadSecurities(FilePaths.bullishSecurities);
-
-                // Build securities map for config loader
-                Map<String, List<String>> securitiesMap = Map.of(
-                                "portfolio", portfolioSecurities,
-                                "top100", top100Securities,
-                                "bullish", bullishSecurities);
-
-                // Load ALL options strategies from JSON config file
+                // OPTIONS STRATEGIES (Configuration-Driven from JSON)
+                // =============================================================
                 List<OptionsConfig> optionsStrategies = StrategiesConfigLoader.load(
                                 FilePaths.strategiesConfig, securitiesMap);
 

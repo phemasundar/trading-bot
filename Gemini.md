@@ -164,6 +164,12 @@ Added `IronCondorFilter` to support independent put and call short leg filters:
 - Allows different `maxDelta` values for put vs call short legs
 - Backward compatible: `CreditSpreadFilter` still works with shared `shortLeg`
 
+### Strategy Modularization (2026-01-24)
+Refactored options strategies to use **Java Streams and Lambdas** instead of nested for-loops.
+- **Declarative Pipelines**: Strategies now use `.filter()` and `.map()` chains.
+- **Candidate Records**: Intermediate `TradeCandidate` records hold calculation logic (maxLoss, netCredit, etc).
+- **Refactored Strategies**: `BrokenWingButterflyStrategy`, `PutCreditSpreadStrategy`, `CallCreditSpreadStrategy`.
+
 ### Deleted Files
 - `runtime-config.json` - No longer needed (all config in strategies-config.json)
 - `runtimeConfig` path from `FilePaths.java`

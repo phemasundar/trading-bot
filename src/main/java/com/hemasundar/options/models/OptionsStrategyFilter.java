@@ -38,12 +38,4 @@ public class OptionsStrategyFilter {
     private double savingsInterestRate = 10.0;
     @lombok.Builder.Default
     private double maxOptionPricePercent = 50.0;
-
-    /**
-     * Static helper for null-safe leg filter delta checks.
-     * Returns true if filter is null or delta passes the filter.
-     */
-    public static boolean passesFilter(LegFilter legFilter, double absDelta) {
-        return legFilter == null || legFilter.passesDeltaFilter(absDelta);
-    }
 }

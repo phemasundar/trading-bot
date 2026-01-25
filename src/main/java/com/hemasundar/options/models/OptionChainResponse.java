@@ -1,17 +1,10 @@
 package com.hemasundar.options.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.hemasundar.options.models.OptionChainResponse.ExpirationDateKey;
-import com.hemasundar.options.models.OptionChainResponse.OptionData;
-import com.hemasundar.options.models.OptionChainResponse.OptionDeliverable;
-import com.hemasundar.serializers.ExpirationKeyDeserializer;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import java.util.Comparator;
 import java.util.List;
