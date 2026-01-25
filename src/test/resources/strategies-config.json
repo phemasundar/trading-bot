@@ -170,7 +170,7 @@
             "strategyType": "BULLISH_BROKEN_WING_BUTTERFLY",
             "filterType": "BrokenWingButterflyFilter",
             "filter": {
-                "minDTE": 55,
+                "minDTE": 30,
                 "maxDTE": 185,
                 "maxTotalDebit": 100,
                 "maxLossLimit": 1000,
