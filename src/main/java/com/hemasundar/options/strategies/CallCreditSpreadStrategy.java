@@ -103,8 +103,8 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
     // ========== FILTER PREDICATES ==========
 
     private Predicate<CallSpreadCandidate> deltaFilter(LegFilter shortLegFilter, LegFilter longLegFilter) {
-        return candidate -> LegFilter.passesMaxDelta(shortLegFilter, candidate.shortLeg().getAbsDelta())
-                && LegFilter.passes(longLegFilter, candidate.longLeg().getAbsDelta());
+        return candidate -> LegFilter.passes(shortLegFilter, candidate.shortLeg())
+                && LegFilter.passes(longLegFilter, candidate.longLeg());
     }
 
     private Predicate<CallSpreadCandidate> creditFilter() {

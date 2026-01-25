@@ -106,18 +106,19 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
     // ========== FILTER PREDICATES ==========
 
     /**
-     * Combined delta filter for all three legs using simplified LegFilter API.
+     * Combined filter for all three legs using comprehensive LegFilter validation.
+     * Now validates ALL filter fields: delta, premium, volume, open interest.
      */
     private Predicate<BWBCandidate> deltaFilter(LegFilter leg1Filter, LegFilter leg2Filter, LegFilter leg3Filter) {
         return candidate -> {
-            // All null checks handled by LegFilter static helpers
-            if (!LegFilter.passesMinDelta(leg1Filter, candidate.leg1().getAbsDelta())) {
+            // Comprehensive validation - checks ALL filter fields
+            if (!LegFilter.passes(leg1Filter, candidate.leg1())) {
                 return false;
             }
-            if (!LegFilter.passesMaxDelta(leg2Filter, candidate.leg2().getAbsDelta())) {
+            if (!LegFilter.passes(leg2Filter, candidate.leg2())) {
                 return false;
             }
-            if (!LegFilter.passes(leg3Filter, candidate.leg3().getAbsDelta())) {
+            if (!LegFilter.passes(leg3Filter, candidate.leg3())) {
                 return false;
             }
             return true;

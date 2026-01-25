@@ -183,15 +183,26 @@ Added reusable validation methods:
 #### LegFilter
 Consolidated delta checking with **null-safe instance and static methods**:
 - Instance methods handle null field values (`minDelta`, `maxDelta`)
+- **Comprehensive `passes(OptionData leg)` method validates ALL fields**: delta, premium, volume, open interest
 - Static helpers handle null LegFilter objects:
   - `passesMinDelta(LegFilter, double)` - Null-safe min delta check
   - `passesMaxDelta(LegFilter, double)` - Null-safe max delta check
-  - `passes(LegFilter, double)` - Null-safe full delta filter (both min and max)
+  - `passes(LegFilter, double)` - Null-safe delta filter (both min and max)
+  - `passes(LegFilter, OptionData)` - **Comprehensive null-safe filter (all fields)**
+
+#### Strategy Updates
+All strategies now use comprehensive `LegFilter.passes(filter, leg)` method:
+- `BrokenWingButterflyStrategy`
+- `PutCreditSpreadStrategy` 
+- `CallCreditSpreadStrategy`
+- `LongCallLeapStrategy`
+- `IronCondorStrategy` (via Put/Call composition)
 
 #### Benefits
 - **Zero null checks in strategies** - All null handling is in `LegFilter`
+- **Future-proof** - Adding new filter fields (premium, volume, etc.) to JSON config automatically validates them
 - **DRY principle** - No duplicated validation logic
-- **Cleaner strategy code** - e.g., `!LegFilter.passesMaxDelta(filter, delta)` instead of `filter != null && !filter.passesMaxDelta(delta)`
+- **Cleaner strategy code** - Single method call validates everything
 
 ### Deleted Files
 - `runtime-config.json` - No longer needed (all config in strategies-config.json)

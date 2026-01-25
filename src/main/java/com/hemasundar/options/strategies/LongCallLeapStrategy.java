@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import java.util.stream.Collectors;
+
 public class LongCallLeapStrategy extends AbstractTradingStrategy {
 
     public LongCallLeapStrategy() {
@@ -51,68 +53,75 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
         List<TradeSetup> setups = new ArrayList<>();
 
         // Get leg filter if available
-        LegFilter longCallFilter = null;
-        if (filter instanceof LongCallLeapFilter) {
-            longCallFilter = ((LongCallLeapFilter) filter).getLongCall();
-        }
+        LegFilter finalLongCallFilter = (filter instanceof LongCallLeapFilter)
+                ? ((LongCallLeapFilter) filter).getLongCall()
+                : null;
 
-        final LegFilter finalLongCallFilter = longCallFilter;
+        // Filter calls based on comprehensive LegFilter criteria
+        List<OptionChainResponse.OptionData> filteredCalls = strikeMap.values().stream()
+                .flatMap(List::stream)
+                .filter(call -> {
+                    // DTE filter (if targetDTE is set/positive)
+                    if (filter.getTargetDTE() > 0 && call.getDaysToExpiration() < filter.getTargetDTE()) {
+                        return false;
+                    }
 
-        strikeMap.forEach((strike, options) -> {
-            if (CollectionUtils.isNotEmpty(options)) {
-                OptionChainResponse.OptionData call = options.get(0);
+                    // Comprehensive filter - validates ALL fields (delta, premium, volume, open
+                    // interest)
+                    if (!LegFilter.passes(finalLongCallFilter, call)) {
+                        return false;
+                    }
 
-                // Long call delta filter (null-safe)
-                if (finalLongCallFilter != null && !finalLongCallFilter.passesMinDelta(call.getAbsDelta())) {
-                    return;
-                }
+                    return true;
+                })
+                .collect(Collectors.toList());
 
-                double callPremium = call.getAsk();
-                double strikePrice = call.getStrikePrice();
+        filteredCalls.forEach(call -> {
+            double callPremium = call.getAsk();
+            double strikePrice = call.getStrikePrice();
 
-                // Extrinsic Value = Ask - (Underlying - Strike)
-                // Only for ITM calls. If OTM, Extrinsic = Ask.
-                double intrinsic = Math.max(0, currentPrice - strikePrice);
-                double extrinsic = callPremium - intrinsic;
+            // Extrinsic Value = Ask - (Underlying - Strike)
+            // Only for ITM calls. If OTM, Extrinsic = Ask.
+            double intrinsic = Math.max(0, currentPrice - strikePrice);
+            double extrinsic = callPremium - intrinsic;
 
-                // Option Premium Limit Check
-                if (callPremium > (currentPrice * (filter.getMaxOptionPricePercent() / 100.0))) {
-                    return;
-                }
+            // Option Premium Limit Check
+            if (callPremium > (currentPrice * (filter.getMaxOptionPricePercent() / 100.0))) {
+                return;
+            }
 
-                double marginInterestAmountPerStock = 0.5 * currentPrice * (filter.getMarginInterestRate() / 100.0)
-                        * (dte / 365.0);
-                double dividendAmountPerStock = currentPrice * (dividendYield / 100.0) * (dte / 365.0);
-                double actualMoneySpentFromPocketPerStock = 0.5 * currentPrice;
+            double marginInterestAmountPerStock = 0.5 * currentPrice * (filter.getMarginInterestRate() / 100.0)
+                    * (dte / 365.0);
+            double dividendAmountPerStock = currentPrice * (dividendYield / 100.0) * (dte / 365.0);
+            double actualMoneySpentFromPocketPerStock = 0.5 * currentPrice;
 
-                double costOfOptionBuyingPerStock = extrinsic + dividendAmountPerStock;
+            double costOfOptionBuyingPerStock = extrinsic + dividendAmountPerStock;
 
-                double moneySpentExtraFromPocketPerStockForBuyingStock = actualMoneySpentFromPocketPerStock
-                        - callPremium;
-                double interestEarningOnExtraMoneySpentForBuyingStock = moneySpentExtraFromPocketPerStockForBuyingStock
-                        * (filter.getSavingsInterestRate() / 100) * (dte / 365.0);
-                double costOfBuyingPerStock = marginInterestAmountPerStock
-                        + interestEarningOnExtraMoneySpentForBuyingStock;
+            double moneySpentExtraFromPocketPerStockForBuyingStock = actualMoneySpentFromPocketPerStock
+                    - callPremium;
+            double interestEarningOnExtraMoneySpentForBuyingStock = moneySpentExtraFromPocketPerStockForBuyingStock
+                    * (filter.getSavingsInterestRate() / 100) * (dte / 365.0);
+            double costOfBuyingPerStock = marginInterestAmountPerStock
+                    + interestEarningOnExtraMoneySpentForBuyingStock;
 
-                if (costOfOptionBuyingPerStock <= costOfBuyingPerStock * (90 / 100)) {
-                    double netCredit = -callPremium * 100; // Debit
-                    double breakEven = strikePrice + callPremium;
-                    double breakEvenPct = ((breakEven - currentPrice) / currentPrice) * 100;
+            if (costOfOptionBuyingPerStock <= costOfBuyingPerStock * (90 / 100)) {
+                double netCredit = -callPremium * 100; // Debit
+                double breakEven = strikePrice + callPremium;
+                double breakEvenPct = ((breakEven - currentPrice) / currentPrice) * 100;
 
-                    setups.add(LongCallLeap.builder()
-                            .longCall(call)
-                            .breakEvenPrice(breakEven)
-                            .breakEvenPercentage(breakEvenPct)
-                            .extrinsicValue(extrinsic)
-                            .finalCostOfOption(costOfOptionBuyingPerStock)
-                            .finalCostOfBuying(costOfBuyingPerStock)
-                            .dividendYield(dividendYield)
-                            .interestRatePaidForMargin(filter.getMarginInterestRate())
-                            .netCredit(netCredit)
-                            .maxLoss(callPremium * 100)
-                            .currentPrice(currentPrice)
-                            .build());
-                }
+                setups.add(LongCallLeap.builder()
+                        .longCall(call)
+                        .breakEvenPrice(breakEven)
+                        .breakEvenPercentage(breakEvenPct)
+                        .extrinsicValue(extrinsic)
+                        .finalCostOfOption(costOfOptionBuyingPerStock)
+                        .finalCostOfBuying(costOfBuyingPerStock)
+                        .dividendYield(dividendYield)
+                        .interestRatePaidForMargin(filter.getMarginInterestRate())
+                        .netCredit(netCredit)
+                        .maxLoss(callPremium * 100)
+                        .currentPrice(currentPrice)
+                        .build());
             }
         });
 

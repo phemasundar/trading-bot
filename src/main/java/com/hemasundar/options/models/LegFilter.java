@@ -46,29 +46,51 @@ public class LegFilter {
         return passesMinDelta(absDelta) && passesMaxDelta(absDelta);
     }
 
+    /**
+     * Comprehensive filter check - validates ALL fields in this filter.
+     * Returns true if the option leg passes all defined filter criteria.
+     *
+     * @param leg The option leg to validate
+     * @return true if leg passes all filters (or if all filters are null)
+     */
+    public boolean passes(OptionChainResponse.OptionData leg) {
+        if (leg == null)
+            return false;
+
+        // Delta filters
+        if (minDelta != null || leg.getAbsDelta() < minDelta)
+            return false;
+        if (maxDelta != null || leg.getAbsDelta() > maxDelta)
+            return false;
+
+        // Premium filters
+        if (minPremium != null && leg.getMark() < minPremium)
+            return false;
+        if (maxPremium != null && leg.getMark() > maxPremium)
+            return false;
+
+        // Volume filter
+        if (minVolume != null && leg.getTotalVolume() < minVolume)
+            return false;
+
+        // Open Interest filter
+        if (minOpenInterest != null && leg.getOpenInterest() < minOpenInterest)
+            return false;
+
+        return true;
+    }
+
     // ========== NULL-SAFE STATIC HELPERS ==========
 
     /**
-     * Null-safe helper for minimum delta check.
-     * Returns true if filter is null (no restriction) or passes minDelta.
+     * Comprehensive null-safe filter - checks ALL filter fields.
+     * Returns true if filter is null (no restriction) or leg passes all criteria.
+     *
+     * @param filter The LegFilter to apply (can be null)
+     * @param leg    The option leg to validate
+     * @return true if passes all filters or filter is null
      */
-    public static boolean passesMinDelta(LegFilter filter, double absDelta) {
-        return filter == null || filter.passesMinDelta(absDelta);
-    }
-
-    /**
-     * Null-safe helper for maximum delta check.
-     * Returns true if filter is null (no restriction) or passes maxDelta.
-     */
-    public static boolean passesMaxDelta(LegFilter filter, double absDelta) {
-        return filter == null || filter.passesMaxDelta(absDelta);
-    }
-
-    /**
-     * Null-safe helper for full delta filter (both min and max).
-     * Returns true if filter is null (no restriction) or passes the filter.
-     */
-    public static boolean passes(LegFilter filter, double absDelta) {
-        return filter == null || filter.passesDeltaFilter(absDelta);
+    public static boolean passes(LegFilter filter, OptionChainResponse.OptionData leg) {
+        return filter == null || filter.passes(leg);
     }
 }
