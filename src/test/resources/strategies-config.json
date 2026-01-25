@@ -148,7 +148,7 @@
             "securitiesFile": "portfolio"
         },
         {
-            "enabled": true,
+            "enabled": false,
             "strategyType": "BULLISH_BROKEN_WING_BUTTERFLY",
             "filterType": "BrokenWingButterflyFilter",
             "filter": {
@@ -156,6 +156,7 @@
                 "maxTotalDebit": 100,
                 "maxLossLimit": 1000,
                 "ignoreEarnings": false,
+                "maxUpperBreakevenDelta": 0.15,
                 "leg1Long": {
                     "minDelta": 0.5
                 },
@@ -167,14 +168,15 @@
         },
         {
             "enabled": true,
+            "maxTradesToSend": 10,
             "strategyType": "BULLISH_BROKEN_WING_BUTTERFLY",
             "filterType": "BrokenWingButterflyFilter",
             "filter": {
                 "minDTE": 25,
                 "maxDTE": 55,
-                "maxTotalDebit": 100,
+                "maxTotalDebit": 200,
                 "maxLossLimit": 1000,
-                "ignoreEarnings": true,
+                "ignoreEarnings": false,
                 "maxUpperBreakevenDelta": 0.2,
                 "leg1Long": {
                     "minDelta": 0.5

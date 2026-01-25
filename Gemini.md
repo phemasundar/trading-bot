@@ -236,3 +236,46 @@ Added explicitly named filter for minimum credit requirement (replacing the need
 - **Usage**: Set `"minTotalCredit": 0.5` to ensure trade generates at least $0.50 credit.
 - **Implemented In**: `BrokenWingButterflyStrategy`.
 
+
+## OptionsStrategyFilter Fix (2026-01-25)
+
+Fixed an issue where debit trades were being rejected even when configured correctly.
+
+### Problem
+Primitive `double` fields in `OptionsStrategyFilter` (specifically `minTotalCredit`) defaulted to `0.0`. This implicitly enforced a `credit >= 0` check, blocking all debit trades (where credit is negative).
+
+### Fix
+- Changed filter fields to reference `Double` types:
+  - `minTotalCredit`
+  - `maxTotalCredit`
+  - `maxTotalDebit`
+  - `maxLossLimit`
+- Updated `OptionsStrategyFilter` validation methods to handle `null` values as "no limit".
+
+## Trade Sorting and Limiting (2026-01-25)
+
+Implemented logic to sort trades by quality and limit the volume of Telegram alerts.
+
+### Features
+1.  **Sorting by Return on Risk**: All found trades are now sorted by `Return on Risk` in descending order before any other processing.
+2.  **Configurable Limiting**: Added `maxTradesToSend` parameter to limits the number of trades sent to Telegram per strategy/symbol.
+    *   Default: 30 trades
+    *   Configurable via `strategies-config.json`
+3.  **Top-N Selection**: Only the top N trades (after sorting) are sent to Telegram.
+4.  **Full Console Logging**: All found trades are still logged to the console for analysis, regardless of the limit.
+
+### Configuration
+Add `maxTradesToSend` to your strategy implementation in `strategies-config.json`:
+```json
+{
+  "strategyType": "PUT_CREDIT_SPREAD",
+  "maxTradesToSend": 10,
+  ...
+}
+```
+
+### Files Modified
+-   `StrategiesConfig.java`: Added `maxTradesToSend` to `StrategyEntry`.
+-   `OptionsConfig.java`: Added `maxTradesToSend` field.
+-   `StrategiesConfigLoader.java`: Updated to populate the new field.
+-   `SampleTestNG.java`: Implemented matching logic (sort -> limit -> group -> send).

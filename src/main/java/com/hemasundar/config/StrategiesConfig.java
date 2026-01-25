@@ -81,6 +81,8 @@ public class StrategiesConfig {
         public boolean hasTechnicalFilter() {
             return technicalFilter != null;
         }
+
+        private int maxTradesToSend = 30; // Default to 30 trades per symbol per strategy
     }
 
     /**

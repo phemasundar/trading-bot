@@ -135,7 +135,7 @@ public class SampleTestNG {
 
                         if (!securitiesToUse.isEmpty()) {
                                 Map<String, List<TradeSetup>> trades = findTradesForStrategy(cache, securitiesToUse,
-                                                config.getStrategy(), config.getFilter());
+                                                config);
 
                                 // Send to Telegram (consistent with Technical Screener pattern)
                                 if (!trades.isEmpty()) {
@@ -188,7 +188,11 @@ public class SampleTestNG {
          * Trades are grouped by expiry date so each entry represents a single DTE.
          */
         private static Map<String, List<TradeSetup>> findTradesForStrategy(OptionChainCache cache, List<String> symbols,
-                        AbstractTradingStrategy strategy, OptionsStrategyFilter optionsStrategyFilter) {
+                        OptionsConfig config) {
+                AbstractTradingStrategy strategy = config.getStrategy();
+                OptionsStrategyFilter optionsStrategyFilter = config.getFilter();
+                int maxTradesToSend = config.getMaxTradesToSend();
+
                 log.info("\n" +
                                 "******************************************************************\n" +
                                 "************* {} **************\n" +
@@ -207,8 +211,20 @@ public class SampleTestNG {
                                 trades.forEach(trade -> log.info("Trade: {}", trade));
 
                                 if (!trades.isEmpty()) {
+                                        // 1. Sort by Return on Risk (Descending)
+                                        trades.sort((t1, t2) -> Double.compare(t2.getReturnOnRisk(),
+                                                        t1.getReturnOnRisk()));
+
+                                        // 2. Limit the number of trades sent to Telegram
+                                        List<TradeSetup> topTrades = trades;
+                                        if (trades.size() > maxTradesToSend) {
+                                                topTrades = trades.subList(0, maxTradesToSend);
+                                                log.info("[{}] Found {} trades, limiting to top {} for Telegram",
+                                                                symbol, trades.size(), maxTradesToSend);
+                                        }
+
                                         // Group trades by expiry date and add as separate entries
-                                        Map<String, List<TradeSetup>> tradesByExpiry = trades.stream()
+                                        Map<String, List<TradeSetup>> tradesByExpiry = topTrades.stream()
                                                         .collect(java.util.stream.Collectors.groupingBy(
                                                                         TradeSetup::getExpiryDate,
                                                                         LinkedHashMap::new,

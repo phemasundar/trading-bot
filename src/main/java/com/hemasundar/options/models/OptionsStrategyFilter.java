@@ -22,11 +22,11 @@ public class OptionsStrategyFilter {
     private int maxDTE; // Used with minDTE when targetDTE == 0
 
     // Risk/Return filters
-    private double maxLossLimit;
+    private Double maxLossLimit;
     private int minReturnOnRisk;
-    private double maxTotalDebit;
-    private double maxTotalCredit;
-    private double minTotalCredit;
+    private Double maxTotalDebit;
+    private Double maxTotalCredit;
+    private Double minTotalCredit;
 
     // Advanced Filters
     private Double maxUpperBreakevenDelta;
@@ -49,10 +49,10 @@ public class OptionsStrategyFilter {
      * Checks if a max loss value passes the maxLossLimit filter.
      * 
      * @param maxLoss the calculated max loss for a trade
-     * @return true if maxLoss is within the limit
+     * @return true if maxLoss is within the limit or limit is null
      */
     public boolean passesMaxLoss(double maxLoss) {
-        return maxLoss <= this.maxLossLimit;
+        return this.maxLossLimit == null || maxLoss <= this.maxLossLimit;
     }
 
     /**
@@ -62,7 +62,7 @@ public class OptionsStrategyFilter {
      * @return true if debit is within limit or no limit is set
      */
     public boolean passesDebitLimit(double debit) {
-        return debit <= this.maxTotalDebit;
+        return this.maxTotalDebit == null || debit <= this.maxTotalDebit;
     }
 
     /**
@@ -72,7 +72,7 @@ public class OptionsStrategyFilter {
      * @return true if credit is within limit or no limit is set
      */
     public boolean passesCreditLimit(double credit) {
-        return this.maxTotalCredit <= 0 || credit <= this.maxTotalCredit;
+        return this.maxTotalCredit == null || (this.maxTotalCredit > 0 && credit <= this.maxTotalCredit);
     }
 
     /**
@@ -82,7 +82,7 @@ public class OptionsStrategyFilter {
      * @return true if credit is greater than or equal to limit or no limit is set
      */
     public boolean passesMinCredit(double credit) {
-        return credit >= this.minTotalCredit;
+        return this.minTotalCredit == null || credit >= this.minTotalCredit;
     }
 
     /**

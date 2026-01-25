@@ -181,6 +181,7 @@ public class StrategiesConfigLoader {
                 .filter(filter)
                 .securities(securities)
                 .technicalFilterChain(technicalFilterChain)
+                .maxTradesToSend(entry.getMaxTradesToSend())
                 .build();
     }
 

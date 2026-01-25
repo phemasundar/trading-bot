@@ -71,4 +71,9 @@ public class OptionsConfig {
     public boolean hasTechnicalFilter() {
         return technicalFilterChain != null;
     }
+
+    /**
+     * Maximum number of trades to send to Telegram per symbol per strategy.
+     */
+    private final int maxTradesToSend;
 }
