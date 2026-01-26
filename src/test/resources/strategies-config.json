@@ -10,7 +10,8 @@
                 "minReturnOnRisk": 12,
                 "ignoreEarnings": false,
                 "shortLeg": {
-                    "maxDelta": 0.20
+                    "maxDelta": 0.20,
+                    "minOpenInterest": 500
                 }
             },
             "securitiesFile": "portfolio"
@@ -26,7 +27,8 @@
                 "minReturnOnRisk": 24,
                 "ignoreEarnings": true,
                 "shortLeg": {
-                    "maxDelta": 0.20
+                    "maxDelta": 0.20,
+                    "minOpenInterest": 500
                 }
             },
             "securitiesFile": "bullish"
@@ -41,7 +43,8 @@
                 "minReturnOnRisk": 12,
                 "ignoreEarnings": false,
                 "shortLeg": {
-                    "maxDelta": 0.3
+                    "maxDelta": 0.3,
+                    "minOpenInterest": 500
                 }
             },
             "securitiesFile": "top100",
@@ -66,7 +69,8 @@
                 "minReturnOnRisk": 12,
                 "ignoreEarnings": false,
                 "shortLeg": {
-                    "maxDelta": 0.20
+                    "maxDelta": 0.20,
+                    "minOpenInterest": 500
                 }
             },
             "securitiesFile": "portfolio"
@@ -81,7 +85,8 @@
                 "minReturnOnRisk": 12,
                 "ignoreEarnings": false,
                 "shortLeg": {
-                    "maxDelta": 0.3
+                    "maxDelta": 0.3,
+                    "minOpenInterest": 500
                 }
             },
             "securitiesFile": "top100",
@@ -106,10 +111,12 @@
                 "minReturnOnRisk": 24,
                 "ignoreEarnings": false,
                 "putShortLeg": {
-                    "maxDelta": 0.15
+                    "maxDelta": 0.15,
+                    "minOpenInterest": 500
                 },
                 "callShortLeg": {
-                    "maxDelta": 0.15
+                    "maxDelta": 0.15,
+                    "minOpenInterest": 500
                 }
             },
             "securitiesFile": "portfolio"
@@ -125,10 +132,12 @@
                 "minReturnOnRisk": 36,
                 "ignoreEarnings": true,
                 "putShortLeg": {
-                    "maxDelta": 0.15
+                    "maxDelta": 0.15,
+                    "minOpenInterest": 500
                 },
                 "callShortLeg": {
-                    "maxDelta": 0.15
+                    "maxDelta": 0.15,
+                    "minOpenInterest": 500
                 }
             },
             "securitiesFile": "bullish"
@@ -142,7 +151,8 @@
                 "marginInterestRate": 6.0,
                 "maxOptionPricePercent": 40.0,
                 "longCall": {
-                    "minDelta": 0.6
+                    "minDelta": 0.6,
+                    "minOpenInterest": 500
                 }
             },
             "securitiesFile": "portfolio"
@@ -158,10 +168,12 @@
                 "ignoreEarnings": false,
                 "maxUpperBreakevenDelta": 0.15,
                 "leg1Long": {
-                    "minDelta": 0.5
+                    "minDelta": 0.5,
+                    "minOpenInterest": 1000
                 },
                 "leg2Short": {
-                    "maxDelta": 0.2
+                    "maxDelta": 0.4,
+                    "minOpenInterest": 1000
                 }
             },
             "securitiesFile": "portfolio"
