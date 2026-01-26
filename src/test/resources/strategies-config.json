@@ -186,7 +186,7 @@
             "filter": {
                 "minDTE": 25,
                 "maxDTE": 55,
-                "maxTotalDebit": 200,
+                "maxTotalDebit": 100,
                 "maxLossLimit": 1000,
                 "ignoreEarnings": false,
                 "maxUpperBreakevenDelta": 0.2,
