@@ -279,3 +279,35 @@ Add `maxTradesToSend` to your strategy implementation in `strategies-config.json
 -   `OptionsConfig.java`: Added `maxTradesToSend` field.
 -   `StrategiesConfigLoader.java`: Updated to populate the new field.
 -   `SampleTestNG.java`: Implemented matching logic (sort -> limit -> group -> send).
+
+## Broken Wing Butterfly Default Filters (2026-01-25)
+
+Added mandatory filters to the `BrokenWingButterflyStrategy` to ensure valid trade structure and risk profile.
+
+### 1. Default Debit Filter
+Ensures that the total debit paid for the strategy is strictly less than **half** the cost of buying the Long Call (Leg 1) alone.
+
+- **Check**: `TotalDebit < (Leg1.Ask / 2)`
+- **Rationale**: If the debit paid is too high relative to the long call, the risk profile is suboptimal.
+
+### 2. Wing Width Ratio Filter
+Ensures that the Upper Wing (Leg 2 to Leg 3) is not fundamentally larger than the Lower Wing (Leg 1 to Leg 2), preventing "inverted" or overly risky structures.
+
+- **Check**: `UpperWingWidth <= (2 * LowerWingWidth)`
+- **Rationale**: Keeps the butterfly structure balanced and prevents extreme tail risk scenarios.
+
+### 3. Debit vs Price Filter
+Ensures that the total cost of the trade (Total Debit) is less than the price of the underlying stock per share.
+
+### 3. Debit vs Price Filter
+Ensures that the total cost of the trade (Total Debit) is not excessive relative to the underlying stock price.
+
+- **Check**: `TotalDebit < (UnderlyingPrice * Ratio)`
+- **Rationale**: Prevents trades where the cost of the spread is excessive relative to the stock price.
+- **Configuration**: configurable via `"priceVsMaxDebitRatio"` (Double) in JSON. e.g. `1.0` means max debit is 1x price. `0.5` means max debit is half price.
+
+### Implementation
+- Added `priceVsMaxDebitRatio` field to `OptionsStrategyFilter`.
+- `BrokenWingButterflyStrategy` checks this field; if null, filter is skipped.
+- `defaultDebitFilter()` and `wingWidthRatioFilter()` remain **hardcoded** and **mandatory**.
+- Applied in the stream pipeline before configurable filters.

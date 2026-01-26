@@ -35,6 +35,8 @@ public class OptionsStrategyFilter {
     @lombok.Builder.Default
     private boolean ignoreEarnings = true;
 
+    private Double priceVsMaxDebitRatio;
+
     // Interest rates (for LEAP calculations)
     @lombok.Builder.Default
     private double marginInterestRate = 6.0;

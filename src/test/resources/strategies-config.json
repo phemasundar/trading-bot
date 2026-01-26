@@ -178,8 +178,13 @@
                 "maxLossLimit": 1000,
                 "ignoreEarnings": false,
                 "maxUpperBreakevenDelta": 0.2,
+                "priceVsMaxDebitRatio": 1.0,
                 "leg1Long": {
-                    "minDelta": 0.5
+                    "minDelta": 0.5,
+                    "minOpenInterest": 1000
+                },
+                "leg2Short": {
+                    "minOpenInterest": 1000
                 }
             },
             "securitiesFile": "portfolio"

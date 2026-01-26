@@ -61,6 +61,9 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
         // Use streams to generate candidates and filter
         List<TradeSetup> trades = generateCandidates(callMap, sortedStrikes, chain.getUnderlyingPrice())
                 .filter(deltaFilter(leg1Filter, leg2Filter, leg3Filter))
+                .filter(defaultDebitFilter())
+                .filter(wingWidthRatioFilter())
+                .filter(debitVsPriceFilter(filter))
                 .filter(debitFilter(filter))
                 .filter(creditFilter(filter))
                 .filter(maxLossFilter(filter))
@@ -121,6 +124,83 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
                 return false;
             }
             if (!LegFilter.passes(leg3Filter, candidate.leg3())) {
+                return false;
+            }
+            return true;
+        };
+    }
+
+    /**
+     * Mandatory requirement: Debit limit should be less than the price of Leg 1
+     * (Long Call).
+     * This ensures we aren't paying more for the spread than the naked long call.
+     */
+    private Predicate<BWBCandidate> defaultDebitFilter() {
+        return candidate -> {
+            double leg1Cost = candidate.leg1().getAsk() * 100;
+            // Allow small buffer or strict inequality? User said "debit amount should be
+            // less than".
+            if (candidate.totalDebit() >= leg1Cost / 2) {
+                log.trace("[BWB] Rejected by Default Debit validation: Debit {} >= Leg1 Cost {}",
+                        String.format("%.2f", candidate.totalDebit()), String.format("%.2f", leg1Cost));
+                return false;
+            }
+            return true;
+        };
+    }
+
+    /**
+     * Mandatory requirement: Upper Wing (Leg 2 to Leg 3) should not be more than 2x
+     * the width of the Lower Wing (Leg 1 to Leg 2).
+     */
+    private Predicate<BWBCandidate> wingWidthRatioFilter() {
+        return candidate -> {
+            // Upper Wing = Leg 3 Strike - Leg 2 Strike
+            // Lower Wing = Leg 2 Strike - Leg 1 Strike
+            double upperWing = candidate.upperWingWidth();
+            double lowerWing = candidate.lowerWingWidth();
+
+            if (upperWing > (2 * lowerWing)) {
+                log.trace("[BWB] Rejected by Wing Width Ratio: Upper ({}) > 2x Lower ({})",
+                        String.format("%.2f", upperWing), String.format("%.2f", lowerWing));
+                return false;
+            }
+            return true;
+        };
+    }
+
+    /**
+     * Optional requirement: The total debit should be less than the underlying
+     * price.
+     * This ensures the cost of the trade is not excessive relative to the stock
+     * price.
+     * Only applied if validateDebitVsPrice is true in the filter config.
+     */
+    /**
+     * Optional requirement: The total debit should be less than the underlying
+     * price * ratio.
+     * This ensures the cost of the trade is not excessive relative to the stock
+     * price.
+     * Only applied if priceVsMaxDebitRatio is set in the filter config.
+     */
+    private Predicate<BWBCandidate> debitVsPriceFilter(OptionsStrategyFilter filter) {
+        return candidate -> {
+            if (filter.getPriceVsMaxDebitRatio() == null) {
+                return true;
+            }
+
+            double ratio = filter.getPriceVsMaxDebitRatio();
+            // Note: totalDebit() is the full contract debit (e.g. $50).
+            // currentPrice() is the price per share (e.g. $100).
+            // The requirement is Total Debit < Underlying Price * Ratio.
+            double totalDebit = candidate.totalDebit();
+            double underlyingPrice = candidate.currentPrice();
+            double maxAllowedDebit = underlyingPrice * ratio;
+
+            if (totalDebit >= maxAllowedDebit) {
+                log.trace("[BWB] Rejected by Price vs Debit Ratio: Debit {} >= Max Allowed ({}) [Price {} * Ratio {}]",
+                        String.format("%.2f", totalDebit), String.format("%.2f", maxAllowedDebit),
+                        String.format("%.2f", underlyingPrice), ratio);
                 return false;
             }
             return true;
