@@ -64,8 +64,8 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
                 .shortLeg(callShortLegFilter)
                 .build();
 
-        List<TradeSetup> putSetups = putStrategy.findTrades(chain, putLegFilter);
-        List<TradeSetup> callSetups = callStrategy.findTrades(chain, callLegFilter);
+        List<TradeSetup> putSetups = putStrategy.findValidTrades(chain, expiryDate, putLegFilter);
+        List<TradeSetup> callSetups = callStrategy.findValidTrades(chain, expiryDate, callLegFilter);
 
         // Cast back to specific types
         List<PutCreditSpread> putSpreads = new ArrayList<>();
