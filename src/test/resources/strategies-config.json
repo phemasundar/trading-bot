@@ -146,16 +146,17 @@
             "enabled": true,
             "strategyType": "LONG_CALL_LEAP",
             "filterType": "LongCallLeapFilter",
+            "securitiesFile": "portfolio",
             "filter": {
                 "minDTE": 330,
+                "ignoreEarnings": true,
                 "marginInterestRate": 6.0,
-                "maxOptionPricePercent": 40.0,
+                "maxOptionPricePercent": 50.0,
                 "longCall": {
-                    "minDelta": 0.4,
+                    "minDelta": 0.2,
                     "minOpenInterest": 100
                 }
-            },
-            "securitiesFile": "portfolio"
+            }
         },
         {
             "enabled": false,

@@ -19,7 +19,9 @@ public class OptionsStrategyFilter {
     // Time-based filters
     private int targetDTE; // If > 0, uses single nearest expiry (backward compatible)
     private int minDTE; // Used with maxDTE when targetDTE == 0
-    private int maxDTE; // Used with minDTE when targetDTE == 0
+
+    @lombok.Builder.Default
+    private Integer maxDTE = Integer.MAX_VALUE; // Used with minDTE when targetDTE == 0
 
     // Risk/Return filters
     private Double maxLossLimit;
