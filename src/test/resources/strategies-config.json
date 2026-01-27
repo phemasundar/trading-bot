@@ -151,8 +151,8 @@
                 "marginInterestRate": 6.0,
                 "maxOptionPricePercent": 40.0,
                 "longCall": {
-                    "minDelta": 0.6,
-                    "minOpenInterest": 500
+                    "minDelta": 0.4,
+                    "minOpenInterest": 100
                 }
             },
             "securitiesFile": "portfolio"
