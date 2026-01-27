@@ -298,10 +298,15 @@ public class TelegramUtils {
                 .append(" (").append(String.format("%.2f", trade.getBreakEvenPercentage())).append("%)");
 
         // Generic check for Upper BE
-        // Display if > 0 and sufficiently different from Lower BE
         if (upperBE > 0 && Math.abs(upperBE - lowerBE) > 0.01) {
             sb.append(" | Upper BE: $").append(String.format("%.2f", upperBE))
                     .append(" (").append(String.format("%.2f", trade.getUpperBreakEvenPercentage())).append("%)");
+        }
+
+        // LongCallLeap specific cost fields
+        if (trade instanceof com.hemasundar.options.models.LongCallLeap leap) {
+            sb.append("\n  🏷️ Cost (Opt/Stock): $").append(String.format("%.2f", leap.getFinalCostOfOption()))
+                    .append(" / $").append(String.format("%.2f", leap.getFinalCostOfBuying()));
         }
 
         sb.append("\n");
