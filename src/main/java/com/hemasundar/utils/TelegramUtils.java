@@ -2,6 +2,7 @@ package com.hemasundar.utils;
 
 import com.hemasundar.pojos.TestConfig;
 import com.hemasundar.options.models.TradeSetup;
+import com.hemasundar.options.models.LongCallLeap;
 import com.hemasundar.options.models.TradeLeg;
 import com.hemasundar.technical.TechnicalScreener;
 import io.restassured.RestAssured;
@@ -297,6 +298,10 @@ public class TelegramUtils {
         sb.append(" | BE: $").append(String.format("%.2f", lowerBE))
                 .append(" (").append(String.format("%.2f", trade.getBreakEvenPercentage())).append("%)");
 
+        if (trade instanceof LongCallLeap leap) {
+            sb.append(" [CAGR: ").append(String.format("%.2f", leap.calculateBreakevenCAGR())).append("%]");
+        }
+
         // Generic check for Upper BE
         if (upperBE > 0 && Math.abs(upperBE - lowerBE) > 0.01) {
             sb.append(" | Upper BE: $").append(String.format("%.2f", upperBE))
@@ -304,9 +309,17 @@ public class TelegramUtils {
         }
 
         // LongCallLeap specific cost fields
-        if (trade instanceof com.hemasundar.options.models.LongCallLeap leap) {
-            sb.append("\n  🏷️ Cost (Opt/Stock): $").append(String.format("%.2f", leap.getFinalCostOfOption()))
-                    .append(" / $").append(String.format("%.2f", leap.getFinalCostOfBuying()));
+        if (trade instanceof LongCallLeap leap) {
+            double costOpt = leap.getFinalCostOfOption();
+            double costStock = leap.getFinalCostOfBuying();
+            double diffPct = 0;
+            if (costStock > 0) {
+                diffPct = ((costStock - costOpt) / costStock) * 100;
+            }
+
+            sb.append("\n  🏷️ Cost (Opt/Stock): $").append(String.format("%.2f", costOpt))
+                    .append(" / $").append(String.format("%.2f", costStock))
+                    .append(" (").append(String.format("%.1f", diffPct)).append("% cheaper)");
         }
 
         sb.append("\n");

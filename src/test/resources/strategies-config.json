@@ -151,7 +151,9 @@
                 "minDTE": 330,
                 "ignoreEarnings": true,
                 "marginInterestRate": 6.0,
-                "maxOptionPricePercent": 40.0,
+                "savingsInterestRate": 10.0,
+                "maxOptionPricePercent": 50.0,
+                "maxCAGRForBreakEven": 15.0,
                 "longCall": {
                     "minDelta": 0.4,
                     "minOpenInterest": 100

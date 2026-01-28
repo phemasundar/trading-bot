@@ -29,6 +29,7 @@ public class OptionsStrategyFilter {
     private Double maxTotalDebit;
     private Double maxTotalCredit;
     private Double minTotalCredit;
+    private Double maxCAGRForBreakEven;
 
     // Advanced Filters
     private Double maxUpperBreakevenDelta;

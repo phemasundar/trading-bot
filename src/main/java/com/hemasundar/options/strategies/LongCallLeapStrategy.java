@@ -44,6 +44,7 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                 .filter(deltaFilter(finalLongCallFilter))
                 .filter(premiumLimitFilter(filter))
                 .filter(costEfficiencyFilter(filter))
+                .filter(cagrFilter(filter))
                 // 3. Build Trade Setup
                 .map(this::buildTradeSetup)
                 .collect(Collectors.toList());
@@ -73,6 +74,13 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                 * (filter.getSavingsInterestRate() / 100) * (dte / 365.0);
         double costOfBuyingPerStock = marginInterestAmountPerStock + interestEarningOnExtraMoneySpentForBuyingStock;
 
+        double breakEven = strikePrice + callPremium;
+        double breakEvenPct = ((breakEven - currentPrice) / currentPrice) * 100;
+
+        double yearsToExpiration = dte / 365.0;
+        double growthFactor = 1 + (breakEvenPct / 100.0);
+        double breakevenCAGR = (Math.pow(growthFactor, 1.0 / yearsToExpiration) - 1) * 100.0;
+
         return Optional.of(new LeapCandidate(
                 call,
                 currentPrice,
@@ -83,18 +91,19 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                 extrinsic,
                 costOfOptionBuyingPerStock,
                 costOfBuyingPerStock,
-                filter.getMarginInterestRate()));
+                filter.getMarginInterestRate(),
+                breakEvenPct,
+                breakevenCAGR));
     }
 
     private TradeSetup buildTradeSetup(LeapCandidate c) {
         double netCredit = -c.callPremium() * 100; // Debit
         double breakEven = c.strikePrice() + c.callPremium();
-        double breakEvenPct = ((breakEven - c.currentPrice()) / c.currentPrice()) * 100;
 
         return LongCallLeap.builder()
                 .longCall(c.call())
                 .breakEvenPrice(breakEven)
-                .breakEvenPercentage(breakEvenPct)
+                .breakEvenPercentage(c.breakEvenPct())
                 .extrinsicValue(c.extrinsic())
                 .finalCostOfOption(c.costOfOptionBuyingPerStock())
                 .finalCostOfBuying(c.costOfBuyingPerStock())
@@ -127,6 +136,15 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
         };
     }
 
+    private java.util.function.Predicate<LeapCandidate> cagrFilter(OptionsStrategyFilter filter) {
+        return c -> {
+            if (filter.getMaxCAGRForBreakEven() == null) {
+                return true;
+            }
+            return c.breakevenCAGR() <= filter.getMaxCAGRForBreakEven();
+        };
+    }
+
     // ========== CANDIDATE RECORD ==========
 
     private record LeapCandidate(
@@ -139,6 +157,8 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
             double extrinsic,
             double costOfOptionBuyingPerStock,
             double costOfBuyingPerStock,
-            double marginInterestRate) {
+            double marginInterestRate,
+            double breakEvenPct,
+            double breakevenCAGR) {
     }
 }
