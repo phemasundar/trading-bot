@@ -82,12 +82,14 @@ public class SampleTestNG {
                 List<String> portfolioSecurities = loadSecurities(FilePaths.portfolioSecurities);
                 List<String> top100Securities = loadSecurities(FilePaths.top100Securities);
                 List<String> bullishSecurities = loadSecurities(FilePaths.bullishSecurities);
+                List<String> trackingSecurities = loadSecurities(FilePaths.trackingSecurities);
 
                 // Build securities map for config loader
                 Map<String, List<String>> securitiesMap = Map.of(
                                 "portfolio", portfolioSecurities,
                                 "top100", top100Securities,
-                                "bullish", bullishSecurities);
+                                "bullish", bullishSecurities,
+                                "tracking", trackingSecurities);
 
                 // =============================================================
                 // TECHNICAL INDICATORS (shared across screeners)
