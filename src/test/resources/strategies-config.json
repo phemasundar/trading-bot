@@ -231,6 +231,22 @@
                 "requirePriceBelowMA200": true,
                 "minVolume": 1000000
             }
+        },
+        {
+            "enabled": true,
+            "screenerType": "RSI_OVERSOLD",
+            "conditions": {
+                "rsiCondition": "OVERSOLD",
+                "minVolume": 1000000
+            }
+        },
+        {
+            "enabled": true,
+            "screenerType": "BB_LOWER",
+            "conditions": {
+                "bollingerCondition": "LOWER_BAND",
+                "minVolume": 1000000
+            }
         }
     ],
     "technicalIndicators": {

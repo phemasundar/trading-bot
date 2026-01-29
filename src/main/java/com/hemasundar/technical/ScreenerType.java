@@ -14,6 +14,8 @@ public enum ScreenerType {
 
     RSI_BB_BULLISH_CROSSOVER("RSI BB Bullish Crossover"),
     RSI_BB_BEARISH_CROSSOVER("RSI BB Bearish Crossover"),
+    RSI_OVERSOLD("RSI Oversold"),
+    BB_LOWER("Bollinger Band Lower"),
     BELOW_200_DAY_MA("Below 200 Day MA");
 
     private final String displayName;
