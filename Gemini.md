@@ -311,3 +311,41 @@ Ensures that the total cost of the trade (Total Debit) is not excessive relative
 - `BrokenWingButterflyStrategy` checks this field; if null, filter is skipped.
 - `defaultDebitFilter()` and `wingWidthRatioFilter()` remain **hardcoded** and **mandatory**.
 - Applied in the stream pipeline before configurable filters.
+
+## Volatility Filter (2026-01-29)
+
+Added volatility filtering capability to `LegFilter` for better control over option selection based on implied volatility.
+
+### Features
+- **Min/Max Volatility**: Added `minVolatility` and `maxVolatility` fields to `LegFilter`
+- **Automatic Validation**: Volatility filters are automatically validated in the comprehensive `passes(OptionData leg)` method
+- **Null-Safe**: Like other filters, null values mean no restriction
+
+### Implementation
+- Added `minVolatility` and `maxVolatility` fields to `LegFilter.java`
+- Updated `passes()` method to validate volatility against configured thresholds
+- Volatility data is read from `OptionData.volatility` field in option chain response
+
+### Usage Example
+```json
+{
+  "strategyType": "PUT_CREDIT_SPREAD",
+  "filter": {
+    "shortLeg": {
+      "maxDelta": 0.20,
+      "minVolatility": 0.20,
+      "maxVolatility": 0.80,
+      "minOpenInterest": 500
+    }
+  }
+}
+```
+
+### Files Modified
+- `LegFilter.java`: Added volatility fields and validation logic
+
+### Benefits
+- **Volatility Control**: Filter out options with extreme or insufficient volatility
+- **Better Trade Quality**: Select options that meet volatility preferences
+- **JSON Configurable**: Easy to adjust volatility constraints via configuration
+

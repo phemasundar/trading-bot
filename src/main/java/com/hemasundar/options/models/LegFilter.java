@@ -22,6 +22,8 @@ public class LegFilter {
     private Double maxPremium;
     private Integer minOpenInterest;
     private Integer minVolume;
+    private Double minVolatility;
+    private Double maxVolatility;
 
     /**
      * Returns true if delta passes the minDelta filter.
@@ -75,6 +77,12 @@ public class LegFilter {
 
         // Open Interest filter
         if (minOpenInterest != null && leg.getOpenInterest() < minOpenInterest)
+            return false;
+
+        // Volatility filters
+        if (minVolatility != null && leg.getVolatility() < minVolatility)
+            return false;
+        if (maxVolatility != null && leg.getVolatility() > maxVolatility)
             return false;
 
         return true;
