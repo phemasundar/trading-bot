@@ -349,3 +349,48 @@ Added volatility filtering capability to `LegFilter` for better control over opt
 - **Better Trade Quality**: Select options that meet volatility preferences
 - **JSON Configurable**: Easy to adjust volatility constraints via configuration
 
+## Comma-Separated Securities Files (2026-01-29)
+
+Added support for specifying multiple securities files in a single strategy configuration using comma-separated values.
+
+### Features
+- **Multiple Files**: Specify comma-separated file names in `securitiesFile` field
+- **Automatic Deduplication**: Securities from all files are combined and duplicates are automatically removed
+- **Order Preservation**: Uses `LinkedHashSet` to maintain insertion order while ensuring uniqueness
+- **Backward Compatible**: Single file names still work as before
+
+### Implementation
+- Added `parseSecuritiesFromFiles()` method to `StrategiesConfigLoader.java`
+- Splits comma-separated file names and loads securities from each
+- Combines all securities into a unique list using `LinkedHashSet`
+- Logs warnings for missing or empty files
+
+### Usage Example
+```json
+{
+  "strategyType": "PUT_CREDIT_SPREAD",
+  "filterType": "CreditSpreadFilter",
+  "filter": {
+    "targetDTE": 30,
+    "maxLossLimit": 1000,
+    "shortLeg": {
+      "maxDelta": 0.20
+    }
+  },
+  "securitiesFile": "portfolio,tracking,2026"
+}
+```
+
+The strategy will now run on all unique securities from:
+- `portfolio.yaml`
+- `tracking.yaml`
+- `2026.yaml`
+
+### Files Modified
+- `StrategiesConfigLoader.java`: Added `parseSecuritiesFromFiles()` helper method
+
+### Benefits
+- **Flexibility**: Easily combine different security lists without manual merging
+- **Maintainability**: Keep security files organized by category (portfolio, tracking, year, etc.)
+- **Reusability**: Share common securities across strategies while allowing customization
+

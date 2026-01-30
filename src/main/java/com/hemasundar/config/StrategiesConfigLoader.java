@@ -16,10 +16,7 @@ import lombok.extern.log4j.Log4j2;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Loads strategy and screener configurations from strategies-config.json.
@@ -166,8 +163,8 @@ public class StrategiesConfigLoader {
         FilterType filterType = FilterType.fromJsonName(entry.getFilterType());
         OptionsStrategyFilter filter = filterType.parseFilter(entry.getFilter());
 
-        // Get securities list
-        List<String> securities = securitiesMap.getOrDefault(entry.getSecuritiesFile(), List.of());
+        // Get securities list (supports comma-separated file names)
+        List<String> securities = parseSecuritiesFromFiles(entry.getSecuritiesFile(), securitiesMap);
 
         // Get optional technical filter
         TechnicalFilterChain technicalFilterChain = null;
@@ -249,5 +246,42 @@ public class StrategiesConfigLoader {
                 .build();
 
         return TechnicalFilterChain.of(indicators, conditions);
+    }
+
+    /**
+     * Parses comma-separated securities file names and combines all securities into
+     * a unique list.
+     * 
+     * @param securitiesFile comma-separated file names (e.g.,
+     *                       "portfolio,tracking,2026")
+     * @param securitiesMap  map of file names to securities lists
+     * @return combined unique list of securities from all specified files
+     */
+    private static List<String> parseSecuritiesFromFiles(
+            String securitiesFile,
+            Map<String, List<String>> securitiesMap) {
+
+        if (securitiesFile == null || securitiesFile.trim().isEmpty()) {
+            return List.of();
+        }
+
+        // Split by comma and trim whitespace
+        String[] fileNames = securitiesFile.split(",");
+
+        // Use LinkedHashSet to maintain order and uniqueness
+        Set<String> uniqueSecurities = new LinkedHashSet<>();
+
+        for (String fileName : fileNames) {
+            String trimmedFileName = fileName.trim();
+            List<String> securities = securitiesMap.getOrDefault(trimmedFileName, List.of());
+            uniqueSecurities.addAll(securities);
+
+            if (securities.isEmpty()) {
+                log.warn("Securities file '{}' not found in map or is empty", trimmedFileName);
+            }
+        }
+
+        log.debug("Loaded {} unique securities from files: {}", uniqueSecurities.size(), securitiesFile);
+        return new ArrayList<>(uniqueSecurities);
     }
 }

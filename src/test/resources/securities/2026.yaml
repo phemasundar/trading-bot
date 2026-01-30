@@ -1,0 +1,16 @@
+securities:
+  - "AMZN"    # Amazon
+  - "GOOGL"   # Alphabet (Google)
+  - "SOFI"    # SoFi Technologies
+  - "ADBE"    # Adobe
+  - "MELI"    # Mercado Libre
+  - "META"    # Meta (Facebook)
+  - "NVDA"    # Nvidia
+  - "NFLX"    # Netflix
+  - "PYPL"    # PayPal
+  - "CRM"     # Salesforce
+  - "FOUR"    # Shift4 Payments
+  - "VRT"     # Vertiv
+  - "UBER"    # Uber
+  - "ZETA"    # Zeta Global
+  -
