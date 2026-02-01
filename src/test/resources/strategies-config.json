@@ -5,9 +5,11 @@
             "strategyType": "PUT_CREDIT_SPREAD",
             "filterType": "CreditSpreadFilter",
             "filter": {
-                "targetDTE": 30,
+                "minDTE": 25,
+                "maxDTE": 50,
                 "maxLossLimit": 1000,
                 "minReturnOnRisk": 12,
+                "minHistoricalVolatility": 25.0,
                 "ignoreEarnings": false,
                 "shortLeg": {
                     "maxDelta": 0.20,
@@ -25,6 +27,7 @@
                 "maxDTE": 185,
                 "maxLossLimit": 2000,
                 "minReturnOnRisk": 24,
+                "minHistoricalVolatility": 25.0,
                 "ignoreEarnings": true,
                 "shortLeg": {
                     "maxDelta": 0.20,
@@ -41,6 +44,7 @@
                 "targetDTE": 30,
                 "maxLossLimit": 1000,
                 "minReturnOnRisk": 12,
+                "minHistoricalVolatility": 25.0,
                 "ignoreEarnings": false,
                 "shortLeg": {
                     "maxDelta": 0.3,
@@ -67,6 +71,7 @@
                 "targetDTE": 30,
                 "maxLossLimit": 1000,
                 "minReturnOnRisk": 12,
+                "minHistoricalVolatility": 25.0,
                 "ignoreEarnings": false,
                 "shortLeg": {
                     "maxDelta": 0.20,
@@ -83,6 +88,7 @@
                 "targetDTE": 30,
                 "maxLossLimit": 1000,
                 "minReturnOnRisk": 12,
+                "minHistoricalVolatility": 25.0,
                 "ignoreEarnings": false,
                 "shortLeg": {
                     "maxDelta": 0.3,
@@ -110,6 +116,7 @@
                 "maxDTE": 65,
                 "maxLossLimit": 1000,
                 "minReturnOnRisk": 24,
+                "minHistoricalVolatility": 25.0,
                 "ignoreEarnings": false,
                 "putShortLeg": {
                     "maxDelta": 0.15,
@@ -131,6 +138,7 @@
                 "maxDTE": 185,
                 "maxLossLimit": 2000,
                 "minReturnOnRisk": 36,
+                "minHistoricalVolatility": 25.0,
                 "ignoreEarnings": true,
                 "putShortLeg": {
                     "maxDelta": 0.15,

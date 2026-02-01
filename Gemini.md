@@ -447,3 +447,79 @@ This configuration will only show trades where the option route is at least 15% 
 - **Risk Management**: Avoid trades where the option route doesn't provide sufficient savings
 - **Customizable Threshold**: Set different minimum savings requirements per strategy configuration
 
+## Historical Volatility Filter (2026-02-01)
+
+Added a `minHistoricalVolatility` filter to all options strategies. Filters out symbols with historical volatility below the specified threshold, with caching to minimize API calls.
+
+### Features
+- **Common Filter**: Added `minHistoricalVolatility` field to `OptionsStrategyFilter` (applies to all strategies)
+- **Automatic Calculation**: Calculates annualized historical volatility from 1-year daily price data using log returns
+- **Intelligent Caching**: Caches both price history and calculated volatility in-memory per execution
+- **Fail-Open**: If calculation fails, allows trade to proceed (logged as warning)
+
+### Implementation
+- **PriceHistoryCache**: Thread-safe singleton cache with `HistoricalData` POJO storing both `PriceHistoryResponse` and calculated `annualizedVolatility`
+- **VolatilityCalculator**: Static utility class calculating volatility using log returns method
+  - Formula: `stdDev(log returns) × √252 × 100%`
+  - Uses 252 trading days for annualization
+- **AbstractTradingStrategy**: Added `checkHistoricalVolatility()` method called at start of `findTrades()`
+- Symbol is skipped entirely if volatility is below threshold (no option chain fetched)
+
+### Calculation Method
+```
+1. Get 1-year daily closing prices
+2. Calculate log returns: ln(price[i] / price[i-1])
+3. Calculate standard deviation of returns
+4. Annualize: stdDev × √252
+5. Convert to percentage
+```
+
+### Usage Example
+```json
+{
+  "strategyType": "PUT_CREDIT_SPREAD",
+  "filter": {
+    "minDTE": 25,
+    "maxDTE": 50,
+    "minHistoricalVolatility": 25.0,
+    "shortLeg": {
+      "maxDelta": 0.20
+    }
+  }
+}
+```
+
+This configuration only trades symbols with at least 25% annualized historical volatility.
+
+### Cache Behavior
+- **First Symbol Check**: Fetches price history from API, calculates HV, caches both
+- **Subsequent Checks**: Uses cached HV value (no API call, no recalculation)
+- **Scope**: In-memory, per execution run only
+- **Statistics**: Cache hit/miss stats available via `PriceHistoryCache.getInstance().getStats()`
+
+### Files Created
+- `PriceHistoryCache.java`: Cache with `HistoricalData` POJO
+- `VolatilityCalculator.java`: Volatility calculation utility
+
+### Files Modified
+- `OptionsStrategyFilter.java`: Added `minHistoricalVolatility` field
+- `AbstractTradingStrategy.java`: Added `checkHistoricalVolatility()` method and integrated into `findTrades()`
+
+### Benefits
+- **Better Symbol Selection**: Focus on volatile stocks with more option premium
+- **Reduced API Calls**: Single price history call per symbol per run
+- **No Redundant Calculations**: HV calculated once and cached
+- **Universal Application**: Works with all strategies (spreads, butterflies, LEAPs, etc.)
+
+### Critical Bug Fix (2026-02-01)
+Fixed variance calculation to use **sample variance (N-1)** instead of population variance (N):
+
+**Problem**: Original implementation used population standard deviation (`variance = sumSquaredDiff / N`), which systematically underestimated volatility. For example, SOFI showed ~23% HV vs actual ~50%+.
+
+**Solution**: Applied Bessel's correction by using sample standard deviation (`variance = sumSquaredDiff / (N-1)`). This is the standard approach in finance when working with sample data.
+
+**Impact**: Historical volatility values now align with industry sources (e.g., alphaquery.com). The fix approximately doubles the calculated volatility, making the filter work as intended.
+
+**Files Modified**:
+- `VolatilityCalculator.java`: Changed variance calculation on line 98
+

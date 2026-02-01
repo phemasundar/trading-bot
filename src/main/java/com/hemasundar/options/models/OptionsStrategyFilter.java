@@ -48,6 +48,15 @@ public class OptionsStrategyFilter {
     @lombok.Builder.Default
     private double maxOptionPricePercent = 50.0;
 
+    // Volatility filters
+    /**
+     * Minimum historical volatility (annualized percentage).
+     * Symbol is skipped if its historical volatility is below this threshold.
+     * Example: 25.0 means only trade symbols with at least 25% annualized
+     * volatility.
+     */
+    private Double minHistoricalVolatility;
+
     // ========== VALIDATION METHODS ==========
 
     /**
