@@ -1,6 +1,6 @@
 securities:
   - "AMZN"    # Amazon
-  - "GOOGL"   # Alphabet (Google)
+  - "GOOG"   # Alphabet (Google)
   - "SOFI"    # SoFi Technologies
   - "ADBE"    # Adobe
   - "MELI"    # Mercado Libre
@@ -13,4 +13,3 @@ securities:
   - "VRT"     # Vertiv
   - "UBER"    # Uber
   - "ZETA"    # Zeta Global
-  -
