@@ -45,6 +45,7 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                 .filter(premiumLimitFilter(filter))
                 .filter(costEfficiencyFilter(filter))
                 .filter(cagrFilter(filter))
+                .filter(costSavingsFilter(filter))
                 // 3. Build Trade Setup
                 .map(this::buildTradeSetup)
                 .collect(Collectors.toList());
@@ -81,6 +82,12 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
         double growthFactor = 1 + (breakEvenPct / 100.0);
         double breakevenCAGR = (Math.pow(growthFactor, 1.0 / yearsToExpiration) - 1) * 100.0;
 
+        // Calculate cost savings percentage: how much cheaper is option vs stock
+        double costSavingsPercent = 0.0;
+        if (costOfBuyingPerStock > 0) {
+            costSavingsPercent = ((costOfBuyingPerStock - costOfOptionBuyingPerStock) / costOfBuyingPerStock) * 100.0;
+        }
+
         return Optional.of(new LeapCandidate(
                 call,
                 currentPrice,
@@ -93,7 +100,8 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                 costOfBuyingPerStock,
                 filter.getMarginInterestRate(),
                 breakEvenPct,
-                breakevenCAGR));
+                breakevenCAGR,
+                costSavingsPercent));
     }
 
     private TradeSetup buildTradeSetup(LeapCandidate c) {
@@ -145,6 +153,19 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
         };
     }
 
+    private java.util.function.Predicate<LeapCandidate> costSavingsFilter(OptionsStrategyFilter filter) {
+        return c -> {
+            // Only apply if filter is LongCallLeapFilter and minCostSavingsPercent is set
+            if (filter instanceof LongCallLeapFilter leapFilter) {
+                Double minSavings = leapFilter.getMinCostSavingsPercent();
+                if (minSavings != null) {
+                    return c.costSavingsPercent() >= minSavings;
+                }
+            }
+            return true; // No filter set, pass all trades
+        };
+    }
+
     // ========== CANDIDATE RECORD ==========
 
     private record LeapCandidate(
@@ -159,6 +180,7 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
             double costOfBuyingPerStock,
             double marginInterestRate,
             double breakEvenPct,
-            double breakevenCAGR) {
+            double breakevenCAGR,
+            double costSavingsPercent) {
     }
 }

@@ -69,6 +69,7 @@ public class SampleTestNG {
                 System.out.println("Response Code: " + response.statusCode());
                 System.out.println("Response Body: \n" + response.asPrettyString());
                 RefreshToken refreshToken = JavaUtils.convertJsonToPojo(response.asString(), RefreshToken.class);
+                System.out.println("Refresh Token:" + refreshToken.getRefresh_token());
         }
 
         @Test

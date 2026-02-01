@@ -394,3 +394,56 @@ The strategy will now run on all unique securities from:
 - **Maintainability**: Keep security files organized by category (portfolio, tracking, year, etc.)
 - **Reusability**: Share common securities across strategies while allowing customization
 
+## LEAP Cost Savings Filter (2026-01-31)
+
+Added a new filter to `LONG_CALL_LEAP` strategy to filter trades based on minimum cost savings percentage compared to buying stock directly.
+
+### Features
+- **Minimum Cost Savings**: Added `minCostSavingsPercent` field to `LongCallLeapFilter`
+- **Percentage-Based Filtering**: Filter passes only if the option route is at least X% cheaper than buying stock
+- **Automatic Calculation**: Cost savings percentage is calculated automatically during trade evaluation
+- **Optional Filter**: If not specified, all trades pass through (backward compatible)
+
+### Implementation
+- Added `minCostSavingsPercent` field to `LongCallLeapFilter.java`
+- Added `costSavingsPercent` to `LeapCandidate` record in `LongCallLeapStrategy.java`
+- Created `costSavingsFilter()` predicate that validates cost savings percentage
+- Integrated filter into the trade evaluation pipeline
+
+### Calculation
+The cost savings percentage is calculated as:
+```
+costSavingsPercent = ((costOfBuyingStock - costOfOptionBuying) / costOfBuyingStock) * 100
+```
+
+Where:
+- `costOfOptionBuying` = Extrinsic value + Dividend amount
+- `costOfBuyingStock` = Margin interest + Interest earnings on extra money
+
+### Usage Example
+```json
+{
+  "strategyType": "LONG_CALL_LEAP",
+  "filterType": "LongCallLeapFilter",
+  "filter": {
+    "minDTE": 330,
+    "minCostSavingsPercent": 15.0,
+    "longCall": {
+      "minDelta": 0.4,
+      "minOpenInterest": 100
+    }
+  }
+}
+```
+
+This configuration will only show trades where the option route is at least 15% cheaper than buying the stock directly.
+
+### Files Modified
+- `LongCallLeapFilter.java`: Added `minCostSavingsPercent` field
+- `LongCallLeapStrategy.java`: Added cost savings calculation and filter
+
+### Benefits
+- **Better Trade Selection**: Only show trades with significant cost advantages
+- **Risk Management**: Avoid trades where the option route doesn't provide sufficient savings
+- **Customizable Threshold**: Set different minimum savings requirements per strategy configuration
+
