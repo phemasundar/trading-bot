@@ -3363,6 +3363,156 @@
         "year" : 2026
       } ],
       "lastFetched" : "2026-01-14"
+    },
+    "ADBE" : {
+      "earnings" : [ {
+        "date" : "2026-06-10",
+        "epsActual" : null,
+        "epsEstimate" : "5.7901",
+        "hour" : "amc",
+        "quarter" : 2,
+        "revenueActual" : null,
+        "revenueEstimate" : 6553208667,
+        "symbol" : "ADBE",
+        "year" : 2026
+      }, {
+        "date" : "2026-03-12",
+        "epsActual" : null,
+        "epsEstimate" : "5.9899",
+        "hour" : "amc",
+        "quarter" : 1,
+        "revenueActual" : null,
+        "revenueEstimate" : 6401428608,
+        "symbol" : "ADBE",
+        "year" : 2026
+      } ],
+      "lastFetched" : "2026-01-31"
+    },
+    "PYPL" : {
+      "earnings" : [ {
+        "date" : "2026-07-27",
+        "epsActual" : null,
+        "epsEstimate" : "1.4801",
+        "hour" : "amc",
+        "quarter" : 2,
+        "revenueActual" : null,
+        "revenueEstimate" : 8895725051,
+        "symbol" : "PYPL",
+        "year" : 2026
+      }, {
+        "date" : "2026-04-27",
+        "epsActual" : null,
+        "epsEstimate" : "1.4067",
+        "hour" : "amc",
+        "quarter" : 1,
+        "revenueActual" : null,
+        "revenueEstimate" : 8437681811,
+        "symbol" : "PYPL",
+        "year" : 2026
+      }, {
+        "date" : "2026-02-03",
+        "epsActual" : null,
+        "epsEstimate" : "1.3103",
+        "hour" : "bmo",
+        "quarter" : 4,
+        "revenueActual" : null,
+        "revenueEstimate" : 8977315035,
+        "symbol" : "PYPL",
+        "year" : 2025
+      } ],
+      "lastFetched" : "2026-01-31"
+    },
+    "FOUR" : {
+      "earnings" : [ {
+        "date" : "2026-08-03",
+        "epsActual" : null,
+        "epsEstimate" : "1.5584",
+        "hour" : "bmo",
+        "quarter" : 2,
+        "revenueActual" : null,
+        "revenueEstimate" : 1319019120,
+        "symbol" : "FOUR",
+        "year" : 2026
+      }, {
+        "date" : "2026-04-27",
+        "epsActual" : null,
+        "epsEstimate" : "1.2237",
+        "hour" : "bmo",
+        "quarter" : 1,
+        "revenueActual" : null,
+        "revenueEstimate" : 1173040116,
+        "symbol" : "FOUR",
+        "year" : 2026
+      }, {
+        "date" : "2026-02-16",
+        "epsActual" : null,
+        "epsEstimate" : "1.6168",
+        "hour" : "amc",
+        "quarter" : 4,
+        "revenueActual" : null,
+        "revenueEstimate" : 1234432203,
+        "symbol" : "FOUR",
+        "year" : 2025
+      } ],
+      "lastFetched" : "2026-01-31"
+    },
+    "VRT" : {
+      "earnings" : [ {
+        "date" : "2026-07-28",
+        "epsActual" : null,
+        "epsEstimate" : "1.2927",
+        "hour" : "",
+        "quarter" : 2,
+        "revenueActual" : null,
+        "revenueEstimate" : 3116753030,
+        "symbol" : "VRT",
+        "year" : 2026
+      }, {
+        "date" : "2026-04-21",
+        "epsActual" : null,
+        "epsEstimate" : "0.9452",
+        "hour" : "",
+        "quarter" : 1,
+        "revenueActual" : null,
+        "revenueEstimate" : 2548552341,
+        "symbol" : "VRT",
+        "year" : 2026
+      }, {
+        "date" : "2026-02-11",
+        "epsActual" : null,
+        "epsEstimate" : "1.2943",
+        "hour" : "amc",
+        "quarter" : 4,
+        "revenueActual" : null,
+        "revenueEstimate" : 2910859056,
+        "symbol" : "VRT",
+        "year" : 2025
+      } ],
+      "lastFetched" : "2026-01-31"
+    },
+    "ZETA" : {
+      "earnings" : [ {
+        "date" : "2026-04-29",
+        "epsActual" : null,
+        "epsEstimate" : "0.1219",
+        "hour" : "",
+        "quarter" : 1,
+        "revenueActual" : null,
+        "revenueEstimate" : 361943623,
+        "symbol" : "ZETA",
+        "year" : 2026
+      }, {
+        "date" : "2026-02-19",
+        "epsActual" : null,
+        "epsEstimate" : "0.2357",
+        "hour" : "amc",
+        "quarter" : 4,
+        "revenueActual" : null,
+        "revenueEstimate" : 386817660,
+        "symbol" : "ZETA",
+        "year" : 2025
+      } ],
+      "lastFetched" : "2026-01-31"
     }
   }
 }
