@@ -5,6 +5,7 @@ import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInsta
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
+import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
@@ -16,6 +17,7 @@ import com.google.api.services.sheets.v4.model.*;
 import com.hemasundar.pojos.IVDataPoint;
 import lombok.extern.log4j.Log4j2;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -58,19 +60,35 @@ public class GoogleSheetsService {
         }
 
         /**
-         * Creates OAuth2 credentials for Google Sheets API.
-         * First run will open browser for authorization.
+         * Creates credentials for Google Sheets API.
+         * Supports two authentication methods:
+         * 1. Service Account (for CI/CD) - uses GOOGLE_SERVICE_ACCOUNT_JSON env var
+         * 2. OAuth2 (for local dev) - uses credentials.json file and opens browser
          *
          * @param HTTP_TRANSPORT The network HTTP Transport.
          * @return An authorized Credential object.
-         * @throws IOException If the credentials.json file cannot be found.
+         * @throws IOException If credentials cannot be loaded.
          */
         private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
-                // Load client secrets from credentials.json
+                // Check if running in CI/CD with service account
+                String serviceAccountJson = System.getenv("GOOGLE_SERVICE_ACCOUNT_JSON");
+
+                if (serviceAccountJson != null && !serviceAccountJson.isEmpty()) {
+                        // Use Service Account authentication (GitHub Actions)
+                        log.info("Using Service Account authentication for automated environment");
+                        return GoogleCredential.fromStream(
+                                        new ByteArrayInputStream(serviceAccountJson.getBytes()),
+                                        HTTP_TRANSPORT,
+                                        JSON_FACTORY)
+                                        .createScoped(SCOPES);
+                }
+
+                // Use OAuth2 authentication (local development)
+                log.info("Using OAuth2 authentication for local development");
                 File credentialsFile = new File(CREDENTIALS_FILE_PATH);
                 if (!credentialsFile.exists()) {
                         throw new IOException("Credentials file not found: " + CREDENTIALS_FILE_PATH +
-                                        "\\nPlease follow the setup instructions to create this file.");
+                                        "\nPlease follow the setup instructions to create this file.");
                 }
 
                 GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(

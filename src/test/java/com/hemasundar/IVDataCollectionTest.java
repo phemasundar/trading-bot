@@ -117,6 +117,13 @@ public class IVDataCollectionTest {
         log.info("IV DATA COLLECTION COMPLETE");
         log.info("Success: {}, Failed: {}, Total: {}", successCount, failCount, allSecurities.size());
         log.info("=".repeat(80));
+
+        // Fail test if no data was collected (indicates authentication or other
+        // critical failure)
+        if (successCount == 0 && !allSecurities.isEmpty()) {
+            throw new AssertionError("IV data collection failed - no symbols processed successfully. " +
+                    "Check authentication and Google Sheets access.");
+        }
     }
 
     /**

@@ -29,11 +29,12 @@ jobs:
 
       - name: Setup Google Sheets credentials
         run: |
-          echo "${{ secrets.GOOGLE_CREDENTIALS_JSON }}" > credentials.json
+          echo "Using Service Account for authentication (no credentials.json file needed)"
 
       - name: Run IV Data Collection
         run: mvn test -DsuiteXmlFile=iv-data-collection.xml
         env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           GOOGLE_SPREADSHEET_ID: ${{ secrets.GOOGLE_SPREADSHEET_ID }}
 
       - name: Upload test results

@@ -8,4 +8,6 @@ src/test/resources/test.properties
 # Google OAuth2 tokens and credentials (SECURITY: DO NOT COMMIT!)
 tokens/
 credentials.json
+service-account.json
+*.iam.gserviceaccount.com.json
 /.vscode/
