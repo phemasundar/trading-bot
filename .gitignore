@@ -4,3 +4,7 @@
 # Secrets - use test.properties.template as reference
 src/test/resources/test.properties
 /logs/*
+
+# Google OAuth2 tokens and credentials (SECURITY: DO NOT COMMIT!)
+tokens/
+credentials.json

@@ -1,0 +1,8 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite name="IV Data Collection Suite">
+    <test name="Daily IV Data Collection">
+        <classes>
+            <class name="com.hemasundar.IVDataCollectionTest" />
+        </classes>
+    </test>
+</suite>
