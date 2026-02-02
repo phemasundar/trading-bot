@@ -1,16 +1,11 @@
 package com.hemasundar.services;
 
 import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
-import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
-import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
-import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.SheetsScopes;
 import com.google.api.services.sheets.v4.model.*;
@@ -18,10 +13,7 @@ import com.hemasundar.pojos.IVDataPoint;
 import lombok.extern.log4j.Log4j2;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -29,16 +21,14 @@ import java.util.List;
 
 /**
  * Service to interact with Google Sheets API for storing IV data.
- * Handles authentication, sheet creation, and data appending.
+ * Uses Service Account authentication for both local and CI/CD environments.
  */
 @Log4j2
 public class GoogleSheetsService {
 
         private static final String APPLICATION_NAME = "Trading Bot IV Tracker";
         private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
-        private static final String TOKENS_DIRECTORY_PATH = "tokens";
         private static final List<String> SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS);
-        private static final String CREDENTIALS_FILE_PATH = "credentials.json";
 
         private final Sheets sheetsService;
         private final String spreadsheetId;
@@ -60,50 +50,28 @@ public class GoogleSheetsService {
         }
 
         /**
-         * Creates credentials for Google Sheets API.
-         * Supports two authentication methods:
-         * 1. Service Account (for CI/CD) - uses GOOGLE_SERVICE_ACCOUNT_JSON env var
-         * 2. OAuth2 (for local dev) - uses credentials.json file and opens browser
+         * Creates credentials for Google Sheets API using Service Account.
+         * Reads JSON from GOOGLE_SERVICE_ACCOUNT_JSON environment variable.
          *
          * @param HTTP_TRANSPORT The network HTTP Transport.
          * @return An authorized Credential object.
          * @throws IOException If credentials cannot be loaded.
          */
         private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
-                // Check if running in CI/CD with service account
                 String serviceAccountJson = System.getenv("GOOGLE_SERVICE_ACCOUNT_JSON");
 
-                if (serviceAccountJson != null && !serviceAccountJson.isEmpty()) {
-                        // Use Service Account authentication (GitHub Actions)
-                        log.info("Using Service Account authentication for automated environment");
-                        return GoogleCredential.fromStream(
-                                        new ByteArrayInputStream(serviceAccountJson.getBytes()),
-                                        HTTP_TRANSPORT,
-                                        JSON_FACTORY)
-                                        .createScoped(SCOPES);
+                if (serviceAccountJson == null || serviceAccountJson.isEmpty()) {
+                        throw new IOException("GOOGLE_SERVICE_ACCOUNT_JSON environment variable not set.\n" +
+                                        "Please set this variable with your service account JSON content.\n" +
+                                        "See setup_guide.md for instructions.");
                 }
 
-                // Use OAuth2 authentication (local development)
-                log.info("Using OAuth2 authentication for local development");
-                File credentialsFile = new File(CREDENTIALS_FILE_PATH);
-                if (!credentialsFile.exists()) {
-                        throw new IOException("Credentials file not found: " + CREDENTIALS_FILE_PATH +
-                                        "\nPlease follow the setup instructions to create this file.");
-                }
-
-                GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(
-                                JSON_FACTORY,
-                                new InputStreamReader(new FileInputStream(credentialsFile)));
-
-                // Build flow and trigger user authorization request
-                GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
-                                HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
-                                .setDataStoreFactory(new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH)))
-                                .setAccessType("offline")
-                                .build();
-
-                LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
-                return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
+                log.info("Using Service Account authentication");
+                return GoogleCredential.fromStream(
+                                new ByteArrayInputStream(serviceAccountJson.getBytes()),
+                                HTTP_TRANSPORT,
+                                JSON_FACTORY)
+                                .createScoped(SCOPES);
         }
 
         /**
