@@ -140,23 +140,47 @@ mvn test -DsuiteXmlFile=iv-data-collection.xml
 
 1. Go to your GitHub repository
 2. Navigate to: **Settings** → **Secrets and variables** → **Actions**
-3. Click "New repository secret"
+3. Click "New repository secret" for each of the following:
 
-#### Secret 1: GOOGLE_SERVICE_ACCOUNT_JSON
+#### Required Secrets:
 
-- **Name**: `GOOGLE_SERVICE_ACCOUNT_JSON`
+**1. GOOGLE_SERVICE_ACCOUNT_JSON**
 - **Value**: Entire contents of your service account JSON file
-  1. Open `trading-bot-iv-tracker-xxxxx.json` in a text editor
-  2. Copy **ALL** content (including `{` and `}`)
-  3. Paste into the secret value field
-- Click "Add secret"
+- Open `trading-bot-iv-tracker-xxxxx.json` → Copy ALL content → Paste
 
-#### Secret 2: GOOGLE_SPREADSHEET_ID
+**2. GOOGLE_SPREADSHEET_ID**
+- **Value**: Spreadsheet ID from Step 5
+- Example: `1SOoK_IGW3TVZlYQ_uYyIjSAUBTzh_tvk5qJghzTBLgA`
 
-- **Name**: `GOOGLE_SPREADSHEET_ID`
-- **Value**: The spreadsheet ID from Step 5
-  - Example: `1SOoK_IGW3TVZlYQ_uYyIjSAUBTzh_tvk5qJghzTBLgA`
-- Click "Add secret"
+**3. REFRESH_TOKEN**
+- **Value**: ThinkOrSwim API refresh token
+- Copy from your `test.properties` file
+
+**4. APP_KEY**
+- **Value**: ThinkOrSwim API app key
+- Copy from your `test.properties` file
+
+**5. PP_SECRET**
+- **Value**: ThinkOrSwim API app secret
+- Copy from your `test.properties` file (field name `pp_secret`)
+
+**6. FINNHUB_API_KEY**
+- **Value**: Finnhub API key (for earnings data)
+- Copy from your `test.properties` file
+
+**7. FMP_API_KEY**
+- **Value**: Financial Modeling Prep API key
+- Copy from your `test.properties` file
+
+#### Optional Secrets (if using Telegram notifications):
+
+**8. TELEGRAM_BOT_TOKEN**
+- **Value**: Your Telegram bot token
+- Copy from your `test.properties` file
+
+**9. TELEGRAM_CHAT_ID**
+- **Value**: Your Telegram chat ID
+- Copy from your `test.properties` file
 
 ### Step 11: Verify Workflow Configuration
 
