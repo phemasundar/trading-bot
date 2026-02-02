@@ -118,12 +118,52 @@ public class IVDataCollectionTest {
         log.info("Success: {}, Failed: {}, Total: {}", successCount, failCount, allSecurities.size());
         log.info("=".repeat(80));
 
+        // Send Telegram notification with summary
+        sendTelegramSummary(successCount, failCount, allSecurities.size());
+
         // Fail test if no data was collected (indicates authentication or other
         // critical failure)
         if (successCount == 0 && !allSecurities.isEmpty()) {
             throw new AssertionError("IV data collection failed - no symbols processed successfully. " +
                     "Check authentication and Google Sheets access.");
         }
+    }
+
+    /**
+     * Sends a Telegram notification with IV collection summary.
+     * 
+     * @param successCount Number of successfully processed symbols
+     * @param failCount    Number of failed symbols
+     * @param totalCount   Total number of symbols
+     */
+    private void sendTelegramSummary(int successCount, int failCount, int totalCount) {
+        StringBuilder message = new StringBuilder();
+        message.append("📊 <b>IV Data Collection Complete</b>\n\n");
+
+        // Success rate emoji
+        double successRate = totalCount > 0 ? (double) successCount / totalCount * 100 : 0;
+        String statusEmoji = successRate >= 90 ? "✅" : successRate >= 70 ? "⚠️" : "❌";
+
+        message.append(statusEmoji).append(" <b>Summary:</b>\n");
+        message.append("├ Total Symbols: <code>").append(totalCount).append("</code>\n");
+        message.append("├ Successful: <code>").append(successCount).append("</code>");
+
+        if (totalCount > 0) {
+            message.append(" (<code>").append(String.format("%.1f%%", successRate)).append("</code>)");
+        }
+        message.append("\n");
+
+        if (failCount > 0) {
+            message.append("└ Failed: <code>").append(failCount).append("</code>\n");
+        } else {
+            message.append("└ Failed: <code>0</code> 🎉\n");
+        }
+
+        message.append("\n📅 Date: <code>").append(java.time.LocalDate.now()).append("</code>");
+        message.append("\n🕐 Time: <code>").append(java.time.LocalTime.now().format(
+                java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"))).append("</code>");
+
+        com.hemasundar.utils.TelegramUtils.sendMessage(message.toString());
     }
 
     /**
