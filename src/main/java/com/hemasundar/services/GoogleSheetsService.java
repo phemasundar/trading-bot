@@ -51,7 +51,9 @@ public class GoogleSheetsService {
 
         /**
          * Creates credentials for Google Sheets API using Service Account.
-         * Reads JSON from GOOGLE_SERVICE_ACCOUNT_JSON environment variable.
+         * Authentication sources (in order of priority):
+         * 1. GOOGLE_SERVICE_ACCOUNT_JSON environment variable (for CI/CD)
+         * 2. service-account.json file in project root (for local development)
          *
          * @param HTTP_TRANSPORT The network HTTP Transport.
          * @return An authorized Credential object.
@@ -60,18 +62,32 @@ public class GoogleSheetsService {
         private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
                 String serviceAccountJson = System.getenv("GOOGLE_SERVICE_ACCOUNT_JSON");
 
-                if (serviceAccountJson == null || serviceAccountJson.isEmpty()) {
-                        throw new IOException("GOOGLE_SERVICE_ACCOUNT_JSON environment variable not set.\n" +
-                                        "Please set this variable with your service account JSON content.\n" +
-                                        "See setup_guide.md for instructions.");
+                if (serviceAccountJson != null && !serviceAccountJson.isEmpty()) {
+                        // Use environment variable (GitHub Actions / CI/CD)
+                        log.info("Using Service Account authentication from environment variable");
+                        return GoogleCredential.fromStream(
+                                        new ByteArrayInputStream(serviceAccountJson.getBytes()),
+                                        HTTP_TRANSPORT,
+                                        JSON_FACTORY)
+                                        .createScoped(SCOPES);
                 }
 
-                log.info("Using Service Account authentication");
-                return GoogleCredential.fromStream(
-                                new ByteArrayInputStream(serviceAccountJson.getBytes()),
-                                HTTP_TRANSPORT,
-                                JSON_FACTORY)
-                                .createScoped(SCOPES);
+                // Fall back to file (local development)
+                java.io.File serviceAccountFile = new java.io.File("service-account.json");
+                if (serviceAccountFile.exists()) {
+                        log.info("Using Service Account authentication from service-account.json file");
+                        try (java.io.FileInputStream fis = new java.io.FileInputStream(serviceAccountFile)) {
+                                return GoogleCredential.fromStream(fis, HTTP_TRANSPORT, JSON_FACTORY)
+                                                .createScoped(SCOPES);
+                        }
+                }
+
+                // Neither environment variable nor file found
+                throw new IOException("Service Account credentials not found.\n" +
+                                "Please either:\n" +
+                                "  1. Set GOOGLE_SERVICE_ACCOUNT_JSON environment variable, OR\n" +
+                                "  2. Place service-account.json file in project root directory\n" +
+                                "See SETUP_GUIDE.md for detailed instructions.");
         }
 
         /**
