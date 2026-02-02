@@ -5,6 +5,12 @@
   <groupId>com.hemasundar</groupId>
   <artifactId>trading-bot</artifactId>
   <packaging>jar</packaging>
+
+  <properties>
+    <!-- Default TestNG suite, can be overridden via -DsuiteXmlFile -->
+    <suiteXmlFile>TestNG.xml</suiteXmlFile>
+  </properties>
+
   <build>
     <plugins>
       <plugin>
@@ -20,9 +26,12 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.2.5</version> <!-- Use a recent version -->
         <configuration>
+          <!-- Only run TestNG.xml by default -->
           <suiteXmlFiles>
-            <suiteXmlFile>TestNG.xml</suiteXmlFile>
+            <suiteXmlFile>${suiteXmlFile}</suiteXmlFile>
           </suiteXmlFiles>
+          <!-- Disable auto-discovery when suite is specified -->
+          <skipTests>false</skipTests>
         </configuration>
       </plugin>
     </plugins>
