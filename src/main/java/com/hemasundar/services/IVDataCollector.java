@@ -21,7 +21,7 @@ import java.util.Map;
 public class IVDataCollector {
 
     private static final int TARGET_DTE = 30;
-    private static final int DTE_TOLERANCE = 5;
+    private static final int DTE_TOLERANCE = 30;
 
     /**
      * Collects IV data point for a given symbol.

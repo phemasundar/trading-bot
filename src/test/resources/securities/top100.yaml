@@ -1,101 +1,120 @@
+# Source: https://companiesmarketcap.com/usa/largest-companies-in-the-usa-by-market-cap/
 securities:
-  - "NVDA"   # Nvidia
+  - "NVDA"   # NVIDIA
+  - "GOOG"   # Alphabet (Google)
   - "AAPL"   # Apple
   - "MSFT"   # Microsoft
-  - "GOOGL"  # Alphabet (Google)
   - "AMZN"   # Amazon
-  - "META"   # Meta (Facebook)
+  - "META"   # Meta Platforms (Facebook)
   - "TSLA"   # Tesla
   - "AVGO"   # Broadcom
-  - "BRK.B"  # Berkshire Hathaway
-  - "LLY"    # Eli Lilly
-  - "WMT"    # Walmart
-  - "JPM"    # JPMorgan Chase
-  - "V"      # Visa
+  - "BRK/B"   # Berkshire Hathaway
+  - "WMT"   # Walmart
+  - "LLY"   # Eli Lilly
+  - "JPM"   # JPMorgan Chase
+  - "V"   # Visa
+  - "XOM"   # Exxon Mobil
+  - "JNJ"   # Johnson & Johnson
+  - "MA"   # Mastercard
+  - "MU"   # Micron Technology
   - "ORCL"   # Oracle
-  - "XOM"    # Exxon Mobil
-  - "MA"     # Mastercard
-  - "JNJ"    # Johnson & Johnson
   - "COST"   # Costco
-  - "PLTR"   # Palantir
-  - "BAC"    # Bank of America
+  - "AMD"   # AMD
   - "ABBV"   # AbbVie
-  - "MU"     # Micron
+  - "BAC"   # Bank of America
+  - "HD"   # Home Depot
+  - "PG"   # Procter & Gamble
+  - "PLTR"   # Palantir
   - "NFLX"   # Netflix
-  - "HD"     # Home Depot
-  - "GE"     # GE Aerospace
-  - "PG"     # Procter & Gamble
-  - "UNH"    # UnitedHealth
-  - "KO"     # Coca-Cola
-  - "AMD"    # Advanced Micro Devices
-  - "CRM"    # Salesforce
-  - "IBM"    # IBM
-  - "MS"     # Morgan Stanley
-  - "WFC"    # Wells Fargo
-  - "CVX"    # Chevron
-  - "MRK"    # Merck
-  - "NOW"    # ServiceNow
-  - "LIN"    # Linde
-  - "ACN"    # Accenture
-  - "TMO"    # Thermo Fisher
-  - "ABT"    # Abbott Labs
+  - "CVX"   # Chevron
+  - "GE"   # General Electric
+  - "KO"   # Coca-Cola
+  - "CAT"   # Caterpillar
   - "CSCO"   # Cisco
-  - "PEP"    # PepsiCo
-  - "DIS"    # Disney
-  - "INTU"   # Intuit
-  - "VZ"     # Verizon
-  - "QCOM"   # Qualcomm
-  - "CAT"    # Caterpillar
-  - "AXP"    # American Express
-  - "UBER"   # Uber
-  - "TXN"    # Texas Instruments
-  - "AMGN"   # Amgen
-  - "SPGI"   # S&P Global
-  - "BKNG"   # Booking Holdings
-  - "ISRG"   # Intuitive Surgical
-  - "HON"    # Honeywell
-  - "GS"     # Goldman Sachs
-  - "AMAT"   # Applied Materials
-  - "PFE"    # Pfizer
-  - "LOW"    # Lowe's
-  - "CMCSA"  # Comcast
-  - "NEE"    # NextEra Energy
-  - "UNP"    # Union Pacific
-  - "RTX"    # RTX Corp
-  - "ETN"    # Eaton Corp
-  - "T"      # AT&T
-  - "TJX"    # TJX Companies
-  - "PGR"    # Progressive
-  - "SCHW"   # Charles Schwab
-  - "BLK"    # BlackRock
-  - "DE"     # John Deere
-  - "SYK"    # Stryker
-  - "ELV"    # Elevance Health
-  - "LMT"    # Lockheed Martin
-  - "ADI"    # Analog Devices
-  - "MMC"    # Marsh & McLennan
-  - "ADP"    # ADP
-  - "C"      # Citigroup
-  - "MDT"    # Medtronic
-  - "BSX"    # Boston Scientific
-  - "VRTX"   # Vertex Pharmaceuticals
-  - "GILD"   # Gilead Sciences
-  - "TMUS"   # T-Mobile
-  - "FI"     # Fiserv
-  - "REGN"   # Regeneron
-  - "CI"     # Cigna
-  - "CB"     # Chubb
-  - "PANW"   # Palo Alto Networks
-  - "SO"     # Southern Company
-  - "MO"     # Altria
-  - "SLB"    # Schlumberger
-  - "EOG"    # EOG Resources
-  - "KLAC"   # KLA Corp
-  - "BMY"    # Bristol-Myers Squibb
   - "LRCX"   # Lam Research
-  - "ZTS"    # Zoetis
-  - "ICE"    # Intercontinental Exchange
-  - "MCO"    # Moody's
-  - "SHW"    # Sherwin-Williams
-  - "APH"    # Amphenol
-  - "PH"     # Parker-Hannifin
+  - "IBM"   # IBM
+  - "MS"   # Morgan Stanley
+  - "WFC"   # Wells Fargo
+  - "GS"   # Goldman Sachs
+  - "MRK"   # Merck
+  - "PM"   # Philip Morris International
+  - "RTX"   # RTX
+  - "AMAT"   # Applied Materials
+  - "UNH"   # UnitedHealth
+  - "INTC"   # Intel
+  - "AXP"   # American Express
+  - "MCD"   # McDonald
+  - "TMUS"   # T-Mobile US
+  - "TMO"   # Thermo Fisher Scientific
+  - "PEP"   # Pepsico
+  - "C"   # Citigroup
+  - "GEV"   # GE Vernova
+  - "TXN"   # Texas Instruments
+  - "CRM"   # Salesforce
+  - "SCHW"   # Charles Schwab
+  - "ABT"   # Abbott Laboratories
+  - "VZ"   # Verizon
+  - "DIS"   # Walt Disney
+  - "T"   # AT&T
+  - "KLAC"   # KLA
+  - "AMGN"   # Amgen
+  - "BA"   # Boeing
+  - "NEE"   # Nextera Energy
+  - "BX"   # Blackstone Group
+  - "ISRG"   # Intuitive Surgical
+  - "APH"   # Amphenol
+  - "GILD"   # Gilead Sciences
+  - "ANET"   # Arista Networks
+  - "BLK"   # BlackRock
+  - "UBER"   # Uber
+  - "TJX"   # TJX Companies
+  - "BKNG"   # Booking Holdings (Booking.com)
+  - "QCOM"   # QUALCOMM
+  - "APP"   # AppLovin
+  - "SPGI"   # S&P Global
+  - "DHR"   # Danaher
+  - "SCCO"   # Southern Copper
+  - "ADI"   # Analog Devices
+  - "HON"   # Honeywell
+  - "PFE"   # Pfizer
+  - "LOW"   # Lowe's Companies
+  - "LMT"   # Lockheed Martin
+  - "DE"   # Deere & Company (John Deere)
+  - "COF"   # Capital One
+  - "SYK"   # Stryker Corporation
+  - "UNP"   # Union Pacific Corporation
+  - "BSX"   # Boston Scientific
+  - "INTU"   # Intuit
+  - "WELL"   # Welltower
+  - "IBKR"   # Interactive Brokers
+  - "COP"   # ConocoPhillips
+  - "NOW"   # ServiceNow
+  - "NEM"   # Newmont
+  - "ADBE"   # Adobe
+  - "PANW"   # Palo Alto Networks
+  - "VRTX"   # Vertex Pharmaceuticals
+  - "PLD"   # Prologis
+  - "PH"   # Parker-Hannifin
+  - "PGR"   # Progressive
+  - "CMCSA"   # Comcast
+  - "HCA"   # HCA Healthcare
+  - "BMY"   # Bristol-Myers Squibb
+  - "CRWD"   # CrowdStrike
+  - "LIN"   # Linde
+  - "ACN"   # Accenture
+  - "ETN"   # Eaton Corp
+  - "ELV"   # Elevance Health
+  - "ADP"   # ADP
+  - "MDT"   # Medtronic
+  - "FISV"   # Fiserv
+  - "REGN"   # Regeneron
+  - "CI"   # Cigna
+  - "CB"   # Chubb
+  - "SO"   # Southern Company
+  - "MO"   # Altria
+  - "SLB"   # Schlumberger
+  - "EOG"   # EOG Resources
+  - "ZTS"   # Zoetis
+  - "ICE"   # Intercontinental Exchange
+  - "MCO"   # Moody's
+  - "SHW"   # Sherwin-Williams
