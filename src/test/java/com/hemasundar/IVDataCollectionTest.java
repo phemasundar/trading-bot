@@ -14,6 +14,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.GeneralSecurityException;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -121,6 +123,15 @@ public class IVDataCollectionTest {
         // Send Telegram notification with summary
         sendTelegramSummary(successCount, failCount, allSecurities.size());
 
+        // Reorder sheets to match YAML order
+        try {
+            sheetsService.reorderSheets(new ArrayList<>(allSecurities));
+            log.info("Successfully reordered sheets to match YAML securities order");
+        } catch (IOException e) {
+            log.error("Failed to reorder sheets: {}", e.getMessage());
+            // Don't fail test for reordering - data is already saved
+        }
+
         // Fail test if no data was collected (indicates authentication or other
         // critical failure)
         if (successCount == 0 && !allSecurities.isEmpty()) {
@@ -173,7 +184,7 @@ public class IVDataCollectionTest {
      * @return Set of unique security symbols in order
      */
     private Set<String> loadAllSecurities() {
-        Set<String> securities = new java.util.LinkedHashSet<>(); // Preserves insertion order
+        Set<String> securities = new LinkedHashSet<>(); // Preserves insertion order
         File securitiesDir = FilePaths.securitiesDirectory.toFile();
 
         if (!securitiesDir.exists() || !securitiesDir.isDirectory()) {

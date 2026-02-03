@@ -15,9 +15,8 @@ import lombok.extern.log4j.Log4j2;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Service to interact with Google Sheets API for storing IV data.
@@ -244,6 +243,53 @@ public class GoogleSheetsService {
                                         throw new IOException("Failed to write to Google Sheets: " + e.getMessage(), e);
                                 }
                         }
+                }
+        }
+
+        /**
+         * Reorders sheets to match the provided symbol order.
+         * Uses batch update to minimize API calls.
+         *
+         * @param symbolsInOrder List of symbols in desired order
+         * @throws IOException if API call fails
+         */
+        public void reorderSheets(List<String> symbolsInOrder) throws IOException {
+                // Get current sheets
+                Spreadsheet spreadsheet = sheetsService.spreadsheets()
+                                .get(spreadsheetId)
+                                .execute();
+
+                // Build map of symbol -> sheetId
+                Map<String, Integer> symbolToSheetId = spreadsheet.getSheets().stream()
+                                .collect(Collectors.toMap(
+                                                sheet -> sheet.getProperties().getTitle(),
+                                                sheet -> sheet.getProperties().getSheetId()));
+
+                // Build batch update requests to reorder sheets
+                List<Request> requests = new ArrayList<>();
+                for (int i = 0; i < symbolsInOrder.size(); i++) {
+                        String symbol = symbolsInOrder.get(i);
+                        Integer sheetId = symbolToSheetId.get(symbol);
+
+                        if (sheetId != null) {
+                                requests.add(new Request()
+                                                .setUpdateSheetProperties(new UpdateSheetPropertiesRequest()
+                                                                .setProperties(new SheetProperties()
+                                                                                .setSheetId(sheetId)
+                                                                                .setIndex(i))
+                                                                .setFields("index")));
+                        }
+                }
+
+                // Execute batch update
+                if (!requests.isEmpty()) {
+                        BatchUpdateSpreadsheetRequest batchRequest = new BatchUpdateSpreadsheetRequest()
+                                        .setRequests(requests);
+                        sheetsService.spreadsheets()
+                                        .batchUpdate(spreadsheetId, batchRequest)
+                                        .execute();
+
+                        log.info("Reordered {} sheets to match securities order", requests.size());
                 }
         }
 

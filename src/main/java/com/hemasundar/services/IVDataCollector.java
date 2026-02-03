@@ -100,7 +100,7 @@ public class IVDataCollector {
      */
     private static String findTargetExpiry(OptionChainResponse chain) {
         List<String> expiryDates = chain.getExpiryDatesInRange(
-                0,
+                TARGET_DTE,
                 TARGET_DTE - DTE_TOLERANCE,
                 TARGET_DTE + DTE_TOLERANCE);
 
