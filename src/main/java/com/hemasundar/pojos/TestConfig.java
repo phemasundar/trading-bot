@@ -75,27 +75,6 @@ public record TestConfig(
         }
     }
 
-    // Add logging to debug configuration loading
-    static {
-        TestConfig config = Holder.INSTANCE;
-        System.out.println("=== Configuration Loaded ===");
-        logValue("Refresh Token", config.refreshToken());
-        logValue("App Key", config.appKey());
-        logValue("PP Secret", config.ppSecret());
-        logValue("Finnhub Key", config.finnhubApiKey());
-        logValue("FMP Key", config.fmpApiKey());
-        System.out.println("Telegram Enabled: " + config.telegramEnabled());
-        System.out.println("============================");
-    }
-
-    private static void logValue(String name, String value) {
-        if (value == null || value.isBlank()) {
-            System.out.println(name + ": [MISSING/EMPTY]");
-        } else {
-            System.out.println(name + ": [PRESENT] (Length: " + value.length() + ")");
-        }
-    }
-
     public static TestConfig getInstance() {
         return Holder.INSTANCE;
     }
