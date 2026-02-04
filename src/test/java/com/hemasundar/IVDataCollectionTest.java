@@ -221,12 +221,12 @@ public class IVDataCollectionTest {
                     // Store to enabled databases
                     if (googleSheetsEnabled && sheetsService != null) {
                         sheetsService.appendIVData(dataPoint);
-                        log.debug("[{}] Saved to Google Sheets", symbol);
+                        log.info("[{}] ✓ Saved to Google Sheets", symbol);
                     }
 
                     if (supabaseEnabled && supabaseService != null) {
                         supabaseService.upsertIVData(dataPoint);
-                        log.debug("[{}] Saved to Supabase", symbol);
+                        log.info("[{}] ✓ Saved to Supabase", symbol);
                     }
 
                     successCount++;
