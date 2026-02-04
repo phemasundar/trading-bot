@@ -595,3 +595,20 @@ See `SUPABASE_SETUP_GUIDE.md` for complete setup instructions including:
 - Security setup (Row Level Security)
 - Connection testing
 
+### CI/CD Configuration
+
+The code automatically works in GitHub Actions without `test.properties`:
+- Reads configuration from environment variables first
+- Falls back to `test.properties` for local development
+- Uses sensible defaults if neither are available
+
+**GitHub Secrets Required:**
+- `GOOGLE_SPREADSHEET_ID` (if Google Sheets enabled)
+- `GOOGLE_SERVICE_ACCOUNT_JSON` (if Google Sheets enabled)  
+- `SUPABASE_URL` (if Supabase enabled)
+- `SUPABASE_ANON_KEY` (if Supabase enabled)
+
+Optional environment variables:
+- `GOOGLE_SHEETS_ENABLED` (default: true)
+- `SUPABASE_ENABLED` (default: false)
+

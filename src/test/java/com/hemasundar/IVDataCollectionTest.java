@@ -77,23 +77,43 @@ public class IVDataCollectionTest {
     }
 
     /**
-     * Loads database enable/disable configuration from test.properties.
+     * Loads database enable/disable configuration from test.properties or
+     * environment variables.
+     * For CI/CD: test.properties may not exist, so we check environment variables.
      */
     private void loadDatabaseConfiguration() throws IOException {
+        // First check environment variables (for CI/CD)
+        String sheetsEnabledEnv = System.getenv("GOOGLE_SHEETS_ENABLED");
+        String supabaseEnabledEnv = System.getenv("SUPABASE_ENABLED");
+
+        if (sheetsEnabledEnv != null || supabaseEnabledEnv != null) {
+            // Use environment variables
+            googleSheetsEnabled = Boolean.parseBoolean(
+                    sheetsEnabledEnv != null ? sheetsEnabledEnv : "true");
+            supabaseEnabled = Boolean.parseBoolean(
+                    supabaseEnabledEnv != null ? supabaseEnabledEnv : "false");
+            log.info("Database configuration loaded from environment: Google Sheets={}, Supabase={}",
+                    googleSheetsEnabled, supabaseEnabled);
+            return;
+        }
+
+        // Fall back to test.properties (for local development)
         try (InputStream input = new FileInputStream(FilePaths.testConfig.toFile())) {
             java.util.Properties prop = new java.util.Properties();
             prop.load(input);
 
-            // Load enable flags (default to true for backward compatibility)
             googleSheetsEnabled = Boolean.parseBoolean(
                     prop.getProperty("google_sheets_enabled", "true"));
             supabaseEnabled = Boolean.parseBoolean(
                     prop.getProperty("supabase_enabled", "false"));
 
-            log.info("Database configuration loaded: Google Sheets={}, Supabase={}",
+            log.info("Database configuration loaded from test.properties: Google Sheets={}, Supabase={}",
                     googleSheetsEnabled, supabaseEnabled);
         } catch (IOException e) {
-            throw new IOException("Failed to load database configuration: " + e.getMessage(), e);
+            // If file doesn't exist (CI/CD), use defaults
+            log.warn("test.properties not found, using defaults: Google Sheets=true, Supabase=false");
+            googleSheetsEnabled = true;
+            supabaseEnabled = false;
         }
     }
 
@@ -110,25 +130,27 @@ public class IVDataCollectionTest {
             return spreadsheetId;
         }
 
-        // Fall back to test.properties
-        try (InputStream input = new FileInputStream(FilePaths.testConfig.toFile())) {
-            java.util.Properties prop = new java.util.Properties();
-            prop.load(input);
-            spreadsheetId = prop.getProperty("google_sheets_spreadsheet_id");
+        // Fall back to test.properties (may not exist in CI/CD)
+        if (FilePaths.testConfig.toFile().exists()) {
+            try (InputStream input = new FileInputStream(FilePaths.testConfig.toFile())) {
+                java.util.Properties prop = new java.util.Properties();
+                prop.load(input);
+                spreadsheetId = prop.getProperty("google_sheets_spreadsheet_id");
 
-            if (spreadsheetId == null || spreadsheetId.isEmpty() ||
-                    spreadsheetId.equals("YOUR_SPREADSHEET_ID_HERE")) {
-                throw new IllegalStateException(
-                        "Google Sheets spreadsheet ID not configured. " +
-                                "Please set 'google_sheets_spreadsheet_id' in test.properties");
+                if (spreadsheetId != null && !spreadsheetId.isEmpty() &&
+                        !spreadsheetId.equals("YOUR_SPREADSHEET_ID_HERE")) {
+                    log.info("Using spreadsheet ID from test.properties");
+                    return spreadsheetId;
+                }
+            } catch (IOException e) {
+                log.warn("Failed to read test.properties: {}", e.getMessage());
             }
-
-            log.info("Using spreadsheet ID from test.properties");
-            return spreadsheetId;
-
-        } catch (IOException e) {
-            throw new IOException("Failed to load test.properties: " + e.getMessage(), e);
         }
+
+        throw new IllegalStateException(
+                "Google Sheets spreadsheet ID not configured. " +
+                        "Set GOOGLE_SPREADSHEET_ID environment variable or 'google_sheets_spreadsheet_id' in test.properties");
+
     }
 
     /**
@@ -139,15 +161,22 @@ public class IVDataCollectionTest {
         String supabaseUrl = System.getenv("SUPABASE_URL");
         String supabaseKey = System.getenv("SUPABASE_ANON_KEY");
 
-        // Fall back to test.properties
-        if (supabaseUrl == null || supabaseUrl.isEmpty() ||
-                supabaseKey == null || supabaseKey.isEmpty()) {
+        // Fall back to test.properties (if file exists)
+        if ((supabaseUrl == null || supabaseUrl.isEmpty() ||
+                supabaseKey == null || supabaseKey.isEmpty()) &&
+                FilePaths.testConfig.toFile().exists()) {
             try (InputStream input = new FileInputStream(FilePaths.testConfig.toFile())) {
                 java.util.Properties prop = new java.util.Properties();
                 prop.load(input);
 
-                supabaseUrl = prop.getProperty("supabase_url");
-                supabaseKey = prop.getProperty("supabase_anon_key");
+                if (supabaseUrl == null || supabaseUrl.isEmpty()) {
+                    supabaseUrl = prop.getProperty("supabase_url");
+                }
+                if (supabaseKey == null || supabaseKey.isEmpty()) {
+                    supabaseKey = prop.getProperty("supabase_anon_key");
+                }
+            } catch (IOException e) {
+                log.warn("Failed to read test.properties: {}", e.getMessage());
             }
         }
 
@@ -156,14 +185,14 @@ public class IVDataCollectionTest {
                 supabaseUrl.equals("YOUR_SUPABASE_PROJECT_URL")) {
             throw new IllegalStateException(
                     "Supabase URL not configured. " +
-                            "Please set 'supabase_url' in test.properties or SUPABASE_URL environment variable");
+                            "Set SUPABASE_URL environment variable or 'supabase_url' in test.properties");
         }
 
         if (supabaseKey == null || supabaseKey.isEmpty() ||
                 supabaseKey.equals("YOUR_SUPABASE_PUBLISHABLE_KEY")) {
             throw new IllegalStateException(
                     "Supabase API key not configured. " +
-                            "Please set 'supabase_anon_key' in test.properties or SUPABASE_ANON_KEY environment variable");
+                            "Set SUPABASE_ANON_KEY environment variable or 'supabase_anon_key' in test.properties");
         }
 
         supabaseService = new SupabaseService(supabaseUrl, supabaseKey);
