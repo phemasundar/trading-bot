@@ -612,3 +612,14 @@ Optional environment variables:
 - `GOOGLE_SHEETS_ENABLED` (default: true)
 - `SUPABASE_ENABLED` (default: false)
 
+### Recent Fixes (2026-02-03)
+
+**UPSERT Logic:**
+Fixed 409 duplicate key error by adding PostgREST `on_conflict` parameter to properly handle updates when same symbol+date exists.
+
+**Logging:**
+Changed database save operations from DEBUG to INFO level for better visibility.
+
+**GitHub Actions:**
+Added `GOOGLE_SHEETS_ENABLED` and `SUPABASE_ENABLED` environment variables to workflow for full control over database selection in CI/CD.
+

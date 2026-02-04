@@ -86,8 +86,9 @@ public class SupabaseService {
         // Build JSON payload
         String jsonPayload = buildJsonPayload(dataPoint);
 
-        // Upsert URL
-        String url = projectUrl + REST_API_PATH;
+        // Upsert URL with on_conflict parameter (PostgREST syntax)
+        // This tells Supabase to update if symbol+date already exists
+        String url = projectUrl + REST_API_PATH + "?on_conflict=symbol,date";
 
         // Retry logic for transient errors
         int maxRetries = 3;
@@ -99,7 +100,7 @@ public class SupabaseService {
                         .header("apikey", apiKey)
                         .header("Authorization", "Bearer " + apiKey)
                         .header("Content-Type", "application/json")
-                        .header("Prefer", "resolution=merge-duplicates") // Handle unique constraint
+                        .header("Prefer", "resolution=merge-duplicates") // UPSERT behavior
                         .body(jsonPayload);
 
                 Response response = request.post(url);
