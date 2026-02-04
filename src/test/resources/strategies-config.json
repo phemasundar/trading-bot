@@ -206,7 +206,18 @@
                 "longCall": {
                     "minDelta": 0.4,
                     "minOpenInterest": 100
-                }
+                },
+                "relaxationPriority": [
+                    "maxCAGRForBreakEven",
+                    "maxOptionPricePercent",
+                    "minCostSavingsPercent"
+                ],
+                "sortPriority": [
+                    "daysToExpiration",
+                    "costSavingsPercent",
+                    "optionPricePercent",
+                    "breakevenCAGR"
+                ]
             }
         },
         {

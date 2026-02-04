@@ -159,18 +159,20 @@ public class LongCallLeapTopNStrategy extends LongCallLeapStrategy {
 
     /**
      * Sorts trades by priority criteria and returns top N.
-     * Priority:
+     * Priority order is configurable via filter.sortPriority.
+     * 
+     * Default priority:
      * 1. daysToExpiration (descending - higher/longer is better)
      * 2. costSavingsPercent (descending - higher is better)
      * 3. optionPricePercent (ascending - lower is better)
      * 4. breakevenCAGR (ascending - lower is better)
      */
     private List<TradeSetup> getTopNTrades(List<TradeSetup> trades, int topN) {
-        Comparator<LongCallLeap> comparator = Comparator
-                .comparingInt(LongCallLeap::getDaysToExpiration).reversed()
-                .thenComparingDouble(LongCallLeap::getCostSavingsPercent).reversed()
-                .thenComparingDouble(LongCallLeap::getOptionPricePercent)
-                .thenComparingDouble(LongCallLeap::getBreakevenCAGR);
+        // Get sort priority from filter or use default
+        java.util.List<String> sortOrder = getDefaultSortPriority();
+
+        // Build dynamic comparator
+        Comparator<LongCallLeap> comparator = buildSortComparator(sortOrder);
 
         return trades.stream()
                 .filter(t -> t instanceof LongCallLeap)
@@ -178,5 +180,37 @@ public class LongCallLeapTopNStrategy extends LongCallLeapStrategy {
                 .sorted(comparator)
                 .limit(topN)
                 .collect(Collectors.toList());
+    }
+
+    private java.util.List<String> getDefaultSortPriority() {
+        return java.util.Arrays.asList(
+                "daysToExpiration",
+                "costSavingsPercent",
+                "optionPricePercent",
+                "breakevenCAGR");
+    }
+
+    private Comparator<LongCallLeap> buildSortComparator(java.util.List<String> sortOrder) {
+        Comparator<LongCallLeap> comparator = null;
+
+        for (String field : sortOrder) {
+            Comparator<LongCallLeap> fieldComparator = getComparatorForField(field);
+            comparator = (comparator == null) ? fieldComparator : comparator.thenComparing(fieldComparator);
+        }
+
+        return comparator != null ? comparator : Comparator.comparingInt(LongCallLeap::getDaysToExpiration).reversed();
+    }
+
+    private Comparator<LongCallLeap> getComparatorForField(String field) {
+        return switch (field) {
+            case "daysToExpiration" -> Comparator.comparingInt(LongCallLeap::getDaysToExpiration).reversed();
+            case "costSavingsPercent" -> Comparator.comparingDouble(LongCallLeap::getCostSavingsPercent).reversed();
+            case "optionPricePercent" -> Comparator.comparingDouble(LongCallLeap::getOptionPricePercent);
+            case "breakevenCAGR" -> Comparator.comparingDouble(LongCallLeap::getBreakevenCAGR);
+            default -> {
+                log.warn("Unknown sort field: {}. Using daysToExpiration.", field);
+                yield Comparator.comparingInt(LongCallLeap::getDaysToExpiration).reversed();
+            }
+        };
     }
 }

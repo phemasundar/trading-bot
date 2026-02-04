@@ -37,4 +37,35 @@ public class LongCallLeapFilter extends OptionsStrategyFilter {
      * If null or not set, defaults to 3.
      */
     private Integer topTradesCount;
+
+    /**
+     * Controls the order in which filters are relaxed when fewer than N trades are
+     * found.
+     * List field names in order of relaxation (first = relax first, last = relax
+     * last).
+     * 
+     * Valid values: "maxCAGRForBreakEven", "maxOptionPricePercent",
+     * "minCostSavingsPercent"
+     * 
+     * Example: ["maxCAGRForBreakEven", "maxOptionPricePercent",
+     * "minCostSavingsPercent"]
+     * 
+     * If null or not set, defaults to the order above.
+     * Filters NOT in this list are considered hard filters and never relaxed.
+     */
+    private java.util.List<String> relaxationPriority;
+
+    /**
+     * Controls the order in which trades are sorted (most important first).
+     * List field names in priority order.
+     * 
+     * Valid values: "daysToExpiration", "costSavingsPercent", "optionPricePercent",
+     * "breakevenCAGR"
+     * 
+     * Example: ["daysToExpiration", "costSavingsPercent", "optionPricePercent",
+     * "breakevenCAGR"]
+     * 
+     * If null or not set, defaults to the order above.
+     */
+    private java.util.List<String> sortPriority;
 }
