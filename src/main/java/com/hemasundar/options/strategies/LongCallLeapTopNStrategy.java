@@ -40,32 +40,28 @@ public class LongCallLeapTopNStrategy extends LongCallLeapStrategy {
             return getTopNTrades(trades, topN);
         }
 
-        // Step 2: Progressive relaxation of QUALITY filters only
-        // Hard requirements (minDTE, ignoreEarnings, delta, etc.) are NEVER relaxed
+        // Step 2: Check if progressive relaxation is enabled
+        java.util.List<String> relaxationOrder = getRelaxationPriority(filter);
+
+        if (relaxationOrder == null || relaxationOrder.isEmpty()) {
+            // No relaxation configured - return strict results only
+            log.info("[{}] No relaxationPriority configured. Returning {} strict trades (target was {})",
+                    chain.getSymbol(), trades.size(), topN);
+            return getTopNTrades(trades, topN);
+        }
+
+        // Progressive relaxation is enabled
+        log.info("[{}] Applying progressive relaxation with order: {}", chain.getSymbol(), relaxationOrder);
         List<TradeSetup> allTrades = new ArrayList<>(trades);
 
-        // Level 1: Relax CAGR requirement (lowest sort priority)
-        if (allTrades.size() < topN) {
-            log.info("[{}] Applying Level 1 relaxation (maxCAGRForBreakEven)", chain.getSymbol());
-            List<TradeSetup> level1Trades = findTradesWithRelaxation(chain, filter, RelaxationLevel.LEVEL_1);
-            allTrades = combineAndDeduplicate(allTrades, level1Trades);
-            log.info("[{}] Total trades after Level 1: {}", chain.getSymbol(), allTrades.size());
-        }
+        // Apply relaxation levels based on configured priority
+        for (int i = 0; i < relaxationOrder.size() && allTrades.size() < topN; i++) {
+            String filterToRelax = relaxationOrder.get(i);
+            log.info("[{}] Applying relaxation level {} ({})", chain.getSymbol(), i + 1, filterToRelax);
 
-        // Level 2: Also relax option price percentage
-        if (allTrades.size() < topN) {
-            log.info("[{}] Applying Level 2 relaxation (+ maxOptionPricePercent)", chain.getSymbol());
-            List<TradeSetup> level2Trades = findTradesWithRelaxation(chain, filter, RelaxationLevel.LEVEL_2);
-            allTrades = combineAndDeduplicate(allTrades, level2Trades);
-            log.info("[{}] Total trades after Level 2: {}", chain.getSymbol(), allTrades.size());
-        }
-
-        // Level 3: Final relaxation - also relax cost savings requirement
-        if (allTrades.size() < topN) {
-            log.info("[{}] Applying Level 3 relaxation (+ minCostSavingsPercent)", chain.getSymbol());
-            List<TradeSetup> level3Trades = findTradesWithRelaxation(chain, filter, RelaxationLevel.LEVEL_3);
-            allTrades = combineAndDeduplicate(allTrades, level3Trades);
-            log.info("[{}] Total trades after Level 3: {}", chain.getSymbol(), allTrades.size());
+            List<TradeSetup> relaxedTrades = findTradesWithRelaxation(chain, filter, relaxationOrder.subList(0, i + 1));
+            allTrades = combineAndDeduplicate(allTrades, relaxedTrades);
+            log.info("[{}] Total trades after level {}: {}", chain.getSymbol(), i + 1, allTrades.size());
         }
 
         // Sort and return top N from combined list
@@ -73,62 +69,55 @@ public class LongCallLeapTopNStrategy extends LongCallLeapStrategy {
     }
 
     /**
-     * Relaxation levels for progressive quality filter loosening.
-     * Hard requirements (minDTE, ignoreEarnings, delta) are NEVER relaxed.
+     * Gets the relaxation priority from filter configuration.
+     * Returns null if not configured (no relaxation should be applied).
      */
-    private enum RelaxationLevel {
-        LEVEL_1, // Relax maxCAGRForBreakEven only
-        LEVEL_2, // + Relax maxOptionPricePercent
-        LEVEL_3 // + Relax minCostSavingsPercent
+    private java.util.List<String> getRelaxationPriority(OptionsStrategyFilter filter) {
+        if (filter instanceof LongCallLeapFilter leapFilter) {
+            return leapFilter.getRelaxationPriority();
+        }
+        return null;
     }
 
     /**
-     * Finds trades with relaxed quality filters based on the specified relaxation
-     * level.
+     * Finds trades with relaxed quality filters based on the specified filters to
+     * relax.
      * Hard requirements (minDTE, maxDTE, ignoreEarnings, delta) are preserved at
      * all levels.
+     * 
+     * @param chain          Option chain response
+     * @param filter         Original filter
+     * @param filtersToRelax List of filter names to relax (null values)
      */
     private List<TradeSetup> findTradesWithRelaxation(OptionChainResponse chain,
             OptionsStrategyFilter filter,
-            RelaxationLevel level) {
+            java.util.List<String> filtersToRelax) {
         if (!(filter instanceof LongCallLeapFilter originalFilter)) {
             return new ArrayList<>();
         }
 
-        // Start with all base filters preserved
-        LongCallLeapFilter.LongCallLeapFilterBuilder builder = LongCallLeapFilter.builder()
-                .minDTE(filter.getMinDTE()) // NEVER relaxed
-                .maxDTE(filter.getMaxDTE()) // NEVER relaxed
-                .targetDTE(filter.getTargetDTE()) // NEVER relaxed
-                .ignoreEarnings(filter.isIgnoreEarnings()) // NEVER relaxed
+        // Apply relaxations based on configured list
+        boolean relaxCAGR = filtersToRelax.contains("maxCAGRForBreakEven");
+        boolean relaxOptionPrice = filtersToRelax.contains("maxOptionPricePercent");
+        boolean relaxCostSavings = filtersToRelax.contains("minCostSavingsPercent");
+
+        // Build relaxed filter in one chain (parent fields first, then child fields)
+        LongCallLeapFilter relaxedFilter = LongCallLeapFilter.builder()
+                // Parent class fields (OptionsStrategyFilter)
+                .minDTE(filter.getMinDTE())
+                .maxDTE(filter.getMaxDTE())
+                .targetDTE(filter.getTargetDTE())
+                .ignoreEarnings(filter.isIgnoreEarnings())
                 .marginInterestRate(filter.getMarginInterestRate())
                 .savingsInterestRate(filter.getSavingsInterestRate())
                 .minHistoricalVolatility(filter.getMinHistoricalVolatility())
-                .longCall(originalFilter.getLongCall()); // NEVER relaxed (delta constraints)
+                .maxCAGRForBreakEven(relaxCAGR ? null : originalFilter.getMaxCAGRForBreakEven())
+                .maxOptionPricePercent(relaxOptionPrice ? null : originalFilter.getMaxOptionPricePercent())
+                // Child class fields (LongCallLeapFilter)
+                .longCall(originalFilter.getLongCall())
+                .minCostSavingsPercent(relaxCostSavings ? null : originalFilter.getMinCostSavingsPercent())
+                .build();
 
-        // Progressive quality filter relaxation based on level
-        switch (level) {
-            case LEVEL_1:
-                // Relax only CAGR (lowest sort priority)
-                builder.minCostSavingsPercent(originalFilter.getMinCostSavingsPercent())
-                        .maxOptionPricePercent(originalFilter.getMaxOptionPricePercent())
-                        .maxCAGRForBreakEven(null); // Relaxed
-                break;
-            case LEVEL_2:
-                // Also relax option price percentage
-                builder.minCostSavingsPercent(originalFilter.getMinCostSavingsPercent())
-                        .maxOptionPricePercent(null) // Relaxed
-                        .maxCAGRForBreakEven(null); // Relaxed
-                break;
-            case LEVEL_3:
-                // Relax all quality filters (last resort)
-                builder.minCostSavingsPercent(null) // Relaxed
-                        .maxOptionPricePercent(null) // Relaxed
-                        .maxCAGRForBreakEven(null); // Relaxed
-                break;
-        }
-
-        LongCallLeapFilter relaxedFilter = builder.build();
         return super.findTrades(chain, relaxedFilter);
     }
 

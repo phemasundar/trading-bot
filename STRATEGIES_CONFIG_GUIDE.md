@@ -165,17 +165,26 @@ The `strategies-config.json` file is located at: `src/main/resources/strategies-
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `topTradesCount` | Integer | `3` | Number of trades to return per stock |
-| `relaxationPriority` | String[] | See below | Order of filter relaxation |
+| `relaxationPriority` | String[] | **none** | Order of filter relaxation (**OPT-IN**) |
 | `sortPriority` | String[] | See below | Order of trade sorting |
-
-**Default relaxationPriority**:
-```json
-["maxCAGRForBreakEven", "maxOptionPricePercent", "minCostSavingsPercent"]
-```
 
 **Default sortPriority**:
 ```json
 ["daysToExpiration", "costSavingsPercent", "optionPricePercent", "breakevenCAGR"]
+```
+
+> [!IMPORTANT]
+> **Relaxation is OPT-IN**: If `relaxationPriority` is **not specified** or is **empty**, the strategy will return **ONLY strict results** without any progressive relaxation, even if fewer than N trades are found.
+
+**To enable progressive relaxation**, explicitly set `relaxationPriority`:
+```json
+{
+  "relaxationPriority": [
+    "maxCAGRForBreakEven",      // Relax first
+    "maxOptionPricePercent",     // Then this
+    "minCostSavingsPercent"      // Last resort
+  ]
+}
 ```
 
 ---

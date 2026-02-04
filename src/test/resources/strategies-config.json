@@ -196,6 +196,7 @@
             "securitiesFile": "bullish",
             "filter": {
                 "topTradesCount": 5,
+                "maxTradesToSend1": 5,
                 "minDTE": 330,
                 "ignoreEarnings": true,
                 "marginInterestRate": 6.0,
@@ -207,7 +208,7 @@
                     "minDelta": 0.4,
                     "minOpenInterest": 100
                 },
-                "relaxationPriority": [
+                "relaxationPriority1": [
                     "maxCAGRForBreakEven",
                     "maxOptionPricePercent",
                     "minCostSavingsPercent"
