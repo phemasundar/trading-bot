@@ -15,6 +15,11 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
         super(StrategyType.LONG_CALL_LEAP);
     }
 
+    // Protected constructor for subclasses (e.g., LongCallLeapTopNStrategy)
+    protected LongCallLeapStrategy(StrategyType strategyType) {
+        super(strategyType);
+    }
+
     @Override
     protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
             OptionsStrategyFilter filter) {
@@ -120,6 +125,8 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                 .netCredit(netCredit)
                 .maxLoss(c.callPremium() * 100)
                 .currentPrice(c.currentPrice())
+                .costSavingsPercent(c.costSavingsPercent())
+                .breakevenCAGR(c.breakevenCAGR())
                 .build();
     }
 
@@ -131,6 +138,9 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
 
     private java.util.function.Predicate<LeapCandidate> premiumLimitFilter(OptionsStrategyFilter filter) {
         return c -> {
+            if (filter.getMaxOptionPricePercent() == null) {
+                return true; // No limit
+            }
             double maxPrice = c.currentPrice() * (filter.getMaxOptionPricePercent() / 100.0);
             return c.callPremium() <= maxPrice;
         };
@@ -138,9 +148,17 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
 
     private java.util.function.Predicate<LeapCandidate> costEfficiencyFilter(OptionsStrategyFilter filter) {
         return c -> {
-            // Check if Buying Option is significantly cheaper (90%) than Buying Stock on
-            // Margin
-            return c.costOfOptionBuyingPerStock() <= c.costOfBuyingPerStock() * (90.0 / 100.0);
+            // Optional filter: Check if buying option is cheaper than buying stock on
+            // margin
+            // Only apply if explicitly configured in LongCallLeapFilter
+            if (filter instanceof LongCallLeapFilter leapFilter) {
+                Double minEfficiency = leapFilter.getMinCostEfficiencyPercent();
+                if (minEfficiency != null) {
+                    double efficiencyThreshold = c.costOfBuyingPerStock() * (minEfficiency / 100.0);
+                    return c.costOfOptionBuyingPerStock() <= efficiencyThreshold;
+                }
+            }
+            return true; // No efficiency filter set, pass all
         };
     }
 

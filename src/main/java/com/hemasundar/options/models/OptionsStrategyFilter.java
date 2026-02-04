@@ -45,8 +45,8 @@ public class OptionsStrategyFilter {
     private double marginInterestRate = 6.0;
     @lombok.Builder.Default
     private double savingsInterestRate = 10.0;
-    @lombok.Builder.Default
-    private double maxOptionPricePercent = 50.0;
+
+    private Double maxOptionPricePercent; // No default - must be explicitly set or left null
 
     // Volatility filters
     /**

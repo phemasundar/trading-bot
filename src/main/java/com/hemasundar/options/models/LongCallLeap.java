@@ -23,6 +23,8 @@ public class LongCallLeap implements TradeSetup {
     private double netCredit; // Will be negative (debit)
     private double maxLoss;
     private double currentPrice; // Underlying stock price
+    private double costSavingsPercent; // Cost savings compared to buying stock on margin
+    private double breakevenCAGR; // CAGR needed to reach breakeven
 
     @Override
     public double getNetCredit() {
@@ -59,6 +61,19 @@ public class LongCallLeap implements TradeSetup {
                         .delta(longCall.getDelta())
                         .premium(longCall.getMark())
                         .build());
+    }
+
+    /**
+     * Calculates the option price as a percentage of the current stock price.
+     * Used for ranking trades in the Top N strategy.
+     *
+     * @return option price percentage
+     */
+    public double getOptionPricePercent() {
+        if (currentPrice <= 0) {
+            return 0.0;
+        }
+        return (finalCostOfOption / currentPrice) * 100.0;
     }
 
     /**

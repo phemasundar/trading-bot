@@ -65,6 +65,12 @@ public enum StrategyType {
             return new LongCallLeapStrategy();
         }
     },
+    LONG_CALL_LEAP_TOP_N("Long Call LEAP Top N") {
+        @Override
+        public AbstractTradingStrategy createStrategy() {
+            return new LongCallLeapTopNStrategy();
+        }
+    },
     BULLISH_BROKEN_WING_BUTTERFLY("Bullish Broken Wing Butterfly") {
         @Override
         public AbstractTradingStrategy createStrategy() {

@@ -23,4 +23,18 @@ public class LongCallLeapFilter extends OptionsStrategyFilter {
      * stock.
      */
     private Double minCostSavingsPercent;
+
+    /**
+     * Minimum cost efficiency percentage (optional).
+     * If set, option must cost at most this % of stock buying cost.
+     * Example: If set to 90.0, option cost must be ≤ 90% of stock buying cost.
+     */
+    private Double minCostEfficiencyPercent;
+
+    /**
+     * Number of top trades to return per stock (used by LONG_CALL_LEAP_TOP_N
+     * strategy).
+     * If null or not set, defaults to 3.
+     */
+    private Integer topTradesCount;
 }
