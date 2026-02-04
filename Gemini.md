@@ -523,3 +523,75 @@ Fixed variance calculation to use **sample variance (N-1)** instead of populatio
 **Files Modified**:
 - `VolatilityCalculator.java`: Changed variance calculation on line 98
 
+## Supabase Integration for IV Data Collection (2026-02-03)
+
+Added Supabase as an additional database option alongside Google Sheets for storing daily Implied Volatility (IV) data.
+
+### Features
+- **Dual Database Support**: Both Google Sheets and Supabase can run simultaneously
+- **Enable/Disable Configuration**: Individual database control via `test.properties`
+- **Automatic Connection Testing**: Supabase connection verified during setup
+- **Retry Logic**: Exponential backoff for rate limiting and transient errors
+- **Environment Variable Support**: CI/CD-friendly configuration
+
+### Architecture
+- **SupabaseService**: REST API client using OkHttp
+- **Dual-Write Logic**: `IVDataCollectionTest` saves to all enabled databases
+- **UPSERT Support**: Supabase automatically handles duplicate entries (symbol + date)
+- **Telegram Notifications**: Summary shows which databases were used
+
+### Database Configuration
+```properties
+# Enable/disable individual databases (at least one must be enabled)
+google_sheets_enabled=true
+supabase_enabled=false
+
+# Supabase Configuration (required if supabase_enabled=true)
+supabase_url=https://YOUR_PROJECT_ID.supabase.co
+supabase_anon_key=YOUR_PUBLISHABLE_KEY
+```
+
+### Table Schema
+```sql
+CREATE TABLE public.iv_data (
+    id BIGSERIAL PRIMARY KEY,
+    symbol TEXT NOT NULL,
+    date DATE NOT NULL,
+    strike NUMERIC(10, 2),
+    dte INTEGER,
+    expiry_date TEXT,
+    put_iv NUMERIC(10, 4),
+    call_iv NUMERIC(10, 4),
+    underlying_price NUMERIC(10, 2),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    CONSTRAINT unique_symbol_date UNIQUE (symbol, date)
+);
+```
+
+### Files Created
+- `SupabaseService.java`: REST API client for Supabase
+- `SUPABASE_SETUP_GUIDE.md`: Complete setup documentation
+
+### Files Modified
+- `IVDataCollectionTest.java`: Added dual-database support with enable/disable flags
+- `test.properties`: Added database configuration options
+- `pom.xml`: Added OkHttp dependency
+- `README.md`: Added IV Data Tracking section
+- `Gemini.md`: This entry
+
+### Benefits
+- **PostgreSQL Power**: Superior querying and analytics vs Google Sheets
+- **Free Tier**: 500MB database, 2GB bandwidth/month
+- **Auto-Generated REST API**: Easy integration with Java
+- **Built-in Dashboard**: View and query data via Supabase web interface
+- **Backup/Redundancy**: Run both databases simultaneously for data redundancy
+
+### Setup Instructions
+See `SUPABASE_SETUP_GUIDE.md` for complete setup instructions including:
+- Account creation
+- Database table creation
+- API key configuration
+- Security setup (Row Level Security)
+- Connection testing
+

@@ -60,6 +60,33 @@ telegram_bot_token=YOUR_BOT_TOKEN_HERE
 telegram_chat_id=YOUR_CHAT_ID_HERE
 ```
 
+### IV Data Tracking
+
+The bot can automatically collect and store daily Implied Volatility (IV) data for your securities. This data is used for calculating IV rank and percentile for better trade timing.
+
+**Supported Databases:**
+- **Google Sheets**: Store data in a Google Spreadsheet (see `SETUP_GUIDE.md`)
+- **Supabase**: Store data in a PostgreSQL database (see `SUPABASE_SETUP_GUIDE.md`)
+
+Both databases can be enabled simultaneously or individually configured via `test.properties`:
+
+```properties
+# Database Configuration for IV Data Collection
+google_sheets_enabled=true
+supabase_enabled=false
+```
+
+**Running IV Data Collection:**
+```bash
+mvn test -DsuiteXmlFile=iv-data-collection.xml
+```
+
+This automated test runs daily (recommended via cron/scheduler) to collect ATM IV data for PUT and CALL options (~30 DTE) for all securities in your `securities/` folder.
+
+For detailed setup instructions:
+- Google Sheets: See `SETUP_GUIDE.md`
+- Supabase: See `SUPABASE_SETUP_GUIDE.md`
+
 ## Usage
 
 ### Running Strategy Analysis
@@ -244,10 +271,11 @@ To change log levels, edit the `log4j2.json` file:
 
 ## Dependencies
 
-- RestAssured - HTTP client
+- RestAssured - HTTP client (also used for Supabase REST API)
 - TestNG - Testing framework
 - Lombok - Boilerplate reduction
 - Jackson - JSON/YAML processing
 - ta4j-core - Technical analysis library (RSI, Bollinger Bands, etc.)
 - Log4j2 - Logging framework
+- Google Sheets API - For IV data storage in Google Sheets
 
