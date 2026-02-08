@@ -623,3 +623,95 @@ Changed database save operations from DEBUG to INFO level for better visibility.
 **GitHub Actions:**
 Added `GOOGLE_SHEETS_ENABLED` and `SUPABASE_ENABLED` environment variables to workflow for full control over database selection in CI/CD.
 
+## MaxLossLimit Filter Fix for LONG_CALL_LEAP (2026-02-07)
+
+Fixed a critical bug where the `maxLossLimit` filter was not being applied to LONG_CALL_LEAP strategies.
+
+### Problem
+The `maxLossLimit` parameter was configured in `strategies-config.json` but was never applied in the filter chain. This allowed trades with losses exceeding the configured limit to pass through.
+
+### Root Cause
+- `LongCallLeapStrategy` calculated `maxLoss` (line 126) but **did not filter** based on it
+- Other strategies like `CallCreditSpreadStrategy` properly used `filter.passesMaxLoss()`
+- The filter predicate method was completely missing
+
+### Fix
+- **Added `maxLossFilter()` predicate** to `LongCallLeapStrategy.java`
+  - Uses existing `filter.passesMaxLoss()` method from `OptionsStrategyFilter`
+  - Calculates max loss as `callPremium * 100`
+- **Added filter to pipeline** between `premiumLimitFilter` and `costEfficiencyFilter`
+- **Fixed `LongCallLeapTopNStrategy`** to preserve `maxLossLimit` during progressive relaxation
+  - Added `.maxLossLimit(filter.getMaxLossLimit())` to relaxed filter builder
+  - Ensures risk limits remain enforced even when quality filters are relaxed
+
+### Impact
+Strategies configured with `maxLossLimit` (e.g., 10000) will now correctly reject trades where:
+- Max Loss = Call Premium × 100 > maxLossLimit
+
+### Files Modified
+- `LongCallLeapStrategy.java`: Added `maxLossFilter()` method and applied in stream pipeline
+- `LongCallLeapTopNStrategy.java`: Added `maxLossLimit` preservation in relaxed filter
+
+## Common Filter Abstraction (2026-02-07)
+
+Refactored common filter logic from individual strategies into reusable helper methods in `AbstractTradingStrategy`.
+
+### Problem
+Common filters like `maxLossLimit` and `minReturnOnRisk` were duplicated across multiple strategy implementations:
+- Each strategy had its own `maxLossFilter()` and `minReturnOnRiskFilter()` methods
+- `IronCondorStrategy` had hardcoded filter checks instead of using filter helper methods
+- `BrokenWingButterflyStrategy` was missing `minReturnOnRisk` filter entirely
+- No centralized mechanism to ensure consistent filter application
+
+### Solution
+Created protected helper methods in `AbstractTradingStrategy` that strategies can call:
+
+```java
+protected <T> Predicate<T> commonMaxLossFilter(
+    OptionsStrategyFilter filter,
+    Function<T, Double> maxLossExtractor)
+
+protected <T> Predicate<T> commonMinReturnOnRiskFilter(
+    OptionsStrategyFilter filter,
+    Function<T, Double> profitExtractor,
+    Function<T, Double> maxLossExtractor)
+```
+
+### Changes Made
+
+**AbstractTradingStrategy.java**:
+- Added `commonMaxLossFilter()` - generic helper for maxLossLimit validation
+- Added `commonMinReturnOnRiskFilter()` - generic helper for minReturnOnRisk validation
+- Both methods use generics and function extractors for flexibility
+
+**CallCreditSpreadStrategy.java**:
+- Replaced custom `maxLossFilter()` with `.filter(commonMaxLossFilter(filter, CallSpreadCandidate::maxLoss))`
+- Replaced custom `minReturnOnRiskFilter()` with `.filter(commonMinReturnOnRiskFilter(filter, CallSpreadCandidate::netCredit, CallSpreadCandidate::maxLoss))`
+- Deleted 10 lines of duplicate code
+
+**PutCreditSpreadStrategy.java**:
+- Same refactoring as CallCreditSpreadStrategy
+- Deleted 10 lines of duplicate code
+
+**IronCondorStrategy.java**:
+- Replaced hardcoded `if (maxRisk > filter.getMaxLossLimit())` with `if (!filter.passesMaxLoss(maxRisk))`
+- Replaced hardcoded `requiredProfit` calculation with `if (!filter.passesMinReturnOnRisk(totalCredit, maxRisk))`
+- Eliminated 3 lines of manual filter logic
+
+**BrokenWingButterflyStrategy.java**:
+- Added missing `minReturnOnRisk` filter to filter chain
+- Now validates: `commonMinReturnOnRiskFilter(filter, BWBCandidate::maxProfit, BWBCandidate::maxLoss)`
+
+### Benefits
+- **DRY Principle**: Eliminated 20+ lines of duplicate filter code
+- **Consistency**: All strategies now use the same filter validation logic
+- **Centralized**: Common filter logic lives in one place (AbstractTradingStrategy)
+- **Type-Safe**: Generic methods work with any candidate type
+- **Maintainable**: Future filter changes only need to update helper methods
+- **Explicit**: Strategies explicitly call common filters - no magic/hidden behavior
+
+### Verification
+- ✅ Build successful: `mvn clean compile -DskipTests` 
+- ✅ All strategies compile without errors
+- ✅ No breaking changes to existing functionality
+

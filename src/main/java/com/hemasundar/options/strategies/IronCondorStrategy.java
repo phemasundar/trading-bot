@@ -105,12 +105,11 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
                         - callSpread.getShortCall().getStrikePrice()) * 100;
                 double maxRisk = Math.max(putWidth, callWidth) - totalCredit;
 
-                if (maxRisk > filter.getMaxLossLimit())
+                // Use filter helper methods instead of hardcoded checks
+                if (!filter.passesMaxLoss(maxRisk))
                     continue;
 
-                double requiredProfit = maxRisk * ((double) filter.getMinReturnOnRisk() / 100);
-
-                if (totalCredit < requiredProfit)
+                if (!filter.passesMinReturnOnRisk(totalCredit, maxRisk))
                     continue;
 
                 double returnOnRisk = (totalCredit / maxRisk) * 100;

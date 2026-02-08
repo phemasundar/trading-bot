@@ -48,6 +48,7 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                 // 2. Apply Filters
                 .filter(deltaFilter(finalLongCallFilter))
                 .filter(premiumLimitFilter(filter))
+                .filter(maxLossFilter(filter))
                 .filter(costEfficiencyFilter(filter))
                 .filter(cagrFilter(filter))
                 .filter(costSavingsFilter(filter))
@@ -143,6 +144,13 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
             }
             double maxPrice = c.currentPrice() * (filter.getMaxOptionPricePercent() / 100.0);
             return c.callPremium() <= maxPrice;
+        };
+    }
+
+    private java.util.function.Predicate<LeapCandidate> maxLossFilter(OptionsStrategyFilter filter) {
+        return c -> {
+            double maxLoss = c.callPremium() * 100; // Max loss for Long Call LEAP
+            return filter.passesMaxLoss(maxLoss);
         };
     }
 

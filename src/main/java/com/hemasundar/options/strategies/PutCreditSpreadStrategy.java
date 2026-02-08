@@ -54,8 +54,8 @@ public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
         return generateCandidates(putMap, sortedStrikes, chain.getUnderlyingPrice())
                 .filter(deltaFilter(shortLegFilter, longLegFilter))
                 .filter(creditFilter())
-                .filter(maxLossFilter(filter))
-                .filter(minReturnOnRiskFilter(filter))
+                .filter(commonMaxLossFilter(filter, PutSpreadCandidate::maxLoss))
+                .filter(commonMinReturnOnRiskFilter(filter, PutSpreadCandidate::netCredit, PutSpreadCandidate::maxLoss))
                 .map(this::buildTradeSetup)
                 .toList();
     }
@@ -104,13 +104,8 @@ public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
         return candidate -> candidate.netCredit() > 0;
     }
 
-    private Predicate<PutSpreadCandidate> maxLossFilter(OptionsStrategyFilter filter) {
-        return candidate -> filter.passesMaxLoss(candidate.maxLoss());
-    }
-
-    private Predicate<PutSpreadCandidate> minReturnOnRiskFilter(OptionsStrategyFilter filter) {
-        return candidate -> filter.passesMinReturnOnRisk(candidate.netCredit(), candidate.maxLoss());
-    }
+    // Note: maxLossFilter and minReturnOnRiskFilter now use common helpers from
+    // AbstractTradingStrategy
 
     // ========== TRADE BUILDER ==========
 

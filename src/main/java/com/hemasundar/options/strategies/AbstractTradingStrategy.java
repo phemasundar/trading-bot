@@ -85,6 +85,47 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
         return strategyType.getDisplayName();
     }
 
+    // ========== COMMON FILTER HELPERS ==========
+
+    /**
+     * Common filter for maxLossLimit.
+     * Returns a predicate that checks if maxLoss <= maxLossLimit (if configured).
+     * 
+     * @param filter           The strategy filter containing maxLossLimit
+     *                         configuration
+     * @param maxLossExtractor Function to extract maxLoss from candidate
+     * @return Predicate that validates maxLoss against configured limit
+     */
+    protected <T> java.util.function.Predicate<T> commonMaxLossFilter(
+            OptionsStrategyFilter filter,
+            java.util.function.Function<T, Double> maxLossExtractor) {
+        return candidate -> {
+            double maxLoss = maxLossExtractor.apply(candidate);
+            return filter.passesMaxLoss(maxLoss);
+        };
+    }
+
+    /**
+     * Common filter for minReturnOnRisk (typically for credit strategies).
+     * Returns a predicate that checks if return on risk meets minimum threshold.
+     * 
+     * @param filter           The strategy filter containing minReturnOnRisk
+     *                         configuration
+     * @param profitExtractor  Function to extract profit/credit from candidate
+     * @param maxLossExtractor Function to extract maxLoss from candidate
+     * @return Predicate that validates return on risk against configured minimum
+     */
+    protected <T> java.util.function.Predicate<T> commonMinReturnOnRiskFilter(
+            OptionsStrategyFilter filter,
+            java.util.function.Function<T, Double> profitExtractor,
+            java.util.function.Function<T, Double> maxLossExtractor) {
+        return candidate -> {
+            double profit = profitExtractor.apply(candidate);
+            double maxLoss = maxLossExtractor.apply(candidate);
+            return filter.passesMinReturnOnRisk(profit, maxLoss);
+        };
+    }
+
     /**
      * Checks if the symbol's historical volatility meets the minimum threshold.
      * Uses cache to avoid redundant API calls and calculations.

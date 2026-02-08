@@ -67,6 +67,7 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
                 .filter(debitFilter(filter))
                 .filter(creditFilter(filter))
                 .filter(maxLossFilter(filter))
+                .filter(commonMinReturnOnRiskFilter(filter, BWBCandidate::maxProfit, BWBCandidate::maxLoss))
                 .filter(upperBreakevenFilter(filter, callMap, sortedStrikes))
                 .map(this::buildTradeSetup)
                 .toList();

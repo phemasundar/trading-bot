@@ -54,8 +54,9 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
         return generateCandidates(callMap, sortedStrikes, chain.getUnderlyingPrice())
                 .filter(deltaFilter(shortLegFilter, longLegFilter))
                 .filter(creditFilter())
-                .filter(maxLossFilter(filter))
-                .filter(minReturnOnRiskFilter(filter))
+                .filter(commonMaxLossFilter(filter, CallSpreadCandidate::maxLoss))
+                .filter(commonMinReturnOnRiskFilter(filter, CallSpreadCandidate::netCredit,
+                        CallSpreadCandidate::maxLoss))
                 .map(this::buildTradeSetup)
                 .toList();
     }
@@ -111,13 +112,8 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
         return candidate -> candidate.netCredit() > 0;
     }
 
-    private Predicate<CallSpreadCandidate> maxLossFilter(OptionsStrategyFilter filter) {
-        return candidate -> filter.passesMaxLoss(candidate.maxLoss());
-    }
-
-    private Predicate<CallSpreadCandidate> minReturnOnRiskFilter(OptionsStrategyFilter filter) {
-        return candidate -> filter.passesMinReturnOnRisk(candidate.netCredit(), candidate.maxLoss());
-    }
+    // Note: maxLossFilter and minReturnOnRiskFilter now use common helpers from
+    // AbstractTradingStrategy
 
     // ========== TRADE BUILDER ==========
 

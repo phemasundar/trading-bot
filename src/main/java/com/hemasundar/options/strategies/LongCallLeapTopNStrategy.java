@@ -111,6 +111,7 @@ public class LongCallLeapTopNStrategy extends LongCallLeapStrategy {
                 .marginInterestRate(filter.getMarginInterestRate())
                 .savingsInterestRate(filter.getSavingsInterestRate())
                 .minHistoricalVolatility(filter.getMinHistoricalVolatility())
+                .maxLossLimit(filter.getMaxLossLimit())
                 .maxCAGRForBreakEven(relaxCAGR ? null : originalFilter.getMaxCAGRForBreakEven())
                 .maxOptionPricePercent(relaxOptionPrice ? null : originalFilter.getMaxOptionPricePercent())
                 // Child class fields (LongCallLeapFilter)
