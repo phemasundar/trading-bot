@@ -118,3 +118,4 @@ securities:
   - "ICE"   # Intercontinental Exchange
   - "MCO"   # Moody's
   - "SHW"   # Sherwin-Williams
+  - "QQQ"
