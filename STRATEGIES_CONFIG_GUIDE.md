@@ -23,6 +23,7 @@ The `strategies-config.json` file is located at: `src/main/resources/strategies-
   "strategies": [
     {
       "enabled": true,
+      "alias": "Custom Display Name (Optional)",
       "strategyType": "STRATEGY_NAME",
       "filterType": "FilterClassName",
       "securitiesFile": "file-name-without-extension",
@@ -39,6 +40,7 @@ The `strategies-config.json` file is located at: `src/main/resources/strategies-
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `enabled` | Boolean | Yes | Enable/disable this strategy |
+| `alias` | String | No | Custom display name for Telegram messages (falls back to strategyType if not specified) |
 | `strategyType` | String | Yes | Strategy identifier (see [Strategy Types](#strategy-types)) |
 | `filterType` | String | Yes | Filter class name (must match strategy) |
 | `securitiesFile` | String | Yes | Name of YAML file in `securities/` folder (without `.yaml`) |
@@ -195,6 +197,7 @@ The `strategies-config.json` file is located at: `src/main/resources/strategies-
 ```json
 {
   "enabled": true,
+  "alias": "Conservative Tech LEAPs",
   "strategyType": "LONG_CALL_LEAP_TOP_N",
   "filterType": "LongCallLeapFilter",
   "securitiesFile": "tech-stocks",
