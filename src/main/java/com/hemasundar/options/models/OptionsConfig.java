@@ -58,10 +58,20 @@ public class OptionsConfig {
     private final TechnicalFilterChain technicalFilterChain;
 
     /**
-     * Gets the display name from the strategy type.
+     * Optional custom display name for this strategy configuration.
+     * If null or blank, falls back to StrategyType display name.
+     */
+    private final String alias;
+
+    /**
+     * Gets the display name for this strategy configuration.
+     * Returns the alias if provided, otherwise falls back to StrategyType display
+     * name.
      */
     public String getName() {
-        return strategy.getStrategyType().toString();
+        return (alias != null && !alias.isBlank())
+                ? alias
+                : strategy.getStrategyType().toString();
     }
 
     /**
