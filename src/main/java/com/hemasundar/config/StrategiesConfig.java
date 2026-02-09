@@ -73,6 +73,7 @@ public class StrategiesConfig {
 
         private boolean enabled = true;
         private StrategyType strategyType;
+        private String alias; // Optional custom display name for Telegram messages
         private String filterType;
         private Object filter;
         private String securitiesFile;

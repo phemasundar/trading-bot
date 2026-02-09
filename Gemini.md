@@ -715,3 +715,50 @@ protected <T> Predicate<T> commonMinReturnOnRiskFilter(
 - ✅ All strategies compile without errors
 - ✅ No breaking changes to existing functionality
 
+## Strategy Alias Feature (2026-02-08)
+
+Added optional `alias` field to strategy configurations, allowing custom display names in Telegram message headers while maintaining backward compatibility with the existing `StrategyType` enum system.
+
+### Features
+- **Optional Alias Field**: Add `alias` to any strategy in `strategies-config.json` for custom display names
+- **Backward Compatible**: Strategies without alias automatically use `StrategyType` display name
+- **Telegram Integration**: Aliases appear in Telegram message headers (📊 Custom Name)
+- **Flexible Naming**: Distinguish multiple instances of the same strategy with descriptive names
+
+### Implementation
+- **StrategiesConfig.StrategyEntry**: Added `alias` field
+- **OptionsConfig**: Added `alias` field and updated `getName()` method with fallback logic
+- **StrategiesConfigLoader**: Updated builder to pass alias through
+- **Smart Fallback**: `getName()` returns alias if present and non-blank, otherwise falls back to `StrategyType.toString()`
+
+### Usage Examples
+```json
+{
+  "enabled": true,
+  "alias": "Short-Term PCS - Portfolio",
+  "strategyType": "PUT_CREDIT_SPREAD",
+  "filterType": "CreditSpreadFilter",
+  "filter": { ... }
+}
+```
+
+**Telegram Message Header:**
+```
+📊 Short-Term PCS - Portfolio
+💰 AAPL @ $150.00
+📅 Expiry: 2026-03-20 (30 DTE)
+```
+
+### Files Modified
+- `StrategiesConfig.java`: Added `alias` field to `StrategyEntry`
+- `OptionsConfig.java`: Added `alias` field and updated `getName()` logic
+- `StrategiesConfigLoader.java`: Added alias to builder chain
+- `strategies-config.json`: Added example aliases to demonstrate feature
+- `STRATEGIES_CONFIG_GUIDE.md`: Updated with alias field documentation
+
+### Benefits
+- **Clarity**: Easily distinguish between multiple instances of the same strategy type
+- **Flexibility**: Name strategies based on portfolio structure, risk tolerance, or securities list
+- **Organization**: Better Telegram message organization with meaningful headers
+- **No Breaking Changes**: Existing configs without alias continue to work exactly as before
+
