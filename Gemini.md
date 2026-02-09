@@ -762,3 +762,27 @@ Added optional `alias` field to strategy configurations, allowing custom display
 - **Organization**: Better Telegram message organization with meaningful headers
 - **No Breaking Changes**: Existing configs without alias continue to work exactly as before
 
+
+## GitHub Actions Workflow Updates for Develop Branch (2026-02-08)
+
+Updated GitHub Actions workflows to run scheduled jobs against the develop branch instead of main.
+
+### Changes Made
+- **ci.yml**: Added `ref: develop` to checkout step
+- **daily-iv-collection.yml**: Added `ref: develop` to checkout step
+
+### Workflow Configuration
+Both workflows now:
+1. **Run on schedule** - Maintains existing cron schedules
+2. **Checkout develop branch** - Uses `ref: develop` in checkout action
+3. **Manual dispatch** - Can still be triggered manually from GitHub UI
+
+### Files Modified
+- `.github/workflows/ci.yml`: Checkout step now uses develop branch
+- `.github/workflows/daily-iv-collection.yml`: Checkout step now uses develop branch
+
+### Benefits
+- **Development Testing**: Scheduled runs test the latest development code
+- **Early Detection**: Issues are caught in develop before merging to main
+- **No CI Noise**: Workflows only run on schedule, not on every push
+
