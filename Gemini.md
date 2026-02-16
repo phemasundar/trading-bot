@@ -1,5 +1,18 @@
 # Project Updates
 
+## TestNG → Supabase Strategy Result Saving (2026-02-15)
+
+Strategy results from TestNG runs are now saved to Supabase, updating the GitHub Pages dashboard. Previously only the Vaadin UI path saved results.
+
+### Refactoring
+- Extracted `Trade.fromTradeSetup(TradeSetup, String)` — shared static factory in `Trade.java`
+- Extracted `StrategyResult.fromTrades(String, Map, long)` — shared static factory in `StrategyResult.java`
+- `StrategyExecutionService` (Vaadin) and `SampleTestNG` (TestNG) both use these shared methods
+- Removed ~150 lines of duplicated conversion code
+- `SampleTestNG` has `initializeSupabase()` (reads env vars → `test.properties` fallback); returns null gracefully if not configured
+
+---
+
 ## Static GitHub Pages Dashboard (2026-02-15)
 
 Built a read-only static dashboard deployable to GitHub Pages that fetches and displays the latest strategy execution results from Supabase.

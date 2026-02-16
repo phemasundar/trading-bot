@@ -193,30 +193,9 @@ public class StrategyExecutionService {
             }
         }
 
-        // Convert TradeSetup to DTO - extract symbol from map key (key format:
-        // "SYMBOL_expiryDate")
-        List<Trade> trades = new ArrayList<>();
-        for (Map.Entry<String, List<TradeSetup>> entry : allTrades.entrySet()) {
-            String key = entry.getKey();
-            // Extract just the stock symbol (handles both "NVDA" and "NVDA_2026-06-18"
-            // formats)
-            String symbol = key.contains("_") ? key.substring(0, key.indexOf("_")) : key;
-            for (TradeSetup setup : entry.getValue()) {
-                Trade trade = convertToTradeDTO(setup);
-                trade.setSymbol(symbol);
-                trades.add(trade);
-            }
-        }
-
+        // Build StrategyResult from trades map (uses shared Trade.fromTradeSetup)
         long executionTime = System.currentTimeMillis() - strategyStartTime;
-
-        StrategyResult result = StrategyResult.builder()
-                .strategyId(config.getName())
-                .strategyName(config.getName())
-                .executionTimeMs(executionTime)
-                .tradesFound(trades.size())
-                .trades(trades)
-                .build();
+        StrategyResult result = StrategyResult.fromTrades(config.getName(), allTrades, executionTime);
 
         // Save individual strategy result to database for per-strategy persistence
         try {
@@ -287,87 +266,6 @@ public class StrategyExecutionService {
         }
 
         return allTrades;
-    }
-
-    /**
-     * Converts TradeSetup to Trade DTO for UI display.
-     * Preserves all legs and generates a human-readable trade details string.
-     */
-    private Trade convertToTradeDTO(TradeSetup setup) {
-        // Convert all legs to DTOs
-        List<com.hemasundar.dto.TradeLegDTO> legDTOs = setup.getLegs().stream()
-                .map(leg -> com.hemasundar.dto.TradeLegDTO.builder()
-                        .action(leg.getAction())
-                        .optionType(leg.getOptionType())
-                        .strike(leg.getStrike())
-                        .delta(leg.getDelta())
-                        .premium(leg.getPremium())
-                        .build())
-                .toList();
-
-        // Generate trade details text (similar to Telegram format)
-        StringBuilder details = new StringBuilder();
-        for (com.hemasundar.dto.TradeLegDTO leg : legDTOs) {
-            details.append(leg.getAction()).append(" ")
-                    .append(String.format("%.0f", leg.getStrike())).append(" ")
-                    .append(leg.getOptionType())
-                    .append(" (δ ").append(String.format("%.2f", leg.getDelta())).append(")")
-                    .append(" → $").append(String.format("%.2f", leg.getPremium()))
-                    .append("\n");
-        }
-
-        double netAmount = setup.getNetCredit();
-        if (netAmount >= 0) {
-            details.append("Credit: $").append(String.format("%.0f", netAmount));
-        } else {
-            details.append("Debit: $").append(String.format("%.0f", -netAmount));
-        }
-        details.append(" | Max Loss: $").append(String.format("%.0f", setup.getMaxLoss()));
-
-        double ror = setup.getReturnOnRisk();
-        if (ror > 0) {
-            details.append(" | RoR: ").append(String.format("%.2f", ror)).append("%");
-        }
-
-        details.append("\nBE: $").append(String.format("%.2f", setup.getBreakEvenPrice()))
-                .append(" (").append(String.format("%.2f", setup.getBreakEvenPercentage())).append("%)");
-
-        double upperBE = setup.getUpperBreakEvenPrice();
-        if (upperBE > 0 && Math.abs(upperBE - setup.getBreakEvenPrice()) > 0.01) {
-            details.append(" | Upper BE: $").append(String.format("%.2f", upperBE))
-                    .append(" (").append(String.format("%.2f", setup.getUpperBreakEvenPercentage())).append("%)");
-        }
-
-        // LongCallLeap-specific fields: CAGR and Cost comparison
-        if (setup instanceof com.hemasundar.options.models.LongCallLeap leap) {
-            details.append(" [CAGR: ").append(String.format("%.2f", leap.calculateBreakevenCAGR())).append("%]");
-
-            double costOpt = leap.getFinalCostOfOption();
-            double costStock = leap.getFinalCostOfBuying();
-            double diffPct = 0;
-            if (costStock > 0) {
-                diffPct = ((costStock - costOpt) / costStock) * 100;
-            }
-            details.append("\nCost (Opt/Stock): $").append(String.format("%.2f", costOpt))
-                    .append(" / $").append(String.format("%.2f", costStock))
-                    .append(" (").append(String.format("%.1f", diffPct)).append("% cheaper)");
-        }
-
-        return Trade.builder()
-                .symbol("") // Symbol will be filled from context
-                .underlyingPrice(setup.getCurrentPrice())
-                .expiryDate(setup.getExpiryDate())
-                .dte(setup.getDaysToExpiration())
-                .legs(legDTOs)
-                .netCredit(setup.getNetCredit())
-                .maxLoss(setup.getMaxLoss())
-                .returnOnRisk(setup.getReturnOnRisk())
-                .breakEvenPrice(setup.getBreakEvenPrice())
-                .breakEvenPercent(setup.getBreakEvenPercentage())
-                .upperBreakEvenPrice(setup.getUpperBreakEvenPrice())
-                .upperBreakEvenPercent(setup.getUpperBreakEvenPercentage())
-                .tradeDetails(details.toString())
-                .build();
     }
 
     /**
