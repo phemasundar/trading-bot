@@ -9,3 +9,4 @@ src/test/resources/test.properties
 service-account.json
 *.iam.gserviceaccount.com.json
 /.vscode/
+node_modules

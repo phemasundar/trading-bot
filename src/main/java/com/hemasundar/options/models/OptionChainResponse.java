@@ -36,6 +36,9 @@ public class OptionChainResponse {
     public Map<ExpirationDateKey, Map<String, List<OptionData>>> callExpDateMap;
     public Map<ExpirationDateKey, Map<String, List<OptionData>>> putExpDateMap;
 
+    public OptionChainResponse() {
+    }
+
     public Map<String, List<OptionChainResponse.OptionData>> getOptionDataForASpecificExpiryDate(OptionType optionType,
             String targetExpiryDate) {
         Map<ExpirationDateKey, Map<String, List<OptionData>>> expDateMap = (optionType == OptionType.PUT)
@@ -119,6 +122,11 @@ public class OptionChainResponse {
         }
     }
 
+    @Override
+    public String toString() {
+        return "OptionChainResponse(symbol=" + symbol + ", underlyingPrice=" + underlyingPrice + ")";
+    }
+
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -142,6 +150,23 @@ public class OptionChainResponse {
         @Override
         public String toString() {
             return date + ":" + daysToExpiry;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o)
+                return true;
+            if (o == null || getClass() != o.getClass())
+                return false;
+            ExpirationDateKey that = (ExpirationDateKey) o;
+            return daysToExpiry == that.daysToExpiry && (date != null ? date.equals(that.date) : that.date == null);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = date != null ? date.hashCode() : 0;
+            result = 31 * result + daysToExpiry;
+            return result;
         }
     }
 
@@ -201,17 +226,31 @@ public class OptionChainResponse {
         public boolean mini;
         public boolean nonStandard;
 
+        public OptionData() {
+        }
+
         public double getAbsDelta() {
             return Math.abs(this.getDelta());
+        }
+
+        @Override
+        public String toString() {
+            return "OptionData(symbol=" + symbol + ", mark=" + mark + ")";
         }
     }
 
     @Data
-    @JsonIgnoreProperties(ignoreUnknown = true)
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class OptionDeliverable {
         public String symbol;
         public String assetType;
         public int deliverableUnits;
         public String currencyType;
+
+        @Override
+        public String toString() {
+            return "OptionDeliverable(symbol=" + symbol + ")";
+        }
     }
 }
