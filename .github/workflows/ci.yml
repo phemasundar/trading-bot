@@ -21,12 +21,24 @@ jobs:
       FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           ref: develop
+
+      - name: Debug Environment
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Git status:"
+          git status
+          echo "Current HEAD:"
+          git log -1 --format="%H - %s"
+          echo "Remote refs:"
+          git ls-remote --heads origin
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
