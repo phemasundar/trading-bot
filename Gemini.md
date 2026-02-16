@@ -12,7 +12,6 @@ Strategy results from TestNG runs are now saved to Supabase, updating the GitHub
 - `SampleTestNG` has `initializeSupabase()` (reads env vars → `test.properties` fallback); returns null gracefully if not configured
 
 ---
-
 ## Static GitHub Pages Dashboard (2026-02-15)
 
 Built a read-only static dashboard deployable to GitHub Pages that fetches and displays the latest strategy execution results from Supabase.
