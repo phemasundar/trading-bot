@@ -1,5 +1,6 @@
 package com.hemasundar.dto;
 
+import com.hemasundar.options.models.TradeSetup;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
