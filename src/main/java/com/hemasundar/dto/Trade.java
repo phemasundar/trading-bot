@@ -1,6 +1,8 @@
 package com.hemasundar.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.hemasundar.options.models.LongCallLeap;
+import com.hemasundar.options.models.TradeSetup;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
