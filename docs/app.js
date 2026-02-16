@@ -198,7 +198,7 @@ function createTradeGrid(trades, strategyIdx) {
         tr.innerHTML = `
             <td class="cell-ticker">${escHtml(trade.symbol || '')}</td>
             <td>${renderLegs(trade)}</td>
-            <td class="cell-mono">${escHtml(trade.expiryDate || '')} <span style="color:var(--text-muted);">(${trade.dte || 0}d)</span></td>
+            <td class="cell-mono">${escHtml((trade.expiryDate || '').split('T')[0])} <span style="color:var(--text-muted);">(${trade.dte || 0})</span></td>
             <td class="${trade.netCredit >= 0 ? 'cell-credit' : 'cell-debit'}">${formatCurrency(trade.netCredit)}</td>
             <td class="cell-mono" style="color:var(--accent-red);">$${formatNum(Math.abs(trade.maxLoss || 0))}</td>
             <td>${renderBreakeven(trade)}</td>
@@ -245,10 +245,11 @@ function renderLegs(trade) {
     return legs.map(leg => {
         const actionClass = (leg.action || '').toUpperCase() === 'BUY' ? 'leg-action-buy' : 'leg-action-sell';
         const action = (leg.action || '').toUpperCase();
-        const type = (leg.optionType || '').charAt(0).toUpperCase(); // P or C
+        const type = (leg.optionType || '').toUpperCase();
         const strike = formatNum(leg.strike);
-        const delta = Math.abs(leg.delta || 0).toFixed(2);
-        return `<span class="leg-line"><span class="${actionClass}">${action}</span> ${strike}${type} <span style="color:var(--text-muted)">Δ${delta}</span></span>`;
+        const premium = formatCurrency(leg.premium);
+
+        return `<span class="leg-line"><span class="${actionClass}">${action}</span> ${type} ${strike} <span style="color:var(--text-muted)">→ ${premium}</span></span>`;
     }).join('');
 }
 
