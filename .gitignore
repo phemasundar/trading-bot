@@ -9,4 +9,13 @@ src/test/resources/test.properties
 service-account.json
 *.iam.gserviceaccount.com.json
 /.vscode/
-node_modules
+
+# Vaadin
+node_modules/
+frontend/generated/
+.pnpm-store/
+target/
+src/main/resources/META-INF/resources/frontend/
+item-cache/
+webpack.generated.js
+vite.generated.ts
