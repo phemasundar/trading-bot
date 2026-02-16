@@ -1,5 +1,6 @@
 package com.hemasundar;
 
+import com.hemasundar.dto.StrategyResult;
 import com.hemasundar.pojos.RefreshToken;
 import com.hemasundar.pojos.Securities;
 import com.hemasundar.pojos.TestConfig;
@@ -9,6 +10,7 @@ import com.hemasundar.options.models.OptionsStrategyFilter;
 import com.hemasundar.options.models.TradeSetup;
 import com.hemasundar.config.StrategiesConfigLoader;
 import com.hemasundar.options.strategies.*;
+import com.hemasundar.services.SupabaseService;
 
 import com.hemasundar.technical.*;
 
@@ -21,7 +23,9 @@ import io.restassured.response.Response;
 import lombok.extern.log4j.Log4j2;
 import org.testng.annotations.Test;
 
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
@@ -122,8 +126,12 @@ public class SampleTestNG {
 
                 // Run all options strategies with unified loop
                 // (disabled strategies already filtered by StrategiesConfigLoader)
+                // Initialize Supabase for saving strategy results
+                SupabaseService supabaseService = initializeSupabase();
+
                 for (OptionsConfig config : optionsStrategies) {
                         log.info("Running strategy: {}", config.getName());
+                        long strategyStartTime = System.currentTimeMillis();
 
                         List<String> securitiesToUse = config.getSecurities();
 
@@ -138,13 +146,28 @@ public class SampleTestNG {
                                                 config.getName(), securitiesToUse.size(), securitiesToUse);
                         }
 
+                        Map<String, List<TradeSetup>> trades = Map.of();
                         if (!securitiesToUse.isEmpty()) {
-                                Map<String, List<TradeSetup>> trades = findTradesForStrategy(cache, securitiesToUse,
-                                                config);
+                                trades = findTradesForStrategy(cache, securitiesToUse, config);
 
                                 // Send to Telegram (consistent with Technical Screener pattern)
                                 if (!trades.isEmpty()) {
                                         TelegramUtils.sendTradeAlerts(config.getName(), trades);
+                                }
+                        }
+
+                        // Save strategy result to Supabase (for GitHub Pages dashboard)
+                        if (supabaseService != null) {
+                                try {
+                                        long executionTime = System.currentTimeMillis() - strategyStartTime;
+                                        StrategyResult result = StrategyResult.fromTrades(
+                                                        config.getName(), trades, executionTime);
+                                        supabaseService.saveStrategyResult(result);
+                                        log.info("[{}] Saved strategy result to Supabase ({} trades)",
+                                                        config.getName(), result.getTradesFound());
+                                } catch (Exception e) {
+                                        log.error("[{}] Failed to save strategy result to Supabase: {}",
+                                                        config.getName(), e.getMessage());
                                 }
                         }
                 }
@@ -248,4 +271,46 @@ public class SampleTestNG {
                 return allTrades;
         }
 
+        /**
+         * Initializes SupabaseService from environment variables or test.properties.
+         * Returns null (instead of throwing) if not configured, so strategies still
+         * run.
+         */
+        private SupabaseService initializeSupabase() {
+                String supabaseUrl = System.getenv("SUPABASE_URL");
+                String supabaseKey = System.getenv("SUPABASE_ANON_KEY");
+
+                // Fall back to test.properties
+                if ((supabaseUrl == null || supabaseUrl.isEmpty() ||
+                        supabaseKey == null || supabaseKey.isEmpty()) &&
+                        FilePaths.testConfig.toFile().exists()) {
+                        try (InputStream input = new FileInputStream(FilePaths.testConfig.toFile())) {
+                                java.util.Properties prop = new java.util.Properties();
+                                prop.load(input);
+                                if (supabaseUrl == null || supabaseUrl.isEmpty()) {
+                                        supabaseUrl = prop.getProperty("supabase_url");
+                                }
+                                if (supabaseKey == null || supabaseKey.isEmpty()) {
+                                        supabaseKey = prop.getProperty("supabase_anon_key");
+                                }
+                        } catch (IOException e) {
+                                log.warn("Failed to read test.properties for Supabase config: {}", e.getMessage());
+                        }
+                }
+
+                if (supabaseUrl == null || supabaseUrl.isEmpty() ||
+                        supabaseKey == null || supabaseKey.isEmpty()) {
+                        log.warn("Supabase not configured — strategy results will NOT be saved to dashboard");
+                        return null;
+                }
+
+                try {
+                        SupabaseService service = new SupabaseService(supabaseUrl, supabaseKey);
+                        log.info("✓ Supabase service initialized for strategy result saving");
+                        return service;
+                } catch (Exception e) {
+                        log.error("Failed to initialize Supabase: {}", e.getMessage());
+                        return null;
+                }
+        }
 }
