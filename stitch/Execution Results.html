@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Option Trades Finder Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#197fe6",
+                        "primary-hover": "#166cc4",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#0f151c", // Darker specialized background
+                        "surface-dark": "#16202a", // Slightly lighter for cards
+                        "surface-dark-highlight": "#1c2834", // Hover state
+                        "neutral-800": "#1f2937",
+                        "success": "#10b981",
+                        "danger": "#ef4444",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom Scrollbar for dark theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f151c; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2d3b4e; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3e5068; 
+        }
+        /* Collapsible logic simulation via checkbox hack or just visual representation */
+        .collapsible-content {
+            transition: max-height 0.3s ease-in-out;
+            max-height: 2000px; /* Arbitrary large height for expanded state */
+            overflow: hidden;
+        }
+        .collapsed .collapsible-content {
+            max-height: 0;
+        }
+        .rotate-icon {
+            transition: transform 0.3s ease;
+        }
+        .collapsed .rotate-icon {
+            transform: rotate(-90deg);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200 h-screen flex flex-col overflow-hidden font-display">
+<!-- Top Navigation -->
+<header class="h-16 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-surface-dark flex items-center justify-between px-6 shrink-0 z-20">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-gradient-to-br from-primary to-blue-400 flex items-center justify-center text-white shadow-lg shadow-primary/20">
+<span class="material-icons text-lg">candlestick_chart</span>
+</div>
+<h1 class="font-bold text-lg tracking-tight dark:text-white">Option Trades Finder</h1>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden md:flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-background-dark px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700">
+<span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
+                Market Open
+            </div>
+<button class="relative p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 transition-colors">
+<span class="material-icons">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary border-2 border-white dark:border-surface-dark"></span>
+</button>
+<div class="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden border border-slate-300 dark:border-slate-600">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="User Avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDvn5A-NoQMzCeEi8nuSZ0NnTYr6SBG8ArUktE0bSQYkCOmThK3MtZWhH66t1rzu-q3zwpqJ0WkHo-jGWuJsWeHFbLns4VMzJCHae95Jjbz8u-QrjHwiKr5RYOks8QIqI01uUCTq5yWkbmCBM0kaOc5DVNX5wL9hMr0EWS9inlY8hNw5P_hvoy12hsk4bPYTfNk1-cZbsW9A12nIcW4ua-LrKrAaiIhGQ63DajMND9h1Rtkv6nPlswk1tWu6s9on44euf7DrqaS1JQ"/>
+</div>
+</div>
+</header>
+<!-- Main Workspace -->
+<div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+<!-- Sidebar Navigation (Collapsed for density) -->
+<aside class="w-16 hidden md:flex flex-col items-center py-6 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-surface-dark shrink-0">
+<nav class="flex flex-col gap-4 w-full">
+<a class="h-10 w-10 mx-auto flex items-center justify-center rounded-lg bg-primary/10 text-primary" href="#">
+<span class="material-icons">dashboard</span>
+</a>
+<a class="h-10 w-10 mx-auto flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors" href="#">
+<span class="material-icons">query_stats</span>
+</a>
+<a class="h-10 w-10 mx-auto flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors" href="#">
+<span class="material-icons">history</span>
+</a>
+<a class="h-10 w-10 mx-auto flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors" href="#">
+<span class="material-icons">settings</span>
+</a>
+</nav>
+<div class="mt-auto">
+<a class="h-10 w-10 mx-auto flex items-center justify-center rounded-lg text-slate-400 hover:text-danger hover:bg-danger/10 transition-colors" href="#">
+<span class="material-icons">logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col overflow-hidden relative">
+<!-- Strategy Selection Panel -->
+<div class="bg-white dark:bg-surface-dark border-b border-slate-200 dark:border-slate-800 shadow-sm z-10 shrink-0">
+<div class="p-6">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+<div>
+<h2 class="text-xl font-semibold text-slate-900 dark:text-white">Strategy Configuration</h2>
+<p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Select active strategies to scan the market for opportunities.</p>
+</div>
+<button class="bg-primary hover:bg-primary-hover text-white px-6 py-2.5 rounded-lg font-medium shadow-lg shadow-primary/25 flex items-center gap-2 transition-all active:scale-95 group">
+<span class="material-icons group-hover:animate-pulse">bolt</span>
+                            Execute Strategies
+                        </button>
+</div>
+<div class="flex flex-wrap items-center gap-3 mt-4">
+<div class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-500 mr-2">Active Strategies:</div>
+<!-- Strategy Checkboxes -->
+<label class="cursor-pointer select-none inline-flex items-center gap-2 px-3 py-1.5 rounded bg-slate-100 dark:bg-background-dark border border-slate-200 dark:border-slate-700 hover:border-primary/50 dark:hover:border-primary/50 transition-colors group">
+<input checked="" class="form-checkbox h-4 w-4 text-primary rounded border-slate-300 bg-white dark:bg-slate-800 dark:border-slate-600 focus:ring-primary focus:ring-offset-0" type="checkbox"/>
+<span class="text-sm font-medium group-hover:text-primary transition-colors">Aggressive LEAP</span>
+</label>
+<label class="cursor-pointer select-none inline-flex items-center gap-2 px-3 py-1.5 rounded bg-slate-100 dark:bg-background-dark border border-slate-200 dark:border-slate-700 hover:border-primary/50 dark:hover:border-primary/50 transition-colors group">
+<input checked="" class="form-checkbox h-4 w-4 text-primary rounded border-slate-300 bg-white dark:bg-slate-800 dark:border-slate-600 focus:ring-primary focus:ring-offset-0" type="checkbox"/>
+<span class="text-sm font-medium group-hover:text-primary transition-colors">Iron Condor</span>
+</label>
+<label class="cursor-pointer select-none inline-flex items-center gap-2 px-3 py-1.5 rounded bg-slate-100 dark:bg-background-dark border border-slate-200 dark:border-slate-700 hover:border-primary/50 dark:hover:border-primary/50 transition-colors group">
+<input class="form-checkbox h-4 w-4 text-primary rounded border-slate-300 bg-white dark:bg-slate-800 dark:border-slate-600 focus:ring-primary focus:ring-offset-0" type="checkbox"/>
+<span class="text-sm font-medium group-hover:text-primary transition-colors">Long-Term PCS</span>
+</label>
+<label class="cursor-pointer select-none inline-flex items-center gap-2 px-3 py-1.5 rounded bg-slate-100 dark:bg-background-dark border border-slate-200 dark:border-slate-700 hover:border-primary/50 dark:hover:border-primary/50 transition-colors group">
+<input checked="" class="form-checkbox h-4 w-4 text-primary rounded border-slate-300 bg-white dark:bg-slate-800 dark:border-slate-600 focus:ring-primary focus:ring-offset-0" type="checkbox"/>
+<span class="text-sm font-medium group-hover:text-primary transition-colors">Wheel Strategy</span>
+</label>
+<label class="cursor-pointer select-none inline-flex items-center gap-2 px-3 py-1.5 rounded bg-slate-100 dark:bg-background-dark border border-slate-200 dark:border-slate-700 hover:border-primary/50 dark:hover:border-primary/50 transition-colors group">
+<input class="form-checkbox h-4 w-4 text-primary rounded border-slate-300 bg-white dark:bg-slate-800 dark:border-slate-600 focus:ring-primary focus:ring-offset-0" type="checkbox"/>
+<span class="text-sm font-medium group-hover:text-primary transition-colors">Credit Spreads</span>
+</label>
+<div class="h-6 w-px bg-slate-300 dark:bg-slate-700 mx-2"></div>
+<button class="text-xs font-medium text-primary hover:text-primary-hover">Select All</button>
+<button class="text-xs font-medium text-slate-500 hover:text-slate-300">Clear All</button>
+</div>
+</div>
+</div>
+<!-- Execution Results Section -->
+<div class="flex-1 overflow-y-auto p-6 scroll-smooth">
+<div class="max-w-7xl mx-auto space-y-6">
+<!-- Result Header -->
+<div class="flex items-center justify-between">
+<h3 class="text-lg font-medium text-slate-800 dark:text-slate-200">Execution Results</h3>
+<span class="text-xs text-slate-500 bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded">Last run: Just now</span>
+</div>
+<!-- Strategy Card 1: Iron Condor -->
+<div class="bg-white dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden group">
+<!-- Card Header -->
+<div class="p-4 flex flex-col md:flex-row md:items-center justify-between bg-slate-50 dark:bg-surface-dark border-b border-slate-200 dark:border-slate-800 cursor-pointer hover:bg-slate-100 dark:hover:bg-surface-dark-highlight transition-colors">
+<div class="flex items-center gap-4">
+<button class="rotate-icon text-slate-400 group-hover:text-primary transition-colors">
+<span class="material-icons">expand_more</span>
+</button>
+<div>
+<div class="flex items-center gap-3">
+<h4 class="font-bold text-slate-900 dark:text-white text-lg">Iron Condor</h4>
+<span class="px-2 py-0.5 text-xs font-bold rounded bg-primary/20 text-primary border border-primary/20">High Probability</span>
+</div>
+<div class="text-sm text-slate-500 dark:text-slate-400 mt-1 flex gap-4">
+<span>Trades Found: <b class="text-slate-800 dark:text-slate-200">3</b></span>
+<span>•</span>
+<span>Avg Win Rate: <b class="text-success">72%</b></span>
+</div>
+</div>
+</div>
+<div class="mt-4 md:mt-0 flex items-center gap-3">
+<div class="text-right hidden sm:block">
+<div class="text-xs text-slate-500">Est. Capital Req</div>
+<div class="text-sm font-mono font-medium dark:text-slate-300">$12,500</div>
+</div>
+<div class="h-8 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
+<button class="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors">
+<span class="material-icons">file_download</span>
+</button>
+</div>
+</div>
+<!-- Card Content (Table) -->
+<div class="collapsible-content">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-50 dark:bg-[#131b24] text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+<th class="px-6 py-3 font-semibold">Ticker</th>
+<th class="px-6 py-3 font-semibold">Type</th>
+<th class="px-6 py-3 font-semibold">Expiry</th>
+<th class="px-6 py-3 font-semibold">DTE</th>
+<th class="px-6 py-3 font-semibold">Strikes</th>
+<th class="px-6 py-3 font-semibold text-right">Credit</th>
+<th class="px-6 py-3 font-semibold text-right">Max Profit</th>
+<th class="px-6 py-3 font-semibold text-right">POP %</th>
+<th class="px-6 py-3 font-semibold text-center">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
+<!-- Row 1 -->
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group/row">
+<td class="px-6 py-4 font-bold text-slate-900 dark:text-white">SPY</td>
+<td class="px-6 py-4 text-slate-500 dark:text-slate-300">Neutral</td>
+<td class="px-6 py-4 text-slate-500 dark:text-slate-300">14 Oct</td>
+<td class="px-6 py-4 font-mono text-slate-500 dark:text-slate-300">24d</td>
+<td class="px-6 py-4 font-mono text-slate-500 dark:text-slate-300">440/445/460/465</td>
+<td class="px-6 py-4 text-right font-mono text-success">$1.45</td>
+<td class="px-6 py-4 text-right font-mono text-success font-medium">$145</td>
+<td class="px-6 py-4 text-right font-mono">
+<div class="flex items-center justify-end gap-2">
+<span class="text-success">68%</span>
+<div class="w-12 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+<div class="h-full bg-success w-[68%]"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-center">
+<button class="text-primary hover:text-white border border-primary hover:bg-primary px-3 py-1 rounded text-xs font-medium transition-all opacity-0 group-hover/row:opacity-100">Review</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group/row">
+<td class="px-6 py-4 font-bold text-slate-900 dark:text-white">IWM</td>
+<td class="px-6 py-4 text-slate-500 dark:text-slate-300">Neutral</td>
+<td class="px-6 py-4 text-slate-500 dark:text-slate-300">21 Oct</td>
+<td class="px-6 py-4 font-mono text-slate-500 dark:text-slate-300">31d</td>
+<td class="px-6 py-4 font-mono text-slate-500 dark:text-slate-300">170/175/190/195</td>
+<td class="px-6 py-4 text-right font-mono text-success">$0.92</td>
+<td class="px-6 py-4 text-right font-mono text-success font-medium">$92</td>
+<td class="px-6 py-4 text-right font-mono">
+<div class="flex items-center justify-end gap-2">
+<span class="text-success">74%</span>
+<div class="w-12 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+<div class="h-full bg-success w-[74%]"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-center">
+<button class="text-primary hover:text-white border border-primary hover:bg-primary px-3 py-1 rounded text-xs font-medium transition-all opacity-0 group-hover/row:opacity-100">Review</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group/row">
+<td class="px-6 py-4 font-bold text-slate-900 dark:text-white">QQQ</td>
+<td class="px-6 py-4 text-slate-500 dark:text-slate-300">Neutral</td>
+<td class="px-6 py-4 text-slate-500 dark:text-slate-300">14 Oct</td>
+<td class="px-6 py-4 font-mono text-slate-500 dark:text-slate-300">24d</td>
+<td class="px-6 py-4 font-mono text-slate-500 dark:text-slate-300">355/360/380/385</td>
+<td class="px-6 py-4 text-right font-mono text-success">$1.12</td>
+<td class="px-6 py-4 text-right font-mono text-success font-medium">$112</td>
+<td class="px-6 py-4 text-right font-mono">
+<div class="flex items-center justify-end gap-2">
+<span class="text-yellow-500">62%</span>
+<div class="w-12 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+<div class="h-full bg-yellow-500 w-[62%]"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-center">
+<button class="text-primary hover:text-white border border-primary hover:bg-primary px-3 py-1 rounded text-xs font-medium transition-all opacity-0 group-hover/row:opacity-100">Review</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Strategy Card 2: Aggressive LEAP -->
+<div class="bg-white dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden group">
+<!-- Card Header -->
+<div class="p-4 flex flex-col md:flex-row md:items-center justify-between bg-slate-50 dark:bg-surface-dark border-b border-slate-200 dark:border-slate-800 cursor-pointer hover:bg-slate-100 dark:hover:bg-surface-dark-highlight transition-colors">
+<div class="flex items-center gap-4">
+<button class="rotate-icon text-slate-400 group-hover:text-primary transition-colors">
+<span class="material-icons">expand_more</span>
+</button>
+<div>
+<div class="flex items-center gap-3">
+<h4 class="font-bold text-slate-900 dark:text-white text-lg">Aggressive LEAP</h4>
+<span class="px-2 py-0.5 text-xs font-bold rounded bg-yellow-500/20 text-yellow-500 border border-yellow-500/20">Moderate Risk</span>
+</div>
+<div class="text-sm text-slate-500 dark:text-slate-400 mt-1 flex gap-4">
+<span>Trades Found: <b class="text-slate-800 dark:text-slate-200">2</b></span>
+<span>•</span>
+<span>Avg Delta: <b class="text-slate-300">0.85</b></span>
+</div>
+</div>
+</div>
+<div class="mt-4 md:mt-0 flex items-center gap-3">
+<div class="text-right hidden sm:block">
+<div class="text-xs text-slate-500">Est. Capital Req</div>
+<div class="text-sm font-mono font-medium dark:text-slate-300">$8,200</div>
+</div>
+<div class="h-8 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
+<button class="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors">
+<span class="material-icons">file_download</span>
+</button>
+</div>
+</div>
+<!-- Card Content (Table) -->
+<div class="collapsible-content">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-50 dark:bg-[#131b24] text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+<th class="px-6 py-3 font-semibold">Ticker</th>
+<th class="px-6 py-3 font-semibold">Type</th>
+<th class="px-6 py-3 font-semibold">Expiry</th>
+<th class="px-6 py-3 font-semibold">DTE</th>
+<th class="px-6 py-3 font-semibold">Strike</th>
+<th class="px-6 py-3 font-semibold text-right">Debit</th>
+<th class="px-6 py-3 font-semibold text-right">Delta</th>
+<th class="px-6 py-3 font-semibold text-right">Theta</th>
+<th class="px-6 py-3 font-semibold text-center">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
+<!-- Row 1 -->
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group/row">
+<td class="px-6 py-4 font-bold text-slate-900 dark:text-white">AMD</td>
+<td class="px-6 py-4 text-slate-500 dark:text-slate-300">Call</td>
+<td class="px-6 py-4 text-slate-500 dark:text-slate-300">Jun '24</td>
+<td class="px-6 py-4 font-mono text-slate-500 dark:text-slate-300">260d</td>
+<td class="px-6 py-4 font-mono text-slate-500 dark:text-slate-300">85.0</td>
+<td class="px-6 py-4 text-right font-mono text-danger">$18.40</td>
+<td class="px-6 py-4 text-right font-mono text-slate-300">0.82</td>
+<td class="px-6 py-4 text-right font-mono text-danger">-0.02</td>
+<td class="px-6 py-4 text-center">
+<button class="text-primary hover:text-white border border-primary hover:bg-primary px-3 py-1 rounded text-xs font-medium transition-all opacity-0 group-hover/row:opacity-100">Review</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group/row">
+<td class="px-6 py-4 font-bold text-slate-900 dark:text-white">NVDA</td>
+<td class="px-6 py-4 text-slate-500 dark:text-slate-300">Call</td>
+<td class="px-6 py-4 text-slate-500 dark:text-slate-300">Jun '24</td>
+<td class="px-6 py-4 font-mono text-slate-500 dark:text-slate-300">260d</td>
+<td class="px-6 py-4 font-mono text-slate-500 dark:text-slate-300">420.0</td>
+<td class="px-6 py-4 text-right font-mono text-danger">$63.50</td>
+<td class="px-6 py-4 text-right font-mono text-slate-300">0.88</td>
+<td class="px-6 py-4 text-right font-mono text-danger">-0.06</td>
+<td class="px-6 py-4 text-center">
+<button class="text-primary hover:text-white border border-primary hover:bg-primary px-3 py-1 rounded text-xs font-medium transition-all opacity-0 group-hover/row:opacity-100">Review</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Strategy Card 3: Wheel Strategy (Collapsed) -->
+<div class="bg-white dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden collapsed group">
+<!-- Card Header -->
+<div class="p-4 flex flex-col md:flex-row md:items-center justify-between bg-slate-50 dark:bg-surface-dark border-b border-transparent dark:border-transparent cursor-pointer hover:bg-slate-100 dark:hover:bg-surface-dark-highlight transition-colors">
+<div class="flex items-center gap-4">
+<button class="rotate-icon text-slate-400 group-hover:text-primary transition-colors">
+<span class="material-icons">expand_more</span>
+</button>
+<div>
+<div class="flex items-center gap-3">
+<h4 class="font-bold text-slate-900 dark:text-white text-lg">Wheel Strategy</h4>
+<span class="px-2 py-0.5 text-xs font-bold rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600">Conservative</span>
+</div>
+<div class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                        No trades matching criteria found
+                                    </div>
+</div>
+</div>
+<div class="mt-4 md:mt-0 opacity-50">
+<span class="text-xs text-slate-500 italic">Run 4 mins ago</span>
+</div>
+</div>
+<!-- Empty Content -->
+<div class="collapsible-content">
+<div class="p-8 text-center border-t border-slate-200 dark:border-slate-800">
+<span class="material-icons text-4xl text-slate-600 mb-2">search_off</span>
+<p class="text-slate-500">The scanner did not identify any opportunities for this strategy with current parameters.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Background Pattern/Overlay for style -->
+<div class="fixed top-0 left-0 w-full h-full pointer-events-none z-0 opacity-20" data-alt="Abstract blue glow gradient at top" style="background-image: radial-gradient(circle at 50% 0%, #197fe6 0%, transparent 25%); mix-blend-mode: screen;"></div>
+<script>
+        // Simple script to toggle collapse/expand
+        document.querySelectorAll('.rotate-icon').forEach(icon => {
+            icon.closest('.group').querySelector('.p-4').addEventListener('click', function() {
+                const card = this.closest('.group');
+                card.classList.toggle('collapsed');
+            });
+        });
+    </script>
+</body></html>
