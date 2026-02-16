@@ -4,6 +4,8 @@ import com.hemasundar.pojos.RefreshToken;
 import com.hemasundar.pojos.TestConfig;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
+import lombok.extern.log4j.Log4j2;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import tools.jackson.databind.ObjectMapper;
@@ -11,10 +13,9 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicReference;
 
+@Log4j2
 public enum TokenProvider {
     INSTANCE;
-
-    private static final Logger log = LogManager.getLogger(TokenProvider.class);
 
     private final AtomicReference<TokenData> tokenReference = new AtomicReference<>();
 
