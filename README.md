@@ -227,44 +227,20 @@ expirations.getExpirationList().forEach(exp -> {
 });
 ```
 
-## GitHub Pages Dashboard
 
-A static read-only dashboard deployed to GitHub Pages that displays the latest strategy execution results from Supabase.
+## Strategy Dashboard
 
-### Features
-- **Read-Only**: Displays latest trade data — no execution capability
-- **Dark Theme**: Matches the Vaadin app design
-- **Collapsible Cards**: Each strategy in a collapsible section with trade grids
-- **Auto-Updated**: Data is refreshed by CI/CD pipeline executions
+The execution results dashboard is now maintained in a separate repository. It is a static HTML/JS application deployed to GitHub Pages that fetches live strategy results from Supabase.
 
-### Setup
+### Setup (Separate Repo)
+1. Initialize the dashboard repository from the provided standalone export.
+2. Configure GitHub Secrets (`SUPABASE_URL`, `SUPABASE_ANON_KEY`) in the new repo.
+3. Enable GitHub Pages to deploy from the new repo.
 
-1. **Add GitHub Secrets** (Settings → Secrets → Actions):
-   - `SUPABASE_URL` — Your Supabase project URL
-   - `SUPABASE_ANON_KEY` — Your Supabase publishable/anon key
-
-2. **Enable RLS on Supabase** (if not already):
-   ```sql
-   ALTER TABLE latest_strategy_results ENABLE ROW LEVEL SECURITY;
-   CREATE POLICY "Allow public read" ON latest_strategy_results
-       FOR SELECT USING (true);
-   ```
-
-3. **Enable GitHub Pages** (Settings → Pages):
-   - Source: GitHub Actions
-
-4. Push to `develop` branch — the `deploy-pages.yml` workflow deploys `docs/` automatically.
-
-### Local Testing
-Replace `__SUPABASE_URL__` and `__SUPABASE_ANON_KEY__` in `docs/app.js` with your actual values, then open `docs/index.html` in a browser.
 
 ## Project Structure
 
 ```
-docs/                # Static GitHub Pages dashboard (HTML/CSS/JS)
-├── index.html       # Main dashboard page
-├── style.css        # Dark theme styles
-└── app.js           # Supabase client & rendering logic
 src/
 ├── main/java/com/hemasundar/
 │   ├── apis/           # API integrations (Schwab, FinnHub)
