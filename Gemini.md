@@ -1,5 +1,14 @@
 # Project Updates
 
+## Dashboard Extraction (2026-02-16)
+
+The static strategy dashboard has been extracted from this repository into a standalone project.
+- **Removed**: `docs/` folder (HTML/JS/CSS) and `.github/workflows/deploy-pages.yml`
+- **New Architecture**: Dashboard now lives in a separate Git repository, fetching data from the same Supabase instance.
+- **Reason**: Decouple frontend deployment from the main trading bot codebase.
+
+---
+
 ## TestNG → Supabase Strategy Result Saving (2026-02-15)
 
 Strategy results from TestNG runs are now saved to Supabase, updating the GitHub Pages dashboard. Previously only the Vaadin UI path saved results.
