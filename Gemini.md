@@ -1,5 +1,93 @@
 # Project Updates
 
+## Static GitHub Pages Dashboard (2026-02-15)
+
+Built a read-only static dashboard deployable to GitHub Pages that fetches and displays the latest strategy execution results from Supabase.
+
+### Architecture
+- **Separate from Vaadin app**: All static files live in `docs/` (HTML/CSS/JS only)
+- **Supabase REST API**: Uses `@supabase/supabase-js` CDN to fetch `latest_strategy_results` table
+- **GitHub Actions deployment**: `deploy-pages.yml` injects Supabase credentials from GitHub Secrets (`SUPABASE_URL`, `SUPABASE_ANON_KEY`) during build
+
+### Files Created
+- `docs/index.html` — Main page with dark theme, Inter font, responsive layout
+- `docs/style.css` — Dark theme matching Vaadin app design tokens
+- `docs/app.js` — Supabase client, data fetching, collapsible cards, trade grids with ROR bars
+- `.github/workflows/deploy-pages.yml` — GitHub Actions workflow using `actions/deploy-pages@v4`
+
+### Features
+- Collapsible strategy cards with trade count, execution time, and time-ago display
+- Trade grid columns: Ticker | Type (legs) | Expiry (DTE) | Credit/Debit | Max Loss | Breakeven | ROR%
+- Click-to-expand trade details
+- Refresh button for manual data reload
+- Mobile-responsive layout
+
+### Prerequisites
+- Enable RLS on `latest_strategy_results` table with a public SELECT policy
+- Add `SUPABASE_URL` and `SUPABASE_ANON_KEY` to GitHub repository secrets
+- Enable GitHub Pages with "GitHub Actions" as the source
+
+---
+
+## Web UI - Stop Execution Button & Execution State Persistence (2026-02-15)
+
+### Stop Button
+- Added red Stop button next to Execute button during execution
+- Calls `cancelExecution()` on `StrategyExecutionService`
+- Cancellation happens between strategies (current strategy finishes first)
+
+### Execution State Persistence
+- Added `executionRunning` AtomicBoolean and `executionStartTimeMs` to `StrategyExecutionService`
+- `MainView` checks execution state on init and restores progress bar after page refresh
+- Elapsed timer polls `isExecutionRunning()` and auto-hides progress bar when done
+
+### Files Modified
+- `StrategyExecutionService.java`: Added `executionRunning`, `cancellationRequested`, `cancelExecution()`, `isCancellationRequested()`
+- `MainView.java`: Added stop button, execution state check on init, cancellation polling in timer
+
+---
+
+## Web UI - Grid Expansion Fix (2026-02-15)
+
+Fixed grid row expansion breaking the UI by replacing Vaadin's `setItemDetailsRenderer` (which has an overlap bug with `setAllRowsVisible(true)`) with an external `Div` details panel below the grid.
+
+### Problem
+Vaadin Grid's built-in detail row renderer overlaps data rows when used with `setAllRowsVisible(true)`, regardless of theme variants like `LUMO_WRAP_CELL_CONTENT`.
+
+### Solution
+- Removed `setItemDetailsRenderer` and `setDetailsVisibleOnClick`
+- Added external `Div` panel below the grid within a `VerticalLayout` wrapper
+- Panel shows a header with ticker symbol (`▶ TICKER — Trade Details`)
+- Selected row is highlighted via `grid.select()`
+- Click same row to toggle details off
+
+### Files Modified
+- `MainView.java`: Replaced detail renderer with external panel approach
+
+---
+
+## Web UI - Strategy-Specific Trade Display (2026-02-13)
+
+Updated trade grid to display strategy-specific leg details instead of generic shortStrike/longStrike columns.
+
+### Changes
+- **`TradeLegDTO.java`** [NEW] — DTO for individual trade legs (action, optionType, strike, delta, premium)
+- **`Trade.java`** — Replaced `shortStrike`/`longStrike` with `List<TradeLegDTO> legs` and `String tradeDetails`
+- **`StrategyExecutionService.java`** — Updated `convertToTradeDTO()` to preserve all legs and generate detail text
+- **`MainView.java`** — Grid now shows:
+  - **Legs column**: Condensed summary (e.g., "SELL 450 PUT / BUY 440 PUT")
+  - **Expandable details**: Click any row to see full trade details (delta, premium, BE, RoR)
+
+### Strategy Leg Examples
+| Strategy | Legs |
+|----------|------|
+| PCS/CCS | SELL PUT / BUY PUT |
+| Iron Condor | 4 legs (2 puts + 2 calls) |
+| BWB | 3 legs |
+| Long Call LEAP | BUY CALL (single leg) |
+
+---
+
 ## Filter Refactoring - Object-Oriented Approach
 
 ### Overview
