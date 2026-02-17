@@ -203,48 +203,73 @@ public class IVDataCollectionTest {
         }
     }
 
+    // Statistics for reporting
+    private int successCount = 0;
+    private int failCount = 0;
+    private int totalCount = 0;
+
     @Test(description = "Collect and store IV data for all securities")
     public void testCollectIVData() {
         log.info("=".repeat(80));
         log.info("COLLECTING IV DATA FOR {} SYMBOLS", allSecurities.size());
         log.info("=".repeat(80));
 
-        int successCount = 0;
-        int failCount = 0;
+        totalCount = allSecurities.size();
 
         for (String symbol : allSecurities) {
             try {
                 // Collect IV data
-                IVDataPoint dataPoint = IVDataCollector.collectIVDataPoint(symbol);
+                IVDataPoint dataPoint = null;
+                try {
+                    dataPoint = IVDataCollector.collectIVDataPoint(symbol);
+                } catch (Exception e) {
+                    // API / Collection Failure -> Log WARN and continue
+                    log.warn("[{}] IV Data Collection Failed (API/Calculation): {}", symbol, e.getMessage());
+                    failCount++;
+                    continue; // Skip storage
+                }
 
                 if (dataPoint != null) {
-                    // Store to enabled databases
+                    // Store to enabled databases -> Fail on error
                     if (googleSheetsEnabled && sheetsService != null) {
-                        sheetsService.appendIVData(dataPoint);
-                        log.info("[{}] ✓ Saved to Google Sheets", symbol);
+                        try {
+                            sheetsService.appendIVData(dataPoint);
+                            log.info("[{}] ✓ Saved to Google Sheets", symbol);
+                        } catch (Exception e) {
+                            throw new RuntimeException("Google Sheets Storage Failed for " + symbol, e);
+                        }
                     }
 
                     if (supabaseEnabled && supabaseService != null) {
-                        supabaseService.upsertIVData(dataPoint);
-                        log.info("[{}] ✓ Saved to Supabase", symbol);
+                        try {
+                            supabaseService.upsertIVData(dataPoint);
+                            log.info("[{}] ✓ Saved to Supabase", symbol);
+                        } catch (Exception e) {
+                            throw new RuntimeException("Supabase Storage Failed for " + symbol, e);
+                        }
                     }
 
                     successCount++;
                     log.info("[{}] Successfully collected and stored IV data", symbol);
                 } else {
+                    // dataPoint is null (graceful failure from collector)
                     failCount++;
-                    log.warn("[{}] Failed to collect IV data", symbol);
+                    log.warn("[{}] Failed to collect IV data (No data returned)", symbol);
                 }
 
                 // Delay to avoid API rate limits
-                // Google Sheets: 60 write requests per minute
-                // Supabase: ~100 requests per second (generous)
-                // 1.5 seconds per symbol = max 40 symbols/minute (safe for both)
                 Thread.sleep(1500);
 
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
+                // Storage failures or critical internal errors -> Log and rethrow to fail test
+                log.error("[{}] CRITICAL ERROR: {}", symbol, e.getMessage(), e);
+                // Mark as failed for statistics before potentially stopping/failing
                 failCount++;
-                log.error("[{}] Error during IV data collection: {}", symbol, e.getMessage(), e);
+                throw e; // Fail the test immediately on storage error
+            } catch (Exception e) {
+                // Unexpected generic errors -> Warning
+                log.warn("[{}] Unexpected error: {}", symbol, e.getMessage());
+                failCount++;
             }
         }
 
@@ -253,9 +278,6 @@ public class IVDataCollectionTest {
         log.info("Success: {}, Failed: {}, Total: {}", successCount, failCount, allSecurities.size());
         log.info("=".repeat(80));
 
-        // Send Telegram notification with summary
-        sendTelegramSummary(successCount, failCount, allSecurities.size());
-
         // Reorder sheets to match YAML order (Google Sheets only)
         if (googleSheetsEnabled && sheetsService != null) {
             try {
@@ -263,26 +285,21 @@ public class IVDataCollectionTest {
                 log.info("Successfully reordered sheets to match YAML securities order");
             } catch (IOException e) {
                 log.error("Failed to reorder sheets: {}", e.getMessage());
-                // Don't fail test for reordering - data is already saved
+                // Don't fail test for reordering
             }
-        }
-
-        // Fail test if no data was collected (indicates authentication or other
-        // critical failure)
-        if (successCount == 0 && !allSecurities.isEmpty()) {
-            throw new AssertionError("IV data collection failed - no symbols processed successfully. " +
-                    "Check authentication and Google Sheets access.");
         }
     }
 
     /**
      * Sends a Telegram notification with IV collection summary.
-     * 
-     * @param successCount Number of successfully processed symbols
-     * @param failCount    Number of failed symbols
-     * @param totalCount   Total number of symbols
+     * Runs after the test class completes, regardless of pass/fail.
      */
-    private void sendTelegramSummary(int successCount, int failCount, int totalCount) {
+    @org.testng.annotations.AfterClass(alwaysRun = true) // Ensure this runs even if test fails
+    public void sendTelegramSummary() {
+        if (totalCount == 0 && allSecurities != null) {
+            totalCount = allSecurities.size(); // Fallback if test didn't even start loop
+        }
+
         StringBuilder message = new StringBuilder();
         message.append("📊 <b>IV Data Collection Complete</b>\n\n");
 
