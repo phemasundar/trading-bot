@@ -214,11 +214,11 @@
                 "marginInterestRate": 6.0,
                 "savingsInterestRate": 10.0,
                 "maxOptionPricePercent": 50.0,
-                "maxCAGRForBreakEven": 15.0,
-                "minCostSavingsPercent": 10.0,
+                "maxCAGRForBreakEven": 20.0,
+                "minCostSavingsPercent": 5.0,
                 "longCall": {
-                    "minDelta": 0.4,
-                    "minOpenInterest": 100
+                    "minDelta": 0.3,
+                    "minOpenInterest": 50
                 },
                 "relaxationPriority1": [
                     "maxCAGRForBreakEven",
