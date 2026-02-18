@@ -41,6 +41,7 @@ jobs:
           GOOGLE_SHEETS_ENABLED: ${{ secrets.GOOGLE_SHEETS_ENABLED }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_ENABLED: ${{ secrets.SUPABASE_ENABLED }}
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
           APP_KEY: ${{ secrets.APP_KEY }}
