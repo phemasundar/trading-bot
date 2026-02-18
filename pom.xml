@@ -49,7 +49,7 @@
         <configuration>
           <!-- Only run TestNG.xml by default -->
           <suiteXmlFiles>
-            <suiteXmlFile>${suiteXmlFile}</suiteXmlFile>
+            <suiteXmlFile>src/test/resources/test_runners/${suiteXmlFile}</suiteXmlFile>
           </suiteXmlFiles>
           <!-- Disable auto-discovery when suite is specified -->
           <skipTests>false</skipTests>
