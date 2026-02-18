@@ -276,20 +276,30 @@ public class SampleTestNG {
          * Returns null (instead of throwing) if not configured, so strategies still
          * run.
          */
-        private SupabaseService initializeSupabase() {
+        private static SupabaseService initializeSupabase() {
                 String supabaseUrl = System.getenv("SUPABASE_URL");
-                String supabaseKey = System.getenv("SUPABASE_ANON_KEY");
+                String supabaseKey = System.getenv("SUPABASE_SERVICE_ROLE_KEY");
+
+                if (supabaseKey == null || supabaseKey.isEmpty()) {
+                        supabaseKey = System.getenv("SUPABASE_ANON_KEY");
+                }
 
                 // Fall back to test.properties
                 if ((supabaseUrl == null || supabaseUrl.isEmpty() ||
-                        supabaseKey == null || supabaseKey.isEmpty()) &&
-                        FilePaths.testConfig.toFile().exists()) {
+                                supabaseKey == null || supabaseKey.isEmpty()) &&
+                                FilePaths.testConfig.toFile().exists()) {
                         try (InputStream input = new FileInputStream(FilePaths.testConfig.toFile())) {
                                 java.util.Properties prop = new java.util.Properties();
                                 prop.load(input);
                                 if (supabaseUrl == null || supabaseUrl.isEmpty()) {
                                         supabaseUrl = prop.getProperty("supabase_url");
                                 }
+
+                                // Check for service role key
+                                if (supabaseKey == null || supabaseKey.isEmpty()) {
+                                        supabaseKey = prop.getProperty("supabase_service_role_key");
+                                }
+
                                 if (supabaseKey == null || supabaseKey.isEmpty()) {
                                         supabaseKey = prop.getProperty("supabase_anon_key");
                                 }
@@ -299,7 +309,7 @@ public class SampleTestNG {
                 }
 
                 if (supabaseUrl == null || supabaseUrl.isEmpty() ||
-                        supabaseKey == null || supabaseKey.isEmpty()) {
+                                supabaseKey == null || supabaseKey.isEmpty()) {
                         log.warn("Supabase not configured — strategy results will NOT be saved to dashboard");
                         return null;
                 }

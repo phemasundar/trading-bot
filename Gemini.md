@@ -1,5 +1,22 @@
 # Project Updates
 
+## Supabase Security Hardening (2026-02-17)
+
+Enhanced the security of the Supabase integration by restricting public access and using privileged keys for backend operations.
+
+### Changes
+- **Backend**: Switched `SupabaseService` to use the **Service Role Key** instead of the Anon Key for write operations.
+- **Database**: Created `secure_rls.sql` to lock down Row-Level Security (RLS) policies.
+  - Public (`anon`): **Read-Only** access.
+  - Backend (`service_role`): **Full Access** (Read/Write).
+- **Configuration**: Added `SUPABASE_SERVICE_ROLE_KEY` support to `ServiceConfig` and `IVDataCollectionTest`.
+
+### Impact
+- **Security**: The exposed `anon` key in the frontend (`app.js`) can no longer validly write to the database, preventing unauthorized data modification.
+- **Reliability**: Backend jobs now use admin privileges, bypassing RLS restrictions.
+
+---
+
 ## Dashboard Extraction (2026-02-16)
 
 The static strategy dashboard has been extracted from this repository into a standalone project.

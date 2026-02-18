@@ -155,11 +155,12 @@ public class IVDataCollectionTest {
 
     /**
      * Initializes Supabase service from configuration.
-     * Priority: 1) Environment variables, 2) test.properties file
+     * Priority: Service Role Key (Env/Prop) ONLY.
+     * Anon Key is read-only and insufficient for IV data collection.
      */
     private void initializeSupabase() throws IOException {
         String supabaseUrl = System.getenv("SUPABASE_URL");
-        String supabaseKey = System.getenv("SUPABASE_ANON_KEY");
+        String supabaseKey = System.getenv("SUPABASE_SERVICE_ROLE_KEY");
 
         // Fall back to test.properties (if file exists)
         if ((supabaseUrl == null || supabaseUrl.isEmpty() ||
@@ -172,8 +173,10 @@ public class IVDataCollectionTest {
                 if (supabaseUrl == null || supabaseUrl.isEmpty()) {
                     supabaseUrl = prop.getProperty("supabase_url");
                 }
+
+                // Check for service role key in properties if not found in env
                 if (supabaseKey == null || supabaseKey.isEmpty()) {
-                    supabaseKey = prop.getProperty("supabase_anon_key");
+                    supabaseKey = prop.getProperty("supabase_service_role_key");
                 }
             } catch (IOException e) {
                 log.warn("Failed to read test.properties: {}", e.getMessage());
@@ -192,7 +195,7 @@ public class IVDataCollectionTest {
                 supabaseKey.equals("YOUR_SUPABASE_PUBLISHABLE_KEY")) {
             throw new IllegalStateException(
                     "Supabase API key not configured. " +
-                            "Set SUPABASE_ANON_KEY environment variable or 'supabase_anon_key' in test.properties");
+                            "Set SUPABASE_SERVICE_ROLE_KEY environment variable.");
         }
 
         supabaseService = new SupabaseService(supabaseUrl, supabaseKey);
