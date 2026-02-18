@@ -166,8 +166,11 @@ public class SampleTestNG {
                                         log.info("[{}] Saved strategy result to Supabase ({} trades)",
                                                         config.getName(), result.getTradesFound());
                                 } catch (Exception e) {
-                                        log.error("[{}] Failed to save strategy result to Supabase: {}",
+                                        String errorMessage = String.format(
+                                                        "[%s] Failed to save strategy result to Supabase: %s",
                                                         config.getName(), e.getMessage());
+                                        log.error(errorMessage);
+                                        throw new RuntimeException(errorMessage, e);
                                 }
                         }
                 }
