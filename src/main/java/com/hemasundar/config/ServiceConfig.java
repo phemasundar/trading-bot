@@ -14,8 +14,10 @@ public class ServiceConfig {
     @Value("${supabase.url:#{environment.SUPABASE_URL}}")
     private String supabaseUrl;
 
-    @Value("${supabase.anon.key:#{environment.SUPABASE_ANON_KEY}}")
-    private String supabaseApiKey;
+    // Prioritize Service Role Key (for backend write access)
+    // Fallback to Anon Key (for backward compatibility or read-only dev)
+    @Value("${supabase.service.role.key:#{environment.SUPABASE_SERVICE_ROLE_KEY ?: '${supabase.anon.key:#{environment.SUPABASE_ANON_KEY}}'}}")
+    private String supabaseKey;
 
     /**
      * Creates SupabaseService bean with configuration from application.properties
@@ -23,6 +25,6 @@ public class ServiceConfig {
      */
     @Bean
     public SupabaseService supabaseService() {
-        return new SupabaseService(supabaseUrl, supabaseApiKey);
+        return new SupabaseService(supabaseUrl, supabaseKey);
     }
 }

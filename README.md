@@ -74,6 +74,11 @@ Both databases can be enabled simultaneously or individually configured via `tes
 # Database Configuration for IV Data Collection
 google_sheets_enabled=true
 supabase_enabled=false
+
+# Supabase Credentials (if enabled)
+supabase_url=https://YOUR_PROJECT_ID.supabase.co
+# Use Service Role Key for backend write access (Security Best Practice)
+supabase_service_role_key=YOUR_SERVICE_ROLE_KEY
 ```
 
 **Running IV Data Collection:**
@@ -85,7 +90,7 @@ This automated test runs daily (recommended via cron/scheduler) to collect ATM I
 
 For detailed setup instructions:
 - Google Sheets: See `SETUP_GUIDE.md`
-- Supabase: See `SUPABASE_SETUP_GUIDE.md`
+- Supabase: See `SUPABASE_SETUP_GUIDE.md` (Updated for Service Role Key security)
 
 ## Usage
 
