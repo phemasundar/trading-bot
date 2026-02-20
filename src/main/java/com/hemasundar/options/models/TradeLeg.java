@@ -15,6 +15,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class TradeLeg {
     private String action; // "SELL" or "BUY"
+    @Builder.Default
+    private int quantity = 1; // Default to 1 contract
     private String optionType; // "CALL" or "PUT"
     private double strike;
     private double delta;

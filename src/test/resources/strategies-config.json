@@ -278,6 +278,29 @@
                 }
             },
             "securitiesFile": "tracking, 2026"
+        },
+        {
+            "enabled": true,
+            "alias": "Bullish ZEBRA - Portfolio",
+            "strategyType": "BULLISH_ZEBRA",
+            "filterType": "ZebraFilter",
+            "filter": {
+                "minDTE": 30,
+                "maxDTE": 45,
+                "maxNetExtrinsicValue": 10.0,
+                "ignoreEarnings": false,
+                "maxTotalDebit": 5000,
+                "maxBreakEvenPercentage": 10.0,
+                "shortCall": {
+                    "minDelta": 0.45,
+                    "minOpenInterest": 100
+                },
+                "longCall": {
+                    "minDelta": 0.65,
+                    "minOpenInterest": 100
+                }
+            },
+            "securitiesFile": "portfolio, tracking, 2026"
         }
     ],
     "technicalScreeners": [

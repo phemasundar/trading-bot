@@ -57,6 +57,7 @@ public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
                 .filter(commonMaxLossFilter(filter, PutSpreadCandidate::maxLoss))
                 .filter(commonMinReturnOnRiskFilter(filter, PutSpreadCandidate::netCredit, PutSpreadCandidate::maxLoss))
                 .map(this::buildTradeSetup)
+                .filter(trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()))
                 .toList();
     }
 

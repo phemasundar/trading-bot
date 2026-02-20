@@ -35,6 +35,7 @@ public class OptionsStrategyFilter {
 
     // Advanced Filters
     private Double maxUpperBreakevenDelta;
+    private Double maxBreakEvenPercentage;
 
     // Behavior flags
     @lombok.Builder.Default
@@ -113,5 +114,15 @@ public class OptionsStrategyFilter {
             return true; // Avoid division by zero
         double requiredProfit = maxLoss * (this.minReturnOnRisk / 100.0);
         return profit >= requiredProfit;
+    }
+
+    /**
+     * Checks if a break-even percentage passes the maxBreakEvenPercentage filter.
+     * 
+     * @param breakEvenPercentage the calculated break-even percentage for a trade
+     * @return true if percentage is within limit or no limit is set
+     */
+    public boolean passesMaxBreakEvenPercentage(double breakEvenPercentage) {
+        return this.maxBreakEvenPercentage == null || breakEvenPercentage <= this.maxBreakEvenPercentage;
     }
 }

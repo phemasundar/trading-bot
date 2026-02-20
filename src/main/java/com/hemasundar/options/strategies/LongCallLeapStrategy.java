@@ -54,6 +54,7 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                 .filter(costSavingsFilter(filter))
                 // 3. Build Trade Setup
                 .map(this::buildTradeSetup)
+                .filter(trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()))
                 .collect(Collectors.toList());
     }
 

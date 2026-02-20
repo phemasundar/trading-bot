@@ -76,6 +76,12 @@ public enum StrategyType {
         public AbstractTradingStrategy createStrategy() {
             return new BrokenWingButterflyStrategy();
         }
+    },
+    BULLISH_ZEBRA("Bullish ZEBRA") {
+        @Override
+        public AbstractTradingStrategy createStrategy() {
+            return new ZebraStrategy();
+        }
     };
 
     private final String displayName;

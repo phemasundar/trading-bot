@@ -119,6 +119,11 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
                 double lowerBreakEvenPercentage = ((currentPrice - lowerBreakEven) / currentPrice) * 100;
                 double upperBreakEvenPercentage = ((upperBreakEven - currentPrice) / currentPrice) * 100;
 
+                if (!filter.passesMaxBreakEvenPercentage(lowerBreakEvenPercentage) ||
+                        !filter.passesMaxBreakEvenPercentage(upperBreakEvenPercentage)) {
+                    continue;
+                }
+
                 condors.add(IronCondor.builder()
                         .putLeg(putSpread)
                         .callLeg(callSpread)

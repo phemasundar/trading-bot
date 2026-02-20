@@ -70,6 +70,7 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
                 .filter(commonMinReturnOnRiskFilter(filter, BWBCandidate::maxProfit, BWBCandidate::maxLoss))
                 .filter(upperBreakevenFilter(filter, callMap, sortedStrikes))
                 .map(this::buildTradeSetup)
+                .filter(trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()))
                 .toList();
 
         log.debug("[BWB] Found {} valid trades", trades.size());

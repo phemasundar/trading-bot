@@ -1,5 +1,34 @@
 # Project Updates
 
+## Bullish ZEBRA Strategy Options Trading Profile (2026-02-19)
+
+Implemented a new Bullish ZEBRA (Zero Extrinsic Back Ratio Spread) strategy. This strategy simulates a stock equivalent directional play with less capital and defines risk.
+
+### Strategy Rules
+- **Leg 1**: Sell 1 In-The-Money (ITM) Call
+- **Leg 2**: Buy 2 further In-The-Money (ITM) Calls
+- Target Delta: Typically, sell the 0.50 delta (ATM) call and buy two 0.70+ delta calls.
+- Net Extrinsic Value Constraint: The trade should ideally be entered for 0 or close to 0 total extrinsic value to negate time-decay.
+
+### New Components
+- **`ZebraFilter.java`**: POJO defining filter criteria (longCall and shortCall leg filters, along with maximum net extrinsic value).
+- **`ZebraTrade.java`**: Implements `TradeSetup` to structure the Zebra trade metrics and calculation.
+- **`ZebraStrategy.java`**: Implements `AbstractTradingStrategy`. Generates permutations of shorts against longs, calculating max loss, net debit, and the combined net extrinsic value against limits defined by user config.
+
+### Configuration
+All targets like Extrinsic Value, Min/Max Delta for legs, and general filters are driven via the unified `strategies-config.json` system instead of being hardcoded in Java.
+
+```json
+        {
+            "enabled": true,
+            "alias": "Bullish ZEBRA - Portfolio",
+            "strategyType": "BULLISH_ZEBRA",
+            "filterType": "ZebraFilter",
+            ...
+        }
+```
+
+---
 ## Supabase Security Hardening (2026-02-17)
 
 Enhanced the security of the Supabase integration by restricting public access and using privileged keys for backend operations.
