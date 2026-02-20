@@ -148,6 +148,8 @@ public class Trade {
             details.append("\nCost (Opt/Stock): $").append(String.format("%.2f", costOpt))
                     .append(" / $").append(String.format("%.2f", costStock))
                     .append(" (").append(String.format("%.1f", diffPct)).append("% cheaper)");
+        } else if (setup instanceof com.hemasundar.options.models.ZebraTrade zebra) {
+            details.append("\nNet Extrinsic Value: $").append(String.format("%.2f", zebra.getNetExtrinsicValue()));
         }
 
         return Trade.builder()

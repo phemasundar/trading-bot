@@ -18,6 +18,10 @@ Implemented a new Bullish ZEBRA (Zero Extrinsic Back Ratio Spread) strategy. Thi
 ### Configuration
 All targets like Extrinsic Value, Min/Max Delta for legs, and general filters are driven via the unified `strategies-config.json` system instead of being hardcoded in Java.
 
+### UI and Dashboard Integration
+- Configured dynamic extraction of `maxBreakEvenPercentage` and ZEBRA's `maxNetExtrinsicValue` filters for visibility in the **Vaadin Web app** (`MainView.java`).
+- Mapped specific `ZebraTrade` execution details (like Net Extrinsic Value) into the DTO layer (`Trade.java`). This guarantees the new strategy data automatically synchronizes to the expandable Supabase rows on the **GitHub Static Dashboard** (`docs/app.js`) without rewriting core frontend layers.
+
 ```json
         {
             "enabled": true,

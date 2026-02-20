@@ -798,6 +798,16 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
             parts.add(String.format("Max Debit: $%.0f", f.getMaxTotalDebit()));
         }
 
+        if (f.getMaxBreakEvenPercentage() != null) {
+            parts.add(String.format("Max B/E: %.1f%%", f.getMaxBreakEvenPercentage()));
+        }
+
+        if (f instanceof com.hemasundar.options.models.ZebraFilter zf) {
+            if (zf.getMaxNetExtrinsicValue() != null) {
+                parts.add(String.format("Max Extrinsic: %.2f", zf.getMaxNetExtrinsicValue()));
+            }
+        }
+
         return String.join(", ", parts);
     }
 
