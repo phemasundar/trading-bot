@@ -45,6 +45,15 @@ public class IronCondor implements TradeSetup {
     }
 
     @Override
+    public double getNetExtrinsicValue() {
+        // Net extrinsic = (Long Put + Long Call) extrinsic - (Short Put + Short Call)
+        // extrinsic
+        double longExtrinsic = putLeg.getLongPut().getExtrinsicValue() + callLeg.getLongCall().getExtrinsicValue();
+        double shortExtrinsic = putLeg.getShortPut().getExtrinsicValue() + callLeg.getShortCall().getExtrinsicValue();
+        return longExtrinsic - shortExtrinsic;
+    }
+
+    @Override
     public String getExpiryDate() {
         return putLeg != null && putLeg.getShortPut() != null
                 ? putLeg.getShortPut().getExpirationDate()

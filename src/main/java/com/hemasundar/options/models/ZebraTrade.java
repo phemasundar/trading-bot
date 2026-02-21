@@ -20,11 +20,17 @@ public class ZebraTrade implements TradeSetup {
     private double breakEvenPercentage;
     private double returnOnRisk;
     private double currentPrice; // Underlying stock price
-    private double netExtrinsicValue;
 
     @Override
     public double getNetCredit() {
         return -netDebit; // ZEBRA is a debit spread, so credit is negative debit
+    }
+
+    @Override
+    public double getNetExtrinsicValue() {
+        // Net extrinsic value = (Extrinsic Value of 2 Longs) - (Extrinsic Value of 1
+        // Short)
+        return (longCall.getExtrinsicValue() * 2) - shortCall.getExtrinsicValue();
     }
 
     @Override

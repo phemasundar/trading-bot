@@ -113,6 +113,21 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
                     continue;
 
                 double returnOnRisk = (totalCredit / maxRisk) * 100;
+
+                // Calculate Net Extrinsic Value
+                double longExtrinsic = putSpread.getLongPut().getExtrinsicValue()
+                        + callSpread.getLongCall().getExtrinsicValue();
+                double shortExtrinsic = putSpread.getShortPut().getExtrinsicValue()
+                        + callSpread.getShortCall().getExtrinsicValue();
+                double netExtrinsicValue = longExtrinsic - shortExtrinsic;
+                double netExtrinsicValueToPricePercentage = currentPrice > 0 ? (netExtrinsicValue / currentPrice) * 100
+                        : 0;
+
+                if (!filter.passesMaxNetExtrinsicValueToPricePercentage(netExtrinsicValueToPricePercentage))
+                    continue;
+
+                if (!filter.passesMinNetExtrinsicValueToPricePercentage(netExtrinsicValueToPricePercentage))
+                    continue;
                 double lowerBreakEven = putSpread.getShortPut().getStrikePrice() - (totalCredit / 100);
                 double upperBreakEven = callSpread.getShortCall().getStrikePrice() + (totalCredit / 100);
 

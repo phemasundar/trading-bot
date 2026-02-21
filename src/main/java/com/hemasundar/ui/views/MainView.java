@@ -802,10 +802,12 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
             parts.add(String.format("Max B/E: %.1f%%", f.getMaxBreakEvenPercentage()));
         }
 
-        if (f instanceof com.hemasundar.options.models.ZebraFilter zf) {
-            if (zf.getMaxNetExtrinsicValue() != null) {
-                parts.add(String.format("Max Extrinsic: %.2f", zf.getMaxNetExtrinsicValue()));
-            }
+        if (f.getMaxNetExtrinsicValueToPricePercentage() != null) {
+            parts.add(String.format("Max Extrinsic: %.1f%%", f.getMaxNetExtrinsicValueToPricePercentage()));
+        }
+
+        if (f.getMinNetExtrinsicValueToPricePercentage() != null) {
+            parts.add(String.format("Min Extrinsic: %.1f%%", f.getMinNetExtrinsicValueToPricePercentage()));
         }
 
         return String.join(", ", parts);
@@ -845,6 +847,14 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
                 }
             } else {
                 container.add(new Span("—"));
+            }
+            if (trade.getNetExtrinsicValue() != 0) {
+                Span extrinsicLine = new Span("Extrinsic: $" + String.format("%.2f", trade.getNetExtrinsicValue())
+                        + " (" + String.format("%.2f", trade.getNetExtrinsicValueToPricePercentage()) + "%)");
+                extrinsicLine.getStyle().set("display", "block");
+                extrinsicLine.getStyle().set("font-size", "0.75rem");
+                extrinsicLine.getStyle().set("color", "var(--lumo-secondary-text-color)");
+                container.add(extrinsicLine);
             }
             container.getStyle().set("white-space", "normal");
             container.getStyle().set("line-height", "1.5");

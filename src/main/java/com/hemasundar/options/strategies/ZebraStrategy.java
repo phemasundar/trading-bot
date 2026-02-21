@@ -39,14 +39,12 @@ public class ZebraStrategy extends AbstractTradingStrategy {
         if (callMap == null || callMap.isEmpty())
             return new ArrayList<>();
 
-        // Extract leg filters and extrinsic limit
+        // Extract leg filters
         LegFilter shortLegFilter = null, longLegFilter = null;
-        Double maxNetExtrinsicValue = null;
 
         if (filter instanceof ZebraFilter zFilter) {
             shortLegFilter = zFilter.getShortCall();
             longLegFilter = zFilter.getLongCall();
-            maxNetExtrinsicValue = zFilter.getMaxNetExtrinsicValue();
         }
 
         List<Double> sortedStrikes = callMap.keySet().stream()
@@ -54,16 +52,15 @@ public class ZebraStrategy extends AbstractTradingStrategy {
                 .sorted()
                 .toList();
 
-        final Double finalMaxNetExtrinsicValue = maxNetExtrinsicValue;
-
         return generateCandidates(callMap, sortedStrikes, chain.getUnderlyingPrice())
                 .filter(deltaFilter(shortLegFilter, longLegFilter))
-                .filter(extrinsicValueFilter(finalMaxNetExtrinsicValue))
                 .filter(commonMaxLossFilter(filter, ZebraCandidate::maxLoss))
                 // For ZEBRA, return on risk might be less standard, but we apply if defined
                 .filter(commonMinReturnOnRiskFilter(filter, candidate -> candidate.maxLoss() > 0 ? 0.0 : 100.0,
                         ZebraCandidate::maxLoss))
                 .map(this::buildTradeSetup)
+                .filter(commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
+                .filter(commonMinNetExtrinsicValueToPricePercentageFilter(filter))
                 .filter(trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()))
                 .toList();
     }
@@ -111,14 +108,6 @@ public class ZebraStrategy extends AbstractTradingStrategy {
                 && LegFilter.passes(longLegFilter, candidate.longLeg());
     }
 
-    private Predicate<ZebraCandidate> extrinsicValueFilter(Double maxNetExtrinsicValue) {
-        return candidate -> {
-            if (maxNetExtrinsicValue == null)
-                return true; // Filter disabled
-            return candidate.netExtrinsicValue() < maxNetExtrinsicValue;
-        };
-    }
-
     // ========== TRADE BUILDER ==========
 
     private TradeSetup buildTradeSetup(ZebraCandidate c) {
@@ -130,7 +119,6 @@ public class ZebraStrategy extends AbstractTradingStrategy {
                 .breakEvenPrice(c.breakEvenPrice())
                 .breakEvenPercentage(c.breakEvenPercentage())
                 .returnOnRisk(c.returnOnRisk())
-                .netExtrinsicValue(c.netExtrinsicValue())
                 .currentPrice(c.currentPrice())
                 .build();
     }
@@ -142,12 +130,6 @@ public class ZebraStrategy extends AbstractTradingStrategy {
         double netDebit() {
             // Buying 2 calls, Selling 1 call
             return ((longLeg.getAsk() * 2) - shortLeg.getBid()) * 100;
-        }
-
-        double netExtrinsicValue() {
-            // Net extrinsic value = (Extrinsic Value of 2 Longs) - (Extrinsic Value of 1
-            // Short)
-            return (longLeg.getExtrinsicValue() * 2) - shortLeg.getExtrinsicValue();
         }
 
         double maxLoss() {

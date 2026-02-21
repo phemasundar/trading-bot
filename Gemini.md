@@ -28,7 +28,11 @@ All targets like Extrinsic Value, Min/Max Delta for legs, and general filters ar
             "alias": "Bullish ZEBRA - Portfolio",
             "strategyType": "BULLISH_ZEBRA",
             "filterType": "ZebraFilter",
-            ...
+            "filter": {
+                "maxNetExtrinsicValueToPricePercentage": 2.5,
+                "minNetExtrinsicValueToPricePercentage": 0.5,
+                ...
+            }
         }
 ```
 

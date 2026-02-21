@@ -58,6 +58,8 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
                 .filter(commonMinReturnOnRiskFilter(filter, CallSpreadCandidate::netCredit,
                         CallSpreadCandidate::maxLoss))
                 .map(this::buildTradeSetup)
+                .filter(commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
+                .filter(commonMinNetExtrinsicValueToPricePercentageFilter(filter))
                 .filter(trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()))
                 .toList();
     }

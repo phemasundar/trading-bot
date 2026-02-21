@@ -42,6 +42,11 @@ public class LongCallLeap implements TradeSetup {
     }
 
     @Override
+    public double getNetExtrinsicValue() {
+        return extrinsicValue; // Value is calculated in strategy, just return it
+    }
+
+    @Override
     public String getExpiryDate() {
         return longCall != null ? longCall.getExpirationDate() : null;
     }

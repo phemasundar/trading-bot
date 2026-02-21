@@ -22,6 +22,11 @@ public class CallCreditSpread implements TradeSetup {
     private double currentPrice; // Underlying stock price
 
     @Override
+    public double getNetExtrinsicValue() {
+        return longCall.getExtrinsicValue() - shortCall.getExtrinsicValue();
+    }
+
+    @Override
     public String getExpiryDate() {
         return shortCall != null ? shortCall.getExpirationDate() : null;
     }

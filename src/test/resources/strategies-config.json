@@ -287,10 +287,10 @@
             "filter": {
                 "minDTE": 30,
                 "maxDTE": 45,
-                "maxNetExtrinsicValue": 10.0,
+                "maxNetExtrinsicValueToPricePercentage": 0.5,
                 "ignoreEarnings": false,
                 "maxTotalDebit": 5000,
-                "maxBreakEvenPercentage": 10.0,
+                "maxBreakEvenPercentage": 5.0,
                 "shortCall": {
                     "minDelta": 0.45,
                     "minOpenInterest": 100

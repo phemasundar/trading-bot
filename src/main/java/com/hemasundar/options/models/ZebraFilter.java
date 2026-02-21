@@ -18,5 +18,4 @@ import lombok.experimental.SuperBuilder;
 public class ZebraFilter extends OptionsStrategyFilter {
     private LegFilter shortCall; // The option being sold (usually ~0.5 Delta)
     private LegFilter longCall; // The options being bought (usually 2 at ~0.7 Delta)
-    private Double maxNetExtrinsicValue; // Filter trades where net extrinsic value is less than this limit
 }
