@@ -289,7 +289,7 @@
                 "maxDTE": 45,
                 "maxNetExtrinsicValueToPricePercentage": 0.5,
                 "ignoreEarnings": false,
-                "maxTotalDebit": 5000,
+                "maxLossLimit": 5000,
                 "maxBreakEvenPercentage": 5.0,
                 "shortCall": {
                     "minDelta": 0.45,

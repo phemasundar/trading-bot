@@ -1,5 +1,13 @@
 # Project Updates
 
+## Schwab API Buffer Overflow Fix (2026-02-20)
+
+Fixed a `502 Bad Gateway` error (`protocol.http.TooBigBody`) from the Schwab API Apigee gateway when fetching option chains for major ETFs like QQQ and SPY. 
+- **Cause**: QQQ's near-daily expirations and densely packed strikes resulted in massive JSON payloads exceeding the API's buffer size.
+- **Fix**: Appended `strikeCount=200` to `ThinkOrSwinAPIs.getOptionChain()` to restrict the returned option chain to 100 strikes above and below the current underlying price. This dramatically shrinks payload sizes while safely capturing the required ranges for both credit spreads and deep ITM/OTM LEAPs.
+
+---
+
 ## Bullish ZEBRA Strategy Options Trading Profile (2026-02-19)
 
 Implemented a new Bullish ZEBRA (Zero Extrinsic Back Ratio Spread) strategy. This strategy simulates a stock equivalent directional play with less capital and defines risk.
@@ -29,8 +37,10 @@ All targets like Extrinsic Value, Min/Max Delta for legs, and general filters ar
             "strategyType": "BULLISH_ZEBRA",
             "filterType": "ZebraFilter",
             "filter": {
-                "maxNetExtrinsicValueToPricePercentage": 2.5,
-                "minNetExtrinsicValueToPricePercentage": 0.5,
+                "maxNetExtrinsicValueToPricePercentage": 0.5,
+                "ignoreEarnings": false,
+                "maxTotalDebit": 5000,
+                "maxBreakEvenPercentage": 5.0,
                 ...
             }
         }

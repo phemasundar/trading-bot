@@ -256,11 +256,11 @@ function renderLegs(trade) {
 function renderBreakeven(trade) {
     const be = trade.breakEvenPrice || 0;
     const bePct = trade.breakEvenPercent || 0;
-    let html = `<span class="be-line">$${formatNum(be)} <span style="color:var(--text-muted)">(${bePct >= 0 ? '-' : '+'}${Math.abs(bePct).toFixed(1)}%)</span></span>`;
+    let html = `<span class="be-line">$${formatNum(be)} <span style="color:var(--text-muted)">(${bePct > 0 ? '+' : ''}${bePct.toFixed(1)}%)</span></span>`;
 
     if (trade.upperBreakEvenPrice && trade.upperBreakEvenPrice > 0) {
         const ubePct = trade.upperBreakEvenPercent || 0;
-        html += `<span class="be-line be-upper">$${formatNum(trade.upperBreakEvenPrice)} <span style="color:var(--text-muted)">(+${Math.abs(ubePct).toFixed(1)}%)</span></span>`;
+        html += `<span class="be-line be-upper">$${formatNum(trade.upperBreakEvenPrice)} <span style="color:var(--text-muted)">(${ubePct > 0 ? '+' : ''}${ubePct.toFixed(1)}%)</span></span>`;
     }
     return html;
 }

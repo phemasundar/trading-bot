@@ -3383,6 +3383,10 @@
         "symbol" : "ZETA",
         "year" : 2025
       } ]
+    },
+    "QQQ" : {
+      "lastFetched" : "2026-02-20",
+      "earnings" : [ ]
     }
   }
 }

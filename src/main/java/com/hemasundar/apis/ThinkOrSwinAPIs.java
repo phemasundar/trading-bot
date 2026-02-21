@@ -111,8 +111,9 @@ public class ThinkOrSwinAPIs {
                 .header("accept", "application/json")
                 .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())
                 .queryParam("symbol", symbol)
+                .queryParam("strikeCount", 200) // Limit total strikes to prevent 502 Body buffer overflow (e.g.
+                                                // QQQ/SPY)
                 .queryParam("strategy", "SINGLE")
-                // .log().all()
                 .get("https://api.schwabapi.com/marketdata/v1/chains");
         if (response.statusCode() != 200) {
             if (response.statusCode() == 400) {
