@@ -608,9 +608,11 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
         header.addClassName("p-4");
         header.addClassName("strategy-card-header");
         header.getStyle().set("display", "flex");
+        header.getStyle().set("flex-wrap", "wrap");
         header.getStyle().set("justify-content", "space-between");
         header.getStyle().set("align-items", "center");
         header.getStyle().set("cursor", "pointer");
+        header.getStyle().set("gap", "12px");
 
         // -- Left Side: Icon + Title + Params --
         HorizontalLayout leftSection = new HorizontalLayout();
@@ -652,6 +654,11 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
         paramsSpan.getStyle().set("color", "var(--stitch-text-secondary)");
         paramsSpan.getStyle().set("opacity", "0.8");
         paramsSpan.getStyle().set("margin-top", "4px");
+        paramsSpan.getStyle().set("white-space", "normal");
+        paramsSpan.getStyle().set("word-break", "break-word");
+        paramsSpan.getStyle().set("overflow-wrap", "break-word");
+        paramsSpan.getStyle().set("width", "100%");
+        paramsSpan.getStyle().set("max-width", "calc(100vw - 150px)"); // Responsive max-width to avoid breaking mobile
 
         infoLayout.add(titleRow, paramsSpan);
         leftSection.add(arrowIcon, infoLayout);
@@ -669,9 +676,21 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
 
         // Last Run Time
         String timeAgo = "Just now";
-        if (result.getExecutionTimeMs() > 0) {
-            // Mock calculation
-            timeAgo = "1 min ago";
+        if (result.getUpdatedAt() != null) {
+            java.time.Duration duration = java.time.Duration.between(result.getUpdatedAt(), java.time.Instant.now());
+            long minutes = duration.toMinutes();
+            long hours = duration.toHours();
+            long days = duration.toDays();
+
+            if (days > 0) {
+                timeAgo = days + (days == 1 ? " day ago" : " days ago");
+            } else if (hours > 0) {
+                timeAgo = hours + (hours == 1 ? " hr ago" : " hrs ago");
+            } else if (minutes > 0) {
+                timeAgo = minutes + (minutes == 1 ? " min ago" : " mins ago");
+            } else {
+                timeAgo = "Just now";
+            }
         }
         Span lastRunLabel = new Span("Last run: " + timeAgo);
         lastRunLabel.getStyle().set("font-size", "0.75rem");
@@ -937,61 +956,56 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
         })).setHeader("ROR %").setSortable(true).setAutoWidth(true).setFlexGrow(0);
 
         // Styling
-        grid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_NO_BORDER);
+        grid.addThemeVariants(
+                com.vaadin.flow.component.grid.GridVariant.LUMO_NO_BORDER,
+                com.vaadin.flow.component.grid.GridVariant.LUMO_WRAP_CELL_CONTENT);
         grid.setWidthFull();
-
-        // --- Details panel below the grid (avoids Vaadin detail row overlap bug) ---
-        Div detailsPanel = new Div();
-        detailsPanel.getStyle().set("white-space", "pre-wrap");
-        detailsPanel.getStyle().set("font-family", "monospace");
-        detailsPanel.getStyle().set("font-size", "0.8rem");
-        detailsPanel.getStyle().set("padding", "12px 16px");
-        detailsPanel.getStyle().set("color", "var(--lumo-body-text-color)");
-        detailsPanel.getStyle().set("line-height", "1.6");
-        detailsPanel.getStyle().set("background", "rgba(255,255,255,0.03)");
-        detailsPanel.getStyle().set("border-top", "1px solid rgba(255,255,255,0.08)");
-        detailsPanel.setVisible(false);
-
-        // Track which trade is currently expanded
-        final Trade[] selectedTrade = { null };
 
         grid.addItemClickListener(e -> {
             Trade clicked = e.getItem();
-            if (clicked.equals(selectedTrade[0])) {
-                // Toggle off
-                detailsPanel.setVisible(false);
-                selectedTrade[0] = null;
-                grid.select(null);
-            } else {
-                // Show details for clicked trade
-                selectedTrade[0] = clicked;
-                detailsPanel.removeAll();
 
-                // Header with ticker
-                Span header = new Span("▶ " + clicked.getSymbol() + " — Trade Details");
-                header.getStyle().set("font-weight", "bold");
-                header.getStyle().set("font-family", "var(--lumo-font-family)");
-                header.getStyle().set("font-size", "0.85rem");
-                header.getStyle().set("display", "block");
-                header.getStyle().set("margin-bottom", "8px");
-                header.getStyle().set("color", "var(--stitch-primary)");
+            com.vaadin.flow.component.dialog.Dialog dialog = new com.vaadin.flow.component.dialog.Dialog();
 
-                // Details text
-                Div detailsText = new Div();
-                detailsText.setText(
-                        clicked.getTradeDetails() != null ? clicked.getTradeDetails() : "No details available");
-                detailsText.getStyle().set("white-space", "pre-wrap");
-                detailsText.getStyle().set("font-family", "monospace");
+            Span header = new Span("▶ " + clicked.getSymbol() + " — Trade Details");
+            header.getStyle().set("font-weight", "bold");
+            header.getStyle().set("font-family", "var(--lumo-font-family)");
+            header.getStyle().set("font-size", "1.1rem");
+            header.getStyle().set("display", "block");
+            header.getStyle().set("margin-bottom", "12px");
+            header.getStyle().set("color", "var(--stitch-primary)");
 
-                detailsPanel.add(header, detailsText);
-                detailsPanel.setVisible(true);
-                grid.select(clicked);
-            }
+            Div detailsText = new Div();
+            detailsText.setText(clicked.getTradeDetails() != null ? clicked.getTradeDetails() : "No details available");
+            detailsText.getStyle().set("white-space", "pre-wrap");
+            detailsText.getStyle().set("word-break", "break-word");
+            detailsText.getStyle().set("overflow-wrap", "break-word");
+            detailsText.getStyle().set("font-family", "monospace");
+            detailsText.getStyle().set("color", "var(--lumo-body-text-color)");
+            detailsText.getStyle().set("line-height", "1.6");
+
+            com.vaadin.flow.component.button.Button closeBtn = new com.vaadin.flow.component.button.Button("Close",
+                    ev -> dialog.close());
+            closeBtn.getStyle().set("margin-top", "16px");
+
+            VerticalLayout layout = new VerticalLayout(header, detailsText, closeBtn);
+            layout.setPadding(true);
+            layout.setSpacing(false);
+
+            dialog.addOpenedChangeListener(event -> {
+                if (!event.isOpened()) {
+                    grid.deselectAll();
+                }
+            });
+
+            dialog.add(layout);
+            dialog.setWidth("100%");
+            dialog.setMaxWidth("600px");
+            dialog.open();
         });
 
         grid.setSelectionMode(Grid.SelectionMode.SINGLE);
 
-        VerticalLayout wrapper = new VerticalLayout(grid, detailsPanel);
+        VerticalLayout wrapper = new VerticalLayout(grid);
         wrapper.setPadding(false);
         wrapper.setSpacing(false);
         wrapper.setWidthFull();
