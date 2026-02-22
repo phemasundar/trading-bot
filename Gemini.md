@@ -1,5 +1,31 @@
 # Project Updates
 
+## Strategy Filter Persistence to Supabase (2026-02-22)
+
+Strategy filter configurations are now saved alongside execution results in Supabase's `latest_strategy_results` table. The Vaadin UI displays filter parameters from the DB instead of from in-memory config.
+
+### Problem
+- Filters from `strategies-config.json` were not persisted — only trade results were saved
+- The Vaadin UI read filter display data from in-memory config, which could differ from the actual filters used during execution (especially for CI vs. local runs)
+- The static GitHub Pages dashboard had no way to display filter data at all
+
+### Changes
+- **`StrategyResult.java`**: Added `filterConfig` field (JSON string), updated `fromTrades()` to accept and serialize `OptionsStrategyFilter`
+- **`SupabaseService.java`**: Save `filter_config` JSONB in payload using ObjectNode; parse it back in `parseStrategyResult()`
+- **`StrategyExecutionService.java`** & **`SampleTestNG.java`**: Pass `config.getFilter()` to `fromTrades()`
+- **`MainView.java`**: Replaced `getStrategyParams()` (in-memory config) with `getStrategyParamsFromJson()` (DB JSON). Shows "Filter data not available" for old rows without filter data
+
+### Supabase Schema
+```sql
+ALTER TABLE latest_strategy_results
+ADD COLUMN IF NOT EXISTS filter_config JSONB;
+```
+
+### Bonus
+Since `StrategyResult` is serialized into the `results` JSONB column of `strategy_executions`, filter data automatically flows into the execution history audit log with no extra code.
+
+---
+
 ## Schwab API Buffer Overflow Fix (2026-02-20)
 
 Fixed a `502 Bad Gateway` error (`protocol.http.TooBigBody`) from the Schwab API Apigee gateway when fetching option chains for major ETFs like QQQ and SPY. 

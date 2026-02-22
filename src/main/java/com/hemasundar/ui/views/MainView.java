@@ -645,8 +645,8 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
 
         titleRow.add(strategyName, typeBadge);
 
-        // Filter Params Subtext
-        String paramsText = getStrategyParams(result.getStrategyName());
+        // Filter Params Subtext — read from DB-stored filter config
+        String paramsText = getStrategyParamsFromJson(result.getFilterConfig());
         Span paramsSpan = new Span(paramsText);
         paramsSpan.addClassName("strategy-params-text");
         paramsSpan.getStyle().set("font-family", "monospace");
@@ -760,76 +760,100 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
     }
 
     /**
-     * Extracts display parameters for a given strategy name from configuration
+     * Extracts display parameters from a stored filter config JSON string.
+     * Called with the filterConfig field from StrategyResult (persisted in
+     * Supabase).
+     *
+     * @param filterConfigJson the raw JSON string of the filter, or null
+     * @return human-readable parameter summary
      */
-    private String getStrategyParams(String strategyName) {
-        // Find the config for this strategy name
-        OptionsConfig config = availableStrategies.stream()
-                .filter(c -> c.getName().equals(strategyName))
-                .findFirst()
-                .orElse(null);
-
-        if (config == null || config.getFilter() == null) {
-            return "No specific filters configured";
+    private String getStrategyParamsFromJson(String filterConfigJson) {
+        if (filterConfigJson == null || filterConfigJson.isEmpty()) {
+            return "Filter data not available";
         }
 
-        List<String> parts = new ArrayList<>();
-        var f = config.getFilter();
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(filterConfigJson);
 
-        // DTE
-        if (f.getTargetDTE() > 0) {
-            parts.add("DTE: " + f.getTargetDTE());
-        } else if (f.getMinDTE() > 0 || f.getMaxDTE() < Integer.MAX_VALUE) {
-            String max = f.getMaxDTE() == Integer.MAX_VALUE ? "∞" : String.valueOf(f.getMaxDTE());
-            parts.add("DTE: " + f.getMinDTE() + "-" + max);
+            List<String> parts = new ArrayList<>();
+
+            // DTE
+            int targetDTE = root.path("targetDTE").asInt(0);
+            int minDTE = root.path("minDTE").asInt(0);
+            int maxDTE = root.path("maxDTE").asInt(Integer.MAX_VALUE);
+            if (targetDTE > 0) {
+                parts.add("DTE: " + targetDTE);
+            } else if (minDTE > 0 || maxDTE < Integer.MAX_VALUE) {
+                String max = maxDTE == Integer.MAX_VALUE ? "∞" : String.valueOf(maxDTE);
+                parts.add("DTE: " + minDTE + "-" + max);
+            }
+
+            // Delta
+            if (root.has("maxUpperBreakevenDelta") && !root.get("maxUpperBreakevenDelta").isNull()) {
+                parts.add(String.format("Delta < %.2f", root.get("maxUpperBreakevenDelta").asDouble()));
+            }
+
+            // Max Loss
+            if (root.has("maxLossLimit") && !root.get("maxLossLimit").isNull()) {
+                parts.add(String.format("Max Loss: <$%.0f", root.get("maxLossLimit").asDouble()));
+            }
+
+            // Min RoR
+            int minRoR = root.path("minReturnOnRisk").asInt(0);
+            if (minRoR > 0) {
+                parts.add("Min RoR: " + minRoR + "%");
+            }
+
+            // Min HV
+            if (root.has("minHistoricalVolatility") && !root.get("minHistoricalVolatility").isNull()) {
+                parts.add(String.format("Min HV: %.0f%%", root.get("minHistoricalVolatility").asDouble()));
+            }
+
+            // Additional Filters
+            if (root.has("maxOptionPricePercent") && !root.get("maxOptionPricePercent").isNull()) {
+                parts.add(String.format("Max Price %%: %.1f%%", root.get("maxOptionPricePercent").asDouble()));
+            }
+
+            if (root.has("priceVsMaxDebitRatio") && !root.get("priceVsMaxDebitRatio").isNull()) {
+                parts.add(String.format("Price/Debit Ratio: %.1f", root.get("priceVsMaxDebitRatio").asDouble()));
+            }
+
+            if (root.has("maxTotalDebit") && !root.get("maxTotalDebit").isNull()) {
+                parts.add(String.format("Max Debit: $%.0f", root.get("maxTotalDebit").asDouble()));
+            }
+
+            if (root.has("maxBreakEvenPercentage") && !root.get("maxBreakEvenPercentage").isNull()) {
+                parts.add(String.format("Max B/E: %.1f%%", root.get("maxBreakEvenPercentage").asDouble()));
+            }
+
+            if (root.has("maxNetExtrinsicValueToPricePercentage")
+                    && !root.get("maxNetExtrinsicValueToPricePercentage").isNull()) {
+                parts.add(String.format("Max Extrinsic: %.1f%%",
+                        root.get("maxNetExtrinsicValueToPricePercentage").asDouble()));
+            }
+
+            if (root.has("minNetExtrinsicValueToPricePercentage")
+                    && !root.get("minNetExtrinsicValueToPricePercentage").isNull()) {
+                parts.add(String.format("Min Extrinsic: %.1f%%",
+                        root.get("minNetExtrinsicValueToPricePercentage").asDouble()));
+            }
+
+            // LEAP-specific
+            if (root.has("maxCAGRForBreakEven") && !root.get("maxCAGRForBreakEven").isNull()) {
+                parts.add(String.format("Max CAGR B/E: %.1f%%", root.get("maxCAGRForBreakEven").asDouble()));
+            }
+
+            if (root.has("minCostSavingsPercent") && !root.get("minCostSavingsPercent").isNull()) {
+                parts.add(String.format("Min Savings: %.1f%%", root.get("minCostSavingsPercent").asDouble()));
+            }
+
+            return parts.isEmpty() ? "No specific filters configured" : String.join(", ", parts);
+
+        } catch (Exception e) {
+            log.warn("Failed to parse filter config JSON: {}", e.getMessage());
+            return "Filter data not available";
         }
-
-        // Delta
-        if (f.getMaxUpperBreakevenDelta() != null) {
-            parts.add(String.format("Delta < %.2f", f.getMaxUpperBreakevenDelta()));
-        }
-
-        // Max Loss
-        if (f.getMaxLossLimit() != null) {
-            parts.add(String.format("Max Loss: <$%.0f", f.getMaxLossLimit()));
-        }
-
-        // Min RoR
-        if (f.getMinReturnOnRisk() > 0) {
-            parts.add("Min RoR: " + f.getMinReturnOnRisk() + "%");
-        }
-
-        // Min HV
-        if (f.getMinHistoricalVolatility() != null) {
-            parts.add(String.format("Min HV: %.0f%%", f.getMinHistoricalVolatility()));
-        }
-
-        // Additional Filters
-        if (f.getMaxOptionPricePercent() != null) {
-            parts.add(String.format("Max Price %%: %.1f%%", f.getMaxOptionPricePercent()));
-        }
-
-        if (f.getPriceVsMaxDebitRatio() != null) {
-            parts.add(String.format("Price/Debit Ratio: %.1f", f.getPriceVsMaxDebitRatio()));
-        }
-
-        if (f.getMaxTotalDebit() != null) {
-            parts.add(String.format("Max Debit: $%.0f", f.getMaxTotalDebit()));
-        }
-
-        if (f.getMaxBreakEvenPercentage() != null) {
-            parts.add(String.format("Max B/E: %.1f%%", f.getMaxBreakEvenPercentage()));
-        }
-
-        if (f.getMaxNetExtrinsicValueToPricePercentage() != null) {
-            parts.add(String.format("Max Extrinsic: %.1f%%", f.getMaxNetExtrinsicValueToPricePercentage()));
-        }
-
-        if (f.getMinNetExtrinsicValueToPricePercentage() != null) {
-            parts.add(String.format("Min Extrinsic: %.1f%%", f.getMinNetExtrinsicValueToPricePercentage()));
-        }
-
-        return String.join(", ", parts);
     }
 
     /**

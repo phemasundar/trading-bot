@@ -195,7 +195,8 @@ public class StrategyExecutionService {
 
         // Build StrategyResult from trades map (uses shared Trade.fromTradeSetup)
         long executionTime = System.currentTimeMillis() - strategyStartTime;
-        StrategyResult result = StrategyResult.fromTrades(config.getName(), allTrades, executionTime);
+        StrategyResult result = StrategyResult.fromTrades(config.getName(), allTrades, executionTime,
+                config.getFilter());
 
         // Save individual strategy result to database for per-strategy persistence
         try {
