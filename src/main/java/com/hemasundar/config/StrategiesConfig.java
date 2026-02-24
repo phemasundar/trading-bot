@@ -77,6 +77,11 @@ public class StrategiesConfig {
         private String filterType;
         private Object filter;
         private String securitiesFile;
+        /**
+         * Optional comma-separated inline stock symbols (e.g., "GOOG, AMZN, META").
+         * Combined with securitiesFile symbols into a single unique list.
+         */
+        private String securities;
         private Object technicalFilter;
 
         public boolean hasTechnicalFilter() {

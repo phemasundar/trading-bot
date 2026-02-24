@@ -26,6 +26,32 @@ Since `StrategyResult` is serialized into the `results` JSONB column of `strateg
 
 ---
 
+## Inline Securities in Strategy Config (2026-02-23)
+
+Added support for specifying individual stock symbols directly in `strategies-config.json` via a new `securities` key, alongside the existing `securitiesFile` option.
+
+### Usage
+```json
+{
+    "strategyType": "PUT_CREDIT_SPREAD",
+    "securitiesFile": "portfolio, tracking",
+    "securities": "GOOG, AMZN, META",
+    "filter": { ... }
+}
+```
+
+### Behavior
+- **Both fields are optional** and work independently or together
+- The final securities list is the **combined, deduplicated** union of file-based and inline symbols
+- Uses `LinkedHashSet` to preserve insertion order while ensuring uniqueness
+- If a symbol appears in both a file and inline, it's included only once
+
+### Files Modified
+- `StrategiesConfig.java`: Added `securities` field to `StrategyEntry`
+- `StrategiesConfigLoader.java`: Updated `convertToOptionsConfig()` to parse and combine inline securities
+
+---
+
 ## Schwab API Buffer Overflow Fix (2026-02-20)
 
 Fixed a `502 Bad Gateway` error (`protocol.http.TooBigBody`) from the Schwab API Apigee gateway when fetching option chains for major ETFs like QQQ and SPY. 
