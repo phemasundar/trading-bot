@@ -163,8 +163,22 @@ public class StrategiesConfigLoader {
         FilterType filterType = FilterType.fromJsonName(entry.getFilterType());
         OptionsStrategyFilter filter = filterType.parseFilter(entry.getFilter());
 
-        // Get securities list (supports comma-separated file names)
+        // Get securities list from files (supports comma-separated file names)
         List<String> securities = parseSecuritiesFromFiles(entry.getSecuritiesFile(), securitiesMap);
+
+        // Combine with inline securities if specified (supports comma-separated
+        // symbols)
+        if (entry.getSecurities() != null && !entry.getSecurities().trim().isEmpty()) {
+            java.util.Set<String> combined = new java.util.LinkedHashSet<>(securities);
+            for (String symbol : entry.getSecurities().split(",")) {
+                String trimmed = symbol.trim();
+                if (!trimmed.isEmpty()) {
+                    combined.add(trimmed);
+                }
+            }
+            securities = new java.util.ArrayList<>(combined);
+            log.debug("Combined {} unique securities from files + inline", securities.size());
+        }
 
         // Get optional technical filter
         TechnicalFilterChain technicalFilterChain = null;

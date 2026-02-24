@@ -1,10 +1,13 @@
 package com.hemasundar.dto;
 
+import com.hemasundar.options.models.OptionsStrategyFilter;
 import com.hemasundar.options.models.TradeSetup;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +20,10 @@ import java.util.Map;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Log4j2
 public class StrategyResult {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /**
      * Unique identifier for the strategy (e.g., "strategy_0")
@@ -50,6 +56,13 @@ public class StrategyResult {
     private java.time.Instant updatedAt;
 
     /**
+     * JSON string of the filter configuration used during this execution.
+     * Stored as raw JSON so it can be persisted to Supabase and displayed in the
+     * UI.
+     */
+    private String filterConfig;
+
+    /**
      * Builds a StrategyResult from a trades map (symbol_expiry → TradeSetup list).
      * Shared by StrategyExecutionService (Vaadin) and SampleTestNG (TestNG).
      *
@@ -60,7 +73,8 @@ public class StrategyResult {
      */
     public static StrategyResult fromTrades(String strategyName,
             Map<String, List<TradeSetup>> allTrades,
-            long executionTimeMs) {
+            long executionTimeMs,
+            OptionsStrategyFilter filter) {
         List<Trade> tradeDTOs = new ArrayList<>();
         for (Map.Entry<String, List<TradeSetup>> entry : allTrades.entrySet()) {
             String key = entry.getKey();
@@ -70,12 +84,23 @@ public class StrategyResult {
             }
         }
 
+        // Serialize filter to JSON string for persistence
+        String filterJson = null;
+        if (filter != null) {
+            try {
+                filterJson = OBJECT_MAPPER.writeValueAsString(filter);
+            } catch (Exception e) {
+                log.warn("Failed to serialize filter config: {}", e.getMessage());
+            }
+        }
+
         return StrategyResult.builder()
                 .strategyId(strategyName)
                 .strategyName(strategyName)
                 .executionTimeMs(executionTimeMs)
                 .tradesFound(tradeDTOs.size())
                 .trades(tradeDTOs)
+                .filterConfig(filterJson)
                 .build();
     }
 }

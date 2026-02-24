@@ -22,6 +22,11 @@ public class PutCreditSpread implements TradeSetup {
     private double currentPrice; // Underlying stock price
 
     @Override
+    public double getNetExtrinsicValue() {
+        return longPut.getExtrinsicValue() - shortPut.getExtrinsicValue();
+    }
+
+    @Override
     public String getExpiryDate() {
         return shortPut != null ? shortPut.getExpirationDate() : null;
     }

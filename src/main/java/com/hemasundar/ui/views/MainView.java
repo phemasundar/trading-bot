@@ -608,9 +608,11 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
         header.addClassName("p-4");
         header.addClassName("strategy-card-header");
         header.getStyle().set("display", "flex");
+        header.getStyle().set("flex-wrap", "wrap");
         header.getStyle().set("justify-content", "space-between");
         header.getStyle().set("align-items", "center");
         header.getStyle().set("cursor", "pointer");
+        header.getStyle().set("gap", "12px");
 
         // -- Left Side: Icon + Title + Params --
         HorizontalLayout leftSection = new HorizontalLayout();
@@ -643,8 +645,8 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
 
         titleRow.add(strategyName, typeBadge);
 
-        // Filter Params Subtext
-        String paramsText = getStrategyParams(result.getStrategyName());
+        // Filter Params Subtext — read from DB-stored filter config
+        String paramsText = getStrategyParamsFromJson(result.getFilterConfig());
         Span paramsSpan = new Span(paramsText);
         paramsSpan.addClassName("strategy-params-text");
         paramsSpan.getStyle().set("font-family", "monospace");
@@ -652,6 +654,11 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
         paramsSpan.getStyle().set("color", "var(--stitch-text-secondary)");
         paramsSpan.getStyle().set("opacity", "0.8");
         paramsSpan.getStyle().set("margin-top", "4px");
+        paramsSpan.getStyle().set("white-space", "normal");
+        paramsSpan.getStyle().set("word-break", "break-word");
+        paramsSpan.getStyle().set("overflow-wrap", "break-word");
+        paramsSpan.getStyle().set("width", "100%");
+        paramsSpan.getStyle().set("max-width", "calc(100vw - 150px)"); // Responsive max-width to avoid breaking mobile
 
         infoLayout.add(titleRow, paramsSpan);
         leftSection.add(arrowIcon, infoLayout);
@@ -669,9 +676,21 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
 
         // Last Run Time
         String timeAgo = "Just now";
-        if (result.getExecutionTimeMs() > 0) {
-            // Mock calculation
-            timeAgo = "1 min ago";
+        if (result.getUpdatedAt() != null) {
+            java.time.Duration duration = java.time.Duration.between(result.getUpdatedAt(), java.time.Instant.now());
+            long minutes = duration.toMinutes();
+            long hours = duration.toHours();
+            long days = duration.toDays();
+
+            if (days > 0) {
+                timeAgo = days + (days == 1 ? " day ago" : " days ago");
+            } else if (hours > 0) {
+                timeAgo = hours + (hours == 1 ? " hr ago" : " hrs ago");
+            } else if (minutes > 0) {
+                timeAgo = minutes + (minutes == 1 ? " min ago" : " mins ago");
+            } else {
+                timeAgo = "Just now";
+            }
         }
         Span lastRunLabel = new Span("Last run: " + timeAgo);
         lastRunLabel.getStyle().set("font-size", "0.75rem");
@@ -741,64 +760,100 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
     }
 
     /**
-     * Extracts display parameters for a given strategy name from configuration
+     * Extracts display parameters from a stored filter config JSON string.
+     * Called with the filterConfig field from StrategyResult (persisted in
+     * Supabase).
+     *
+     * @param filterConfigJson the raw JSON string of the filter, or null
+     * @return human-readable parameter summary
      */
-    private String getStrategyParams(String strategyName) {
-        // Find the config for this strategy name
-        OptionsConfig config = availableStrategies.stream()
-                .filter(c -> c.getName().equals(strategyName))
-                .findFirst()
-                .orElse(null);
-
-        if (config == null || config.getFilter() == null) {
-            return "No specific filters configured";
+    private String getStrategyParamsFromJson(String filterConfigJson) {
+        if (filterConfigJson == null || filterConfigJson.isEmpty()) {
+            return "Filter data not available";
         }
 
-        List<String> parts = new ArrayList<>();
-        var f = config.getFilter();
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(filterConfigJson);
 
-        // DTE
-        if (f.getTargetDTE() > 0) {
-            parts.add("DTE: " + f.getTargetDTE());
-        } else if (f.getMinDTE() > 0 || f.getMaxDTE() < Integer.MAX_VALUE) {
-            String max = f.getMaxDTE() == Integer.MAX_VALUE ? "∞" : String.valueOf(f.getMaxDTE());
-            parts.add("DTE: " + f.getMinDTE() + "-" + max);
+            List<String> parts = new ArrayList<>();
+
+            // DTE
+            int targetDTE = root.path("targetDTE").asInt(0);
+            int minDTE = root.path("minDTE").asInt(0);
+            int maxDTE = root.path("maxDTE").asInt(Integer.MAX_VALUE);
+            if (targetDTE > 0) {
+                parts.add("DTE: " + targetDTE);
+            } else if (minDTE > 0 || maxDTE < Integer.MAX_VALUE) {
+                String max = maxDTE == Integer.MAX_VALUE ? "∞" : String.valueOf(maxDTE);
+                parts.add("DTE: " + minDTE + "-" + max);
+            }
+
+            // Delta
+            if (root.has("maxUpperBreakevenDelta") && !root.get("maxUpperBreakevenDelta").isNull()) {
+                parts.add(String.format("Delta < %.2f", root.get("maxUpperBreakevenDelta").asDouble()));
+            }
+
+            // Max Loss
+            if (root.has("maxLossLimit") && !root.get("maxLossLimit").isNull()) {
+                parts.add(String.format("Max Loss: <$%.0f", root.get("maxLossLimit").asDouble()));
+            }
+
+            // Min RoR
+            int minRoR = root.path("minReturnOnRisk").asInt(0);
+            if (minRoR > 0) {
+                parts.add("Min RoR: " + minRoR + "%");
+            }
+
+            // Min HV
+            if (root.has("minHistoricalVolatility") && !root.get("minHistoricalVolatility").isNull()) {
+                parts.add(String.format("Min HV: %.0f%%", root.get("minHistoricalVolatility").asDouble()));
+            }
+
+            // Additional Filters
+            if (root.has("maxOptionPricePercent") && !root.get("maxOptionPricePercent").isNull()) {
+                parts.add(String.format("Max Price %%: %.1f%%", root.get("maxOptionPricePercent").asDouble()));
+            }
+
+            if (root.has("priceVsMaxDebitRatio") && !root.get("priceVsMaxDebitRatio").isNull()) {
+                parts.add(String.format("Price/Debit Ratio: %.1f", root.get("priceVsMaxDebitRatio").asDouble()));
+            }
+
+            if (root.has("maxTotalDebit") && !root.get("maxTotalDebit").isNull()) {
+                parts.add(String.format("Max Debit: $%.0f", root.get("maxTotalDebit").asDouble()));
+            }
+
+            if (root.has("maxBreakEvenPercentage") && !root.get("maxBreakEvenPercentage").isNull()) {
+                parts.add(String.format("Max B/E: %.1f%%", root.get("maxBreakEvenPercentage").asDouble()));
+            }
+
+            if (root.has("maxNetExtrinsicValueToPricePercentage")
+                    && !root.get("maxNetExtrinsicValueToPricePercentage").isNull()) {
+                parts.add(String.format("Max Extrinsic: %.1f%%",
+                        root.get("maxNetExtrinsicValueToPricePercentage").asDouble()));
+            }
+
+            if (root.has("minNetExtrinsicValueToPricePercentage")
+                    && !root.get("minNetExtrinsicValueToPricePercentage").isNull()) {
+                parts.add(String.format("Min Extrinsic: %.1f%%",
+                        root.get("minNetExtrinsicValueToPricePercentage").asDouble()));
+            }
+
+            // LEAP-specific
+            if (root.has("maxCAGRForBreakEven") && !root.get("maxCAGRForBreakEven").isNull()) {
+                parts.add(String.format("Max CAGR B/E: %.1f%%", root.get("maxCAGRForBreakEven").asDouble()));
+            }
+
+            if (root.has("minCostSavingsPercent") && !root.get("minCostSavingsPercent").isNull()) {
+                parts.add(String.format("Min Savings: %.1f%%", root.get("minCostSavingsPercent").asDouble()));
+            }
+
+            return parts.isEmpty() ? "No specific filters configured" : String.join(", ", parts);
+
+        } catch (Exception e) {
+            log.warn("Failed to parse filter config JSON: {}", e.getMessage());
+            return "Filter data not available";
         }
-
-        // Delta
-        if (f.getMaxUpperBreakevenDelta() != null) {
-            parts.add(String.format("Delta < %.2f", f.getMaxUpperBreakevenDelta()));
-        }
-
-        // Max Loss
-        if (f.getMaxLossLimit() != null) {
-            parts.add(String.format("Max Loss: <$%.0f", f.getMaxLossLimit()));
-        }
-
-        // Min RoR
-        if (f.getMinReturnOnRisk() > 0) {
-            parts.add("Min RoR: " + f.getMinReturnOnRisk() + "%");
-        }
-
-        // Min HV
-        if (f.getMinHistoricalVolatility() != null) {
-            parts.add(String.format("Min HV: %.0f%%", f.getMinHistoricalVolatility()));
-        }
-
-        // Additional Filters
-        if (f.getMaxOptionPricePercent() != null) {
-            parts.add(String.format("Max Price %%: %.1f%%", f.getMaxOptionPricePercent()));
-        }
-
-        if (f.getPriceVsMaxDebitRatio() != null) {
-            parts.add(String.format("Price/Debit Ratio: %.1f", f.getPriceVsMaxDebitRatio()));
-        }
-
-        if (f.getMaxTotalDebit() != null) {
-            parts.add(String.format("Max Debit: $%.0f", f.getMaxTotalDebit()));
-        }
-
-        return String.join(", ", parts);
     }
 
     /**
@@ -835,6 +890,14 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
                 }
             } else {
                 container.add(new Span("—"));
+            }
+            if (trade.getNetExtrinsicValue() != 0) {
+                Span extrinsicLine = new Span("Extrinsic: $" + String.format("%.2f", trade.getNetExtrinsicValue())
+                        + " (" + String.format("%.2f", trade.getNetExtrinsicValueToPricePercentage()) + "%)");
+                extrinsicLine.getStyle().set("display", "block");
+                extrinsicLine.getStyle().set("font-size", "0.75rem");
+                extrinsicLine.getStyle().set("color", "var(--lumo-secondary-text-color)");
+                container.add(extrinsicLine);
             }
             container.getStyle().set("white-space", "normal");
             container.getStyle().set("line-height", "1.5");
@@ -917,61 +980,56 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
         })).setHeader("ROR %").setSortable(true).setAutoWidth(true).setFlexGrow(0);
 
         // Styling
-        grid.addThemeVariants(com.vaadin.flow.component.grid.GridVariant.LUMO_NO_BORDER);
+        grid.addThemeVariants(
+                com.vaadin.flow.component.grid.GridVariant.LUMO_NO_BORDER,
+                com.vaadin.flow.component.grid.GridVariant.LUMO_WRAP_CELL_CONTENT);
         grid.setWidthFull();
-
-        // --- Details panel below the grid (avoids Vaadin detail row overlap bug) ---
-        Div detailsPanel = new Div();
-        detailsPanel.getStyle().set("white-space", "pre-wrap");
-        detailsPanel.getStyle().set("font-family", "monospace");
-        detailsPanel.getStyle().set("font-size", "0.8rem");
-        detailsPanel.getStyle().set("padding", "12px 16px");
-        detailsPanel.getStyle().set("color", "var(--lumo-body-text-color)");
-        detailsPanel.getStyle().set("line-height", "1.6");
-        detailsPanel.getStyle().set("background", "rgba(255,255,255,0.03)");
-        detailsPanel.getStyle().set("border-top", "1px solid rgba(255,255,255,0.08)");
-        detailsPanel.setVisible(false);
-
-        // Track which trade is currently expanded
-        final Trade[] selectedTrade = { null };
 
         grid.addItemClickListener(e -> {
             Trade clicked = e.getItem();
-            if (clicked.equals(selectedTrade[0])) {
-                // Toggle off
-                detailsPanel.setVisible(false);
-                selectedTrade[0] = null;
-                grid.select(null);
-            } else {
-                // Show details for clicked trade
-                selectedTrade[0] = clicked;
-                detailsPanel.removeAll();
 
-                // Header with ticker
-                Span header = new Span("▶ " + clicked.getSymbol() + " — Trade Details");
-                header.getStyle().set("font-weight", "bold");
-                header.getStyle().set("font-family", "var(--lumo-font-family)");
-                header.getStyle().set("font-size", "0.85rem");
-                header.getStyle().set("display", "block");
-                header.getStyle().set("margin-bottom", "8px");
-                header.getStyle().set("color", "var(--stitch-primary)");
+            com.vaadin.flow.component.dialog.Dialog dialog = new com.vaadin.flow.component.dialog.Dialog();
 
-                // Details text
-                Div detailsText = new Div();
-                detailsText.setText(
-                        clicked.getTradeDetails() != null ? clicked.getTradeDetails() : "No details available");
-                detailsText.getStyle().set("white-space", "pre-wrap");
-                detailsText.getStyle().set("font-family", "monospace");
+            Span header = new Span("▶ " + clicked.getSymbol() + " — Trade Details");
+            header.getStyle().set("font-weight", "bold");
+            header.getStyle().set("font-family", "var(--lumo-font-family)");
+            header.getStyle().set("font-size", "1.1rem");
+            header.getStyle().set("display", "block");
+            header.getStyle().set("margin-bottom", "12px");
+            header.getStyle().set("color", "var(--stitch-primary)");
 
-                detailsPanel.add(header, detailsText);
-                detailsPanel.setVisible(true);
-                grid.select(clicked);
-            }
+            Div detailsText = new Div();
+            detailsText.setText(clicked.getTradeDetails() != null ? clicked.getTradeDetails() : "No details available");
+            detailsText.getStyle().set("white-space", "pre-wrap");
+            detailsText.getStyle().set("word-break", "break-word");
+            detailsText.getStyle().set("overflow-wrap", "break-word");
+            detailsText.getStyle().set("font-family", "monospace");
+            detailsText.getStyle().set("color", "var(--lumo-body-text-color)");
+            detailsText.getStyle().set("line-height", "1.6");
+
+            com.vaadin.flow.component.button.Button closeBtn = new com.vaadin.flow.component.button.Button("Close",
+                    ev -> dialog.close());
+            closeBtn.getStyle().set("margin-top", "16px");
+
+            VerticalLayout layout = new VerticalLayout(header, detailsText, closeBtn);
+            layout.setPadding(true);
+            layout.setSpacing(false);
+
+            dialog.addOpenedChangeListener(event -> {
+                if (!event.isOpened()) {
+                    grid.deselectAll();
+                }
+            });
+
+            dialog.add(layout);
+            dialog.setWidth("100%");
+            dialog.setMaxWidth("600px");
+            dialog.open();
         });
 
         grid.setSelectionMode(Grid.SelectionMode.SINGLE);
 
-        VerticalLayout wrapper = new VerticalLayout(grid, detailsPanel);
+        VerticalLayout wrapper = new VerticalLayout(grid);
         wrapper.setPadding(false);
         wrapper.setSpacing(false);
         wrapper.setWidthFull();

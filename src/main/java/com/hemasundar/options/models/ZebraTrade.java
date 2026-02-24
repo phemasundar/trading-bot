@@ -11,10 +11,10 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CallCreditSpread implements TradeSetup {
+public class ZebraTrade implements TradeSetup {
     private OptionChainResponse.OptionData shortCall;
-    private OptionChainResponse.OptionData longCall;
-    private double netCredit;
+    private OptionChainResponse.OptionData longCall; // Represents the 2 long call legs (same strike)
+    private double netDebit;
     private double maxLoss;
     private double breakEvenPrice;
     private double breakEvenPercentage;
@@ -22,8 +22,15 @@ public class CallCreditSpread implements TradeSetup {
     private double currentPrice; // Underlying stock price
 
     @Override
+    public double getNetCredit() {
+        return -netDebit; // ZEBRA is a debit spread, so credit is negative debit
+    }
+
+    @Override
     public double getNetExtrinsicValue() {
-        return longCall.getExtrinsicValue() - shortCall.getExtrinsicValue();
+        // Net extrinsic value = (Extrinsic Value of 2 Longs) - (Extrinsic Value of 1
+        // Short)
+        return (longCall.getExtrinsicValue() * 2) - shortCall.getExtrinsicValue();
     }
 
     @Override
@@ -41,6 +48,7 @@ public class CallCreditSpread implements TradeSetup {
         return List.of(
                 TradeLeg.builder()
                         .action("SELL")
+                        .quantity(1)
                         .optionType("CALL")
                         .strike(shortCall.getStrikePrice())
                         .delta(shortCall.getDelta())
@@ -48,6 +56,7 @@ public class CallCreditSpread implements TradeSetup {
                         .build(),
                 TradeLeg.builder()
                         .action("BUY")
+                        .quantity(2)
                         .optionType("CALL")
                         .strike(longCall.getStrikePrice())
                         .delta(longCall.getDelta())

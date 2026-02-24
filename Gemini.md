@@ -1,5 +1,105 @@
 # Project Updates
 
+
+## Strategy Filter Persistence to Supabase (2026-02-22)
+
+Strategy filter configurations are now saved alongside execution results in Supabase's `latest_strategy_results` table. The Vaadin UI displays filter parameters from the DB instead of from in-memory config.
+
+### Problem
+- Filters from `strategies-config.json` were not persisted — only trade results were saved
+- The Vaadin UI read filter display data from in-memory config, which could differ from the actual filters used during execution (especially for CI vs. local runs)
+- The static GitHub Pages dashboard had no way to display filter data at all
+
+### Changes
+- **`StrategyResult.java`**: Added `filterConfig` field (JSON string), updated `fromTrades()` to accept and serialize `OptionsStrategyFilter`
+- **`SupabaseService.java`**: Save `filter_config` JSONB in payload using ObjectNode; parse it back in `parseStrategyResult()`
+- **`StrategyExecutionService.java`** & **`SampleTestNG.java`**: Pass `config.getFilter()` to `fromTrades()`
+- **`MainView.java`**: Replaced `getStrategyParams()` (in-memory config) with `getStrategyParamsFromJson()` (DB JSON). Shows "Filter data not available" for old rows without filter data
+
+### Supabase Schema
+```sql
+ALTER TABLE latest_strategy_results
+ADD COLUMN IF NOT EXISTS filter_config JSONB;
+```
+
+### Bonus
+Since `StrategyResult` is serialized into the `results` JSONB column of `strategy_executions`, filter data automatically flows into the execution history audit log with no extra code.
+
+---
+
+## Inline Securities in Strategy Config (2026-02-23)
+
+Added support for specifying individual stock symbols directly in `strategies-config.json` via a new `securities` key, alongside the existing `securitiesFile` option.
+
+### Usage
+```json
+{
+    "strategyType": "PUT_CREDIT_SPREAD",
+    "securitiesFile": "portfolio, tracking",
+    "securities": "GOOG, AMZN, META",
+    "filter": { ... }
+}
+```
+
+### Behavior
+- **Both fields are optional** and work independently or together
+- The final securities list is the **combined, deduplicated** union of file-based and inline symbols
+- Uses `LinkedHashSet` to preserve insertion order while ensuring uniqueness
+- If a symbol appears in both a file and inline, it's included only once
+
+### Files Modified
+- `StrategiesConfig.java`: Added `securities` field to `StrategyEntry`
+- `StrategiesConfigLoader.java`: Updated `convertToOptionsConfig()` to parse and combine inline securities
+
+---
+
+## Schwab API Buffer Overflow Fix (2026-02-20)
+
+Fixed a `502 Bad Gateway` error (`protocol.http.TooBigBody`) from the Schwab API Apigee gateway when fetching option chains for major ETFs like QQQ and SPY. 
+- **Cause**: QQQ's near-daily expirations and densely packed strikes resulted in massive JSON payloads exceeding the API's buffer size.
+- **Fix**: Appended `strikeCount=200` to `ThinkOrSwinAPIs.getOptionChain()` to restrict the returned option chain to 100 strikes above and below the current underlying price. This dramatically shrinks payload sizes while safely capturing the required ranges for both credit spreads and deep ITM/OTM LEAPs.
+
+---
+
+## Bullish ZEBRA Strategy Options Trading Profile (2026-02-19)
+
+Implemented a new Bullish ZEBRA (Zero Extrinsic Back Ratio Spread) strategy. This strategy simulates a stock equivalent directional play with less capital and defines risk.
+
+### Strategy Rules
+- **Leg 1**: Sell 1 In-The-Money (ITM) Call
+- **Leg 2**: Buy 2 further In-The-Money (ITM) Calls
+- Target Delta: Typically, sell the 0.50 delta (ATM) call and buy two 0.70+ delta calls.
+- Net Extrinsic Value Constraint: The trade should ideally be entered for 0 or close to 0 total extrinsic value to negate time-decay.
+
+### New Components
+- **`ZebraFilter.java`**: POJO defining filter criteria (longCall and shortCall leg filters, along with maximum net extrinsic value).
+- **`ZebraTrade.java`**: Implements `TradeSetup` to structure the Zebra trade metrics and calculation.
+- **`ZebraStrategy.java`**: Implements `AbstractTradingStrategy`. Generates permutations of shorts against longs, calculating max loss, net debit, and the combined net extrinsic value against limits defined by user config.
+
+### Configuration
+All targets like Extrinsic Value, Min/Max Delta for legs, and general filters are driven via the unified `strategies-config.json` system instead of being hardcoded in Java.
+
+### UI and Dashboard Integration
+- Configured dynamic extraction of `maxBreakEvenPercentage` and ZEBRA's `maxNetExtrinsicValue` filters for visibility in the **Vaadin Web app** (`MainView.java`).
+- Mapped specific `ZebraTrade` execution details (like Net Extrinsic Value) into the DTO layer (`Trade.java`). This guarantees the new strategy data automatically synchronizes to the expandable Supabase rows on the **GitHub Static Dashboard** (`docs/app.js`) without rewriting core frontend layers.
+
+```json
+        {
+            "enabled": true,
+            "alias": "Bullish ZEBRA - Portfolio",
+            "strategyType": "BULLISH_ZEBRA",
+            "filterType": "ZebraFilter",
+            "filter": {
+                "maxNetExtrinsicValueToPricePercentage": 0.5,
+                "ignoreEarnings": false,
+                "maxTotalDebit": 5000,
+                "maxBreakEvenPercentage": 5.0,
+                ...
+            }
+        }
+```
+
+---
 ## Supabase Security Hardening (2026-02-17)
 
 Enhanced the security of the Supabase integration by restricting public access and using privileged keys for backend operations.

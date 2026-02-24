@@ -84,6 +84,16 @@ public class Trade {
     private double upperBreakEvenPercent;
 
     /**
+     * Net extrinsic value of the strategy
+     */
+    private double netExtrinsicValue;
+
+    /**
+     * Net extrinsic value as percentage of current underlying price
+     */
+    private double netExtrinsicValueToPricePercentage;
+
+    /**
      * Full trade details text (matching Telegram format) for expandable view.
      */
     private String tradeDetails;
@@ -150,6 +160,16 @@ public class Trade {
                     .append(" (").append(String.format("%.1f", diffPct)).append("% cheaper)");
         }
 
+        // Output Net Extrinsic Value for everything using
+        // getNetExtrinsicValueToPricePercentage
+        // (excluding single-leg buying if it's already represented somehow, but
+        // generally helpful)
+        if (setup.getNetExtrinsicValue() != 0) {
+            details.append("\nNet Extrinsic: $").append(String.format("%.2f", setup.getNetExtrinsicValue()))
+                    .append(" (").append(String.format("%.2f", setup.getNetExtrinsicValueToPricePercentage()))
+                    .append("%)");
+        }
+
         return Trade.builder()
                 .symbol(symbol)
                 .underlyingPrice(setup.getCurrentPrice())
@@ -163,6 +183,8 @@ public class Trade {
                 .breakEvenPercent(setup.getBreakEvenPercentage())
                 .upperBreakEvenPrice(setup.getUpperBreakEvenPrice())
                 .upperBreakEvenPercent(setup.getUpperBreakEvenPercentage())
+                .netExtrinsicValue(setup.getNetExtrinsicValue())
+                .netExtrinsicValueToPricePercentage(setup.getNetExtrinsicValueToPricePercentage())
                 .tradeDetails(details.toString())
                 .build();
     }

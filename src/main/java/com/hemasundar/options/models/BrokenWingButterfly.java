@@ -36,6 +36,13 @@ public class BrokenWingButterfly implements TradeSetup {
     }
 
     @Override
+    public double getNetExtrinsicValue() {
+        double longExtrinsic = leg1LongCall.getExtrinsicValue() + leg3LongCall.getExtrinsicValue();
+        double shortExtrinsic = leg2ShortCalls.getExtrinsicValue() * 2;
+        return longExtrinsic - shortExtrinsic;
+    }
+
+    @Override
     public String getExpiryDate() {
         return leg1LongCall != null ? leg1LongCall.getExpirationDate() : null;
     }

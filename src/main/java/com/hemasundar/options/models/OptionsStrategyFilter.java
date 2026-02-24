@@ -35,6 +35,11 @@ public class OptionsStrategyFilter {
 
     // Advanced Filters
     private Double maxUpperBreakevenDelta;
+    private Double maxBreakEvenPercentage;
+
+    // Extrinsic Value Constraint (Relative to underlying price)
+    private Double maxNetExtrinsicValueToPricePercentage;
+    private Double minNetExtrinsicValueToPricePercentage;
 
     // Behavior flags
     @lombok.Builder.Default
@@ -113,5 +118,33 @@ public class OptionsStrategyFilter {
             return true; // Avoid division by zero
         double requiredProfit = maxLoss * (this.minReturnOnRisk / 100.0);
         return profit >= requiredProfit;
+    }
+
+    /**
+     * Checks if a break-even percentage passes the maxBreakEvenPercentage filter.
+     * 
+     * @param breakEvenPercentage the calculated break-even percentage for a trade
+     * @return true if percentage is within limit or no limit is set
+     */
+    public boolean passesMaxBreakEvenPercentage(double breakEvenPercentage) {
+        return this.maxBreakEvenPercentage == null || breakEvenPercentage <= this.maxBreakEvenPercentage;
+    }
+
+    public boolean passesMaxNetExtrinsicValueToPricePercentage(double netExtrinsicValueToPricePercentage) {
+        return this.maxNetExtrinsicValueToPricePercentage == null ||
+                netExtrinsicValueToPricePercentage <= this.maxNetExtrinsicValueToPricePercentage;
+    }
+
+    /**
+     * Checks if a net extrinsic value percentage passes the
+     * minNetExtrinsicValueToPricePercentage filter.
+     * 
+     * @param netExtrinsicValueToPricePercentage the calculated net extrinsic value
+     *                                           relative to underlying price
+     * @return true if percentage is within limit or no limit is set
+     */
+    public boolean passesMinNetExtrinsicValueToPricePercentage(double netExtrinsicValueToPricePercentage) {
+        return this.minNetExtrinsicValueToPricePercentage == null ||
+                netExtrinsicValueToPricePercentage >= this.minNetExtrinsicValueToPricePercentage;
     }
 }

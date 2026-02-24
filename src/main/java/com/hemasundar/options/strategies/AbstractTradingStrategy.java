@@ -127,6 +127,28 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
     }
 
     /**
+     * Common filter for maxNetExtrinsicValueToPricePercentage.
+     * Returns a predicate that checks if the net extrinsic value relative to the
+     * stock price is within the max limit.
+     */
+    protected java.util.function.Predicate<TradeSetup> commonMaxNetExtrinsicValueToPricePercentageFilter(
+            OptionsStrategyFilter filter) {
+        return tradeSetup -> filter.passesMaxNetExtrinsicValueToPricePercentage(
+                tradeSetup.getNetExtrinsicValueToPricePercentage());
+    }
+
+    /**
+     * Common filter for minNetExtrinsicValueToPricePercentage.
+     * Returns a predicate that checks if the net extrinsic value relative to the
+     * stock price is at least the min limit.
+     */
+    protected java.util.function.Predicate<TradeSetup> commonMinNetExtrinsicValueToPricePercentageFilter(
+            OptionsStrategyFilter filter) {
+        return tradeSetup -> filter.passesMinNetExtrinsicValueToPricePercentage(
+                tradeSetup.getNetExtrinsicValueToPricePercentage());
+    }
+
+    /**
      * Checks if the symbol's historical volatility meets the minimum threshold.
      * Uses cache to avoid redundant API calls and calculations.
      *

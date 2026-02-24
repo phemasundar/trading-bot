@@ -327,14 +327,23 @@ public class SupabaseService {
             String updatedAt = java.time.Instant.now().toString();
 
             // Build JSON payload
-            String payload = String.format(
-                    "{\"strategy_id\":\"%s\",\"strategy_name\":\"%s\",\"execution_time_ms\":%d,\"trades_found\":%d,\"trades\":%s,\"updated_at\":\"%s\"}",
-                    result.getStrategyId(),
-                    result.getStrategyName(),
-                    result.getExecutionTimeMs(),
-                    result.getTradesFound(),
-                    tradesJson,
-                    updatedAt);
+            // Use ObjectMapper for safe JSON construction to avoid escaping issues with
+            // filter_config
+            com.fasterxml.jackson.databind.node.ObjectNode payloadNode = OBJECT_MAPPER.createObjectNode();
+            payloadNode.put("strategy_id", result.getStrategyId());
+            payloadNode.put("strategy_name", result.getStrategyName());
+            payloadNode.put("execution_time_ms", result.getExecutionTimeMs());
+            payloadNode.put("trades_found", result.getTradesFound());
+            payloadNode.set("trades", OBJECT_MAPPER.readTree(tradesJson));
+            payloadNode.put("updated_at", updatedAt);
+
+            // Add filter config as JSONB (parse string back to JsonNode so it's stored as
+            // JSON, not escaped string)
+            if (result.getFilterConfig() != null && !result.getFilterConfig().isEmpty()) {
+                payloadNode.set("filter_config", OBJECT_MAPPER.readTree(result.getFilterConfig()));
+            }
+
+            String payload = OBJECT_MAPPER.writeValueAsString(payloadNode);
 
             String url = projectUrl + LATEST_STRATEGY_RESULTS_PATH;
 
@@ -436,6 +445,13 @@ public class SupabaseService {
             String updatedAtStr = node.get("updated_at").asText();
             java.time.Instant updatedAt = java.time.Instant.parse(updatedAtStr);
 
+            // Parse filter_config (may be null for old rows)
+            String filterConfig = null;
+            com.fasterxml.jackson.databind.JsonNode filterNode = node.get("filter_config");
+            if (filterNode != null && !filterNode.isNull()) {
+                filterConfig = filterNode.toString();
+            }
+
             return com.hemasundar.dto.StrategyResult.builder()
                     .strategyId(strategyId)
                     .strategyName(strategyName)
@@ -443,6 +459,7 @@ public class SupabaseService {
                     .tradesFound(tradesFound)
                     .trades(trades)
                     .updatedAt(updatedAt)
+                    .filterConfig(filterConfig)
                     .build();
         } catch (Exception e) {
             throw new IOException("Failed to parse strategy result: " + e.getMessage(), e);

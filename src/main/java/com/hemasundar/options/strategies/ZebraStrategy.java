@@ -1,13 +1,13 @@
 package com.hemasundar.options.strategies;
 
-import com.hemasundar.options.models.CallCreditSpread;
-import com.hemasundar.options.models.CreditSpreadFilter;
 import com.hemasundar.options.models.LegFilter;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionChainResponse.OptionData;
 import com.hemasundar.options.models.OptionType;
 import com.hemasundar.options.models.OptionsStrategyFilter;
 import com.hemasundar.options.models.TradeSetup;
+import com.hemasundar.options.models.ZebraFilter;
+import com.hemasundar.options.models.ZebraTrade;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.CollectionUtils;
 
@@ -20,13 +20,13 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 @Log4j2
-public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
+public class ZebraStrategy extends AbstractTradingStrategy {
 
-    public CallCreditSpreadStrategy() {
-        super(StrategyType.CALL_CREDIT_SPREAD);
+    public ZebraStrategy() {
+        super(StrategyType.BULLISH_ZEBRA);
     }
 
-    public CallCreditSpreadStrategy(StrategyType strategyType) {
+    public ZebraStrategy(StrategyType strategyType) {
         super(strategyType);
     }
 
@@ -41,9 +41,10 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
 
         // Extract leg filters
         LegFilter shortLegFilter = null, longLegFilter = null;
-        if (filter instanceof CreditSpreadFilter csFilter) {
-            shortLegFilter = csFilter.getShortLeg();
-            longLegFilter = csFilter.getLongLeg();
+
+        if (filter instanceof ZebraFilter zFilter) {
+            shortLegFilter = zFilter.getShortCall();
+            longLegFilter = zFilter.getLongCall();
         }
 
         List<Double> sortedStrikes = callMap.keySet().stream()
@@ -53,10 +54,10 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
 
         return generateCandidates(callMap, sortedStrikes, chain.getUnderlyingPrice())
                 .filter(deltaFilter(shortLegFilter, longLegFilter))
-                .filter(creditFilter())
-                .filter(commonMaxLossFilter(filter, CallSpreadCandidate::maxLoss))
-                .filter(commonMinReturnOnRiskFilter(filter, CallSpreadCandidate::netCredit,
-                        CallSpreadCandidate::maxLoss))
+                .filter(commonMaxLossFilter(filter, ZebraCandidate::maxLoss))
+                // For ZEBRA, return on risk might be less standard, but we apply if defined
+                .filter(commonMinReturnOnRiskFilter(filter, candidate -> candidate.maxLoss() > 0 ? 0.0 : 100.0,
+                        ZebraCandidate::maxLoss))
                 .map(this::buildTradeSetup)
                 .filter(commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
                 .filter(commonMinNetExtrinsicValueToPricePercentageFilter(filter))
@@ -65,12 +66,14 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
     }
 
     /**
-     * Generates all valid 2-leg combinations as a stream of CallSpreadCandidate
-     * records.
-     * For Call Spreads: Short Strike (i) < Long Strike (j)
+     * Generates all valid 2-leg combinations (representing the 3 legs, as the 2
+     * longs use the same strike).
      */
-    private Stream<CallSpreadCandidate> generateCandidates(Map<String, List<OptionData>> callMap,
+    private Stream<ZebraCandidate> generateCandidates(Map<String, List<OptionData>> callMap,
             List<Double> strikes, double currentPrice) {
+        // ZEBRA requires selling a call (close to ATM, e.g. 50 Delta)
+        // and buying 2 calls further ITM (e.g. 70 Delta)
+        // Since Calls ITM have lower strikes, Long Strike < Short Strike
         return IntStream.range(0, strikes.size()).boxed()
                 .flatMap(i -> IntStream.range(i + 1, strikes.size()).boxed()
                         .map(j -> createCandidate(callMap, strikes, i, j, currentPrice)))
@@ -78,25 +81,19 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
                 .map(Optional::get);
     }
 
-    private Optional<CallSpreadCandidate> createCandidate(Map<String, List<OptionData>> callMap,
-            List<Double> strikes, int shortIndex, int longIndex, double currentPrice) {
-        double shortStrike = strikes.get(shortIndex);
+    private Optional<ZebraCandidate> createCandidate(Map<String, List<OptionData>> callMap,
+            List<Double> strikes, int longIndex, int shortIndex, double currentPrice) {
+        double longStrike = strikes.get(longIndex); // Lower strike -> Higher Delta -> ITM
+        double shortStrike = strikes.get(shortIndex); // Higher strike -> Lower Delta -> ATM
 
-        // OTM Check: For Call Credit Spread, Short Strike must be > Current Price
-        // Wait, logic in original file was: if (shortStrikePrice <= currentPrice)
-        // continue
-        // So Short Strike MUST be > Current Price (OTM)
-        if (shortStrike <= currentPrice) {
-            return Optional.empty();
-        }
-
+        OptionData longLeg = getOption(callMap, longStrike);
         OptionData shortLeg = getOption(callMap, shortStrike);
-        OptionData longLeg = getOption(callMap, strikes.get(longIndex));
 
-        if (shortLeg == null || longLeg == null) {
+        if (longLeg == null || shortLeg == null) {
             return Optional.empty();
         }
-        return Optional.of(new CallSpreadCandidate(shortLeg, longLeg, currentPrice));
+
+        return Optional.of(new ZebraCandidate(shortLeg, longLeg, currentPrice));
     }
 
     private OptionData getOption(Map<String, List<OptionData>> map, Double strike) {
@@ -106,25 +103,18 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
 
     // ========== FILTER PREDICATES ==========
 
-    private Predicate<CallSpreadCandidate> deltaFilter(LegFilter shortLegFilter, LegFilter longLegFilter) {
+    private Predicate<ZebraCandidate> deltaFilter(LegFilter shortLegFilter, LegFilter longLegFilter) {
         return candidate -> LegFilter.passes(shortLegFilter, candidate.shortLeg())
                 && LegFilter.passes(longLegFilter, candidate.longLeg());
     }
 
-    private Predicate<CallSpreadCandidate> creditFilter() {
-        return candidate -> candidate.netCredit() > 0;
-    }
-
-    // Note: maxLossFilter and minReturnOnRiskFilter now use common helpers from
-    // AbstractTradingStrategy
-
     // ========== TRADE BUILDER ==========
 
-    private TradeSetup buildTradeSetup(CallSpreadCandidate c) {
-        return CallCreditSpread.builder()
+    private TradeSetup buildTradeSetup(ZebraCandidate c) {
+        return ZebraTrade.builder()
                 .shortCall(c.shortLeg())
                 .longCall(c.longLeg())
-                .netCredit(c.netCredit())
+                .netDebit(c.netDebit())
                 .maxLoss(c.maxLoss())
                 .breakEvenPrice(c.breakEvenPrice())
                 .breakEvenPercentage(c.breakEvenPercentage())
@@ -135,26 +125,32 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
 
     // ========== CANDIDATE RECORD ==========
 
-    private record CallSpreadCandidate(OptionData shortLeg, OptionData longLeg, double currentPrice) {
+    private record ZebraCandidate(OptionData shortLeg, OptionData longLeg, double currentPrice) {
 
-        double netCredit() {
-            return (shortLeg.getBid() - longLeg.getAsk()) * 100;
-        }
-
-        double strikeWidth() {
-            return (longLeg.getStrikePrice() - shortLeg.getStrikePrice()) * 100;
+        double netDebit() {
+            // Buying 2 calls, Selling 1 call
+            return ((longLeg.getAsk() * 2) - shortLeg.getBid()) * 100;
         }
 
         double maxLoss() {
-            return strikeWidth() - netCredit();
+            // The max loss for a Zebra is theoretically the net debit paid.
+            return netDebit();
         }
 
         double returnOnRisk() {
-            return (maxLoss() > 0) ? (netCredit() / maxLoss()) * 100 : 0;
+            // Return on Risk isn't easily defined for a stock replacement strategy like
+            // ZEBRA
+            // without knowing the target exit price. Often people do not use this filter.
+            return 0; // Return 0 to avoid breaking generic filtering unless customized
         }
 
         double breakEvenPrice() {
-            return shortLeg.getStrikePrice() + (netCredit() / 100);
+            // Cost basis per share equivalent.
+            // In a ZEBRA the 1 short call cancels out the extrinsic value of 1 long call.
+            // Leaving you with the intrinsic value of 1 long call plus some minor extrinsic
+            // differences.
+            // Effectively, B/E = Long Strike + (Net Debit / 100)
+            return longLeg.getStrikePrice() + (netDebit() / 100);
         }
 
         double breakEvenPercentage() {
