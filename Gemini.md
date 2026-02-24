@@ -1,5 +1,6 @@
 # Project Updates
 
+
 ## Strategy Filter Persistence to Supabase (2026-02-22)
 
 Strategy filter configurations are now saved alongside execution results in Supabase's `latest_strategy_results` table. The Vaadin UI displays filter parameters from the DB instead of from in-memory config.
