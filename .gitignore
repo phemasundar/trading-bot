@@ -19,3 +19,9 @@ src/main/resources/META-INF/resources/frontend/
 item-cache/
 webpack.generated.js
 vite.generated.ts
+
+# Local Secrets & Overrides
+application-local.properties
+application-secret.properties
+.env
+.env.*
