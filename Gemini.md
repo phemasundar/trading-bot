@@ -1,5 +1,62 @@
 # Project Updates
 
+## Strategy Configuration Viewer (2026-02-25)
+
+Added a read-only configuration viewer screen at `/config` that displays the full `strategies-config.json` content in a collapsible, UI-friendly layout.
+
+### Features
+- **Options Strategies**: Each of the 12 strategies is shown as a collapsible dark card with enabled/disabled pill, alias, strategy type badge, and securities source. Expanding reveals all filter parameters (DTE, Max Loss, Delta, OI, etc.) in a clean CSS grid with auto-formatted labels. Nested leg filters (shortLeg, longLeg, etc.) render as labeled sub-sections. Array fields (relaxationPriority, sortPriority) display as chip badges.
+- **Technical Screeners**: 5 collapsible cards showing RSI/Bollinger conditions and volume filters.
+- **Technical Indicators**: Static info card with RSI Period, thresholds, and Bollinger settings.
+
+### Files
+- **`StrategyConfigView.java`** [NEW]: Vaadin view at `@Route("config")` using `MainLayout`. Reads `strategies-config.json` via Jackson, iterates the POJO structure to build collapsible cards.
+- **`MainLayout.java`**: Added COG icon sidebar link to the config view, replacing the placeholder. Optimized drawer layout using flex `Div`s to prevent horizontal scrolling.
+
+### Visual Refinements
+- **Sidebar**: Nav items use plain `Div` elements with `display: flex` and `overflow: hidden` to fit icon and text perfectly without triggering horizontal scrollbars.
+- **Config Cards**: Headers are split into a compact two-line structure (Alias/Type on top, explicitly green `hsla(145, 65%, 42%)` Enabled badge on the bottom). Collapsible sections use `display: none` instead of `max-height` for layout stability.
+
+---
+
+## Execute Strategy Vaadin View (2026-02-25)
+
+Added a new dedicated screen in the Vaadin UI for dynamically building and executing custom trading strategies without modifying the configuration files.
+
+### Problem
+- Strategy execution was limited to the predefined configurations in `strategies-config.json` via the main dashboard.
+- Users had no way to quickly test a strategy with custom filters on a specific set of stock symbols directly from the UI.
+- The UI had only a single view attached to the root URL.
+- Custom executions polluted the dashboard's `latest_strategy_results` table.
+
+### Changes
+- **`ExecuteStrategyView.java`**: A new Vaadin view allowing users to select a `StrategyType`, configure common filters (DTE, Max Loss, etc.), and dynamically render strategy-specific fields (e.g. Short/Long Legs, Margin settings). Includes inline field validation and a "Recent Executions" section showing the last 20 custom runs with collapsible result cards and trade grids (same layout as dashboard).
+- **`MainLayout.java`**: Extracted the `AppLayout` wrapper from `MainView.java` to support a sidebar with `RouterLink` navigation between multiple views (Dashboard and Execute Strategy).
+- **`MainView.java`**: Refactored to act as a standard route component (`@Route(value = "", layout = MainLayout.class)`) instead of extending `AppLayout`. 
+- **`StrategyExecutionService.java`**: Added `executeCustomStrategy()` and `getRecentCustomExecutions()` methods. Custom executions now save to the separate `custom_execution_results` table.
+- **`SupabaseService.java`**: Added `saveCustomExecutionResult()` (INSERT) and `getRecentCustomExecutions(int limit)` (SELECT) methods for the new `custom_execution_results` table.
+
+### Supabase Schema
+```sql
+CREATE TABLE custom_execution_results (
+  id BIGSERIAL PRIMARY KEY,
+  strategy_name TEXT NOT NULL,
+  execution_time_ms BIGINT,
+  trades_found INT,
+  trades JSONB,
+  filter_config JSONB,
+  securities TEXT[],
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### Behavior
+- The Execute Strategy view relies entirely on strategy selection for form rendering and does not read from `strategies-config.json`.
+- Users can input comma-separated securities manually in a text field, and then run a strategy.
+- Results are saved to the `custom_execution_results` table (append-only), completely separate from the dashboard's `latest_strategy_results`.
+- Last 20 custom executions display in-page under "Recent Executions" with the same card/grid layout as the dashboard.
+- Dashboard is not affected by custom executions.
+
 
 ## Strategy Filter Persistence to Supabase (2026-02-22)
 

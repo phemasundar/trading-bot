@@ -97,6 +97,12 @@ For detailed setup instructions:
 
 ### Running Strategy Analysis
 
+#### 1. Via the Web Interface (Vaadin)
+If you run the Spring Boot application (e.g. `mvn spring-boot:run`), a local web dashboard is available.
+- **Dashboard (`/`)**: View historical results or execute all predefined strategies from the config file.
+- **Execute Strategy (`/execute`)**: Dynamically build a custom configuration for any strategy type (PCS, LEAP, IC, etc.), specify securities, set filters, and execute it instantly without modifying the JSON config.
+
+#### 2. Via CLI (Testing)
 ```bash
 mvn test -Dtest=SampleTestNG#getOptionChainData
 ```

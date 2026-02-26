@@ -465,4 +465,149 @@ public class SupabaseService {
             throw new IOException("Failed to parse strategy result: " + e.getMessage(), e);
         }
     }
+
+    // ==================== Custom Execution Results (Execute View)
+    // ====================
+
+    private static final String CUSTOM_EXECUTION_RESULTS_PATH = "/rest/v1/custom_execution_results";
+
+    /**
+     * Saves a custom execution result to the dedicated table.
+     * This is append-only (INSERT) — each execution creates a new row.
+     *
+     * @param result     Strategy result to save
+     * @param securities List of securities used in this execution
+     * @throws IOException if API call fails
+     */
+    public void saveCustomExecutionResult(com.hemasundar.dto.StrategyResult result,
+            java.util.List<String> securities) throws IOException {
+        try {
+            String tradesJson = OBJECT_MAPPER.writeValueAsString(result.getTrades());
+
+            com.fasterxml.jackson.databind.node.ObjectNode payloadNode = OBJECT_MAPPER.createObjectNode();
+            payloadNode.put("strategy_name", result.getStrategyName());
+            payloadNode.put("execution_time_ms", result.getExecutionTimeMs());
+            payloadNode.put("trades_found", result.getTradesFound());
+            payloadNode.set("trades", OBJECT_MAPPER.readTree(tradesJson));
+
+            if (result.getFilterConfig() != null && !result.getFilterConfig().isEmpty()) {
+                payloadNode.set("filter_config", OBJECT_MAPPER.readTree(result.getFilterConfig()));
+            }
+
+            // Store securities as a Postgres TEXT array literal
+            com.fasterxml.jackson.databind.node.ArrayNode securitiesArray = OBJECT_MAPPER.createArrayNode();
+            if (securities != null) {
+                securities.forEach(securitiesArray::add);
+            }
+            payloadNode.set("securities", securitiesArray);
+
+            String payload = OBJECT_MAPPER.writeValueAsString(payloadNode);
+            String url = projectUrl + CUSTOM_EXECUTION_RESULTS_PATH;
+
+            Response response = RestAssured.given()
+                    .header("apikey", apiKey)
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .header("Prefer", "return=minimal")
+                    .body(payload)
+                    .post(url);
+
+            int statusCode = response.getStatusCode();
+            if (statusCode == 200 || statusCode == 201) {
+                log.info("Saved custom execution result: {} with {} trades",
+                        result.getStrategyName(), result.getTradesFound());
+            } else {
+                String errorBody = response.getBody().asString();
+                throw new IOException(String.format(
+                        "Failed to save custom execution result: %d - %s. Body: %s",
+                        statusCode, response.getStatusLine(), errorBody));
+            }
+        } catch (Exception e) {
+            if (e instanceof IOException) {
+                throw (IOException) e;
+            }
+            throw new IOException("Failed to save custom execution result: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Retrieves the most recent custom execution results.
+     *
+     * @param limit Maximum number of results to return
+     * @return List of StrategyResult, most recent first
+     * @throws IOException if API call fails
+     */
+    public java.util.List<com.hemasundar.dto.StrategyResult> getRecentCustomExecutions(int limit) throws IOException {
+        try {
+            String url = projectUrl + CUSTOM_EXECUTION_RESULTS_PATH
+                    + "?order=created_at.desc&limit=" + limit;
+
+            Response response = RestAssured.given()
+                    .header("apikey", apiKey)
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .get(url);
+
+            int statusCode = response.getStatusCode();
+            if (statusCode != 200) {
+                throw new IOException("Failed to retrieve custom executions: " + statusCode);
+            }
+
+            String body = response.getBody().asString();
+            com.fasterxml.jackson.databind.JsonNode rootArray = OBJECT_MAPPER.readTree(body);
+
+            java.util.List<com.hemasundar.dto.StrategyResult> results = new java.util.ArrayList<>();
+            for (com.fasterxml.jackson.databind.JsonNode node : rootArray) {
+                results.add(parseCustomExecutionResult(node));
+            }
+
+            log.info("Retrieved {} custom execution results from database", results.size());
+            return results;
+        } catch (Exception e) {
+            if (e instanceof IOException) {
+                throw (IOException) e;
+            }
+            throw new IOException("Failed to retrieve custom executions: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Parses a JSON node from custom_execution_results into a StrategyResult DTO.
+     */
+    private com.hemasundar.dto.StrategyResult parseCustomExecutionResult(
+            com.fasterxml.jackson.databind.JsonNode node) throws IOException {
+        try {
+            String strategyName = node.get("strategy_name").asText();
+            long executionTimeMs = node.get("execution_time_ms").asLong();
+            int tradesFound = node.get("trades_found").asInt();
+
+            com.fasterxml.jackson.databind.JsonNode tradesNode = node.get("trades");
+            java.util.List<com.hemasundar.dto.Trade> trades = OBJECT_MAPPER.readValue(
+                    tradesNode.toString(),
+                    OBJECT_MAPPER.getTypeFactory().constructCollectionType(
+                            java.util.List.class,
+                            com.hemasundar.dto.Trade.class));
+
+            String createdAtStr = node.get("created_at").asText();
+            java.time.Instant createdAt = java.time.Instant.parse(createdAtStr);
+
+            String filterConfig = null;
+            com.fasterxml.jackson.databind.JsonNode filterNode = node.get("filter_config");
+            if (filterNode != null && !filterNode.isNull()) {
+                filterConfig = filterNode.toString();
+            }
+
+            return com.hemasundar.dto.StrategyResult.builder()
+                    .strategyId(String.valueOf(node.get("id").asLong()))
+                    .strategyName(strategyName)
+                    .executionTimeMs(executionTimeMs)
+                    .tradesFound(tradesFound)
+                    .trades(trades)
+                    .updatedAt(createdAt)
+                    .filterConfig(filterConfig)
+                    .build();
+        } catch (Exception e) {
+            throw new IOException("Failed to parse custom execution result: " + e.getMessage(), e);
+        }
+    }
 }
