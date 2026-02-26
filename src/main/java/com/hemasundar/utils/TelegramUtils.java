@@ -286,6 +286,13 @@ public class TelegramUtils {
         }
         sb.append(" | Max Loss: $").append(String.format("%.0f", trade.getMaxLoss())).append("\n");
 
+        // Extrinsic Value
+        if (trade.getNetExtrinsicValue() != 0) {
+            sb.append("  ✨ Extrinsic: $").append(String.format("%.2f", trade.getNetExtrinsicValue()))
+                    .append(" (").append(String.format("%.2f", trade.getNetExtrinsicValueToPricePercentage()))
+                    .append("%)\n");
+        }
+
         // Return on Risk and Break Even
         double ror = trade.getReturnOnRisk();
         if (ror > 0) {

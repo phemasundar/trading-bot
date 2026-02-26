@@ -40,11 +40,13 @@ import java.util.stream.IntStream;
 import com.vaadin.flow.theme.lumo.Lumo;
 import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
 
-@Route("")
+import com.hemasundar.ui.MainLayout;
+
+@Route(value = "", layout = MainLayout.class)
 @PageTitle("Trading Bot Dashboard")
 
 @Log4j2
-public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
+public class MainView extends VerticalLayout {
 
     private final StrategyExecutionService strategyService;
 
@@ -56,7 +58,6 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
     private Button clearAllButton;
     private ProgressBar progressBar;
     private Div resultsContainer;
-    private Span statusLabel;
 
     // Data
     private List<OptionsConfig> availableStrategies;
@@ -72,22 +73,14 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
             // Load available strategies
             availableStrategies = strategyService.getEnabledStrategies();
 
-            // Create Main Layout
-            addToNavbar(createHeader());
-            addToDrawer(createSidebar());
+            setSizeFull();
+            setPadding(true);
+            setSpacing(true);
+            addClassName("main-layout");
 
-            // Main Content Area
-            VerticalLayout mainContent = new VerticalLayout();
-            mainContent.setSizeFull();
-            mainContent.setPadding(true);
-            mainContent.setSpacing(true);
-            mainContent.addClassName("main-layout");
-
-            mainContent.add(createStrategySelector());
-            mainContent.add(createExecutionPanel());
-            mainContent.add(createResultsDisplay());
-
-            setContent(mainContent);
+            add(createStrategySelector());
+            add(createExecutionPanel());
+            add(createResultsDisplay());
 
             // Load latest results on startup
             loadLatestResults();
@@ -107,51 +100,6 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
                     5000, Notification.Position.MIDDLE)
                     .addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
-    }
-
-    /**
-     * Creates the page header
-     */
-    private Component createHeader() {
-        H1 title = new H1("Option Trades Finder");
-        title.getStyle().set("font-size", "var(--lumo-font-size-l)");
-        title.getStyle().set("margin", "0");
-
-        statusLabel = new Span("Market Open");
-        statusLabel.getElement().getThemeList().add("badge success");
-
-        HorizontalLayout header = new HorizontalLayout(new com.vaadin.flow.component.applayout.DrawerToggle(), title,
-                statusLabel);
-        header.addClassName("header");
-        header.setWidth("100%");
-        header.setDefaultVerticalComponentAlignment(Alignment.CENTER);
-        header.setFlexGrow(1, title);
-        header.setPadding(true);
-
-        return header;
-    }
-
-    private Component createSidebar() {
-        VerticalLayout sidebar = new VerticalLayout();
-        sidebar.setPadding(true);
-        sidebar.setSpacing(true);
-        sidebar.setAlignItems(Alignment.CENTER);
-
-        // Placeholder Icons
-        sidebar.add(createSidebarIcon("vaadin:dashboard"));
-        sidebar.add(createSidebarIcon("vaadin:chart"));
-        sidebar.add(createSidebarIcon("vaadin:time-backward"));
-        sidebar.add(createSidebarIcon("vaadin:cog"));
-
-        return sidebar;
-    }
-
-    private Component createSidebarIcon(String iconName) {
-        com.vaadin.flow.component.icon.Icon icon = com.vaadin.flow.component.icon.VaadinIcon.valueOf(
-                iconName.replace("vaadin:", "").toUpperCase().replace("-", "_")).create();
-        Div iconDiv = new Div(icon);
-        iconDiv.addClassName("sidebar-icon");
-        return iconDiv;
     }
 
     /**
@@ -526,8 +474,6 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
                     if (finalError != null) {
                         log.info("Handling error case in UI");
                         // Handle error case
-                        statusLabel.setText("Execution failed");
-                        statusLabel.getStyle().set("color", "var(--lumo-error-text-color)");
 
                         String errorMsg = finalError.getMessage() != null ? finalError.getMessage()
                                 : "Unknown error occurred";
@@ -539,8 +485,6 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
                         // Reload ALL strategy results from database (includes newly executed +
                         // existing)
                         loadLatestResults();
-                        statusLabel.setText("Execution completed");
-                        statusLabel.getStyle().set("color", "var(--lumo-success-text-color)");
 
                         Notification.show(
                                 String.format("Execution completed: %d strategies, %d trades found in %dms",
@@ -1073,7 +1017,6 @@ public class MainView extends com.vaadin.flow.component.applayout.AppLayout {
             if (!allResults.isEmpty()) {
                 // Display all results
                 displayAllStrategyResults(allResults);
-                statusLabel.setText(String.format("Loaded %d strategy results", allResults.size()));
                 log.info("Loaded {} strategy results from database", allResults.size());
             } else {
                 resultsContainer.add(new Span("No previous results. Execute strategies to see results."));

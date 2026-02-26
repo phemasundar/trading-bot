@@ -163,6 +163,67 @@ public class StrategyExecutionService {
     }
 
     /**
+     * Executes a custom strategy with inline dynamically built OptionsConfig.
+     * This is useful for UI-driven execution rather than reading from JSON.
+     *
+     * @param config The custom OptionsConfig
+     * @return ExecutionResult containing the single strategy's result
+     */
+    public ExecutionResult executeCustomStrategy(OptionsConfig config) {
+        executionRunning.set(true);
+        cancellationRequested.set(false);
+        executionStartTimeMs = System.currentTimeMillis();
+        long startTime = executionStartTimeMs;
+        String executionId = "exec_custom_" + startTime;
+
+        try {
+            log.info("Starting custom execution: {}", executionId);
+
+            OptionChainCache cache = new OptionChainCache();
+
+            // Execute the single custom strategy
+            StrategyResult result = executeStrategy(config, cache);
+
+            // Build execution result wrapper
+            ExecutionResult executionResult = ExecutionResult.builder()
+                    .executionId(executionId)
+                    .timestamp(LocalDateTime.now())
+                    .results(List.of(result))
+                    .totalTradesFound(result.getTradesFound())
+                    .totalExecutionTimeMs(System.currentTimeMillis() - startTime)
+                    .telegramSent(true) // Telegram is sent during strategy execution
+                    .build();
+
+            // Save to Supabase custom_execution_results table (NOT the dashboard table)
+            try {
+                supabaseService.saveCustomExecutionResult(result, config.getSecurities());
+                log.info("Saved custom execution result to Supabase: {}", executionId);
+            } catch (IOException e) {
+                log.error("Failed to save custom execution result to Supabase: {}", e.getMessage());
+            }
+
+            cache.printStats();
+
+            log.info("Custom Execution completed: {} total trades, {}ms",
+                    executionResult.getTotalTradesFound(), executionResult.getTotalExecutionTimeMs());
+
+            return executionResult;
+        } finally {
+            executionRunning.set(false);
+        }
+    }
+
+    /**
+     * Retrieves the most recent custom execution results from Supabase.
+     *
+     * @param limit Maximum number of results to return
+     * @return List of StrategyResult, most recent first
+     */
+    public List<StrategyResult> getRecentCustomExecutions(int limit) throws IOException {
+        return supabaseService.getRecentCustomExecutions(limit);
+    }
+
+    /**
      * Executes a single strategy and returns its result.
      */
     private StrategyResult executeStrategy(OptionsConfig config, OptionChainCache cache) {
