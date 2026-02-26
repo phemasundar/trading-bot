@@ -240,17 +240,28 @@ function createTradeGrid(trades, strategyIdx) {
 // --- Cell Renderers ---
 function renderLegs(trade) {
     const legs = trade.legs || [];
-    if (legs.length === 0) return '<span style="color:var(--text-muted)">—</span>';
+    let html = '';
+    if (legs.length === 0) {
+        html = '<span style="color:var(--text-muted)">—</span>';
+    } else {
+        html = legs.map(leg => {
+            const actionClass = (leg.action || '').toUpperCase() === 'BUY' ? 'leg-action-buy' : 'leg-action-sell';
+            const action = (leg.action || '').toUpperCase();
+            const type = (leg.optionType || '').toUpperCase();
+            const strike = formatNum(leg.strike);
+            const premium = formatCurrency(leg.premium);
 
-    return legs.map(leg => {
-        const actionClass = (leg.action || '').toUpperCase() === 'BUY' ? 'leg-action-buy' : 'leg-action-sell';
-        const action = (leg.action || '').toUpperCase();
-        const type = (leg.optionType || '').toUpperCase();
-        const strike = formatNum(leg.strike);
-        const premium = formatCurrency(leg.premium);
+            return `<span class="leg-line"><span class="${actionClass}">${action}</span> ${type} ${strike} <span style="color:var(--text-muted)">→ ${premium}</span></span>`;
+        }).join('');
+    }
 
-        return `<span class="leg-line"><span class="${actionClass}">${action}</span> ${type} ${strike} <span style="color:var(--text-muted)">→ ${premium}</span></span>`;
-    }).join('');
+    if (trade.netExtrinsicValue && trade.netExtrinsicValue !== 0) {
+        const extVal = trade.netExtrinsicValue.toFixed(2);
+        const extPct = (trade.netExtrinsicValueToPricePercentage || 0).toFixed(2);
+        html += `<span style="display:block; font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Extrinsic: $${extVal} (${extPct}%)</span>`;
+    }
+
+    return html;
 }
 
 function renderBreakeven(trade) {

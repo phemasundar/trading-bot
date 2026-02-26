@@ -17,6 +17,11 @@ Added a read-only configuration viewer screen at `/config` that displays the ful
 - **Sidebar**: Nav items use plain `Div` elements with `display: flex` and `overflow: hidden` to fit icon and text perfectly without triggering horizontal scrollbars.
 - **Config Cards**: Headers are split into a compact two-line structure (Alias/Type on top, explicitly green `hsla(145, 65%, 42%)` Enabled badge on the bottom). Collapsible sections use `display: none` instead of `max-height` for layout stability.
 
+### Net Extrinsic Value Display
+- **Backend Model**: Updated `Trade.java` to map `netExtrinsicValue` and `netExtrinsicValueToPricePercentage` into the JSON payload and stringified details block. Ensured `PutCreditSpreadStrategy.java` correctly retrieves and sets these values on trade building.
+- **Telegram ALerts**: Modified `TelegramUtils.java` to inject the `Extrinsic: $X (Y%)` inline right below `Max Loss`.
+- **UI & Web**: Added the inline Extrinsic label rendering into the TYPE grid column within `ExecuteStrategyView.java` and `docs/app.js`, bringing data parity across all interfaces.
+
 ---
 
 ## Execute Strategy Vaadin View (2026-02-25)
