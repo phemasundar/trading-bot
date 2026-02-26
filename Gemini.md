@@ -1,5 +1,6 @@
 # Project Updates
 
+> **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 ## Strategy Configuration Viewer (2026-02-25)
 
 Added a read-only configuration viewer screen at `/config` that displays the full `strategies-config.json` content in a collapsible, UI-friendly layout.
