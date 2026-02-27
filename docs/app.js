@@ -177,6 +177,7 @@ function createTradeGrid(trades, strategyIdx) {
         <thead>
             <tr>
                 <th>Ticker</th>
+                <th>Price</th>
                 <th>Type</th>
                 <th>Expiry</th>
                 <th>Credit/Debit</th>
@@ -197,6 +198,7 @@ function createTradeGrid(trades, strategyIdx) {
         tr.style.cursor = 'pointer';
         tr.innerHTML = `
             <td class="cell-ticker">${escHtml(trade.symbol || '')}</td>
+            <td class="cell-mono">$${formatNum(trade.underlyingPrice || 0)}</td>
             <td>${renderLegs(trade)}</td>
             <td class="cell-mono">${escHtml((trade.expiryDate || '').split('T')[0])} <span style="color:var(--text-muted);">(${trade.dte || 0})</span></td>
             <td class="${trade.netCredit >= 0 ? 'cell-credit' : 'cell-debit'}">${formatCurrency(trade.netCredit)}</td>

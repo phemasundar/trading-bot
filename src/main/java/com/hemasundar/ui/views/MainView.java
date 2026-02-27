@@ -820,6 +820,12 @@ public class MainView extends VerticalLayout {
                 .setFlexGrow(0)
                 .setClassNameGenerator(item -> "grid-ticker");
 
+        grid.addColumn(trade -> "$" + String.format("%.2f", trade.getUnderlyingPrice()))
+                .setHeader("PRICE")
+                .setSortable(true)
+                .setWidth("100px")
+                .setFlexGrow(0);
+
         // Type + Strikes (merged: each leg on a new line with strike)
         grid.addColumn(new com.vaadin.flow.data.renderer.ComponentRenderer<>(trade -> {
             Div container = new Div();

@@ -659,6 +659,12 @@ public class ExecuteStrategyView extends VerticalLayout {
                 .setFlexGrow(0)
                 .setClassNameGenerator(item -> "grid-ticker");
 
+        grid.addColumn(trade -> "$" + String.format("%.2f", trade.getUnderlyingPrice()))
+                .setHeader("PRICE")
+                .setSortable(true)
+                .setWidth("100px")
+                .setFlexGrow(0);
+
         grid.addColumn(new com.vaadin.flow.data.renderer.ComponentRenderer<>(trade -> {
             Div container = new Div();
             if (trade.getLegs() != null && !trade.getLegs().isEmpty()) {

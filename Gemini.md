@@ -2,6 +2,17 @@
 
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 
+## Underlying Price UI Column (2026-02-26)
+
+Added a dedicated "PRICE" column to all trading grids across the platform to easily view the underlying stock price for a given strategy.
+
+### Files Modified
+- **`MainView.java`**: Added `$%.2f` formatted `PRICE` column after `TICKER`
+- **`ExecuteStrategyView.java`**: Added `$%.2f` formatted `PRICE` column after `TICKER` 
+- **`docs/app.js`**: Inserted `<th>Price</th>` and corresponding data cell with `trade.underlyingPrice` to match the Java grids.
+
+---
+
 ## Net Extrinsic Value Percentage Formula Change (2026-02-26)
 
 Changed the `netExtrinsicValueToPricePercentage` formula from a price-based calculation to an annualized max-loss-based calculation, and renamed the method/field across the codebase.
