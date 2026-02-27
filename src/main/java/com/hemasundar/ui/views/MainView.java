@@ -823,7 +823,7 @@ public class MainView extends VerticalLayout {
         grid.addColumn(trade -> "$" + String.format("%.2f", trade.getUnderlyingPrice()))
                 .setHeader("PRICE")
                 .setSortable(true)
-                .setWidth("100px")
+                .setWidth("120px")
                 .setFlexGrow(0);
 
         // Type + Strikes (merged: each leg on a new line with strike)

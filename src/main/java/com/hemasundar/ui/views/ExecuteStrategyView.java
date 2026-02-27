@@ -662,7 +662,7 @@ public class ExecuteStrategyView extends VerticalLayout {
         grid.addColumn(trade -> "$" + String.format("%.2f", trade.getUnderlyingPrice()))
                 .setHeader("PRICE")
                 .setSortable(true)
-                .setWidth("100px")
+                .setWidth("120px")
                 .setFlexGrow(0);
 
         grid.addColumn(new com.vaadin.flow.data.renderer.ComponentRenderer<>(trade -> {
