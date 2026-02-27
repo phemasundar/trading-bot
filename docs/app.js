@@ -257,7 +257,7 @@ function renderLegs(trade) {
 
     if (trade.netExtrinsicValue && trade.netExtrinsicValue !== 0) {
         const extVal = trade.netExtrinsicValue.toFixed(2);
-        const extPct = (trade.netExtrinsicValueToPricePercentage || 0).toFixed(2);
+        const extPct = (trade.anulizedNetExtrinsicValueToCapitalPercentage || 0).toFixed(2);
         html += `<span style="display:block; font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Extrinsic: $${extVal} (${extPct}%)</span>`;
     }
 

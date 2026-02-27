@@ -1,6 +1,69 @@
 # Project Updates
 
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
+
+## Net Extrinsic Value Percentage Formula Change (2026-02-26)
+
+Changed the `netExtrinsicValueToPricePercentage` formula from a price-based calculation to an annualized max-loss-based calculation, and renamed the method/field across the codebase.
+
+### Old Formula
+```
+(Net Extrinsic Value / Underlying Price) × 100
+```
+
+### New Formula
+```
+(Net Extrinsic Value / Max Loss) × (365 / DTE)
+```
+
+This normalizes extrinsic value against risk capital and annualizes it, providing a more meaningful metric for comparing trades across different underlyings and expiration dates.
+
+### Method/Field Rename
+- `getNetExtrinsicValueToPricePercentage()` → `getAnulizedNetExtrinsicValueToCapitalPercentage()`
+- `netExtrinsicValueToPricePercentage` field → `anulizedNetExtrinsicValueToCapitalPercentage`
+
+### IronCondor Refactoring
+- Removed inline net extrinsic value calculation from `IronCondorStrategy`
+- IronCondor now builds the `IronCondor` object first, then uses the common `TradeSetup.getAnulizedNetExtrinsicValueToCapitalPercentage()` method for filtering
+- All 6 strategies consistently use the common filter predicates from `AbstractTradingStrategy`
+
+### Filter Availability
+The `maxNetExtrinsicValueToPricePercentage` and `minNetExtrinsicValueToPricePercentage` filter fields in `strategies-config.json` are applied to **all** strategies:
+- PutCreditSpread, CallCreditSpread, IronCondor, BrokenWingButterfly, LongCallLeap, Zebra
+
+### Files Modified
+- **`TradeSetup.java`**: Renamed method to `getAnulizedNetExtrinsicValueToCapitalPercentage()`
+- **`IronCondorStrategy.java`**: Removed inline calculation, uses common method
+- **`AbstractTradingStrategy.java`**: Updated common filter predicates
+- **`Trade.java`**: Renamed field to `anulizedNetExtrinsicValueToCapitalPercentage`
+- **`MainView.java`**: Updated getter call
+- **`ExecuteStrategyView.java`**: Updated getter call
+- **`TelegramUtils.java`**: Updated getter call
+- **`docs/app.js`**: Updated field reference
+
+---
+
+## Oracle Cloud Deployment Guide (2026-02-26)
+
+Added `ORACLE_CLOUD_DEPLOYMENT.md` with step-by-step instructions for deploying the Vaadin web app to an Oracle Cloud Infrastructure (OCI) Always-Free compute instance.
+
+### Covered Topics
+- OCI Always-Free instance creation (VM.Standard.A1.Flex recommended)
+- Security List ingress rules and OS firewall configuration
+- Java 17, Maven, and Git installation (Oracle Linux & Ubuntu)
+- Building the production JAR with Vaadin `-Pproduction` profile
+- Systemd service for auto-start, restart-on-failure, and log management  
+- Environment variable configuration via `.env` file
+- Optional Nginx reverse proxy with WebSocket support for Vaadin Push
+- Let's Encrypt SSL/TLS via Certbot
+- Appendix: Vaadin production Maven profile and `application-production.properties`
+- Troubleshooting table and security recommendations
+
+### Files
+- **`ORACLE_CLOUD_DEPLOYMENT.md`** [NEW]: Full deployment guide
+
+---
+
 ## Strategy Configuration Viewer (2026-02-25)
 
 Added a read-only configuration viewer screen at `/config` that displays the full `strategies-config.json` content in a collapsible, UI-friendly layout.

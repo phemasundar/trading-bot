@@ -837,7 +837,7 @@ public class MainView extends VerticalLayout {
             }
             if (trade.getNetExtrinsicValue() != 0) {
                 Span extrinsicLine = new Span("Extrinsic: $" + String.format("%.2f", trade.getNetExtrinsicValue())
-                        + " (" + String.format("%.2f", trade.getNetExtrinsicValueToPricePercentage()) + "%)");
+                        + " (" + String.format("%.2f", trade.getAnulizedNetExtrinsicValueToCapitalPercentage()) + "%)");
                 extrinsicLine.getStyle().set("display", "block");
                 extrinsicLine.getStyle().set("font-size", "0.75rem");
                 extrinsicLine.getStyle().set("color", "var(--lumo-secondary-text-color)");

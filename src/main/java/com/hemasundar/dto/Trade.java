@@ -89,9 +89,9 @@ public class Trade {
     private double netExtrinsicValue;
 
     /**
-     * Net extrinsic value as percentage of current underlying price
+     * Annualized net extrinsic value as percentage of max loss (risk capital)
      */
-    private double netExtrinsicValueToPricePercentage;
+    private double anulizedNetExtrinsicValueToCapitalPercentage;
 
     /**
      * Full trade details text (matching Telegram format) for expandable view.
@@ -161,12 +161,12 @@ public class Trade {
         }
 
         // Output Net Extrinsic Value for everything using
-        // getNetExtrinsicValueToPricePercentage
+        // getAnulizedNetExtrinsicValueToCapitalPercentage
         // (excluding single-leg buying if it's already represented somehow, but
         // generally helpful)
         if (setup.getNetExtrinsicValue() != 0) {
             details.append("\nNet Extrinsic: $").append(String.format("%.2f", setup.getNetExtrinsicValue()))
-                    .append(" (").append(String.format("%.2f", setup.getNetExtrinsicValueToPricePercentage()))
+                    .append(" (").append(String.format("%.2f", setup.getAnulizedNetExtrinsicValueToCapitalPercentage()))
                     .append("%)");
         }
 
@@ -184,7 +184,7 @@ public class Trade {
                 .upperBreakEvenPrice(setup.getUpperBreakEvenPrice())
                 .upperBreakEvenPercent(setup.getUpperBreakEvenPercentage())
                 .netExtrinsicValue(setup.getNetExtrinsicValue())
-                .netExtrinsicValueToPricePercentage(setup.getNetExtrinsicValueToPricePercentage())
+                .anulizedNetExtrinsicValueToCapitalPercentage(setup.getAnulizedNetExtrinsicValueToCapitalPercentage())
                 .tradeDetails(details.toString())
                 .build();
     }

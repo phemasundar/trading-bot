@@ -250,6 +250,18 @@ The execution results dashboard is now maintained in a separate repository. It i
 3. Enable GitHub Pages to deploy from the new repo.
 
 
+## Deployment
+
+### Oracle Cloud Free Tier
+
+The Vaadin web app can be deployed to an **Oracle Cloud Always-Free** compute instance. See [`ORACLE_CLOUD_DEPLOYMENT.md`](ORACLE_CLOUD_DEPLOYMENT.md) for full step-by-step instructions covering:
+
+- Instance creation (VM.Standard.A1.Flex — 4 OCPUs / 24 GB free)
+- Java 17 + Maven setup
+- Production JAR build with Vaadin `-Pproduction` profile
+- Systemd service for auto-start and log management
+- Optional Nginx reverse proxy + Let's Encrypt HTTPS
+
 ## Project Structure
 
 ```

@@ -26,11 +26,11 @@ public interface TradeSetup {
     // etc.)
     double getNetExtrinsicValue();
 
-    // Default calculation for the percentage constraint logic
-    default double getNetExtrinsicValueToPricePercentage() {
-        if (getCurrentPrice() <= 0)
+    // Default calculation for the annualized net extrinsic percentage
+    default double getAnulizedNetExtrinsicValueToCapitalPercentage() {
+        if (getMaxLoss() <= 0 || getDaysToExpiration() <= 0)
             return 0;
-        return (getNetExtrinsicValue() / getCurrentPrice()) * 100;
+        return (getNetExtrinsicValue() / getMaxLoss()) * (365.0 / getDaysToExpiration());
     }
 
     default double getUpperBreakEvenPrice() {
