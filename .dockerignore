@@ -1,0 +1,34 @@
+# Build artifacts (rebuilt inside Docker)
+target/
+# Vaadin dev-mode generated files (rebuilt during production build)
+frontend/generated/
+
+# Git history
+.git/
+.gitignore
+
+# IDE files
+.idea/
+.vscode/
+
+# Logs and debug files
+logs/
+debug_log.txt
+run_log.txt
+maven_output.txt
+
+# OAuth tokens (never bake into image)
+tokens*/
+service-account.json
+
+# Documentation (not needed at runtime)
+*.md
+docs/
+stitch/
+
+# Node / npm
+node_modules/
+package-lock.json
+
+# Test files (not needed in Docker)
+src/test/

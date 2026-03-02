@@ -659,6 +659,12 @@ public class ExecuteStrategyView extends VerticalLayout {
                 .setFlexGrow(0)
                 .setClassNameGenerator(item -> "grid-ticker");
 
+        grid.addColumn(trade -> "$" + String.format("%.2f", trade.getUnderlyingPrice()))
+                .setHeader("PRICE")
+                .setSortable(true)
+                .setWidth("120px")
+                .setFlexGrow(0);
+
         grid.addColumn(new com.vaadin.flow.data.renderer.ComponentRenderer<>(trade -> {
             Div container = new Div();
             if (trade.getLegs() != null && !trade.getLegs().isEmpty()) {
@@ -676,7 +682,7 @@ public class ExecuteStrategyView extends VerticalLayout {
 
             if (trade.getNetExtrinsicValue() != 0) {
                 Span extrinsicLine = new Span("Extrinsic: $" + String.format("%.2f", trade.getNetExtrinsicValue())
-                        + " (" + String.format("%.2f", trade.getNetExtrinsicValueToPricePercentage()) + "%)");
+                        + " (" + String.format("%.2f", trade.getAnulizedNetExtrinsicValueToCapitalPercentage()) + "%)");
                 extrinsicLine.getStyle().set("display", "block");
                 extrinsicLine.getStyle().set("font-size", "0.75rem");
                 extrinsicLine.getStyle().set("color", "var(--lumo-secondary-text-color)");

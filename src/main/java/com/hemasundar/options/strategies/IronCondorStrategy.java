@@ -114,20 +114,6 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
 
                 double returnOnRisk = (totalCredit / maxRisk) * 100;
 
-                // Calculate Net Extrinsic Value
-                double longExtrinsic = putSpread.getLongPut().getExtrinsicValue()
-                        + callSpread.getLongCall().getExtrinsicValue();
-                double shortExtrinsic = putSpread.getShortPut().getExtrinsicValue()
-                        + callSpread.getShortCall().getExtrinsicValue();
-                double netExtrinsicValue = longExtrinsic - shortExtrinsic;
-                double netExtrinsicValueToPricePercentage = currentPrice > 0 ? (netExtrinsicValue / currentPrice) * 100
-                        : 0;
-
-                if (!filter.passesMaxNetExtrinsicValueToPricePercentage(netExtrinsicValueToPricePercentage))
-                    continue;
-
-                if (!filter.passesMinNetExtrinsicValueToPricePercentage(netExtrinsicValueToPricePercentage))
-                    continue;
                 double lowerBreakEven = putSpread.getShortPut().getStrikePrice() - (totalCredit / 100);
                 double upperBreakEven = callSpread.getShortCall().getStrikePrice() + (totalCredit / 100);
 
@@ -139,7 +125,7 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
                     continue;
                 }
 
-                condors.add(IronCondor.builder()
+                IronCondor condor = IronCondor.builder()
                         .putLeg(putSpread)
                         .callLeg(callSpread)
                         .netCredit(totalCredit)
@@ -150,7 +136,18 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
                         .lowerBreakEvenPercentage(lowerBreakEvenPercentage)
                         .upperBreakEvenPercentage(upperBreakEvenPercentage)
                         .currentPrice(currentPrice)
-                        .build());
+                        .build();
+
+                // Use common method from TradeSetup interface
+                double annualizedNetExtrinsicPct = condor.getAnulizedNetExtrinsicValueToCapitalPercentage();
+
+                if (!filter.passesMaxNetExtrinsicValueToPricePercentage(annualizedNetExtrinsicPct))
+                    continue;
+
+                if (!filter.passesMinNetExtrinsicValueToPricePercentage(annualizedNetExtrinsicPct))
+                    continue;
+
+                condors.add(condor);
             }
         }
         return condors;

@@ -134,7 +134,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
     protected java.util.function.Predicate<TradeSetup> commonMaxNetExtrinsicValueToPricePercentageFilter(
             OptionsStrategyFilter filter) {
         return tradeSetup -> filter.passesMaxNetExtrinsicValueToPricePercentage(
-                tradeSetup.getNetExtrinsicValueToPricePercentage());
+                tradeSetup.getAnulizedNetExtrinsicValueToCapitalPercentage());
     }
 
     /**
@@ -145,7 +145,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
     protected java.util.function.Predicate<TradeSetup> commonMinNetExtrinsicValueToPricePercentageFilter(
             OptionsStrategyFilter filter) {
         return tradeSetup -> filter.passesMinNetExtrinsicValueToPricePercentage(
-                tradeSetup.getNetExtrinsicValueToPricePercentage());
+                tradeSetup.getAnulizedNetExtrinsicValueToCapitalPercentage());
     }
 
     /**

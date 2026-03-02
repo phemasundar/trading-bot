@@ -289,7 +289,7 @@ public class TelegramUtils {
         // Extrinsic Value
         if (trade.getNetExtrinsicValue() != 0) {
             sb.append("  ✨ Extrinsic: $").append(String.format("%.2f", trade.getNetExtrinsicValue()))
-                    .append(" (").append(String.format("%.2f", trade.getNetExtrinsicValueToPricePercentage()))
+                    .append(" (").append(String.format("%.2f", trade.getAnulizedNetExtrinsicValueToCapitalPercentage()))
                     .append("%)\n");
         }
 

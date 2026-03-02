@@ -250,6 +250,47 @@ The execution results dashboard is now maintained in a separate repository. It i
 3. Enable GitHub Pages to deploy from the new repo.
 
 
+## Deployment
+
+### Google Cloud Run (Recommended — CI/CD via GitHub Actions)
+
+The Vaadin web app is deployed to **Google Cloud Run** automatically on every push to `main` via the `.github/workflows/deploy-cloud-run.yml` workflow.
+
+**How it works:**
+1. GitHub Actions builds a Docker image using the multi-stage `Dockerfile`
+2. Pushes the image to **Google Artifact Registry**
+3. Deploys to Cloud Run with HTTPS enabled — no cold starts (`min-instances=1`)
+
+**Access:** The app is available at a permanent HTTPS URL:
+```
+https://trading-bot-<hash>-uc.a.run.app
+```
+The URL is printed at the end of every successful GitHub Actions deployment run.
+
+**Required GitHub Secrets** (`Settings → Secrets and variables → Actions`):
+
+| Secret | Description |
+|---|---|
+| `GCP_PROJECT_ID` | Your GCP project ID |
+| `GCP_SA_KEY` | Service Account JSON key (full JSON content) |
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_ANON_KEY` | Supabase publishable/anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
+
+For full step-by-step GCP setup instructions, see [`CLOUD_RUN_DEPLOYMENT.md`](CLOUD_RUN_DEPLOYMENT.md).
+
+---
+
+### Oracle Cloud Free Tier
+
+The Vaadin web app can be deployed to an **Oracle Cloud Always-Free** compute instance. See [`ORACLE_CLOUD_DEPLOYMENT.md`](ORACLE_CLOUD_DEPLOYMENT.md) for full step-by-step instructions covering:
+
+- Instance creation (VM.Standard.A1.Flex — 4 OCPUs / 24 GB free)
+- Java 17 + Maven setup
+- Production JAR build with Vaadin `-Pproduction` profile
+- Systemd service for auto-start and log management
+- Optional Nginx reverse proxy + Let's Encrypt HTTPS
+
 ## Project Structure
 
 ```

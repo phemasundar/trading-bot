@@ -206,9 +206,11 @@ public class SampleTestNG {
         /**
          * Loads securities list from a YAML file.
          */
-        private List<String> loadSecurities(Path path) throws IOException {
-                Securities securities = JavaUtils.convertYamlToPojo(Files.readString(path), Securities.class);
-                log.info("Loading securities from: {} - Found {} symbols", path, securities.securities().size());
+        private List<String> loadSecurities(String resourcePath) throws IOException {
+                Securities securities = JavaUtils.convertYamlToPojo(FilePaths.readResource(resourcePath),
+                                Securities.class);
+                log.info("Loading securities from: {} - Found {} symbols", resourcePath,
+                                securities.securities().size());
                 return securities.securities();
         }
 
@@ -233,38 +235,38 @@ public class SampleTestNG {
                 Map<String, List<TradeSetup>> allTrades = new LinkedHashMap<>();
 
                 for (String symbol : symbols) {
-                    OptionChainResponse optionChainResponse = cache.get(symbol);
-                    log.info("Processing symbol: {}", symbol);
+                        OptionChainResponse optionChainResponse = cache.get(symbol);
+                        log.info("Processing symbol: {}", symbol);
 
-                    List<TradeSetup> trades = strategy.findTrades(optionChainResponse,
-                                    optionsStrategyFilter);
-                    trades.forEach(trade -> log.info("Trade: {}", trade));
+                        List<TradeSetup> trades = strategy.findTrades(optionChainResponse,
+                                        optionsStrategyFilter);
+                        trades.forEach(trade -> log.info("Trade: {}", trade));
 
-                    if (!trades.isEmpty()) {
-                            // 1. Sort by Return on Risk (Descending)
-                            trades.sort((t1, t2) -> Double.compare(t2.getReturnOnRisk(),
-                                            t1.getReturnOnRisk()));
+                        if (!trades.isEmpty()) {
+                                // 1. Sort by Return on Risk (Descending)
+                                trades.sort((t1, t2) -> Double.compare(t2.getReturnOnRisk(),
+                                                t1.getReturnOnRisk()));
 
-                            // 2. Limit the number of trades sent to Telegram
-                            List<TradeSetup> topTrades = trades;
-                            if (trades.size() > maxTradesToSend) {
-                                    topTrades = trades.subList(0, maxTradesToSend);
-                                    log.info("[{}] Found {} trades, limiting to top {} for Telegram",
-                                                    symbol, trades.size(), maxTradesToSend);
-                            }
+                                // 2. Limit the number of trades sent to Telegram
+                                List<TradeSetup> topTrades = trades;
+                                if (trades.size() > maxTradesToSend) {
+                                        topTrades = trades.subList(0, maxTradesToSend);
+                                        log.info("[{}] Found {} trades, limiting to top {} for Telegram",
+                                                        symbol, trades.size(), maxTradesToSend);
+                                }
 
-                            // Group trades by expiry date and add as separate entries
-                            Map<String, List<TradeSetup>> tradesByExpiry = topTrades.stream()
-                                            .collect(java.util.stream.Collectors.groupingBy(
-                                                            TradeSetup::getExpiryDate,
-                                                            LinkedHashMap::new,
-                                                            java.util.stream.Collectors.toList()));
+                                // Group trades by expiry date and add as separate entries
+                                Map<String, List<TradeSetup>> tradesByExpiry = topTrades.stream()
+                                                .collect(java.util.stream.Collectors.groupingBy(
+                                                                TradeSetup::getExpiryDate,
+                                                                LinkedHashMap::new,
+                                                                java.util.stream.Collectors.toList()));
 
-                            for (Map.Entry<String, List<TradeSetup>> entry : tradesByExpiry.entrySet()) {
-                                    // Key format: "NVDA" (each expiry gets its own Telegram message)
-                                    allTrades.put(symbol + "_" + entry.getKey(), entry.getValue());
-                            }
-                    }
+                                for (Map.Entry<String, List<TradeSetup>> entry : tradesByExpiry.entrySet()) {
+                                        // Key format: "NVDA" (each expiry gets its own Telegram message)
+                                        allTrades.put(symbol + "_" + entry.getKey(), entry.getValue());
+                                }
+                        }
                 }
 
                 return allTrades;

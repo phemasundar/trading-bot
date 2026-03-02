@@ -19,7 +19,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -372,9 +371,10 @@ public class StrategyExecutionService {
     /**
      * Loads securities from a YAML file.
      */
-    private List<String> loadSecurities(java.nio.file.Path path) throws IOException {
-        Securities securities = JavaUtils.convertYamlToPojo(Files.readString(path), Securities.class);
-        log.info("Loading securities from: {} - Found {} symbols", path, securities.securities().size());
+    private List<String> loadSecurities(String resourcePath) throws IOException {
+        String yaml = FilePaths.readResource(resourcePath);
+        Securities securities = JavaUtils.convertYamlToPojo(yaml, Securities.class);
+        log.info("Loading securities from: {} - Found {} symbols", resourcePath, securities.securities().size());
         return securities.securities();
     }
 }

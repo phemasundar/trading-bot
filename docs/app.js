@@ -177,6 +177,7 @@ function createTradeGrid(trades, strategyIdx) {
         <thead>
             <tr>
                 <th>Ticker</th>
+                <th>Price</th>
                 <th>Type</th>
                 <th>Expiry</th>
                 <th>Credit/Debit</th>
@@ -197,6 +198,7 @@ function createTradeGrid(trades, strategyIdx) {
         tr.style.cursor = 'pointer';
         tr.innerHTML = `
             <td class="cell-ticker">${escHtml(trade.symbol || '')}</td>
+            <td class="cell-mono">$${formatNum(trade.underlyingPrice || 0)}</td>
             <td>${renderLegs(trade)}</td>
             <td class="cell-mono">${escHtml((trade.expiryDate || '').split('T')[0])} <span style="color:var(--text-muted);">(${trade.dte || 0})</span></td>
             <td class="${trade.netCredit >= 0 ? 'cell-credit' : 'cell-debit'}">${formatCurrency(trade.netCredit)}</td>
@@ -257,7 +259,7 @@ function renderLegs(trade) {
 
     if (trade.netExtrinsicValue && trade.netExtrinsicValue !== 0) {
         const extVal = trade.netExtrinsicValue.toFixed(2);
-        const extPct = (trade.netExtrinsicValueToPricePercentage || 0).toFixed(2);
+        const extPct = (trade.anulizedNetExtrinsicValueToCapitalPercentage || 0).toFixed(2);
         html += `<span style="display:block; font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Extrinsic: $${extVal} (${extPct}%)</span>`;
     }
 
