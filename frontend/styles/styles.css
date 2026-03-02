@@ -1,2 +1,329 @@
-/* Global application styles */
-/* This file is intentionally minimal - all component styling is done via Vaadin Lumo theme and inline Java styles */
+/*
+ * Trading Bot — Vaadin App Global Styles
+ * Defines all --stitch-* design tokens and custom component classes
+ * used across MainView, ExecuteStrategyView, and StrategyConfigView.
+ */
+
+/* ════════════════════════════════════════════════
+   DESIGN TOKENS — map --stitch-* to dark-theme values
+   ════════════════════════════════════════════════ */
+:host,
+[theme~="dark"] {
+    --stitch-bg-primary: #0a0e1a;
+    --stitch-bg-card: #111827;
+    --stitch-bg-card-hover: #1e2636;
+
+    --stitch-border: rgba(255, 255, 255, 0.10);
+
+    --stitch-primary:        #3b82f6;
+    --stitch-primary-hover:  #2563eb;
+    --stitch-primary-dim:    rgba(59, 130, 246, 0.15);
+
+    --stitch-success: #10b981;
+    --stitch-warning: #f59e0b;
+    --stitch-danger:  #ef4444;
+
+    --stitch-text-primary:   #e2e8f0;
+    --stitch-text-secondary: #94a3b8;
+    --stitch-text-muted:     #64748b;
+
+    --stitch-font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+
+    --stitch-radius:    12px;
+    --stitch-radius-sm: 8px;
+    --stitch-shadow:    0 4px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* ════════════════════════════════════════════════
+   LAYOUT
+   ════════════════════════════════════════════════ */
+.main-layout {
+    padding: var(--lumo-space-m);
+}
+
+.section-title {
+    font-size: var(--lumo-font-size-xl);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--lumo-header-text-color);
+}
+
+.section-subtitle {
+    font-size: var(--lumo-font-size-s);
+    color: var(--stitch-text-secondary);
+    margin-top: 4px;
+}
+
+/* ════════════════════════════════════════════════
+   STRATEGY CARD
+   ════════════════════════════════════════════════ */
+.strategy-card {
+    background: var(--lumo-base-color);
+    border: 1px solid var(--stitch-border);
+    border-radius: var(--stitch-radius);
+    overflow: hidden;
+    transition: border-color 0.2s ease;
+}
+
+.strategy-card:hover {
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.strategy-card-header {
+    background: color-mix(in srgb, var(--lumo-base-color) 90%, #fff 10%);
+    transition: background 0.2s ease;
+    user-select: none;
+}
+
+.strategy-card-header:hover {
+    background: color-mix(in srgb, var(--lumo-base-color) 80%, #fff 20%);
+}
+
+/* Collapsed/expanded rotation indicator */
+.rotate-icon {
+    transition: transform 0.25s ease;
+    color: var(--stitch-text-secondary);
+}
+
+/* Collapsible content panels */
+.collapsible-content {
+    overflow: hidden;
+}
+
+/* ════════════════════════════════════════════════
+   MONOSPACE / GRID TEXT HELPERS
+   ════════════════════════════════════════════════ */
+.grid-mono {
+    font-family: var(--stitch-font-mono);
+    font-size: 0.82rem;
+}
+
+.grid-success { color: var(--stitch-success) !important; }
+.grid-danger  { color: var(--stitch-danger)  !important; }
+.grid-warning { color: var(--stitch-warning) !important; }
+
+/* ════════════════════════════════════════════════
+   STRATEGY SELECTOR (Execute view)
+   ════════════════════════════════════════════════ */
+.strategy-selector {
+    border: 1px solid var(--stitch-border);
+    border-radius: var(--stitch-radius-sm);
+    padding: var(--lumo-space-m);
+    background: var(--lumo-base-color);
+}
+
+/* Strategy config / filter panel */
+.strategy-config-panel {
+    border: 1px solid var(--stitch-border);
+    border-radius: var(--stitch-radius-sm);
+    padding: var(--lumo-space-m);
+    background: color-mix(in srgb, var(--lumo-base-color) 95%, #fff 5%);
+}
+
+.strategy-params-text {
+    font-size: var(--lumo-font-size-xs);
+    color: var(--stitch-text-secondary);
+    font-family: var(--stitch-font-mono);
+    line-height: 1.6;
+}
+
+/* ════════════════════════════════════════════════
+   RESULTS CONTAINER
+   ════════════════════════════════════════════════ */
+.results-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lumo-space-m);
+}
+
+/* ════════════════════════════════════════════════
+   SCAN STATUS — progress bar + timer
+   ════════════════════════════════════════════════ */
+.scan-status-container {
+    border: 1px solid var(--stitch-border);
+    border-radius: var(--stitch-radius-sm);
+    padding: var(--lumo-space-m) var(--lumo-space-l);
+    background: color-mix(in srgb, var(--lumo-base-color) 90%, var(--stitch-primary) 10%);
+}
+
+.scan-status-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lumo-space-s);
+}
+
+.scan-status-text {
+    font-weight: 600;
+    font-size: var(--lumo-font-size-m);
+    color: var(--stitch-primary);
+}
+
+.scan-status-subtext {
+    font-size: var(--lumo-font-size-xs);
+    color: var(--stitch-text-secondary);
+}
+
+/* Progress bar */
+.scan-progress-bar-bg {
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    position: relative;
+}
+
+.scan-progress-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--stitch-primary), #60a5fa);
+    transition: width 0.4s ease;
+}
+
+.scan-progress-bar-glow {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 20px;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3));
+    animation: progress-glow 1.2s ease-in-out infinite;
+}
+
+@keyframes progress-glow {
+    0%   { opacity: 0; }
+    50%  { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* Timer */
+.scan-timer-value {
+    font-family: var(--stitch-font-mono);
+    font-size: var(--lumo-font-size-l);
+    font-weight: 700;
+    color: var(--stitch-text-primary);
+}
+
+.scan-timer-label {
+    font-size: var(--lumo-font-size-xs);
+    color: var(--stitch-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* Pulsing dot (live/scanning indicator) */
+.pulsing-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--stitch-success);
+    animation: pulse-dot 1.5s ease-in-out infinite;
+    display: inline-block;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1;   transform: scale(1);    }
+    50%      { opacity: 0.5; transform: scale(1.25); }
+}
+
+/* ════════════════════════════════════════════════
+   EMPTY STATE
+   ════════════════════════════════════════════════ */
+.empty-state-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--lumo-space-m);
+    padding: 60px 24px;
+    text-align: center;
+}
+
+.empty-state-icon-wrapper {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--stitch-primary-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.empty-state-icon {
+    color: var(--stitch-primary);
+}
+
+.empty-state-title {
+    font-size: var(--lumo-font-size-l);
+    font-weight: 600;
+    color: var(--lumo-header-text-color);
+    margin: 0;
+}
+
+.empty-state-description {
+    font-size: var(--lumo-font-size-s);
+    color: var(--stitch-text-secondary);
+    max-width: 360px;
+    line-height: 1.6;
+}
+
+/* ════════════════════════════════════════════════
+   BUTTONS
+   ════════════════════════════════════════════════ */
+.stitch-button-primary {
+    background: var(--stitch-primary) !important;
+    color: #fff !important;
+    border: none !important;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stitch-button-primary:hover {
+    background: var(--stitch-primary-hover) !important;
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35) !important;
+}
+
+.stitch-button-secondary {
+    background: transparent !important;
+    color: var(--stitch-text-secondary) !important;
+    border: 1px solid var(--stitch-border) !important;
+    transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.stitch-button-secondary:hover {
+    border-color: rgba(255,255,255,0.25) !important;
+    color: var(--stitch-text-primary) !important;
+}
+
+.stitch-button-danger {
+    background: var(--stitch-danger) !important;
+    color: #fff !important;
+    border: none !important;
+    transition: background 0.15s ease;
+}
+
+.stitch-button-danger:hover {
+    background: #dc2626 !important;
+}
+
+.stitch-icon-button {
+    background: transparent !important;
+    border: 1px solid var(--stitch-border) !important;
+    color: var(--stitch-text-secondary) !important;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.stitch-icon-button:hover {
+    color: var(--stitch-text-primary) !important;
+    border-color: rgba(255,255,255,0.25) !important;
+}
+
+/* ════════════════════════════════════════════════
+   UTILITY
+   ════════════════════════════════════════════════ */
+.cursor-not-allowed {
+    cursor: not-allowed !important;
+    opacity: 0.55;
+}
+
+.hidden {
+    display: none !important;
+}
