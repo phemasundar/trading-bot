@@ -14,8 +14,6 @@ import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
 
 /**
@@ -36,11 +34,11 @@ public class StrategiesConfigLoader {
      * @param securitiesMap Map of securities file key -> actual securities list
      * @return List of OptionsConfig ready to execute
      */
-    public static List<OptionsConfig> load(Path configPath, Map<String, List<String>> securitiesMap) {
+    public static List<OptionsConfig> load(String configResource, Map<String, List<String>> securitiesMap) {
         List<OptionsConfig> configs = new ArrayList<>();
 
         try {
-            String json = Files.readString(configPath);
+            String json = FilePaths.readResource(configResource);
 
             // Parse root config as POJO
             StrategiesConfig rootConfig = JavaUtils.convertJsonToPojo(json, StrategiesConfig.class);
@@ -61,10 +59,10 @@ public class StrategiesConfigLoader {
                 }
             }
 
-            log.info("Loaded {} strategy configurations from {}", configs.size(), configPath);
+            log.info("Loaded {} strategy configurations from {}", configs.size(), configResource);
 
         } catch (IOException e) {
-            log.error("Error loading strategies config from {}: {}", configPath, e.getMessage());
+            log.error("Error loading strategies config from {}: {}", configResource, e.getMessage());
         }
 
         return configs;
@@ -89,11 +87,11 @@ public class StrategiesConfigLoader {
      * @param configPath path to the strategies-config.json file
      * @return list of enabled ScreenerConfig objects
      */
-    public static List<ScreenerConfig> loadScreeners(Path configPath) {
+    public static List<ScreenerConfig> loadScreeners(String configResource) {
         List<ScreenerConfig> configs = new ArrayList<>();
 
         try {
-            String json = Files.readString(configPath);
+            String json = FilePaths.readResource(configResource);
 
             // Parse root config as POJO
             StrategiesConfig rootConfig = JavaUtils.convertJsonToPojo(json, StrategiesConfig.class);
@@ -110,10 +108,10 @@ public class StrategiesConfigLoader {
                 }
             }
 
-            log.info("Loaded {} screener configurations from {}", configs.size(), configPath);
+            log.info("Loaded {} screener configurations from {}", configs.size(), configResource);
 
         } catch (IOException e) {
-            log.error("Error loading screeners config from {}: {}", configPath, e.getMessage());
+            log.error("Error loading screeners config from {}: {}", configResource, e.getMessage());
         }
 
         return configs;

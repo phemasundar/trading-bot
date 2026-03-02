@@ -24,7 +24,7 @@ import java.util.List;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class EarningsCacheManager {
 
-    private static final String CACHE_FILE_PATH = "src/test/resources/earnings_cache.json";
+    private static final String CACHE_FILE_PATH = "src/main/resources/earnings_cache.json";
     private static final int CACHE_VALIDITY_DAYS = 30;
 
     // Singleton instance of the cache data

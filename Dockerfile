@@ -12,7 +12,7 @@ RUN mvn dependency:go-offline -q
 # Copy full source and build the Vaadin production JAR
 COPY src ./src
 COPY frontend ./frontend
-RUN mvn package -Pproduction -DskipTests -q
+RUN mvn package -Pproduction -Dmaven.test.skip=true -q
 
 # ============================================================
 # Stage 2: Runtime — slim JRE 17 image

@@ -1,0 +1,121 @@
+# Source: https://companiesmarketcap.com/usa/largest-companies-in-the-usa-by-market-cap/
+securities:
+  - "NVDA"   # NVIDIA
+  - "GOOG"   # Alphabet (Google)
+  - "AAPL"   # Apple
+  - "MSFT"   # Microsoft
+  - "AMZN"   # Amazon
+  - "META"   # Meta Platforms (Facebook)
+  - "TSLA"   # Tesla
+  - "AVGO"   # Broadcom
+  - "BRK/B"   # Berkshire Hathaway
+  - "WMT"   # Walmart
+  - "LLY"   # Eli Lilly
+  - "JPM"   # JPMorgan Chase
+  - "V"   # Visa
+  - "XOM"   # Exxon Mobil
+  - "JNJ"   # Johnson & Johnson
+  - "MA"   # Mastercard
+  - "MU"   # Micron Technology
+  - "ORCL"   # Oracle
+  - "COST"   # Costco
+  - "AMD"   # AMD
+  - "ABBV"   # AbbVie
+  - "BAC"   # Bank of America
+  - "HD"   # Home Depot
+  - "PG"   # Procter & Gamble
+  - "PLTR"   # Palantir
+  - "NFLX"   # Netflix
+  - "CVX"   # Chevron
+  - "GE"   # General Electric
+  - "KO"   # Coca-Cola
+  - "CAT"   # Caterpillar
+  - "CSCO"   # Cisco
+  - "LRCX"   # Lam Research
+  - "IBM"   # IBM
+  - "MS"   # Morgan Stanley
+  - "WFC"   # Wells Fargo
+  - "GS"   # Goldman Sachs
+  - "MRK"   # Merck
+  - "PM"   # Philip Morris International
+  - "RTX"   # RTX
+  - "AMAT"   # Applied Materials
+  - "UNH"   # UnitedHealth
+  - "INTC"   # Intel
+  - "AXP"   # American Express
+  - "MCD"   # McDonald
+  - "TMUS"   # T-Mobile US
+  - "TMO"   # Thermo Fisher Scientific
+  - "PEP"   # Pepsico
+  - "C"   # Citigroup
+  - "GEV"   # GE Vernova
+  - "TXN"   # Texas Instruments
+  - "CRM"   # Salesforce
+  - "SCHW"   # Charles Schwab
+  - "ABT"   # Abbott Laboratories
+  - "VZ"   # Verizon
+  - "DIS"   # Walt Disney
+  - "T"   # AT&T
+  - "KLAC"   # KLA
+  - "AMGN"   # Amgen
+  - "BA"   # Boeing
+  - "NEE"   # Nextera Energy
+  - "BX"   # Blackstone Group
+  - "ISRG"   # Intuitive Surgical
+  - "APH"   # Amphenol
+  - "GILD"   # Gilead Sciences
+  - "ANET"   # Arista Networks
+  - "BLK"   # BlackRock
+  - "UBER"   # Uber
+  - "TJX"   # TJX Companies
+  - "BKNG"   # Booking Holdings (Booking.com)
+  - "QCOM"   # QUALCOMM
+  - "APP"   # AppLovin
+  - "SPGI"   # S&P Global
+  - "DHR"   # Danaher
+  - "SCCO"   # Southern Copper
+  - "ADI"   # Analog Devices
+  - "HON"   # Honeywell
+  - "PFE"   # Pfizer
+  - "LOW"   # Lowe's Companies
+  - "LMT"   # Lockheed Martin
+  - "DE"   # Deere & Company (John Deere)
+  - "COF"   # Capital One
+  - "SYK"   # Stryker Corporation
+  - "UNP"   # Union Pacific Corporation
+  - "BSX"   # Boston Scientific
+  - "INTU"   # Intuit
+  - "WELL"   # Welltower
+  - "IBKR"   # Interactive Brokers
+  - "COP"   # ConocoPhillips
+  - "NOW"   # ServiceNow
+  - "NEM"   # Newmont
+  - "ADBE"   # Adobe
+  - "PANW"   # Palo Alto Networks
+  - "VRTX"   # Vertex Pharmaceuticals
+  - "PLD"   # Prologis
+  - "PH"   # Parker-Hannifin
+  - "PGR"   # Progressive
+  - "CMCSA"   # Comcast
+  - "HCA"   # HCA Healthcare
+  - "BMY"   # Bristol-Myers Squibb
+  - "CRWD"   # CrowdStrike
+  - "LIN"   # Linde
+  - "ACN"   # Accenture
+  - "ETN"   # Eaton Corp
+  - "ELV"   # Elevance Health
+  - "ADP"   # ADP
+  - "MDT"   # Medtronic
+  - "FISV"   # Fiserv
+  - "REGN"   # Regeneron
+  - "CI"   # Cigna
+  - "CB"   # Chubb
+  - "SO"   # Southern Company
+  - "MO"   # Altria
+  - "SLB"   # Schlumberger
+  - "EOG"   # EOG Resources
+  - "ZTS"   # Zoetis
+  - "ICE"   # Intercontinental Exchange
+  - "MCO"   # Moody's
+  - "SHW"   # Sherwin-Williams
+  - "QQQ"

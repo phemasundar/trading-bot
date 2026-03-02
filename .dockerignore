@@ -1,5 +1,7 @@
 # Build artifacts (rebuilt inside Docker)
 target/
+# Vaadin dev-mode generated files (rebuilt during production build)
+frontend/generated/
 
 # Git history
 .git/
@@ -28,5 +30,5 @@ stitch/
 node_modules/
 package-lock.json
 
-# Test files
+# Test files (not needed in Docker)
 src/test/

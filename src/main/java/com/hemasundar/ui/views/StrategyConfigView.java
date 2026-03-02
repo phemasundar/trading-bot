@@ -19,8 +19,6 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.Lumo;
 import lombok.extern.log4j.Log4j2;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -59,8 +57,7 @@ public class StrategyConfigView extends VerticalLayout {
     }
 
     private StrategiesConfig loadConfig() throws Exception {
-        Path configPath = FilePaths.strategiesConfig;
-        String json = Files.readString(configPath);
+        String json = FilePaths.readResource(FilePaths.strategiesConfig);
         return MAPPER.readValue(json, StrategiesConfig.class);
     }
 
