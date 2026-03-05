@@ -2,6 +2,38 @@
 
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 
+## Vaadin → Static Frontend Migration (2026-03-05)
+
+Migrated from Vaadin's server-side Java UI to a **plain HTML/CSS/JS frontend** with REST API wrapper endpoints. Vaadin completely removed from the codebase.
+
+### Architecture
+- **Frontend**: Plain HTML + CSS + vanilla JS served from `src/main/resources/static/`
+- **Backend**: Spring Boot REST APIs at `/api/*` wrap all Supabase reads and strategy execution
+- **Security**: Bearer token auth via `BearerTokenFilter` for `/api/*`; static files are public
+- **API Docs**: Swagger UI at `/swagger-ui.html` via `springdoc-openapi-starter-webmvc-ui`
+
+### Files Created
+- **`StrategyController.java`** [NEW]: 8 REST endpoints (strategies, results, config, execute, status, cancel)
+- **`BearerTokenFilter.java`** [NEW]: Bearer token filter for `/api/*` endpoints
+- **`static/index.html`** [NEW]: Dashboard page (replaces `MainView.java`)
+- **`static/execute.html`** [NEW]: Custom execution page (replaces `ExecuteStrategyView.java`)
+- **`static/config.html`** [NEW]: Config viewer (replaces `StrategyConfigView.java`)
+- **`static/style.css`** [NEW]: Dark theme CSS (Stitch palette, `#1349ec` primary)
+- **`static/app.js`** [NEW]: API client, UI builders, page logic
+
+### Files Deleted
+- **`ui/`** directory: `MainView.java`, `ExecuteStrategyView.java`, `StrategyConfigView.java`, `MainLayout.java`, `TradeGridBuilder.java`, `ResultCardBuilder.java`
+- **`config/AppShellConfig.java`**: Vaadin AppShell configurator
+- **`frontend/`** directory: 67+ Vaadin generated JS/TS files
+
+### Files Modified
+- **`pom.xml`**: Replaced `vaadin-spring-boot-starter` with `spring-boot-starter-web`, removed Vaadin BOM + production profile, added `springdoc-openapi`
+- **`Dockerfile`**: Removed `COPY frontend`, removed `-Pproduction` flag
+- **`application.properties`**: Removed `vaadin.productionMode`, added `api.bearer.token`
+- **`application-production.properties`**: Removed `vaadin.productionMode=true`
+- **`README.md`**: Updated usage, project structure, deployment, and dependencies sections
+
+
 ## Vaadin UI Code Simplification (2026-03-05)
 
 Extracted shared UI components from `MainView.java` and `ExecuteStrategyView.java` to eliminate code duplication and reduce file sizes.

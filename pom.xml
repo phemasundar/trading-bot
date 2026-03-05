@@ -12,9 +12,6 @@
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
 
-    <!-- Vaadin Version -->
-    <vaadin.version>24.3.5</vaadin.version>
-
     <!-- Lombok Version -->
     <lombok.version>1.18.36</lombok.version>
 
@@ -45,13 +42,11 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.2.5</version> <!-- Use a recent version -->
+        <version>3.2.5</version>
         <configuration>
-          <!-- Only run TestNG.xml by default -->
           <suiteXmlFiles>
             <suiteXmlFile>src/test/resources/test_runners/${suiteXmlFile}</suiteXmlFile>
           </suiteXmlFiles>
-          <!-- Disable auto-discovery when suite is specified -->
           <skipTests>false</skipTests>
         </configuration>
       </plugin>
@@ -70,27 +65,15 @@
     </plugins>
   </build>
 
-  <dependencyManagement>
-    <dependencies>
-      <!-- Vaadin Bill of Materials -->
-      <dependency>
-        <groupId>com.vaadin</groupId>
-        <artifactId>vaadin-bom</artifactId>
-        <version>${vaadin.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
-
   <version>1.0-SNAPSHOT</version>
-  <name>my-app</name>
+  <name>trading-bot</name>
   <url>http://maven.apache.org</url>
   <dependencies>
-    <!-- Vaadin Flow with Spring Boot Integration -->
+    <!-- Spring Boot Web (replaces vaadin-spring-boot-starter) -->
     <dependency>
-      <groupId>com.vaadin</groupId>
-      <artifactId>vaadin-spring-boot-starter</artifactId>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+      <version>3.2.2</version>
     </dependency>
 
     <!-- TestNG for testing -->
@@ -201,32 +184,12 @@
       <artifactId>google-oauth-client-jetty</artifactId>
       <version>1.36.0</version>
     </dependency>
+    <!-- Swagger / OpenAPI Documentation -->
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+      <version>2.3.0</version>
+    </dependency>
   </dependencies>
-
-  <profiles>
-    <profile>
-      <id>production</id>
-      <properties>
-        <vaadin.productionMode>true</vaadin.productionMode>
-      </properties>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>com.vaadin</groupId>
-            <artifactId>vaadin-maven-plugin</artifactId>
-            <version>${vaadin.version}</version>
-            <executions>
-              <execution>
-                <goals>
-                  <goal>build-frontend</goal>
-                </goals>
-                <phase>compile</phase>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
 
 </project>
