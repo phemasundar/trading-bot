@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bot — Configuration</title>
+    <meta name="description" content="View strategy configuration and filter settings">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+    <div class="app-layout">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-brand">
+                Trading Bot
+                <small>Automated Systems</small>
+            </div>
+            <a href="/" class="nav-link">
+                <span class="nav-icon">📊</span>
+                <span>Dashboard</span>
+            </a>
+            <a href="/execute.html" class="nav-link">
+                <span class="nav-icon">▶️</span>
+                <span>Execute Strategy</span>
+            </a>
+            <a href="/config.html" class="nav-link active">
+                <span class="nav-icon">⚙️</span>
+                <span>Config</span>
+            </a>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <h1 class="page-title">Strategy Configuration</h1>
+            <p class="page-subtitle">Read-only view of strategies-config.json</p>
+
+            <div id="config-container">
+                <div class="loading-spinner">
+                    <span class="loading-spinner-icon">⚙️</span>
+                    <p>Loading configuration...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', initConfigPage);
+    </script>
+</body>
+
+</html>

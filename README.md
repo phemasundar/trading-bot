@@ -97,10 +97,14 @@ For detailed setup instructions:
 
 ### Running Strategy Analysis
 
-#### 1. Via the Web Interface (Vaadin)
-If you run the Spring Boot application (e.g. `mvn spring-boot:run`), a local web dashboard is available.
-- **Dashboard (`/`)**: View historical results or execute all predefined strategies from the config file.
-- **Execute Strategy (`/execute`)**: Dynamically build a custom configuration for any strategy type (PCS, LEAP, IC, etc.), specify securities, set filters, and execute it instantly without modifying the JSON config.
+#### 1. Via the Web Interface (Static HTML/JS)
+Run `mvn spring-boot:run` to start the Spring Boot application with the built-in web dashboard.
+- **Dashboard (`/index.html`)**: View historical results or execute all predefined strategies.
+- **Execute Strategy (`/execute.html`)**: Build custom configurations for any strategy type, set filters, and execute instantly.
+- **Strategy Config (`/config.html`)**: Read-only view of all strategy configurations.
+- **Swagger API Docs (`/swagger-ui.html`)**: Interactive REST API documentation.
+
+All frontend calls go through Spring Boot REST APIs (`/api/*`) — Supabase keys are never exposed to the browser.
 
 #### 2. Via CLI (Testing)
 ```bash
@@ -252,58 +256,140 @@ The execution results dashboard is now maintained in a separate repository. It i
 
 ## Deployment
 
-### Google Cloud Run (Recommended — CI/CD via GitHub Actions)
+### API Bearer Token
 
-The Vaadin web app is deployed to **Google Cloud Run** automatically on every push to `main` via the `.github/workflows/deploy-cloud-run.yml` workflow.
+The REST API endpoints (`/api/*`) are protected with Bearer token authentication. You need to generate a token and configure it as a secret.
 
-**How it works:**
-1. GitHub Actions builds a Docker image using the multi-stage `Dockerfile`
-2. Pushes the image to **Google Artifact Registry**
-3. Deploys to Cloud Run with HTTPS enabled — no cold starts (`min-instances=1`)
+#### How to Generate a Token
 
-**Access:** The app is available at a permanent HTTPS URL:
+**Option A — Use OpenSSL (recommended):**
+```bash
+openssl rand -base64 32
+```
+This generates a random 32-byte Base64 string like `a3Rk9x7Lwq2MpN5vJ8BzQf1YhS4uT6wE0cXiDgOmKno=`.
+
+**Option B — Use Python:**
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+**Option C — Use PowerShell (Windows):**
+```powershell
+[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }) -as [byte[]])
+```
+
+> ⚠️ **Important:** Use the **same token** in both your GitHub Secret and when accessing the API from the frontend. The frontend will prompt you to enter the token on first use and stores it in `localStorage`.
+
+#### Local Development
+
+For local development, the token is **optional**. If `api.bearer.token` is empty (the default in `application.properties`), the API is accessible without authentication.
+
+To test with auth locally, set the token in your IDE run config or environment:
+```bash
+set API_BEARER_TOKEN=my-local-test-token
+mvn spring-boot:run
+```
+
+---
+
+### Google Cloud Run (CI/CD via GitHub Actions)
+
+The web app is deployed to **Google Cloud Run** automatically on every push to `main` via `.github/workflows/deploy-cloud-run.yml`.
+
+#### First-Time GCP Setup
+
+1. **Create a GCP project** at [console.cloud.google.com](https://console.cloud.google.com)
+2. **Enable APIs** — In the GCP Console, enable:
+   - Cloud Run API
+   - Artifact Registry API
+   - Cloud Build API
+3. **Create Artifact Registry repository:**
+   ```bash
+   gcloud artifacts repositories create trading-bot \
+     --repository-format=docker \
+     --location=us-central1
+   ```
+4. **Create a Service Account** with the following roles:
+   - Cloud Run Admin
+   - Artifact Registry Writer
+   - Service Account User
+5. **Download the Service Account JSON key** and save its contents
+
+For detailed GCP console screenshots and instructions, see [`CLOUD_RUN_DEPLOYMENT.md`](CLOUD_RUN_DEPLOYMENT.md).
+
+#### Configure GitHub Secrets
+
+Go to your repo → **Settings → Secrets and variables → Actions** → **New repository secret** and add:
+
+| Secret | How to Get It |
+|---|---|
+| `GCP_PROJECT_ID` | GCP Console → Dashboard → Project ID (e.g., `my-trading-bot-123`) |
+| `GCP_SA_KEY` | Full JSON content of the Service Account key file downloaded above |
+| `SUPABASE_URL` | Supabase Dashboard → Settings → API → Project URL |
+| `SUPABASE_ANON_KEY` | Supabase Dashboard → Settings → API → `anon` / `public` key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → Settings → API → `service_role` key |
+| `API_BEARER_TOKEN` | Generate using one of the methods above (OpenSSL/Python/PowerShell) |
+
+#### Deploy
+
+After configuring secrets:
+1. Push to `main` branch — GitHub Actions automatically builds, pushes, and deploys
+2. Or trigger manually: **Actions → Deploy to Google Cloud Run → Run workflow**
+
+The deployed app URL is printed at the end of the workflow:
 ```
 https://trading-bot-<hash>-uc.a.run.app
 ```
-The URL is printed at the end of every successful GitHub Actions deployment run.
 
-**Required GitHub Secrets** (`Settings → Secrets and variables → Actions`):
+#### How the Pipeline Works
 
-| Secret | Description |
+```
+Push to main → GitHub Actions → Docker Build → Artifact Registry → Cloud Run
+                                                                    ↓
+                                              HTTPS URL with env vars injected
+```
+
+1. Builds a Docker image using the multi-stage `Dockerfile`
+2. Pushes to **Google Artifact Registry** (tagged with commit SHA + `latest`)
+3. Deploys to Cloud Run with:
+   - 512Mi RAM, 1 CPU
+   - `min-instances=1` (always-on, no cold starts)
+   - HTTPS enabled automatically
+   - Environment variables injected from GitHub Secrets
+
+#### Production Environment Variables
+
+These are injected into the Cloud Run container at deploy time:
+
+| Variable | Purpose |
 |---|---|
-| `GCP_PROJECT_ID` | Your GCP project ID |
-| `GCP_SA_KEY` | Service Account JSON key (full JSON content) |
-| `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_ANON_KEY` | Supabase publishable/anon key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
-
-For full step-by-step GCP setup instructions, see [`CLOUD_RUN_DEPLOYMENT.md`](CLOUD_RUN_DEPLOYMENT.md).
+| `SUPABASE_URL` | Supabase REST API base URL |
+| `SUPABASE_ANON_KEY` | Public key for read operations |
+| `SUPABASE_SERVICE_ROLE_KEY` | Admin key for write operations |
+| `API_BEARER_TOKEN` | Protects `/api/*` endpoints from unauthorized access |
 
 ---
 
 ### Oracle Cloud Free Tier
 
-The Vaadin web app can be deployed to an **Oracle Cloud Always-Free** compute instance. See [`ORACLE_CLOUD_DEPLOYMENT.md`](ORACLE_CLOUD_DEPLOYMENT.md) for full step-by-step instructions covering:
-
-- Instance creation (VM.Standard.A1.Flex — 4 OCPUs / 24 GB free)
-- Java 17 + Maven setup
-- Production JAR build with Vaadin `-Pproduction` profile
-- Systemd service for auto-start and log management
-- Optional Nginx reverse proxy + Let's Encrypt HTTPS
+See [`ORACLE_CLOUD_DEPLOYMENT.md`](ORACLE_CLOUD_DEPLOYMENT.md) for deployment to an **Oracle Cloud Always-Free** compute instance.
 
 ## Project Structure
 
 ```
 src/
 ├── main/java/com/hemasundar/
-│   ├── apis/           # API integrations (Schwab, FinnHub)
+│   ├── api/            # REST API controllers (StrategyController)
+│   ├── apis/           # External API integrations (Schwab, FinnHub)
+│   ├── config/         # Spring config (BearerTokenFilter, ServiceConfig)
 │   ├── dto/            # Data Transfer Objects (Trade, StrategyResult, etc.)
 │   ├── pojos/          # Data models
 │   │   └── technicalfilters/  # Technical indicator filters
 │   ├── services/       # Service layer (StrategyExecutionService, SupabaseService)
 │   ├── strategies/     # Trading strategy implementations
-│   ├── ui/             # Vaadin Web UI (local-only)
 │   └── utils/          # Utility classes (TelegramUtils, TechnicalIndicators, etc.)
+├── main/resources/
+│   └── static/         # Frontend (HTML, CSS, JS — served by Spring Boot)
 └── test/
     ├── java/           # Test classes
     └── resources/      # Configuration files
@@ -338,6 +424,8 @@ To change log levels, edit the `log4j2.json` file:
 
 ## Dependencies
 
+- **Spring Boot** 3.2.2 - Web framework (REST APIs + static file serving)
+- **SpringDoc OpenAPI** - Swagger UI for API documentation
 - RestAssured - HTTP client (also used for Supabase REST API)
 - TestNG - Testing framework
 - Lombok - Boilerplate reduction

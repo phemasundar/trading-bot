@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bot — Dashboard</title>
+    <meta name="description" content="Real-time strategy execution monitor for automated options trading">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-brand">
+                Trading Bot
+                <small>Automated Systems</small>
+            </div>
+            <a href="/" class="nav-link active">
+                <span class="nav-icon">📊</span>
+                <span>Dashboard</span>
+            </a>
+            <a href="/execute.html" class="nav-link">
+                <span class="nav-icon">▶️</span>
+                <span>Execute Strategy</span>
+            </a>
+            <a href="/config.html" class="nav-link">
+                <span class="nav-icon">⚙️</span>
+                <span>Config</span>
+            </a>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <h1 class="page-title">Strategy Dashboard</h1>
+            <p class="page-subtitle">Real-time strategy execution monitor</p>
+
+            <!-- Strategy Selector -->
+            <div class="card">
+                <h3 style="font-size:0.9rem; margin-bottom:8px; color:var(--text-secondary)">Select Strategies</h3>
+                <div class="checkbox-group" id="strategy-checkboxes">
+                    <span class="text-muted">Loading strategies...</span>
+                </div>
+                <div class="flex gap-sm mt-sm">
+                    <button class="btn btn-sm btn-ghost" onclick="selectAll(true)">Select All</button>
+                    <button class="btn btn-sm btn-ghost" onclick="selectAll(false)">Clear All</button>
+                </div>
+            </div>
+
+            <!-- Execution Controls -->
+            <div class="flex gap-sm items-center mb-md">
+                <button class="btn btn-primary" id="execute-btn" onclick="executeSelected()">
+                    ▶ Execute Selected
+                </button>
+                <button class="btn btn-danger" id="stop-btn" onclick="cancelExecution()" style="display:none">
+                    ⏹ Stop
+                </button>
+            </div>
+
+            <!-- Progress -->
+            <div class="progress-container" id="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width:30%"></div>
+                </div>
+                <p class="progress-text" id="elapsed-text">Executing strategies...</p>
+            </div>
+
+            <!-- Results -->
+            <h3 style="font-size:1rem; margin-bottom:12px; color:var(--text-secondary)">Latest Results</h3>
+            <div id="results-container">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    Loading results...
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', initDashboard);
+    </script>
+</body>
+</html>

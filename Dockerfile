@@ -1,5 +1,5 @@
 # ============================================================
-# Stage 1: Build — Maven + JDK 17 to produce the production JAR
+# Stage 1: Build — Maven + JDK 17 to produce the JAR
 # ============================================================
 FROM maven:3.9.6-eclipse-temurin-17 AS builder
 
@@ -9,10 +9,9 @@ WORKDIR /build
 COPY pom.xml .
 RUN mvn dependency:go-offline -q
 
-# Copy full source and build the Vaadin production JAR
+# Copy full source and build the JAR
 COPY src ./src
-COPY frontend ./frontend
-RUN mvn package -Pproduction -Dmaven.test.skip=true -q
+RUN mvn package -Dmaven.test.skip=true -q
 
 # ============================================================
 # Stage 2: Runtime — slim JRE 17 image
