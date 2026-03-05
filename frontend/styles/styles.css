@@ -15,23 +15,23 @@
 
     --stitch-border: rgba(255, 255, 255, 0.10);
 
-    --stitch-primary:        #3b82f6;
-    --stitch-primary-hover:  #2563eb;
-    --stitch-primary-dim:    rgba(59, 130, 246, 0.15);
+    --stitch-primary: #1349ec;
+    --stitch-primary-hover: #0f3dd4;
+    --stitch-primary-dim: rgba(19, 73, 236, 0.15);
 
     --stitch-success: #10b981;
     --stitch-warning: #f59e0b;
-    --stitch-danger:  #ef4444;
+    --stitch-danger: #ef4444;
 
-    --stitch-text-primary:   #e2e8f0;
+    --stitch-text-primary: #e2e8f0;
     --stitch-text-secondary: #94a3b8;
-    --stitch-text-muted:     #64748b;
+    --stitch-text-muted: #64748b;
 
     --stitch-font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
 
-    --stitch-radius:    12px;
+    --stitch-radius: 12px;
     --stitch-radius-sm: 8px;
-    --stitch-shadow:    0 4px 24px rgba(0, 0, 0, 0.35);
+    --stitch-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
 }
 
 /* ════════════════════════════════════════════════
@@ -98,9 +98,17 @@
     font-size: 0.82rem;
 }
 
-.grid-success { color: var(--stitch-success) !important; }
-.grid-danger  { color: var(--stitch-danger)  !important; }
-.grid-warning { color: var(--stitch-warning) !important; }
+.grid-success {
+    color: var(--stitch-success) !important;
+}
+
+.grid-danger {
+    color: var(--stitch-danger) !important;
+}
+
+.grid-warning {
+    color: var(--stitch-warning) !important;
+}
 
 /* ════════════════════════════════════════════════
    STRATEGY SELECTOR (Execute view)
@@ -190,9 +198,17 @@
 }
 
 @keyframes progress-glow {
-    0%   { opacity: 0; }
-    50%  { opacity: 1; }
-    100% { opacity: 0; }
+    0% {
+        opacity: 0;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
 }
 
 /* Timer */
@@ -221,8 +237,17 @@
 }
 
 @keyframes pulse-dot {
-    0%, 100% { opacity: 1;   transform: scale(1);    }
-    50%      { opacity: 0.5; transform: scale(1.25); }
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.5;
+        transform: scale(1.25);
+    }
 }
 
 /* ════════════════════════════════════════════════
@@ -289,7 +314,7 @@
 }
 
 .stitch-button-secondary:hover {
-    border-color: rgba(255,255,255,0.25) !important;
+    border-color: rgba(255, 255, 255, 0.25) !important;
     color: var(--stitch-text-primary) !important;
 }
 
@@ -313,7 +338,7 @@
 
 .stitch-icon-button:hover {
     color: var(--stitch-text-primary) !important;
-    border-color: rgba(255,255,255,0.25) !important;
+    border-color: rgba(255, 255, 255, 0.25) !important;
 }
 
 /* ════════════════════════════════════════════════
@@ -326,4 +351,53 @@
 
 .hidden {
     display: none !important;
+}
+
+/* ════════════════════════════════════════════════
+   RESPONSIVE — Minimal overrides
+   Layouts are now handled by Vaadin's VerticalLayout
+   and FormLayout responsive steps in Java.
+   ════════════════════════════════════════════════ */
+
+/* ── Mobile ( ≤ 640 px ) ────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+
+    /* Tighter padding on mobile */
+    .main-layout {
+        padding: var(--lumo-space-xs) !important;
+    }
+
+    /* Config panels: edge-to-edge */
+    .strategy-config-panel {
+        padding: var(--lumo-space-s) !important;
+        border-radius: 0 !important;
+        border-left: none !important;
+        border-right: none !important;
+    }
+
+    /* Card headers: stack title above stats */
+    .strategy-card-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+    }
+
+    /* Trade grids: horizontal scroll instead of squishing */
+    .strategy-card .results-container,
+    .collapsible-content {
+        overflow-x: auto !important;
+    }
+
+    /* Scan status: tighter padding */
+    .scan-status-container {
+        padding: var(--lumo-space-s) !important;
+    }
+}
+
+/* ════════════════════════════════════════════════
+   STRATEGY CARD — collapsible result cards
+   ════════════════════════════════════════════════ */
+.strategy-card {
+    background: var(--stitch-bg-card);
+    border: 1px solid var(--stitch-border);
+    border-radius: var(--lumo-border-radius-l);
 }
