@@ -7,6 +7,8 @@ import com.hemasundar.options.models.*;
 import com.hemasundar.options.strategies.StrategyType;
 import com.hemasundar.services.StrategyExecutionService;
 import com.hemasundar.ui.MainLayout;
+import com.hemasundar.ui.components.ResultCardBuilder;
+import com.hemasundar.ui.components.TradeGridBuilder;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -87,7 +89,7 @@ public class ExecuteStrategyView extends VerticalLayout {
         setSpacing(true);
         addClassName("main-layout");
 
-        // ── Strategy Configuration Panel (matches dashboard style) ──
+        // â”€â”€ Strategy Configuration Panel (matches dashboard style) â”€â”€
         add(createConfigPanel());
         add(createCommonFiltersPanel());
         add(createSpecificFiltersPanel());
@@ -113,28 +115,19 @@ public class ExecuteStrategyView extends VerticalLayout {
         configPanel.setPadding(true);
         configPanel.setWidthFull();
 
-        // Top Row: Title + Execute Button (same layout as dashboard)
-        HorizontalLayout topRow = new HorizontalLayout();
-        topRow.setWidthFull();
-        topRow.setAlignItems(FlexComponent.Alignment.CENTER);
-        topRow.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
-
-        VerticalLayout headerText = new VerticalLayout();
-        headerText.setSpacing(false);
-        headerText.setPadding(false);
-
+        // â”€â”€ Header: Title + Subtitle â”€â”€
         H2 title = new H2("Execute Custom Strategy");
         title.addClassName("section-title");
+        title.getStyle().set("margin", "0");
+
         Span subtitle = new Span("Select a strategy, configure filters, and execute against custom securities.");
         subtitle.addClassName("section-subtitle");
-        headerText.add(title, subtitle);
 
+        // â”€â”€ Execute Button â”€â”€
         Button executeButton = new Button("Execute Strategy");
         executeButton.setIcon(VaadinIcon.BOLT.create());
         executeButton.addClassName("stitch-button-primary");
         executeButton.addClickListener(e -> executeStrategy());
-
-        topRow.add(headerText, executeButton);
 
         // Strategy type + alias + securities row
         FormLayout fieldsRow = new FormLayout();
@@ -159,7 +152,7 @@ public class ExecuteStrategyView extends VerticalLayout {
         // NOTE: setValue is deferred to the constructor to avoid NPE
         // (specificFieldsContainer not yet created)
 
-        configPanel.add(topRow, fieldsRow);
+        configPanel.add(title, subtitle, executeButton, fieldsRow);
         return configPanel;
     }
 
@@ -499,7 +492,7 @@ public class ExecuteStrategyView extends VerticalLayout {
                 resultsContainer.add(emptyState);
             } else {
                 for (StrategyResult result : results) {
-                    resultsContainer.add(createResultCard(result));
+                    resultsContainer.add(ResultCardBuilder.build(result, "Custom"));
                 }
             }
         } catch (Exception e) {
@@ -510,268 +503,6 @@ public class ExecuteStrategyView extends VerticalLayout {
             resultsContainer.add(errorSpan);
         }
     }
-
-    /**
-     * Creates a result card for a single execution — reuses the same CSS classes
-     * and layout structure as the dashboard's strategy result cards.
-     */
-    private Component createResultCard(StrategyResult result) {
-        Div card = new Div();
-        card.addClassName("group");
-        card.addClassName("strategy-card");
-        card.setWidthFull();
-
-        // --- Header Section ---
-        Div header = new Div();
-        header.addClassName("p-4");
-        header.addClassName("strategy-card-header");
-        header.getStyle().set("display", "flex");
-        header.getStyle().set("flex-wrap", "wrap");
-        header.getStyle().set("justify-content", "space-between");
-        header.getStyle().set("align-items", "center");
-        header.getStyle().set("cursor", "pointer");
-        header.getStyle().set("gap", "12px");
-
-        // Left: Icon + Title
-        HorizontalLayout leftSection = new HorizontalLayout();
-        leftSection.setAlignItems(FlexComponent.Alignment.CENTER);
-        leftSection.setSpacing(true);
-
-        com.vaadin.flow.component.icon.Icon arrowIcon = VaadinIcon.CHEVRON_DOWN.create();
-        arrowIcon.addClassName("rotate-icon");
-        arrowIcon.getStyle().set("color", "var(--stitch-text-secondary)");
-
-        VerticalLayout infoLayout = new VerticalLayout();
-        infoLayout.setSpacing(false);
-        infoLayout.setPadding(false);
-
-        HorizontalLayout titleRow = new HorizontalLayout();
-        titleRow.setAlignItems(FlexComponent.Alignment.CENTER);
-
-        H3 strategyName = new H3(result.getStrategyName());
-        strategyName.getStyle().set("margin", "0");
-        strategyName.getStyle().set("font-size", "1.125rem");
-        strategyName.getStyle().set("color", "#fff");
-
-        Span typeBadge = new Span("Custom");
-        typeBadge.getElement().getThemeList().add("badge contrast");
-        typeBadge.getStyle().set("font-size", "0.75rem");
-        typeBadge.getStyle().set("margin-left", "8px");
-
-        titleRow.add(strategyName, typeBadge);
-        infoLayout.add(titleRow);
-        leftSection.add(arrowIcon, infoLayout);
-
-        // Right: Stats
-        HorizontalLayout rightSection = new HorizontalLayout();
-        rightSection.setAlignItems(FlexComponent.Alignment.CENTER);
-        rightSection.setSpacing(true);
-
-        VerticalLayout statsLayout = new VerticalLayout();
-        statsLayout.setSpacing(false);
-        statsLayout.setPadding(false);
-        statsLayout.setAlignItems(FlexComponent.Alignment.END);
-
-        String timeAgo = "Just now";
-        if (result.getUpdatedAt() != null) {
-            java.time.Duration duration = java.time.Duration.between(result.getUpdatedAt(), java.time.Instant.now());
-            long minutes = duration.toMinutes();
-            long hours = duration.toHours();
-            long days = duration.toDays();
-            if (days > 0)
-                timeAgo = days + (days == 1 ? " day ago" : " days ago");
-            else if (hours > 0)
-                timeAgo = hours + (hours == 1 ? " hr ago" : " hrs ago");
-            else if (minutes > 0)
-                timeAgo = minutes + (minutes == 1 ? " min ago" : " mins ago");
-        }
-
-        Span lastRunLabel = new Span("Executed: " + timeAgo);
-        lastRunLabel.getStyle().set("font-size", "0.75rem");
-        lastRunLabel.getStyle().set("color", "var(--stitch-text-secondary)");
-        lastRunLabel.getStyle().set("text-align", "right");
-
-        Span tradesFoundLabel = new Span("Trades found: " + result.getTradesFound());
-        tradesFoundLabel.addClassName("grid-mono");
-        tradesFoundLabel.getStyle().set("font-size", "0.75rem");
-        tradesFoundLabel.getStyle().set("color", "var(--stitch-text-secondary)");
-        tradesFoundLabel.getStyle().set("text-align", "right");
-
-        statsLayout.add(lastRunLabel, tradesFoundLabel);
-        rightSection.add(statsLayout);
-
-        header.add(leftSection, rightSection);
-
-        // --- Content Section (Grid) ---
-        Div contentContainer = new Div();
-        contentContainer.addClassName("collapsible-content");
-
-        Component grid = createTradeGrid(result.getTrades());
-        contentContainer.add(grid);
-
-        // Initial state: collapsed
-        contentContainer.getStyle().set("max-height", "0px");
-        contentContainer.getStyle().set("overflow", "hidden");
-        header.addClassName("collapsed");
-        arrowIcon.getStyle().set("transform", "rotate(-90deg)");
-
-        // Toggle Logic
-        header.addClickListener(e -> {
-            boolean isCollapsed = header.getClassNames().contains("collapsed");
-            if (isCollapsed) {
-                header.removeClassName("collapsed");
-                contentContainer.getStyle().remove("max-height");
-                contentContainer.getStyle().set("overflow", "visible");
-                arrowIcon.getStyle().set("transform", "rotate(0deg)");
-            } else {
-                header.addClassName("collapsed");
-                contentContainer.getStyle().set("overflow", "hidden");
-                contentContainer.getStyle().set("max-height", "0px");
-                arrowIcon.getStyle().set("transform", "rotate(-90deg)");
-            }
-        });
-
-        card.add(header, contentContainer);
-        return card;
-    }
-
-    /**
-     * Creates a trade grid — same column structure as the dashboard.
-     */
-    private Component createTradeGrid(List<Trade> trades) {
-        if (trades == null || trades.isEmpty()) {
-            Div empty = new Div();
-            empty.addClassName("empty-state-container");
-            H3 title = new H3("No trades found");
-            title.addClassName("empty-state-title");
-            empty.add(title);
-            return empty;
-        }
-
-        Grid<Trade> grid = new Grid<>(Trade.class, false);
-        grid.setItems(trades);
-        grid.setAllRowsVisible(true);
-
-        grid.addColumn(Trade::getSymbol)
-                .setHeader("TICKER")
-                .setSortable(true)
-                .setWidth("140px")
-                .setFlexGrow(0)
-                .setClassNameGenerator(item -> "grid-ticker");
-
-        grid.addColumn(trade -> "$" + String.format("%.2f", trade.getUnderlyingPrice()))
-                .setHeader("PRICE")
-                .setSortable(true)
-                .setWidth("120px")
-                .setFlexGrow(0);
-
-        grid.addColumn(new com.vaadin.flow.data.renderer.ComponentRenderer<>(trade -> {
-            Div container = new Div();
-            if (trade.getLegs() != null && !trade.getLegs().isEmpty()) {
-                for (var leg : trade.getLegs()) {
-                    Span line = new Span(leg.getAction() + " " + leg.getOptionType()
-                            + " " + String.format("%.0f", leg.getStrike())
-                            + " \u2192 $" + String.format("%.2f", leg.getPremium()));
-                    line.getStyle().set("display", "block");
-                    line.getStyle().set("font-size", "0.8rem");
-                    container.add(line);
-                }
-            } else {
-                container.add(new Span("\u2014"));
-            }
-
-            if (trade.getNetExtrinsicValue() != 0) {
-                Span extrinsicLine = new Span("Extrinsic: $" + String.format("%.2f", trade.getNetExtrinsicValue())
-                        + " (" + String.format("%.2f", trade.getAnulizedNetExtrinsicValueToCapitalPercentage()) + "%)");
-                extrinsicLine.getStyle().set("display", "block");
-                extrinsicLine.getStyle().set("font-size", "0.75rem");
-                extrinsicLine.getStyle().set("color", "var(--lumo-secondary-text-color)");
-                container.add(extrinsicLine);
-            }
-
-            container.getStyle().set("white-space", "normal");
-            container.getStyle().set("line-height", "1.5");
-            return container;
-        })).setHeader("TYPE").setWidth("220px").setFlexGrow(1);
-
-        grid.addColumn(trade -> {
-            String expiry = trade.getExpiryDate();
-            if (expiry != null && expiry.length() > 10)
-                expiry = expiry.substring(0, 10);
-            return expiry + " (" + trade.getDte() + ")";
-        }).setHeader("EXPIRY").setSortable(true).setAutoWidth(true).setFlexGrow(0)
-                .setClassNameGenerator(item -> "grid-mono");
-
-        grid.addColumn(new com.vaadin.flow.data.renderer.ComponentRenderer<>(trade -> {
-            boolean isCredit = trade.getNetCredit() >= 0;
-            String amount = String.format("$%.2f", Math.abs(trade.getNetCredit()));
-            Span span = new Span(amount);
-            span.addClassName(isCredit ? "grid-success" : "grid-danger");
-            span.addClassName("grid-mono");
-            return span;
-        })).setHeader(new Span("CREDIT/DEBIT")).setSortable(true).setAutoWidth(true).setFlexGrow(0);
-
-        grid.addColumn(trade -> String.format("$%.0f", trade.getMaxLoss()))
-                .setHeader("MAX LOSS").setSortable(true).setAutoWidth(true).setFlexGrow(0)
-                .setClassNameGenerator(item -> "grid-mono");
-
-        grid.addColumn(new com.vaadin.flow.data.renderer.ComponentRenderer<>(trade -> {
-            double ror = trade.getReturnOnRisk();
-            Span span = new Span(String.format("%.1f%%", ror));
-            span.addClassName(ror > 50 ? "grid-success" : "grid-warning");
-            return span;
-        })).setHeader("ROR %").setSortable(true).setAutoWidth(true).setFlexGrow(0);
-
-        grid.addThemeVariants(
-                com.vaadin.flow.component.grid.GridVariant.LUMO_NO_BORDER,
-                com.vaadin.flow.component.grid.GridVariant.LUMO_WRAP_CELL_CONTENT);
-        grid.setWidthFull();
-
-        // Click-to-show trade details dialog (same as dashboard)
-        grid.addItemClickListener(e -> {
-            Trade clicked = e.getItem();
-
-            com.vaadin.flow.component.dialog.Dialog dialog = new com.vaadin.flow.component.dialog.Dialog();
-
-            Span dialogHeader = new Span("\u25B6 " + clicked.getSymbol() + " \u2014 Trade Details");
-            dialogHeader.getStyle().set("font-weight", "bold");
-            dialogHeader.getStyle().set("font-family", "var(--lumo-font-family)");
-            dialogHeader.getStyle().set("font-size", "1.1rem");
-            dialogHeader.getStyle().set("display", "block");
-            dialogHeader.getStyle().set("margin-bottom", "12px");
-            dialogHeader.getStyle().set("color", "var(--stitch-primary)");
-
-            Div detailsText = new Div();
-            detailsText.setText(clicked.getTradeDetails() != null ? clicked.getTradeDetails() : "No details available");
-            detailsText.getStyle().set("white-space", "pre-wrap");
-            detailsText.getStyle().set("word-break", "break-word");
-            detailsText.getStyle().set("overflow-wrap", "break-word");
-            detailsText.getStyle().set("font-family", "monospace");
-            detailsText.getStyle().set("color", "var(--lumo-body-text-color)");
-            detailsText.getStyle().set("line-height", "1.6");
-
-            Button closeBtn = new Button("Close", ev -> dialog.close());
-            closeBtn.getStyle().set("margin-top", "16px");
-
-            VerticalLayout dialogLayout = new VerticalLayout(dialogHeader, detailsText, closeBtn);
-            dialogLayout.setPadding(true);
-            dialogLayout.setSpacing(false);
-
-            dialog.add(dialogLayout);
-            dialog.setWidth("100%");
-            dialog.setMaxWidth("600px");
-            dialog.open();
-        });
-
-        grid.setSelectionMode(Grid.SelectionMode.SINGLE);
-
-        VerticalLayout wrapper = new VerticalLayout(grid);
-        wrapper.setPadding(false);
-        wrapper.setSpacing(false);
-        wrapper.setWidthFull();
-        return wrapper;
-    }
-
     // ==================== Filter Builder Inner Classes ====================
 
     private static class LegBuilder {

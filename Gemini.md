@@ -2,6 +2,56 @@
 
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 
+## Vaadin UI Code Simplification (2026-03-05)
+
+Extracted shared UI components from `MainView.java` and `ExecuteStrategyView.java` to eliminate code duplication and reduce file sizes.
+
+### Shared Components Created
+- **`TradeGridBuilder.java`** [NEW]: Centralized trade grid builder with all columns (TICKER, PRICE, TYPE, EXPIRY, CREDIT/DEBIT, MAX LOSS, BREAKEVEN, ROR%), cell renderers, click-to-dialog behavior, and empty state component.
+- **`ResultCardBuilder.java`** [NEW]: Strategy result card using Vaadin's built-in `Details` component for expand/collapse (replacing ~50 lines of manual toggle logic per view). Includes filter JSON parsing and time-ago formatting.
+
+### Line Count Reduction
+| File | Before | After | Reduction |
+|------|--------|-------|-----------|
+| `MainView.java` | 1003 | 506 | **~50%** |
+| `ExecuteStrategyView.java` | 892 | 634 | **~29%** |
+| **Total removed** | — | — | **~755 lines** |
+
+### What was Eliminated
+- Duplicated `createTradeGrid()` method (~160 lines × 2 views)
+- Duplicated result card builder (~140 lines × 2 views)
+- `getStrategyParamsFromJson()` filter parser (moved to `ResultCardBuilder.parseFilterParams()`)
+- Manual expand/collapse toggle logic (replaced by Vaadin `Details` component)
+- Dead `updateResults()` method in MainView
+- Duplicated `createEmptyState()` method
+
+
+Refactored all Vaadin frontend views for consistent responsive behavior across Desktop, iPad, and Mobile — without complex CSS.
+
+### Problem
+- Layouts used rigid `HorizontalLayout` containers that didn't reflow on smaller screens
+- Complex CSS with `@media` queries, shadow DOM selectors (`[part="group-field"]`), and layout-specific overrides were fragile and hard to maintain
+- Fixing desktop broke mobile and vice versa
+
+### Solution: Stack-First Layouts
+- **MainView.java**: Replaced `HorizontalLayout topRow` + `HorizontalLayout bottomRow` with a single `VerticalLayout` that stacks: Title → Subtitle → Execute/Stop buttons → Label → CheckboxGroup → Select/Clear buttons
+- **ExecuteStrategyView.java**: Same pattern — replaced `HorizontalLayout topRow` with stacked elements in the parent `VerticalLayout`
+- **StrategyConfigView.java** & **MainLayout.java**: Already responsive (CSS Grid with `auto-fill` and Vaadin `AppLayout`) — no changes
+
+### CSS Simplification
+- Removed **~90 lines** of complex responsive CSS
+- Removed all `.strategy-top-row`, `.strategy-bottom-row`, `.strategy-action-buttons` rules
+- Removed all `vaadin-checkbox-group` shadow DOM selectors
+- Removed tablet `@media` query entirely
+- Kept only **5 simple mobile overrides** (tighter padding, edge-to-edge panels, stacked card headers, grid horizontal scroll, scan status padding)
+
+### Files Modified
+- **`MainView.java`**: Replaced `createStrategySelector()` layout structure
+- **`ExecuteStrategyView.java`**: Replaced `createConfigPanel()` top row
+- **`frontend/styles/styles.css`**: Simplified responsive section
+
+
+
 ## Google Cloud Run Deployment (2026-03-01)
 
 Added full Docker + GitHub Actions CI/CD pipeline to deploy the Vaadin web app to **Google Cloud Run** with automatic HTTPS.
