@@ -21,7 +21,7 @@ const API = {
             opts.body = JSON.stringify(body);
         }
         const res = await fetch(path, opts);
-        if (res.status === 401) {
+        if (res.status === 401 || res.status === 503) {
             this.promptToken();
             throw new Error('Unauthorized');
         }
@@ -39,6 +39,9 @@ const API = {
     },
 
     promptToken() {
+        // Prevent multiple modals from stacking
+        if (document.querySelector('.modal-overlay')) return;
+
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
         overlay.innerHTML = `
@@ -46,25 +49,26 @@ const API = {
                 <h2>🔐 API Authentication</h2>
                 <p>Enter your Bearer token to access execution features.</p>
                 <div class="form-group">
-                    <input type="password" id="tokenInput" class="form-input"
+                    <input type="password" class="form-input token-input"
                            placeholder="Paste your token here" />
                 </div>
                 <div class="flex gap-sm">
-                    <button class="btn btn-primary" id="tokenSave">Save Token</button>
-                    <button class="btn btn-ghost" id="tokenCancel">Cancel</button>
+                    <button class="btn btn-primary token-save">Save Token</button>
+                    <button class="btn btn-ghost token-cancel">Cancel</button>
                 </div>
             </div>`;
         document.body.appendChild(overlay);
 
-        document.getElementById('tokenSave').onclick = () => {
-            const token = document.getElementById('tokenInput').value.trim();
+        // Use scoped selectors within this specific overlay
+        overlay.querySelector('.token-save').onclick = () => {
+            const token = overlay.querySelector('.token-input').value.trim();
             if (token) {
                 this.setToken(token);
                 overlay.remove();
                 location.reload();
             }
         };
-        document.getElementById('tokenCancel').onclick = () => overlay.remove();
+        overlay.querySelector('.token-cancel').onclick = () => overlay.remove();
     }
 };
 
