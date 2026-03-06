@@ -652,9 +652,10 @@ a:hover {
 }
 
 .trade-detail-header {
-    padding: 10px 16px;
+    padding: 8px 16px;
     border-bottom: 1px solid var(--border);
-    font-size: 0.85rem;
+    font-size: 0.8rem;
+    font-weight: 600;
     color: var(--primary);
 }
 
