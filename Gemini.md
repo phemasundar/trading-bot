@@ -1,6 +1,7 @@
 # Project Updates
 
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
+> **CRITICAL AI RULE**: NEVER use GitHub MCP tools (create PR, merge, create release, etc.) unless the user explicitly asks. Do not assume permission for any GitHub operations.
 
 ## Vaadin → Static Frontend Migration (2026-03-05)
 
