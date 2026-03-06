@@ -106,6 +106,12 @@ On the **"Grant this service account access to project"** step, add these 3 role
 | `SUPABASE_URL` | `https://snjbkdqbmlmwjllnoyqy.supabase.co` |
 | `SUPABASE_ANON_KEY` | Your Supabase publishable/anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Your Supabase service role key |
+| `API_BEARER_TOKEN` | Bearer token for accessing `/api/*` endpoints |
+| `REFRESH_TOKEN` | Schwab API Refresh Token |
+| `APP_KEY` | Schwab API App Key |
+| `PP_SECRET` | Schwab API Secret |
+| `TELEGRAM_BOT_TOKEN` | Telegram Bot Token for alerts |
+| `TELEGRAM_CHAT_ID` | Telegram Chat ID for alerts |
 
 > **Tip:** To get the full JSON key content, open the downloaded `.json` file in any text editor, select all (`Ctrl+A`), and paste it as the secret value.
 
