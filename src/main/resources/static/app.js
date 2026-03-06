@@ -72,6 +72,12 @@ const API = {
     }
 };
 
+// ── Mobile Sidebar Toggle ──
+
+function toggleSidebar() {
+    document.querySelector('.sidebar').classList.toggle('open');
+}
+
 // ── Toast Notifications ──
 
 function showToast(message, type = 'success') {

@@ -13,6 +13,9 @@
 
 <body>
     <div class="app-layout">
+        <!-- Mobile menu toggle -->
+        <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+
         <!-- Sidebar -->
         <nav class="sidebar">
             <div class="sidebar-brand">
@@ -32,6 +35,7 @@
                 <span>Config</span>
             </a>
         </nav>
+        <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
 
         <!-- Main Content -->
         <main class="main-content">
