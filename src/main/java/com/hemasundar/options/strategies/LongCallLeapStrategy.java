@@ -121,7 +121,7 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                 .longCall(c.call())
                 .breakEvenPrice(breakEven)
                 .breakEvenPercentage(c.breakEvenPct())
-                .extrinsicValue(c.extrinsic())
+                .extrinsicValue(c.extrinsic() * 100) // per-contract to match maxLoss
                 .finalCostOfOption(c.costOfOptionBuyingPerStock())
                 .finalCostOfBuying(c.costOfBuyingPerStock())
                 .dividendYield(c.dividendYield())

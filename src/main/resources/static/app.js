@@ -237,7 +237,7 @@ function initTradeRowClicks() {
             <td colspan="8">
                 <div class="trade-detail">
                     <div class="trade-detail-header">
-                        <strong>▶ ${row.querySelector('td strong')?.textContent || ''} — Trade Details</strong>
+                        ▶ ${row.querySelector('td strong')?.textContent || ''} — Trade Details
                     </div>
                     <pre class="trade-detail-body">${decodeAttr(details)}</pre>
                 </div>
