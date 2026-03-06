@@ -30,7 +30,7 @@ public interface TradeSetup {
     default double getAnulizedNetExtrinsicValueToCapitalPercentage() {
         if (getMaxLoss() <= 0 || getDaysToExpiration() <= 0)
             return 0;
-        return (getNetExtrinsicValue() / getMaxLoss()) * (365.0 / getDaysToExpiration());
+        return (getNetExtrinsicValue() / getMaxLoss()) * (365.0 / getDaysToExpiration()) * 100;
     }
 
     default double getUpperBreakEvenPrice() {
