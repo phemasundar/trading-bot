@@ -63,7 +63,8 @@ public class BrokenWingButterfly implements TradeSetup {
                         .premium(leg1LongCall.getMark())
                         .build(),
                 TradeLeg.builder()
-                        .action("SELL 2x")
+                        .action("SELL")
+                        .quantity(2)
                         .optionType("CALL")
                         .strike(leg2ShortCalls.getStrikePrice())
                         .delta(leg2ShortCalls.getDelta())

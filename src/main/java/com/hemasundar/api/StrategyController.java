@@ -50,6 +50,7 @@ public class StrategyController {
                         map.put("name", config.getName());
                         map.put("type", config.getStrategy().getStrategyType().name());
                         map.put("displayType", config.getStrategy().getStrategyType().getDisplayName());
+                        map.put("descriptionFile", config.getDescriptionFile());
                         return map;
                     })
                     .collect(Collectors.toList());

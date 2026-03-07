@@ -443,18 +443,6 @@ a:hover {
     margin-top: 4px;
 }
 
-/* ── Trade Detail Panel ── */
-.trade-detail {
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 16px;
-    margin-top: 8px;
-    font-size: 0.8rem;
-    white-space: pre-wrap;
-    font-family: var(--font-mono);
-    color: var(--text-secondary);
-}
 
 /* ── Empty State ── */
 .empty-state {
@@ -870,4 +858,78 @@ a:hover {
         padding: 16px;
         padding-top: 52px;
     }
+}
+
+/* ── Info Button ── */
+.info-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    transition: transform 0.2s, color 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    margin-left: 4px;
+}
+
+.info-btn:hover {
+    color: var(--primary);
+    transform: scale(1.1);
+}
+
+/* ── Markdown Modal Body ── */
+.markdown-body {
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 8px;
+    margin-top: 16px;
+}
+
+.markdown-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.markdown-body::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3 {
+    margin-top: 1.2em;
+    margin-bottom: 0.6em;
+    color: var(--text-primary);
+}
+
+.markdown-body p {
+    margin-bottom: 1em;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+    margin-bottom: 1em;
+    padding-left: 1.5em;
+}
+
+.markdown-body code {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+}
+
+.markdown-body pre {
+    background: var(--bg-input);
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    margin-bottom: 1em;
 }

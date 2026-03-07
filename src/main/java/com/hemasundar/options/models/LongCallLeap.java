@@ -24,7 +24,7 @@ public class LongCallLeap implements TradeSetup {
     private double maxLoss;
     private double currentPrice; // Underlying stock price
     private double costSavingsPercent; // Cost savings compared to buying stock on margin
-    private double breakevenCAGR; // CAGR needed to reach breakeven
+    private Double breakevenCAGR; // CAGR needed to reach breakeven
 
     @Override
     public double getNetCredit() {
@@ -79,22 +79,6 @@ public class LongCallLeap implements TradeSetup {
             return 0.0;
         }
         return (finalCostOfOption / currentPrice) * 100.0;
-    }
-
-    /**
-     * Calculates the breakeven CAGR (Compound Annual Growth Rate).
-     * This represents the annualized return rate needed for the underlying
-     * to reach the breakeven price by expiration.
-     *
-     * @return the breakeven CAGR as a percentage
-     */
-    public double calculateBreakevenCAGR() {
-        if (longCall == null || longCall.daysToExpiration <= 0) {
-            return 0.0;
-        }
-        double yearsToExpiration = longCall.daysToExpiration / 365.0;
-        double growthFactor = 1 + (breakEvenPercentage / 100.0);
-        return (Math.pow(growthFactor, 1.0 / yearsToExpiration) - 1) * 100.0;
     }
 
 }

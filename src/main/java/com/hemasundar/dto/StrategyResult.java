@@ -63,18 +63,26 @@ public class StrategyResult {
     private String filterConfig;
 
     /**
+     * The filename of the markdown description for this strategy.
+     */
+    private String descriptionFile;
+
+    /**
      * Builds a StrategyResult from a trades map (symbol_expiry → TradeSetup list).
      * Shared by StrategyExecutionService (Vaadin) and SampleTestNG (TestNG).
      *
      * @param strategyName    display name of the strategy
      * @param allTrades       map of "SYMBOL_expiryDate" → List of TradeSetup
      * @param executionTimeMs time taken to execute the strategy
+     * @param filter          the filter config used
+     * @param descriptionFile the markdown description filename
      * @return StrategyResult ready for Supabase persistence
      */
     public static StrategyResult fromTrades(String strategyName,
             Map<String, List<TradeSetup>> allTrades,
             long executionTimeMs,
-            OptionsStrategyFilter filter) {
+            OptionsStrategyFilter filter,
+            String descriptionFile) {
         List<Trade> tradeDTOs = new ArrayList<>();
         for (Map.Entry<String, List<TradeSetup>> entry : allTrades.entrySet()) {
             String key = entry.getKey();
@@ -101,6 +109,7 @@ public class StrategyResult {
                 .tradesFound(tradeDTOs.size())
                 .trades(tradeDTOs)
                 .filterConfig(filterJson)
+                .descriptionFile(descriptionFile)
                 .build();
     }
 }

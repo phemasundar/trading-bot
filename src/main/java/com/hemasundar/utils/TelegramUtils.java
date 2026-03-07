@@ -305,8 +305,9 @@ public class TelegramUtils {
         sb.append(" | BE: $").append(String.format("%.2f", lowerBE))
                 .append(" (").append(String.format("%.2f", trade.getBreakEvenPercentage())).append("%)");
 
-        if (trade instanceof LongCallLeap leap) {
-            sb.append(" [CAGR: ").append(String.format("%.2f", leap.calculateBreakevenCAGR())).append("%]");
+        Double cagr = trade.getBreakevenCAGR();
+        if (cagr != null) {
+            sb.append(" [CAGR: ").append(String.format("%.2f", cagr)).append("%]");
         }
 
         // Generic check for Upper BE

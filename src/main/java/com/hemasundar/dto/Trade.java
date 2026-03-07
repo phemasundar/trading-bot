@@ -49,6 +49,13 @@ public class Trade {
     private List<TradeLegDTO> legs;
 
     /**
+     * Breakeven CAGR representing the annualized return rate needed to reach
+     * breakeven.
+     * Optional metric not available on all strategies.
+     */
+    private Double breakevenCAGR;
+
+    /**
      * Net credit received (positive) or debit paid (negative)
      */
     private double netCredit;
@@ -111,6 +118,7 @@ public class Trade {
                 .map(leg -> TradeLegDTO.builder()
                         .action(leg.getAction())
                         .optionType(leg.getOptionType())
+                        .quantity(leg.getQuantity())
                         .strike(leg.getStrike())
                         .delta(leg.getDelta())
                         .premium(leg.getPremium())
@@ -119,7 +127,9 @@ public class Trade {
 
         StringBuilder details = new StringBuilder();
         for (TradeLegDTO leg : legDTOs) {
+            String qtyStr = leg.getQuantity() > 1 ? leg.getQuantity() + "x " : "";
             details.append(leg.getAction()).append(" ")
+                    .append(qtyStr)
                     .append(String.format("%.0f", leg.getStrike())).append(" ")
                     .append(leg.getOptionType())
                     .append(" (δ ").append(String.format("%.2f", leg.getDelta())).append(")")
@@ -150,8 +160,12 @@ public class Trade {
                     .append("%)");
         }
 
+        Double cagr = setup.getBreakevenCAGR();
+        if (cagr != null) {
+            details.append(" [CAGR: ").append(String.format("%.2f", cagr)).append("%]");
+        }
+
         if (setup instanceof LongCallLeap leap) {
-            details.append(" [CAGR: ").append(String.format("%.2f", leap.calculateBreakevenCAGR())).append("%]");
             double costOpt = leap.getFinalCostOfOption();
             double costStock = leap.getFinalCostOfBuying();
             double diffPct = costStock > 0 ? ((costStock - costOpt) / costStock) * 100 : 0;
@@ -183,6 +197,7 @@ public class Trade {
                 .breakEvenPercent(setup.getBreakEvenPercentage())
                 .upperBreakEvenPrice(setup.getUpperBreakEvenPrice())
                 .upperBreakEvenPercent(setup.getUpperBreakEvenPercentage())
+                .breakevenCAGR(setup.getBreakevenCAGR())
                 .netExtrinsicValue(setup.getNetExtrinsicValue())
                 .anulizedNetExtrinsicValueToCapitalPercentage(setup.getAnulizedNetExtrinsicValueToCapitalPercentage())
                 .tradeDetails(details.toString())

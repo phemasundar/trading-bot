@@ -40,4 +40,9 @@ public interface TradeSetup {
     default double getUpperBreakEvenPercentage() {
         return 0;
     }
+
+    // Optional metric for strategies like LEAPs
+    default Double getBreakevenCAGR() {
+        return null;
+    }
 }
