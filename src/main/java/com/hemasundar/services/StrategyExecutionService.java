@@ -359,7 +359,7 @@ public class StrategyExecutionService {
     /**
      * Loads all securities maps from YAML files.
      */
-    private Map<String, List<String>> loadSecuritiesMaps() throws IOException {
+    public Map<String, List<String>> loadSecuritiesMaps() throws IOException {
         return Map.of(
                 "portfolio", loadSecurities(FilePaths.portfolioSecurities),
                 "top100", loadSecurities(FilePaths.top100Securities),

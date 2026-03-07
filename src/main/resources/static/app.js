@@ -679,15 +679,18 @@ async function initConfigPage() {
     const container = document.getElementById('config-container');
     if (!container) return;
     try {
-        const config = await API.get('/api/config');
+        const [config, securitiesMaps] = await Promise.all([
+            API.get('/api/config'),
+            API.get('/api/securities').catch(() => ({})) // Fallback if API fails
+        ]);
         container.innerHTML = '';
-        renderConfig(config, container);
+        renderConfig(config, container, securitiesMaps);
     } catch (e) {
         container.innerHTML = `<div class="empty-state text-danger">Failed to load config: ${e.message}</div>`;
     }
 }
 
-function renderConfig(config, container) {
+function renderConfig(config, container, securitiesMaps = {}) {
     // Options strategies
     if (config.optionsStrategies) {
         const heading = document.createElement('h3');
@@ -731,6 +734,41 @@ function renderConfig(config, container) {
 
             container.appendChild(card);
         });
+    }
+
+    // Securities File Section
+    if (securitiesMaps && Object.keys(securitiesMaps).length > 0) {
+        const heading = document.createElement('h3');
+        heading.textContent = 'Securities';
+        heading.className = 'section-heading';
+        container.appendChild(heading);
+
+        for (const [fileName, symbols] of Object.entries(securitiesMaps)) {
+            const card = document.createElement('div');
+            card.className = 'config-card';
+            const displaySymbols = symbols.length > 0 ? symbols.join(', ') : 'No securities found';
+
+            card.innerHTML = `
+                <div class="config-card-header">
+                    <div class="flex items-center gap-sm">
+                        <span class="card-arrow">▶</span>
+                        <strong>${fileName}</strong>
+                        <span class="card-badge">${symbols.length} symbols</span>
+                    </div>
+                </div>
+                <div class="config-card-body">
+                    <div class="mt-sm">
+                        <span class="config-item-value" style="line-height: 1.6;">${displaySymbols}</span>
+                    </div>
+                </div>`;
+
+            card.querySelector('.config-card-header').addEventListener('click', function () {
+                this.querySelector('.card-arrow').classList.toggle('open');
+                this.nextElementSibling.classList.toggle('open');
+            });
+
+            container.appendChild(card);
+        }
     }
 
     // Technical screeners

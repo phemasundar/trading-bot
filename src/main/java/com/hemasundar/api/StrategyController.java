@@ -119,6 +119,21 @@ public class StrategyController {
         }
     }
 
+    /**
+     * Returns a map of securities file keys to their respective lists of securities.
+     * Used by the config viewer to display actual tickers instead of just file names.
+     */
+    @GetMapping("/securities")
+    public ResponseEntity<?> getSecuritiesMaps() {
+        try {
+            return ResponseEntity.ok(executionService.loadSecuritiesMaps());
+        } catch (IOException e) {
+            log.error("Failed to load securities map", e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Failed to load securities map: " + e.getMessage()));
+        }
+    }
+
     // ────────────────────────────────────────────
     // WRITE endpoints (strategy execution)
     // ────────────────────────────────────────────
