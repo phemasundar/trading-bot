@@ -217,7 +217,7 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
     private Predicate<BWBCandidate> debitFilter(OptionsStrategyFilter filter) {
         return candidate -> {
             if (!filter.passesDebitLimit(candidate.totalDebit())) {
-                log.trace("[BWB] Rejected by Debit Limit: {} > Max={}",
+                log.debug("[BWB] Rejected by Debit Limit: {} > Max={}",
                         String.format("%.2f", candidate.totalDebit()), filter.getMaxTotalDebit());
                 return false;
             }
@@ -232,14 +232,14 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
 
             // Check max credit limit (if set)
             if (!filter.passesCreditLimit(netCredit)) {
-                log.trace("[BWB] Rejected by Max Credit Limit: {} > Max={}",
+                log.debug("[BWB] Rejected by Max Credit Limit: {} > Max={}",
                         String.format("%.2f", netCredit), filter.getMaxTotalCredit());
                 return false;
             }
 
             // Check min credit limit (if set)
             if (!filter.passesMinCredit(netCredit)) {
-                log.trace("[BWB] Rejected by Min Credit Limit: {} < Min={}",
+                log.debug("[BWB] Rejected by Min Credit Limit: {} < Min={}",
                         String.format("%.2f", netCredit), filter.getMinTotalCredit());
                 return false;
             }

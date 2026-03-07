@@ -9,6 +9,7 @@ import lombok.extern.log4j.Log4j2;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 @Data
 @Log4j2
@@ -55,11 +56,14 @@ public class OptionChainResponse {
     }
 
     public String getExpiryDateBasedOnDTE(int targetDays) {
-        String targetExpiryDate = this.getPutExpDateMap()
-                .keySet().stream()
-                // Find key with minimum absolute difference from target
+        Map<ExpirationDateKey, Map<String, List<OptionData>>> callMap = this.getCallExpDateMap();
+        Map<ExpirationDateKey, Map<String, List<OptionData>>> putMap = this.getPutExpDateMap();
+
+        String targetExpiryDate = Stream.of(putMap, callMap)
+                .filter(m -> m != null && !m.isEmpty())
+                .flatMap(m -> m.keySet().stream())
+                .distinct()
                 .min(Comparator.comparingInt(key -> Math.abs(key.getDaysToExpiry() - targetDays)))
-                // Extract only the date field from that key
                 .map(OptionChainResponse.ExpirationDateKey::getDate)
                 .orElseThrow(() -> new RuntimeException("No Expiry Found"));
         log.debug("[{}] Target Expiry Date: {}", this.symbol, targetExpiryDate);
@@ -110,8 +114,13 @@ public class OptionChainResponse {
         if (targetDays > 0) {
             return List.of(this.getExpiryDateBasedOnDTE(targetDays));
         } else {
-            List<String> expiryDates = this.getPutExpDateMap()
-                    .keySet().stream()
+            Map<ExpirationDateKey, Map<String, List<OptionData>>> callMap = this.getCallExpDateMap();
+            Map<ExpirationDateKey, Map<String, List<OptionData>>> putMap = this.getPutExpDateMap();
+
+            List<String> expiryDates = Stream.of(putMap, callMap)
+                    .filter(m -> m != null && !m.isEmpty())
+                    .flatMap(m -> m.keySet().stream())
+                    .distinct()
                     .filter(key -> key.getDaysToExpiry() >= minDTE && key.getDaysToExpiry() <= maxDTE)
                     .sorted(Comparator.comparingInt(ExpirationDateKey::getDaysToExpiry))
                     .map(ExpirationDateKey::getDate)

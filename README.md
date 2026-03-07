@@ -199,6 +199,27 @@ TechnicalFilterChain overboughtFilterChain = TechnicalFilterChain.of(indicators,
 
 
 
+## Testing & CI/CD Coverage
+
+The project enforces a **minimum 60% instruction coverage** for all core business logic using JaCoCo. This is enforced locally during Maven verification and via GitHub Actions for any Pull Request targeting the `main` branch.
+
+### Unit Tests
+Unit tests run locally without making real external API calls (Schwab, Supabase, Telegram are mocked).
+To execute all unit tests and generate the coverage report:
+```bash
+mvn clean verify
+# OR
+mvn test
+```
+*Coverage reports are generated at `target/site/jacoco/index.html`.*
+
+### Functional Tests
+Functional tests interact with real external APIs. To prevent rate-limiting and unnecessary data writes, they are **excluded from the default build**.
+To execute functional tests:
+```bash
+mvn test -DsuiteXmlFile=FunctionalTests.xml
+```
+
 ## API Methods
 
 The `ThinkOrSwinAPIs` class provides the following methods for interacting with Schwab's Market Data API:

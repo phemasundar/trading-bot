@@ -3,6 +3,18 @@
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 > **CRITICAL AI RULE**: NEVER use GitHub MCP tools (create PR, merge, create release, etc.) unless the user explicitly asks. Do not assume permission for any GitHub operations.
 
+## Unit Testing & CI/CD Coverage Isolation (2026-03-07)
+
+Expanded unit tests to achieve >60% instruction coverage enforcing a robust CI/CD gate.
+
+### Testing Architecture
+- **Suite Separation**: Cleanly separated unit tests from functional tests using `UnitTests.xml` and `FunctionalTests.xml`. 
+- **Default Behavior**: Running `mvn test` or `mvn clean verify` runs only Unit Tests by default to prevent rate limits and database bloat.
+- **JaCoCo Enforcement**: Configured `jacoco-maven-plugin` to mandate 60% instruction coverage on all subsequent builds.
+
+### CI/CD PR Gate
+Created `.github/workflows/pr-gate.yml` to automatically execute unit tests and JaCoCo coverage checks on all pull requests targeting the `main` branch.
+
 ## Execute Screen Templates (2026-03-07)
 
 Added dynamic configuration template loading to the Custom Execute screen (`/execute.html`).

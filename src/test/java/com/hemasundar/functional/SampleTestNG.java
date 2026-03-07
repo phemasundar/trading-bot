@@ -1,4 +1,4 @@
-package com.hemasundar;
+package com.hemasundar.functional;
 
 import com.hemasundar.dto.StrategyResult;
 import com.hemasundar.pojos.RefreshToken;
@@ -26,8 +26,6 @@ import org.testng.annotations.Test;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,6 +72,7 @@ public class SampleTestNG {
                 System.out.println("Response Body: \n" + response.asPrettyString());
                 RefreshToken refreshToken = JavaUtils.convertJsonToPojo(response.asString(), RefreshToken.class);
                 System.out.println("Refresh Token:" + refreshToken.getRefresh_token());
+                scanner.close();
         }
 
         @Test
