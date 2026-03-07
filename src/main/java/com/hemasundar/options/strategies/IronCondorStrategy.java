@@ -1,22 +1,161 @@
 package com.hemasundar.options.strategies;
 
-import com.hemasundar.options.config.OptionsStrategyFilter;
-import com.hemasundar.options.model.IronCondor;
-import com.hemasundar.options.model.TradeSetup;
+import com.hemasundar.options.models.CreditSpreadFilter;
+import com.hemasundar.options.models.IronCondor;
+import com.hemasundar.options.models.IronCondorFilter;
+import com.hemasundar.options.models.LegFilter;
+import com.hemasundar.options.models.OptionChainResponse;
+import com.hemasundar.options.models.OptionsStrategyFilter;
+import com.hemasundar.options.models.TradeSetup;
+import com.hemasundar.options.models.PutCreditSpread;
+import com.hemasundar.options.models.CallCreditSpread;
+
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
-/**
- * Implementation of Iron Condor strategy.
- */
-public class IronCondorStrategy extends AbstractTradingStrategy<IronCondor, OptionsStrategyFilter> {
+public class IronCondorStrategy extends AbstractTradingStrategy {
 
-    public List<IronCondor> findTrades(List<IronCondor> candidates, OptionsStrategyFilter filter) {
-        return candidates.stream()
-                .filter(commonMaxLossFilter(filter, IronCondor::maxLoss))
-                .filter(commonMinReturnOnRiskFilter(filter, IronCondor::netCredit, IronCondor::maxLoss))
-                .filter(commonMaxTotalCreditFilter(filter, IronCondor::netCredit))
-                .filter(commonMinTotalCreditFilter(filter, IronCondor::netCredit))
-                .collect(Collectors.toList());
+    private final PutCreditSpreadStrategy putStrategy = new PutCreditSpreadStrategy();
+    private final CallCreditSpreadStrategy callStrategy = new CallCreditSpreadStrategy();
+
+    public IronCondorStrategy() {
+        super(StrategyType.IRON_CONDOR);
+    }
+
+    public IronCondorStrategy(StrategyType strategyType) {
+        super(strategyType);
+    }
+
+    @Override
+    protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
+            OptionsStrategyFilter filter) {
+        // Create separate filters for put and call legs
+        // Supports both new IronCondorFilter (separate legs) and legacy
+        // CreditSpreadFilter (shared leg)
+
+        LegFilter putShortLegFilter = null;
+        LegFilter callShortLegFilter = null;
+
+        if (filter instanceof IronCondorFilter ironCondorFilter) {
+            // New format: use separate put and call short leg filters
+            putShortLegFilter = ironCondorFilter.getPutShortLeg();
+            callShortLegFilter = ironCondorFilter.getCallShortLeg();
+        } else if (filter instanceof CreditSpreadFilter creditSpreadFilter) {
+            // Legacy format: use same shortLeg for both
+            putShortLegFilter = creditSpreadFilter.getShortLeg();
+            callShortLegFilter = creditSpreadFilter.getShortLeg();
+        }
+
+        // Create put leg filter
+        CreditSpreadFilter putLegFilter = CreditSpreadFilter.builder()
+                .targetDTE(filter.getTargetDTE())
+                .maxLossLimit(filter.getMaxLossLimit())
+                .minReturnOnRisk(0) // Get all valid spreads
+                .ignoreEarnings(true) // Don't check earnings again for legs
+                .shortLeg(putShortLegFilter)
+                .build();
+
+        // Create call leg filter (may have different delta)
+        CreditSpreadFilter callLegFilter = CreditSpreadFilter.builder()
+                .targetDTE(filter.getTargetDTE())
+                .maxLossLimit(filter.getMaxLossLimit())
+                .minReturnOnRisk(0)
+                .ignoreEarnings(true)
+                .shortLeg(callShortLegFilter)
+                .build();
+
+        List<TradeSetup> putSetups = putStrategy.findValidTrades(chain, expiryDate, putLegFilter);
+        List<TradeSetup> callSetups = callStrategy.findValidTrades(chain, expiryDate, callLegFilter);
+
+        // Cast back to specific types
+        List<PutCreditSpread> putSpreads = new ArrayList<>();
+        for (TradeSetup setup : putSetups) {
+            if (setup instanceof PutCreditSpread) {
+                putSpreads.add((PutCreditSpread) setup);
+            }
+        }
+
+        List<CallCreditSpread> callSpreads = new ArrayList<>();
+        for (TradeSetup setup : callSetups) {
+            if (setup instanceof CallCreditSpread) {
+                callSpreads.add((CallCreditSpread) setup);
+            }
+        }
+
+        return findValidIronCondors(putSpreads, callSpreads, chain.getUnderlyingPrice(), filter);
+    }
+
+    private List<TradeSetup> findValidIronCondors(List<PutCreditSpread> putSpreads,
+            List<CallCreditSpread> callSpreads,
+            double currentPrice,
+            OptionsStrategyFilter filter) {
+        List<TradeSetup> condors = new ArrayList<>();
+
+        for (PutCreditSpread putSpread : putSpreads) {
+            for (CallCreditSpread callSpread : callSpreads) {
+                // Ensure no overlap
+                if (putSpread.getShortPut().getStrikePrice() >= callSpread.getShortCall().getStrikePrice())
+                    continue;
+
+                double totalCredit = putSpread.getNetCredit() + callSpread.getNetCredit();
+
+                double putWidth = (putSpread.getShortPut().getStrikePrice() - putSpread.getLongPut().getStrikePrice())
+                        * 100;
+                double callWidth = (callSpread.getLongCall().getStrikePrice()
+                        - callSpread.getShortCall().getStrikePrice()) * 100;
+                double maxRisk = Math.max(putWidth, callWidth) - totalCredit;
+
+                // Use filter helper methods instead of hardcoded checks
+                if (!filter.passesMaxLoss(maxRisk))
+                    continue;
+
+                if (!filter.passesMinReturnOnRisk(totalCredit, maxRisk))
+                    continue;
+
+                double returnOnRisk = (totalCredit / maxRisk) * 100;
+
+                double lowerBreakEven = putSpread.getShortPut().getStrikePrice() - (totalCredit / 100);
+                double upperBreakEven = callSpread.getShortCall().getStrikePrice() + (totalCredit / 100);
+
+                double lowerBreakEvenPercentage = ((currentPrice - lowerBreakEven) / currentPrice) * 100;
+                double upperBreakEvenPercentage = ((upperBreakEven - currentPrice) / currentPrice) * 100;
+
+                if (!filter.passesMaxBreakEvenPercentage(lowerBreakEvenPercentage) ||
+                        !filter.passesMaxBreakEvenPercentage(upperBreakEvenPercentage)) {
+                    continue;
+                }
+
+                IronCondor condor = IronCondor.builder()
+                        .putLeg(putSpread)
+                        .callLeg(callSpread)
+                        .netCredit(totalCredit)
+                        .maxLoss(maxRisk)
+                        .returnOnRisk(returnOnRisk)
+                        .lowerBreakEven(lowerBreakEven)
+                        .upperBreakEven(upperBreakEven)
+                        .lowerBreakEvenPercentage(lowerBreakEvenPercentage)
+                        .upperBreakEvenPercentage(upperBreakEvenPercentage)
+                        .currentPrice(currentPrice)
+                        .build();
+
+                // Use common method from TradeSetup interface
+                double annualizedNetExtrinsicPct = condor.getAnulizedNetExtrinsicValueToCapitalPercentage();
+
+                if (!filter.passesMaxNetExtrinsicValueToPricePercentage(annualizedNetExtrinsicPct))
+                    continue;
+
+                if (!filter.passesMinNetExtrinsicValueToPricePercentage(annualizedNetExtrinsicPct))
+                    continue;
+
+                if (!filter.passesCreditLimit(totalCredit))
+                    continue;
+
+                if (!filter.passesMinCredit(totalCredit))
+                    continue;
+
+                condors.add(condor);
+            }
+        }
+        return condors;
     }
 }

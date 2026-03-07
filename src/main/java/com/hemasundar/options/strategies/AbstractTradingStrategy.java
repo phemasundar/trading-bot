@@ -1,86 +1,234 @@
 package com.hemasundar.options.strategies;
 
-import com.hemasundar.options.config.OptionsStrategyFilter;
-import com.hemasundar.options.model.TradeSetup;
-import java.util.function.Function;
-import java.util.function.Predicate;
+import com.hemasundar.apis.FinnHubAPIs;
+import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.cache.PriceHistoryCache;
+import com.hemasundar.options.models.OptionChainResponse;
+import com.hemasundar.options.models.OptionsStrategyFilter;
+import com.hemasundar.options.models.TradeSetup;
+import com.hemasundar.pojos.EarningsCalendarResponse;
+import com.hemasundar.pojos.PriceHistoryResponse;
+import com.hemasundar.utils.VolatilityCalculator;
+import org.apache.commons.collections4.CollectionUtils;
+import lombok.Getter;
+import lombok.extern.log4j.Log4j2;
 
-/**
- * Abstract base class for all trading strategies.
- * Provides common filter implementations.
- */
-public abstract class AbstractTradingStrategy<T extends TradeSetup, F extends OptionsStrategyFilter> {
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+
+@Log4j2
+public abstract class AbstractTradingStrategy implements TradingStrategy {
+
+    @Getter
+    private final StrategyType strategyType;
+
+    protected AbstractTradingStrategy(StrategyType strategyType) {
+        this.strategyType = strategyType;
+    }
+
+    @Override
+    public List<TradeSetup> findTrades(OptionChainResponse chain, OptionsStrategyFilter filter) {
+        // Check historical volatility before processing
+        if (!checkHistoricalVolatility(chain.getSymbol(), filter)) {
+            return new ArrayList<>(); // Skip symbol if volatility doesn't meet threshold
+        }
+
+        List<String> expiryDates = chain.getExpiryDatesInRange(filter.getTargetDTE(), filter.getMinDTE(),
+                filter.getMaxDTE());
+        if (expiryDates.isEmpty()) {
+            log.debug("[{}] No expiry dates found in range [{}-{}]",
+                    chain.getSymbol(), filter.getMinDTE(), filter.getMaxDTE());
+            return new ArrayList<>();
+        }
+
+        log.info("[{}] Processing {} expiry dates: {}", chain.getSymbol(), expiryDates.size(), expiryDates);
+
+        List<TradeSetup> allTrades = new ArrayList<>();
+
+        for (String expiryDate : expiryDates) {
+            // Check earnings for this expiry if not ignored
+            if (!filter.isIgnoreEarnings()) {
+                try {
+                    EarningsCalendarResponse earningsResponse = FinnHubAPIs.getEarningsByTicker(
+                            chain.getSymbol(), LocalDate.parse(expiryDate));
+                    if (CollectionUtils.isNotEmpty(earningsResponse.getEarningsCalendar())) {
+                        log.info("[{}] Skipping expiry {} due to upcoming earnings on {}",
+                                chain.getSymbol(), expiryDate,
+                                earningsResponse.getEarningsCalendar().get(0).getDate());
+                        continue; // Skip this expiry, try next
+                    }
+                } catch (Exception e) {
+                    log.error("[{}] Error checking earnings for {}: {}",
+                            chain.getSymbol(), expiryDate, e.getMessage());
+                }
+            }
+
+            // Find trades for this expiry
+            List<TradeSetup> trades = findValidTrades(chain, expiryDate, filter);
+            log.info("[{}] Found {} trades for expiry {}", chain.getSymbol(), trades.size(), expiryDate);
+            allTrades.addAll(trades);
+        }
+
+        log.info("[{}] Total trades found: {}", chain.getSymbol(), allTrades.size());
+        return allTrades;
+    }
+
+    protected abstract List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
+            OptionsStrategyFilter filter);
 
     /**
-     * Common filter for maximum loss.
+     * Returns the display name for this strategy.
+     * Derived from the StrategyType enum.
      */
-    protected Predicate<T> commonMaxLossFilter(F filter, Function<T, Double> maxLossExtractor) {
+    public String getStrategyName() {
+        return strategyType.getDisplayName();
+    }
+
+    // ========== COMMON FILTER HELPERS ==========
+
+    /**
+     * Common filter for maxLossLimit.
+     * Returns a predicate that checks if maxLoss <= maxLossLimit (if configured).
+     * 
+     * @param filter           The strategy filter containing maxLossLimit
+     *                         configuration
+     * @param maxLossExtractor Function to extract maxLoss from candidate
+     * @return Predicate that validates maxLoss against configured limit
+     */
+    protected <T> java.util.function.Predicate<T> commonMaxLossFilter(
+            OptionsStrategyFilter filter,
+            java.util.function.Function<T, Double> maxLossExtractor) {
         return candidate -> {
-            if (filter.getMaxLossLimit() == null) return true;
-            return maxLossExtractor.apply(candidate) <= filter.getMaxLossLimit();
+            double maxLoss = maxLossExtractor.apply(candidate);
+            return filter.passesMaxLoss(maxLoss);
         };
     }
 
     /**
-     * Common filter for minimum return on risk.
+     * Common filter for minReturnOnRisk (typically for credit strategies).
+     * Returns a predicate that checks if return on risk meets minimum threshold.
+     * 
+     * @param filter           The strategy filter containing minReturnOnRisk
+     *                         configuration
+     * @param profitExtractor  Function to extract profit/credit from candidate
+     * @param maxLossExtractor Function to extract maxLoss from candidate
+     * @return Predicate that validates return on risk against configured minimum
      */
-    protected Predicate<T> commonMinReturnOnRiskFilter(F filter, Function<T, Double> profitExtractor, Function<T, Double> maxLossExtractor) {
+    protected <T> java.util.function.Predicate<T> commonMinReturnOnRiskFilter(
+            OptionsStrategyFilter filter,
+            java.util.function.Function<T, Double> profitExtractor,
+            java.util.function.Function<T, Double> maxLossExtractor) {
         return candidate -> {
-            if (filter.getMinReturnOnRisk() == null) return true;
             double profit = profitExtractor.apply(candidate);
             double maxLoss = maxLossExtractor.apply(candidate);
-            if (maxLoss <= 0) return true;
-            return (profit / maxLoss) * 100 >= filter.getMinReturnOnRisk();
+            return filter.passesMinReturnOnRisk(profit, maxLoss);
         };
     }
 
     /**
-     * Common filter for maximum total debit.
+     * Common filter for maxNetExtrinsicValueToPricePercentage.
+     * Returns a predicate that checks if the net extrinsic value relative to the
+     * stock price is within the max limit.
      */
-    protected Predicate<T> commonMaxTotalDebitFilter(F filter, Function<T, Double> debitExtractor) {
-        return candidate -> {
-            if (filter.getMaxTotalDebit() == null) return true;
-            return debitExtractor.apply(candidate) <= filter.getMaxTotalDebit();
-        };
+    protected java.util.function.Predicate<TradeSetup> commonMaxNetExtrinsicValueToPricePercentageFilter(
+            OptionsStrategyFilter filter) {
+        return tradeSetup -> filter.passesMaxNetExtrinsicValueToPricePercentage(
+                tradeSetup.getAnulizedNetExtrinsicValueToCapitalPercentage());
     }
 
     /**
-     * Common filter for maximum total credit.
+     * Common filter for minNetExtrinsicValueToPricePercentage.
+     * Returns a predicate that checks if the net extrinsic value relative to the
+     * stock price is at least the min limit.
      */
-    protected Predicate<T> commonMaxTotalCreditFilter(F filter, Function<T, Double> creditExtractor) {
-        return candidate -> {
-            if (filter.getMaxTotalCredit() == null) return true;
-            return creditExtractor.apply(candidate) <= filter.getMaxTotalCredit();
-        };
+    protected java.util.function.Predicate<TradeSetup> commonMinNetExtrinsicValueToPricePercentageFilter(
+            OptionsStrategyFilter filter) {
+        return tradeSetup -> filter.passesMinNetExtrinsicValueToPricePercentage(
+                tradeSetup.getAnulizedNetExtrinsicValueToCapitalPercentage());
     }
 
     /**
-     * Common filter for minimum total credit.
+     * Common filter for maxTotalDebit.
      */
-    protected Predicate<T> commonMinTotalCreditFilter(F filter, Function<T, Double> creditExtractor) {
-        return candidate -> {
-            if (filter.getMinTotalCredit() == null) return true;
-            return creditExtractor.apply(candidate) >= filter.getMinTotalCredit();
-        };
+    protected <T> java.util.function.Predicate<T> commonMaxTotalDebitFilter(
+            OptionsStrategyFilter filter,
+            java.util.function.Function<T, Double> debitExtractor) {
+        return candidate -> filter.passesDebitLimit(debitExtractor.apply(candidate));
     }
 
     /**
-     * Common filter for maximum net extrinsic value to price percentage.
+     * Common filter for maxTotalCredit.
      */
-    protected Predicate<T> commonMaxNetExtrinsicValueToPricePercentageFilter(F filter, Function<T, Double> percentageExtractor) {
-        return candidate -> {
-            if (filter.getMaxNetExtrinsicValueToPricePercentage() == null) return true;
-            return percentageExtractor.apply(candidate) <= filter.getMaxNetExtrinsicValueToPricePercentage();
-        };
+    protected <T> java.util.function.Predicate<T> commonMaxTotalCreditFilter(
+            OptionsStrategyFilter filter,
+            java.util.function.Function<T, Double> creditExtractor) {
+        return candidate -> filter.passesCreditLimit(creditExtractor.apply(candidate));
     }
 
     /**
-     * Common filter for minimum net extrinsic value to price percentage.
+     * Common filter for minTotalCredit.
      */
-    protected Predicate<T> commonMinNetExtrinsicValueToPricePercentageFilter(F filter, Function<T, Double> percentageExtractor) {
-        return candidate -> {
-            if (filter.getMinNetExtrinsicValueToPricePercentage() == null) return true;
-            return percentageExtractor.apply(candidate) >= filter.getMinNetExtrinsicValueToPricePercentage();
-        };
+    protected <T> java.util.function.Predicate<T> commonMinTotalCreditFilter(
+            OptionsStrategyFilter filter,
+            java.util.function.Function<T, Double> creditExtractor) {
+        return candidate -> filter.passesMinCredit(creditExtractor.apply(candidate));
+    }
+
+    /**
+     * Checks if the symbol's historical volatility meets the minimum threshold.
+     * Uses cache to avoid redundant API calls and calculations.
+     *
+     * @param symbol Stock symbol
+     * @param filter Strategy filter containing minHistoricalVolatility
+     * @return true if volatility check passes or is not configured, false otherwise
+     */
+    protected boolean checkHistoricalVolatility(String symbol, OptionsStrategyFilter filter) {
+        // If no minimum volatility is set, pass all symbols
+        if (filter.getMinHistoricalVolatility() == null) {
+            return true;
+        }
+
+        try {
+            // Check cache first
+            PriceHistoryCache cache = PriceHistoryCache.getInstance();
+            PriceHistoryCache.HistoricalData cachedData = cache.get(symbol);
+
+            Double historicalVolatility;
+            if (cachedData != null) {
+                // Use cached volatility
+                historicalVolatility = cachedData.getAnnualizedHistoricalVolatility();
+                log.debug("[{}] Using cached historical volatility: {}%", symbol, historicalVolatility);
+            } else {
+                // Fetch price history and calculate volatility
+                log.debug("[{}] Fetching price history to calculate historical volatility", symbol);
+                PriceHistoryResponse priceHistory = ThinkOrSwinAPIs.getYearlyPriceHistory(symbol, 1);
+                historicalVolatility = VolatilityCalculator.calculateAnnualizedVolatility(priceHistory);
+
+                // Cache the result
+                PriceHistoryCache.HistoricalData data = new PriceHistoryCache.HistoricalData(
+                        priceHistory, historicalVolatility);
+                cache.put(symbol, data);
+                log.debug("[{}] Calculated and cached historical volatility: {}%",
+                        symbol, historicalVolatility);
+            }
+
+            // Check if volatility meets threshold
+            if (historicalVolatility == null) {
+                log.warn("[{}] Could not calculate historical volatility, allowing trade", symbol);
+                return true; // Fail-open: allow trade if calculation fails
+            }
+
+            boolean passes = historicalVolatility >= filter.getMinHistoricalVolatility();
+            if (!passes) {
+                log.info("[{}] Historical volatility {}% is below minimum {}%, skipping symbol",
+                        symbol, historicalVolatility, filter.getMinHistoricalVolatility());
+            }
+            return passes;
+
+        } catch (Exception e) {
+            log.error("[{}] Error checking historical volatility: {}, allowing trade", symbol, e.getMessage());
+            return true; // Fail-open: allow trade on error
+        }
     }
 }
