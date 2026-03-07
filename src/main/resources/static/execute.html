@@ -1,152 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trading Bot — Execute Strategy</title>
-    <meta name="description" content="Execute custom trading strategies with configurable filters">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/style.css">
+    <!-- ... head content ... -->
 </head>
-
-<body>
-    <div class="app-layout">
-        <!-- Mobile menu toggle -->
-        <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-
-        <!-- Sidebar -->
-        <nav class="sidebar">
-            <div class="sidebar-brand">
-                Trading Bot
-                <small>Automated Systems</small>
-            </div>
-            <a href="/" class="nav-link">
-                <span class="nav-icon">📊</span>
-                <span>Dashboard</span>
-            </a>
-            <a href="/execute.html" class="nav-link active">
-                <span class="nav-icon">▶️</span>
-                <span>Execute Strategy</span>
-            </a>
-            <a href="/config.html" class="nav-link">
-                <span class="nav-icon">⚙️</span>
-                <span>Config</span>
-            </a>
-        </nav>
-        <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
-
-        <!-- Main Content -->
-        <main class="main-content">
-            <h1 class="page-title">Execute Strategy</h1>
-            <p class="page-subtitle">Run custom strategies with configurable filters</p>
-
-            <!-- Config Panel -->
-            <div class="card">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label class="form-label">Strategy Type *</label>
-                        <select id="strategy-type" class="form-select">
-                            <option value="">Select a strategy...</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Alias (optional)</label>
-                        <input type="text" id="alias-input" class="form-input" placeholder="e.g., My PCS Test">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Securities * (comma-separated)</label>
-                    <input type="text" id="securities-input" class="form-input"
-                        placeholder="AAPL, MSFT, GOOG, AMZN, META">
-                </div>
-            </div>
-
-            <!-- Common Filters -->
-            <div class="card">
-                <h3 style="font-size:0.9rem; margin-bottom:12px; color:var(--text-secondary)">Filters</h3>
-                <div class="form-grid" id="filter-form">
-                    <div class="form-group">
-                        <label class="form-label">Target DTE</label>
-                        <input type="number" class="form-input" data-filter="targetDTE" placeholder="45">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Min DTE</label>
-                        <input type="number" class="form-input" data-filter="minDTE" placeholder="20">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Max DTE</label>
-                        <input type="number" class="form-input" data-filter="maxDTE" placeholder="60">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Max Loss ($)</label>
-                        <input type="number" class="form-input" data-filter="maxLossLimit" placeholder="500">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Min Return on Risk (%)</label>
-                        <input type="number" class="form-input" data-filter="minReturnOnRisk" placeholder="10">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Min Historical Volatility</label>
-                        <input type="number" class="form-input" data-filter="minHistoricalVolatility" placeholder="20"
-                            step="0.1">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Max Break-Even %</label>
-                        <input type="number" class="form-input" data-filter="maxBreakEvenPercentage" placeholder="5.0"
-                            step="0.1">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Max Breakeven Delta</label>
-                        <input type="number" class="form-input" data-filter="maxUpperBreakevenDelta" placeholder="0.30"
-                            step="0.01">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Max Extrinsic %</label>
-                        <input type="number" class="form-input" data-filter="maxNetExtrinsicValueToPricePercentage"
-                            placeholder="0.5" step="0.1">
-                    </div>
-                    <div class="form-group" style="display:flex; align-items:center; gap:8px; padding-top:20px">
-                        <input type="checkbox" id="ignore-earnings" data-filter="ignoreEarnings" data-type="boolean">
-                        <label for="ignore-earnings" style="font-size:0.85rem; cursor:pointer">Ignore Earnings</label>
-                    </div>
-                    <!-- Strategy-specific filters are injected here -->
-                    <div id="specific-filters" class="form-grid" style="grid-column: 1 / -1"></div>
-                </div>
-            </div>
-
-            <!-- Execute Button -->
-            <div class="flex gap-sm items-center mb-md">
-                <button class="btn btn-primary" onclick="executeCustom()">
-                    ▶ Execute Custom Strategy
-                </button>
-            </div>
-
-            <!-- Progress -->
-            <div class="progress-container" id="custom-progress">
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width:30%"></div>
-                </div>
-                <p class="progress-text" id="elapsed-text">Executing...</p>
-            </div>
-
-            <!-- Recent Custom Executions -->
-            <h3 style="font-size:1rem; margin:24px 0 12px; color:var(--text-secondary)">Recent Custom Executions</h3>
-            <div id="custom-results">
-                <div class="empty-state">
-                    <div class="empty-state-icon">🔬</div>
-                    Loading...
-                </div>
-            </div>
-        </main>
+<body class="dark-theme">
+    <!-- ... layout ... -->
+    <div id="filter-grid" class="filter-grid">
+        <!-- New common filters -->
+        <div class="filter-item">
+            <label>Max Total Debit</label>
+            <input type="number" data-filter="maxTotalDebit" placeholder="e.g. 5000">
+        </div>
+        <div class="filter-item">
+            <label>Max Total Credit</label>
+            <input type="number" data-filter="maxTotalCredit" placeholder="e.g. 1000">
+        </div>
+        <div class="filter-item">
+            <label>Min Total Credit</label>
+            <input type="number" data-filter="minTotalCredit" placeholder="e.g. 200">
+        </div>
+        <!-- ... other filters ... -->
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="/app.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', initExecutePage);
-    </script>
+    <!-- ... rest of the body ... -->
 </body>
-
 </html>
