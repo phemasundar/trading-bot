@@ -39,4 +39,11 @@ public class TradeLegDTO {
      * Premium (mark price)
      */
     private double premium;
+
+    /**
+     * Quantity of the leg (e.g., 2 for the short legs in BWB/Zebra)
+     * Defaults to 1 if not explicitly set.
+     */
+    @Builder.Default
+    private int quantity = 1;
 }

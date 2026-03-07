@@ -4,6 +4,7 @@
             "enabled": true,
             "alias": "Short-Term PCS - Portfolio",
             "strategyType": "PUT_CREDIT_SPREAD",
+            "descriptionFile": "put_credit_spread.md",
             "filterType": "CreditSpreadFilter",
             "filter": {
                 "minDTE": 25,
@@ -23,6 +24,7 @@
             "enabled": true,
             "alias": "Long-Term PCS - Tracking & 2026",
             "strategyType": "PUT_CREDIT_SPREAD",
+            "descriptionFile": "put_credit_spread.md",
             "filterType": "CreditSpreadFilter",
             "filter": {
                 "minDTE": 55,
@@ -42,6 +44,7 @@
             "enabled": true,
             "alias": "Tech RSI/BB PCS - Top 100",
             "strategyType": "TECH_PUT_CREDIT_SPREAD",
+            "descriptionFile": "tech_put_credit_spread.md",
             "filterType": "CreditSpreadFilter",
             "filter": {
                 "targetDTE": 30,
@@ -70,6 +73,7 @@
             "enabled": true,
             "alias": "Standard CCS - Portfolio",
             "strategyType": "CALL_CREDIT_SPREAD",
+            "descriptionFile": "call_credit_spread.md",
             "filterType": "CreditSpreadFilter",
             "filter": {
                 "targetDTE": 30,
@@ -88,6 +92,7 @@
             "enabled": true,
             "alias": "Tech RSI/BB CCS - Top 100",
             "strategyType": "TECH_CALL_CREDIT_SPREAD",
+            "descriptionFile": "tech_call_credit_spread.md",
             "filterType": "CreditSpreadFilter",
             "filter": {
                 "targetDTE": 30,
@@ -116,6 +121,7 @@
             "enabled": true,
             "alias": "Mid-Term Iron Condor - Portfolio",
             "strategyType": "IRON_CONDOR",
+            "descriptionFile": "iron_condor.md",
             "filterType": "IronCondorFilter",
             "filter": {
                 "minDTE": 40,
@@ -139,6 +145,7 @@
             "enabled": true,
             "alias": "Long-Term Iron Condor - Bullish",
             "strategyType": "IRON_CONDOR",
+            "descriptionFile": "iron_condor.md",
             "filterType": "IronCondorFilter",
             "filter": {
                 "minDTE": 55,
@@ -162,6 +169,7 @@
             "enabled": true,
             "alias": "Moderate LEAP - All Holdings",
             "strategyType": "LONG_CALL_LEAP",
+            "descriptionFile": "long_call_leap.md",
             "filterType": "LongCallLeapFilter",
             "securitiesFile": "portfolio, tracking, 2026",
             "filter": {
@@ -183,6 +191,7 @@
             "enabled": true,
             "alias": "Aggressive LEAP - Top 100",
             "strategyType": "LONG_CALL_LEAP",
+            "descriptionFile": "long_call_leap.md",
             "filterType": "LongCallLeapFilter",
             "securitiesFile": "top100",
             "filter": {
@@ -204,6 +213,7 @@
             "enabled": true,
             "alias": "LEAP Top 5 - Bullish Picks",
             "strategyType": "LONG_CALL_LEAP_TOP_N",
+            "descriptionFile": "long_call_leap.md",
             "filterType": "LongCallLeapFilter",
             "securitiesFile": "bullish",
             "filter": {
@@ -237,6 +247,7 @@
             "enabled": false,
             "alias": "BWB Conservative - Portfolio (Disabled)",
             "strategyType": "BULLISH_BROKEN_WING_BUTTERFLY",
+            "descriptionFile": "bullish_bwb.md",
             "filterType": "BrokenWingButterflyFilter",
             "filter": {
                 "targetDTE": 30,
@@ -260,6 +271,7 @@
             "alias": "BWB Active - Tracking & 2026",
             "maxTradesToSend": 10,
             "strategyType": "BULLISH_BROKEN_WING_BUTTERFLY",
+            "descriptionFile": "bullish_bwb.md",
             "filterType": "BrokenWingButterflyFilter",
             "filter": {
                 "minDTE": 25,
@@ -283,6 +295,7 @@
             "enabled": true,
             "alias": "Bullish ZEBRA - Portfolio",
             "strategyType": "BULLISH_ZEBRA",
+            "descriptionFile": "bullish_zebra.md",
             "filterType": "ZebraFilter",
             "filter": {
                 "minDTE": 30,

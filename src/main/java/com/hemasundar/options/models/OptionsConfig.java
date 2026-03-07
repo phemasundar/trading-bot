@@ -58,6 +58,11 @@ public class OptionsConfig {
     private final TechnicalFilterChain technicalFilterChain;
 
     /**
+     * Optional markdown file containing the strategy's description.
+     */
+    private final String descriptionFile;
+
+    /**
      * Optional custom display name for this strategy configuration.
      * If null or blank, falls back to StrategyType display name.
      */

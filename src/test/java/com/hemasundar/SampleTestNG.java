@@ -161,7 +161,8 @@ public class SampleTestNG {
                                 try {
                                         long executionTime = System.currentTimeMillis() - strategyStartTime;
                                         StrategyResult result = StrategyResult.fromTrades(
-                                                        config.getName(), trades, executionTime, config.getFilter());
+                                                        config.getName(), trades, executionTime, config.getFilter(),
+                                                        config.getDescriptionFile());
                                         supabaseService.saveStrategyResult(result);
                                         log.info("[{}] Saved strategy result to Supabase ({} trades)",
                                                         config.getName(), result.getTradesFound());

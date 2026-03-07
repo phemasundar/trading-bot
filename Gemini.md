@@ -3,6 +3,20 @@
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 > **CRITICAL AI RULE**: NEVER use GitHub MCP tools (create PR, merge, create release, etc.) unless the user explicitly asks. Do not assume permission for any GitHub operations.
 
+## Strategy Descriptions & Info Modal (2026-03-06)
+
+Added the ability to present detailed strategy descriptions in the Static UI through a Markdown modal. 
+
+### Architecture
+- **Backend**: Added `descriptionFile` field to `StrategiesConfig.StrategyEntry` and mapped it through `StrategyResult` DTO.
+- **API**: Exposed `descriptionFile` at `/api/strategies` and `/api/results`.
+- **Frontend**: Integrated `marked.js` to parse markdown descriptions dynamically.
+- **UI**: Added a custom `info-btn` icon to both the Strategy Results cards (dashboard) and the Configuration viewer page. 
+
+### Features
+- Clicking the "ℹ️" button performs an asynchronous fetch to a local markdown file, parses the content using `marked.parse()`, and displays the HTML in a custom dark-mode modal. 
+- The description Markdown files are decoupled from `strategies-config.json` configuration blocks for cleaner code and maintainable text.
+
 ## Vaadin → Static Frontend Migration (2026-03-05)
 
 Migrated from Vaadin's server-side Java UI to a **plain HTML/CSS/JS frontend** with REST API wrapper endpoints. Vaadin completely removed from the codebase.

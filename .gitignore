@@ -25,4 +25,4 @@ application-local.properties
 application-secret.properties
 .env
 .env.*
-src\main\resources\application.properties
+src/main/resources/application.properties

@@ -116,6 +116,7 @@ function buildResultCard(result, badgeText = 'Standard') {
             <div class="flex items-center gap-sm flex-wrap">
                 ${arrow}
                 <span class="card-name">${result.strategyName || 'Unknown'}</span>
+                ${result.descriptionFile ? `<button type="button" class="info-btn" onclick="showInfo(event, '${result.descriptionFile}', '${escapeAttr(result.strategyName)}')">ℹ️</button>` : ''}
                 <span class="card-badge">${badgeText}</span>
             </div>
             <span class="card-stats">Last run: ${timeAgo(result.updatedAt)} · Trades: ${result.tradesFound || 0}</span>
@@ -149,7 +150,7 @@ function buildTradeTable(trades) {
     let html = `<table class="data-table">
         <thead><tr>
             <th>Ticker</th><th>Price</th><th>Type</th><th>Expiry</th>
-            <th>Credit/Debit</th><th>Max Loss</th><th>Breakeven</th><th>ROR%</th>
+            <th>Credit/Debit</th><th>Max Loss</th><th>Extrinsic</th><th>Breakeven</th><th>ROR%</th>
         </tr></thead><tbody>`;
 
     for (const t of trades) {
@@ -168,6 +169,7 @@ function buildTradeTable(trades) {
             <td>${formatExpiryDate(t.expiryDate)} <span class="text-muted">(${t.dte || 0}d)</span></td>
             <td>${creditStr}</td>
             <td class="text-danger">$${(t.maxLoss || 0).toFixed(2)}</td>
+            <td>$${(t.netExtrinsicValue || 0).toFixed(2)} <span class="text-muted">(${(t.anulizedNetExtrinsicValueToCapitalPercentage || 0).toFixed(1)}%)</span></td>
             <td>${formatBreakeven(t)}</td>
             <td class="${rorClass}">${(t.returnOnRisk || 0).toFixed(1)}%</td>
         </tr>`;
@@ -183,7 +185,8 @@ function formatLegs(trade) {
             const action = l.action || '';
             const type = l.optionType || '';
             const strike = l.strike ? l.strike.toFixed(0) : '';
-            return `<span class="leg-chip ${action === 'SELL' ? 'leg-sell' : 'leg-buy'}">${action} ${strike} ${type}</span>`;
+            const qty = (l.quantity && l.quantity > 1) ? `${l.quantity}x ` : '';
+            return `<span class="leg-chip ${action === 'SELL' ? 'leg-sell' : 'leg-buy'}">${action} ${qty}${strike} ${type}</span>`;
         }).join('<br>');
     }
     return '-';
@@ -191,11 +194,27 @@ function formatLegs(trade) {
 
 function formatBreakeven(trade) {
     const parts = [];
-    if (trade.breakEvenPrice) parts.push(`$${trade.breakEvenPrice.toFixed(2)}`);
-    if (trade.upperBreakEvenPrice && Math.abs(trade.upperBreakEvenPrice - (trade.breakEvenPrice || 0)) > 0.01) {
-        parts.push(`$${trade.upperBreakEvenPrice.toFixed(2)}`);
+    if (trade.breakEvenPrice) {
+        let be = `$${trade.breakEvenPrice.toFixed(2)}`;
+        if (trade.breakEvenPercent) {
+            be += ` <span class="text-muted">(${trade.breakEvenPercent.toFixed(1)}%)</span>`;
+        }
+        parts.push(be);
     }
-    return parts.join(' / ') || '-';
+    if (trade.upperBreakEvenPrice && Math.abs(trade.upperBreakEvenPrice - (trade.breakEvenPrice || 0)) > 0.01) {
+        let ube = `$${trade.upperBreakEvenPrice.toFixed(2)}`;
+        if (trade.upperBreakEvenPercent) {
+            ube += ` <span class="text-muted">(${trade.upperBreakEvenPercent.toFixed(1)}%)</span>`;
+        }
+        parts.push(ube);
+    }
+
+    // Add Breakeven CAGR if available
+    if (trade.breakevenCAGR != null) {
+        parts.push(`CAGR: ${trade.breakevenCAGR.toFixed(1)}%`);
+    }
+
+    return parts.join('<br>') || '-';
 }
 
 function formatExpiryDate(dateStr) {
@@ -234,7 +253,7 @@ function initTradeRowClicks() {
         panel.className = 'trade-detail-panel';
         panel.dataset.rowId = details;
         panel.innerHTML = `
-            <td colspan="8">
+            <td colspan="9">
                 <div class="trade-detail">
                     <div class="trade-detail-header">
                         ▶ ${row.querySelector('td strong')?.textContent || ''} — Trade Details
@@ -331,10 +350,13 @@ async function loadStrategies() {
     try {
         const strategies = await API.get('/api/strategies');
         container.innerHTML = strategies.map(s => `
-            <label class="checkbox-label">
-                <input type="checkbox" value="${s.index}" checked>
-                <span>${s.name}</span>
-            </label>`).join('');
+            <div class="flex items-center gap-sm" style="margin-bottom: 8px;">
+                <label class="checkbox-label" style="margin: 0;">
+                    <input type="checkbox" value="${s.index}" checked>
+                    <span>${s.name}</span>
+                </label>
+                ${s.descriptionFile ? `<button type="button" class="info-btn" onclick="showInfo(event, '${s.descriptionFile}', '${escapeAttr(s.name)}')">ℹ️</button>` : ''}
+            </div>`).join('');
     } catch (e) {
         container.innerHTML = `<span class="text-muted">Failed to load strategies</span>`;
     }
@@ -380,6 +402,66 @@ function setDashboardBusy(busy) {
     if (execBtn) execBtn.disabled = busy;
     if (stopBtn) stopBtn.style.display = busy ? 'inline-flex' : 'none';
     if (progress) progress.className = busy ? 'progress-container active' : 'progress-container';
+}
+
+// ── Strategy Info Modal ──
+
+async function showInfo(event, filename, strategyName) {
+    if (event) {
+        event.stopPropagation(); // prevent card toggle or checkbox click
+        event.preventDefault();
+    }
+
+    // Prevent multiple modals
+    if (document.querySelector('.info-modal-overlay')) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay info-modal-overlay';
+
+    let modalContent = `
+        <div class="modal" style="max-width: 600px;">
+            <div class="flex justify-between items-center" style="margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                <h2 style="margin:0;">${strategyName}</h2>
+                <button class="btn-icon modal-close" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;" onclick="this.closest('.modal-overlay').remove()">✕</button>
+            </div>
+            <div class="markdown-body">
+                <div class="loading-spinner">
+                    <span class="loading-spinner-icon">⏳</span>
+                    <p>Loading description...</p>
+                </div>
+            </div>
+        </div>`;
+
+    overlay.innerHTML = modalContent;
+    document.body.appendChild(overlay);
+
+    // Close on background click
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.remove();
+        }
+    });
+
+    try {
+        const res = await fetch(`/descriptions/${filename}`);
+        if (!res.ok) throw new Error('File not found');
+        const text = await res.text();
+
+        // Use marked.js if available, otherwise fallback to plain text
+        const bodyEl = overlay.querySelector('.markdown-body');
+        if (typeof marked !== 'undefined') {
+            bodyEl.innerHTML = marked.parse(text);
+        } else {
+            bodyEl.innerHTML = `<pre style="white-space: pre-wrap; font-family: var(--font-sans);">${escapeAttr(text)}</pre>`;
+        }
+    } catch (e) {
+        overlay.querySelector('.markdown-body').innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon text-warning">⚠️</div>
+                <p>Could not load description.</p>
+                <small class="text-muted">${e.message}</small>
+            </div>`;
+    }
 }
 
 async function executeSelected() {
@@ -621,11 +703,16 @@ function renderConfig(config, container) {
                 ? '<span class="pill pill-enabled">Enabled</span>'
                 : '<span class="pill pill-disabled">Disabled</span>';
 
+            const infoBtn = strategy.descriptionFile
+                ? `<button type="button" class="info-btn" onclick="showInfo(event, '${strategy.descriptionFile}', '${escapeAttr(strategy.alias || strategy.strategyType)}')">ℹ️</button>`
+                : '';
+
             card.innerHTML = `
                 <div class="config-card-header">
                     <div class="flex items-center gap-sm flex-wrap">
                         <span class="card-arrow">▶</span>
                         <strong>${strategy.alias || strategy.strategyType}</strong>
+                        ${infoBtn}
                         <span class="card-badge">${strategy.strategyType}</span>
                         ${enabledPill}
                     </div>

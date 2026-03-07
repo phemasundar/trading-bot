@@ -3235,7 +3235,7 @@
       } ]
     },
     "ADBE" : {
-      "lastFetched" : "2026-01-31",
+      "lastFetched" : "2026-03-06",
       "earnings" : [ {
         "date" : "2026-06-10",
         "epsActual" : null,
@@ -3259,129 +3259,89 @@
       } ]
     },
     "PYPL" : {
-      "lastFetched" : "2026-01-31",
+      "lastFetched" : "2026-03-06",
       "earnings" : [ {
         "date" : "2026-07-27",
         "epsActual" : null,
-        "epsEstimate" : "1.4801",
+        "epsEstimate" : "1.3673",
         "hour" : "amc",
         "quarter" : 2,
         "revenueActual" : null,
-        "revenueEstimate" : 8895725051,
+        "revenueEstimate" : 8672447643,
         "symbol" : "PYPL",
         "year" : 2026
       }, {
-        "date" : "2026-04-27",
+        "date" : "2026-05-05",
         "epsActual" : null,
-        "epsEstimate" : "1.4067",
+        "epsEstimate" : "1.2932",
         "hour" : "amc",
         "quarter" : 1,
         "revenueActual" : null,
-        "revenueEstimate" : 8437681811,
+        "revenueEstimate" : 8222834335,
         "symbol" : "PYPL",
         "year" : 2026
-      }, {
-        "date" : "2026-02-03",
-        "epsActual" : null,
-        "epsEstimate" : "1.3103",
-        "hour" : "bmo",
-        "quarter" : 4,
-        "revenueActual" : null,
-        "revenueEstimate" : 8977315035,
-        "symbol" : "PYPL",
-        "year" : 2025
       } ]
     },
     "FOUR" : {
-      "lastFetched" : "2026-01-31",
+      "lastFetched" : "2026-03-06",
       "earnings" : [ {
         "date" : "2026-08-03",
         "epsActual" : null,
-        "epsEstimate" : "1.5584",
+        "epsEstimate" : "1.4345",
         "hour" : "bmo",
         "quarter" : 2,
         "revenueActual" : null,
-        "revenueEstimate" : 1319019120,
+        "revenueEstimate" : 1275210599,
         "symbol" : "FOUR",
         "year" : 2026
       }, {
         "date" : "2026-04-27",
         "epsActual" : null,
-        "epsEstimate" : "1.2237",
+        "epsEstimate" : "1.062",
         "hour" : "bmo",
         "quarter" : 1,
         "revenueActual" : null,
-        "revenueEstimate" : 1173040116,
+        "revenueEstimate" : 1128509997,
         "symbol" : "FOUR",
         "year" : 2026
-      }, {
-        "date" : "2026-02-16",
-        "epsActual" : null,
-        "epsEstimate" : "1.6168",
-        "hour" : "amc",
-        "quarter" : 4,
-        "revenueActual" : null,
-        "revenueEstimate" : 1234432203,
-        "symbol" : "FOUR",
-        "year" : 2025
       } ]
     },
     "VRT" : {
-      "lastFetched" : "2026-01-31",
+      "lastFetched" : "2026-03-06",
       "earnings" : [ {
         "date" : "2026-07-28",
         "epsActual" : null,
-        "epsEstimate" : "1.2927",
+        "epsEstimate" : "1.4212",
         "hour" : "",
         "quarter" : 2,
         "revenueActual" : null,
-        "revenueEstimate" : 3116753030,
+        "revenueEstimate" : 3414574548,
         "symbol" : "VRT",
         "year" : 2026
       }, {
         "date" : "2026-04-21",
         "epsActual" : null,
-        "epsEstimate" : "0.9452",
+        "epsEstimate" : "1.0055",
         "hour" : "",
         "quarter" : 1,
         "revenueActual" : null,
-        "revenueEstimate" : 2548552341,
+        "revenueEstimate" : 2653211308,
         "symbol" : "VRT",
         "year" : 2026
-      }, {
-        "date" : "2026-02-11",
-        "epsActual" : null,
-        "epsEstimate" : "1.2943",
-        "hour" : "amc",
-        "quarter" : 4,
-        "revenueActual" : null,
-        "revenueEstimate" : 2910859056,
-        "symbol" : "VRT",
-        "year" : 2025
       } ]
     },
     "ZETA" : {
-      "lastFetched" : "2026-01-31",
+      "lastFetched" : "2026-03-06",
       "earnings" : [ {
         "date" : "2026-04-29",
         "epsActual" : null,
-        "epsEstimate" : "0.1219",
+        "epsEstimate" : "0.1186",
         "hour" : "",
         "quarter" : 1,
         "revenueActual" : null,
-        "revenueEstimate" : 361943623,
+        "revenueEstimate" : 377660650,
         "symbol" : "ZETA",
         "year" : 2026
-      }, {
-        "date" : "2026-02-19",
-        "epsActual" : null,
-        "epsEstimate" : "0.2357",
-        "hour" : "amc",
-        "quarter" : 4,
-        "revenueActual" : null,
-        "revenueEstimate" : 386817660,
-        "symbol" : "ZETA",
-        "year" : 2025
       } ]
     },
     "QQQ" : {

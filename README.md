@@ -17,6 +17,7 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
 - **Object-Oriented Filter System**: Extensible filter hierarchy with strategy-specific and leg-specific filters
 - **Technical Indicators**: RSI, Bollinger Bands, and Volume analysis using ta4j library
 - **Telegram Notifications**: Receive trade alerts directly to your Telegram
+- **Interactive UI Dashboard**: Execute custom strategy instances, explore strategy configurations, and view results with embedded strategy explanations.
 
 ## Prerequisites
 
