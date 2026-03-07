@@ -1,4 +1,4 @@
-package com.hemasundar;
+package com.hemasundar.functional;
 
 import com.hemasundar.pojos.IVDataPoint;
 import com.hemasundar.services.GoogleSheetsService;

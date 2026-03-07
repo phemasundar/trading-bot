@@ -2,8 +2,8 @@
 <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
 <suite name="MyTestSuite" verbose="1">
     <test name="RegressionTests">
-        <classes>
-            <class name="com.hemasundar.SampleTestNG" />
-        </classes>
+        <packages>
+            <package name="com.hemasundar.*" />
+        </packages>
     </test>
 </suite>

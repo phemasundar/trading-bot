@@ -34,7 +34,7 @@ jobs:
           echo "Using Service Account for authentication (no credentials.json file needed)"
 
       - name: Run IV Data Collection
-        run: mvn test -DsuiteXmlFile=iv-data-collection.xml
+        run: mvn test -DsuiteXmlFile=src/test/resources/test_runners/iv-data-collection.xml
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           GOOGLE_SPREADSHEET_ID: ${{ secrets.GOOGLE_SPREADSHEET_ID }}

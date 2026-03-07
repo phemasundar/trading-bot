@@ -1,0 +1,15 @@
+{
+    "optionsStrategies": [
+        {
+            "strategyType": "PUT_CREDIT_SPREAD",
+            "alias": "Bullish Puts",
+            "enabled": true,
+            "securities": "AAPL, MSFT",
+            "filterType": "CreditSpreadFilter",
+            "filter": {
+                "targetDTE": 30,
+                "minTotalCredit": 50.0
+            }
+        }
+    ]
+}
