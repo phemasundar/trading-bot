@@ -3,9 +3,9 @@
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 > **CRITICAL AI RULE**: NEVER use GitHub MCP tools (create PR, merge, create release, etc.) unless the user explicitly asks. Do not assume permission for any GitHub operations.
 
-## Strategy Filter UI Enhancements (2026-03-06)
+## Strategy Filter UI Enhancements (2026-03-07)
 
-Expanded the custom strategy execution UI to include comprehensive filter coverage.
+Expanded the custom strategy execution UI to include comprehensive filter coverage and synchronized backend logic.
 
 ### Features
 - **Dynamic Leg Filters**: Added a full suite of 8 filter fields (Delta, Premium, OI, Volume, Volatility) for every leg in all strategies (Credit Spreads, Iron Condors, BWB, Zebra, LEAPs).
@@ -139,15 +139,8 @@ Added full Docker + GitHub Actions CI/CD pipeline to deploy the Vaadin web app t
 - **`application.properties`** [MODIFIED]: Replaced hardcoded Supabase keys with `${ENV_VAR:default}` expressions. Local dev still works without env vars.
 - **`.github/workflows/deploy-cloud-run.yml`** [NEW]: Full CI/CD pipeline — triggered on push to `main`. Authenticates to GCP, builds image, pushes to Artifact Registry, deploys to Cloud Run.
 - **`CLOUD_RUN_DEPLOYMENT.md`** [NEW]: Detailed step-by-step GCP console setup guide (project, APIs, Artifact Registry, Service Account, GitHub Secrets).
-- **`README.md`** [MODIFIED]: Added Google Cloud Run deployment section with secrets table and URL info.
+- **`README.md`**: Updated usage, project structure, deployment, and dependencies sections
 
-### Required GitHub Secrets
-`GCP_PROJECT_ID`, `GCP_SA_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-
-### Release Process
-Push to `main` → GitHub Actions builds image → pushes to Artifact Registry → deploys to Cloud Run (zero downtime, ~5 min).
-
----
 
 ## Underlying Price UI Column (2026-02-26)
 
