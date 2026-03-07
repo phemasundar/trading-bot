@@ -16,6 +16,18 @@ public class TelegramUtilsTest {
     }
 
     @Test
+    public void testSendMessage_MissingToken() {
+        try (org.mockito.MockedStatic<com.hemasundar.pojos.TestConfig> mockedConfig = org.mockito.Mockito
+                .mockStatic(com.hemasundar.pojos.TestConfig.class)) {
+            com.hemasundar.pojos.TestConfig mockConf = new com.hemasundar.pojos.TestConfig(
+                    null, null, null, null, null, null, null, true, null);
+            mockedConfig.when(com.hemasundar.pojos.TestConfig::getInstance).thenReturn(mockConf);
+
+            assertFalse(TelegramUtils.sendMessage("Test message"));
+        }
+    }
+
+    @Test
     public void testSendTradeAlerts_Success() {
         com.hemasundar.options.models.OptionChainResponse.OptionData shortPut = new com.hemasundar.options.models.OptionChainResponse.OptionData();
         shortPut.setStrikePrice(150.0);
