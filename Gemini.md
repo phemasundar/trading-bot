@@ -3,6 +3,18 @@
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 > **CRITICAL AI RULE**: NEVER use GitHub MCP tools (create PR, merge, create release, etc.) unless the user explicitly asks. Do not assume permission for any GitHub operations.
 
+## Securities Configuration Viewer Section (2026-03-06)
+
+Added the ability to view the actual list of stock symbols directly on the Configuration viewer screen.
+
+### Backend
+- **`StrategyExecutionService.java`**: Exposed `loadSecuritiesMaps()` as a public method.
+- **`StrategyController.java`**: Added a new `/api/securities` endpoint that returns a JSON map of all available security files (e.g., `portfolio`, `top100`) to their respective array of ticker symbols.
+
+### Frontend
+- **`app.js`**: Updated `initConfigPage()` to fetch from both `/api/config` and `/api/securities` concurrently.
+- Added a dedicated "Securities" section between Options Strategies and Technical Screeners. Each security file is rendered as a collapsible card showing the file name, symbol count badge, and the full comma-separated list of symbols.
+
 ## Strategy Descriptions & Info Modal (2026-03-06)
 
 Added the ability to present detailed strategy descriptions in the Static UI through a Markdown modal. 
