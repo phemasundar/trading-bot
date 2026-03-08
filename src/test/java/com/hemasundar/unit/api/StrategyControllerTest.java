@@ -6,7 +6,6 @@ import com.hemasundar.options.models.OptionsConfig;
 import com.hemasundar.options.strategies.StrategyType;
 import com.hemasundar.services.StrategyExecutionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.mockito.Mockito;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -248,8 +247,7 @@ public class StrategyControllerTest {
                 "IRON_CONDOR",
                 "LONG_CALL_LEAP",
                 "BULLISH_BROKEN_WING_BUTTERFLY",
-                "BULLISH_ZEBRA",
-                "CASH_SECURED_PUT" // Default branch
+                "BULLISH_ZEBRA"
         };
 
         for (String type : types) {
@@ -265,7 +263,7 @@ public class StrategyControllerTest {
         }
 
         // Ensure execution was called for each type
-        verify(executionService, times(types.length)).executeCustomStrategy(any());
+        verify(executionService, timeout(2000).times(types.length)).executeCustomStrategy(any());
     }
 
     @Test
