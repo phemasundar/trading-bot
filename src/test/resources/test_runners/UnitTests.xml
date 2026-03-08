@@ -3,6 +3,8 @@
 <suite name="UnitTestsSuite" verbose="1">
     <test name="UnitTests">
         <packages>
+            <package name="com.hemasundar.api.*" />
+            <package name="com.hemasundar.options.strategies.*" />
             <package name="com.hemasundar.unit.*" />
         </packages>
     </test>
