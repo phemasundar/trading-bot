@@ -1,4 +1,4 @@
-package com.hemasundar.unit.utils;
+package com.hemasundar.utils;
 
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.utils.VolatilityCalculator;
@@ -55,5 +55,47 @@ public class VolatilityCalculatorTest {
         PriceHistoryResponse.CandleData candle = new PriceHistoryResponse.CandleData();
         candle.setClose(close);
         return candle;
+    }
+
+    @Test
+    public void testCalculateAnnualizedVolatility_NullCandles() {
+        PriceHistoryResponse response = new PriceHistoryResponse();
+        response.setCandles(null);
+        assertNull(VolatilityCalculator.calculateAnnualizedVolatility(response));
+    }
+
+    @Test
+    public void testCalculateAnnualizedVolatility_SingleCandle() {
+        PriceHistoryResponse response = new PriceHistoryResponse();
+        response.setSymbol("AAPL");
+        response.setCandles(List.of(createCandle(150.0)));
+        assertNull(VolatilityCalculator.calculateAnnualizedVolatility(response));
+    }
+
+    @Test
+    public void testCalculateAnnualizedVolatility_InvalidCurrentPrice() {
+        PriceHistoryResponse response = new PriceHistoryResponse();
+        response.setSymbol("AAPL");
+        response.setCandles(List.of(createCandle(150.0), createCandle(-1.0)));
+        assertNull(VolatilityCalculator.calculateAnnualizedVolatility(response));
+    }
+
+    @Test
+    public void testCalculateAnnualizedVolatility_InvalidPreviousPrice() {
+        PriceHistoryResponse response = new PriceHistoryResponse();
+        response.setSymbol("AAPL");
+        response.setCandles(List.of(createCandle(0.0), createCandle(150.0)));
+        assertNull(VolatilityCalculator.calculateAnnualizedVolatility(response));
+    }
+
+    @Test
+    public void testCalculateAnnualizedVolatility_ZeroVolatility() {
+        PriceHistoryResponse response = new PriceHistoryResponse();
+        response.setSymbol("AAPL");
+        response.setCandles(List.of(createCandle(100.0), createCandle(100.0), createCandle(100.0)));
+
+        Double volatility = VolatilityCalculator.calculateAnnualizedVolatility(response);
+        assertNotNull(volatility);
+        assertEquals(volatility, 0.0, 0.0001);
     }
 }

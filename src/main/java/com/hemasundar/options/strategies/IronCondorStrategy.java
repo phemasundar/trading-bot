@@ -94,8 +94,9 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
         for (PutCreditSpread putSpread : putSpreads) {
             for (CallCreditSpread callSpread : callSpreads) {
                 // Ensure no overlap
-                if (putSpread.getShortPut().getStrikePrice() >= callSpread.getShortCall().getStrikePrice())
+                if (putSpread.getShortPut().getStrikePrice() >= callSpread.getShortCall().getStrikePrice()) {
                     continue;
+                }
 
                 double totalCredit = putSpread.getNetCredit() + callSpread.getNetCredit();
 
@@ -106,11 +107,13 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
                 double maxRisk = Math.max(putWidth, callWidth) - totalCredit;
 
                 // Use filter helper methods instead of hardcoded checks
-                if (!filter.passesMaxLoss(maxRisk))
+                if (!filter.passesMaxLoss(maxRisk)) {
                     continue;
+                }
 
-                if (!filter.passesMinReturnOnRisk(totalCredit, maxRisk))
+                if (!filter.passesMinReturnOnRisk(totalCredit, maxRisk)) {
                     continue;
+                }
 
                 double returnOnRisk = (totalCredit / maxRisk) * 100;
 
@@ -141,17 +144,18 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
                 // Use common method from TradeSetup interface
                 double annualizedNetExtrinsicPct = condor.getAnulizedNetExtrinsicValueToCapitalPercentage();
 
-                if (!filter.passesMaxNetExtrinsicValueToPricePercentage(annualizedNetExtrinsicPct))
+                if (!filter.passesMaxNetExtrinsicValueToPricePercentage(annualizedNetExtrinsicPct)) {
                     continue;
-
-                if (!filter.passesMinNetExtrinsicValueToPricePercentage(annualizedNetExtrinsicPct))
+                }
+                if (!filter.passesMinNetExtrinsicValueToPricePercentage(annualizedNetExtrinsicPct)) {
                     continue;
-
-                if (!filter.passesCreditLimit(totalCredit))
+                }
+                if (!filter.passesCreditLimit(totalCredit)) {
                     continue;
-
-                if (!filter.passesMinCredit(totalCredit))
+                }
+                if (!filter.passesMinCredit(totalCredit)) {
                     continue;
+                }
 
                 condors.add(condor);
             }

@@ -1,4 +1,4 @@
-package com.hemasundar.unit.technical;
+package com.hemasundar.technical;
 
 import com.hemasundar.technical.RSIFilter;
 import org.ta4j.core.BarSeries;

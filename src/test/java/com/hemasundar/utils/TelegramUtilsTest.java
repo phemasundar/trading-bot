@@ -1,4 +1,4 @@
-package com.hemasundar.unit.utils;
+package com.hemasundar.utils;
 
 import com.hemasundar.options.models.PutCreditSpread;
 import com.hemasundar.technical.TechnicalScreener;
@@ -13,6 +13,18 @@ public class TelegramUtilsTest {
     public void testSendMessage_Disabled() {
         // test.properties has telegram_enabled=false
         assertTrue(TelegramUtils.sendMessage("Test message"));
+    }
+
+    @Test
+    public void testSendMessage_MissingToken() {
+        try (org.mockito.MockedStatic<com.hemasundar.pojos.TestConfig> mockedConfig = org.mockito.Mockito
+                .mockStatic(com.hemasundar.pojos.TestConfig.class)) {
+            com.hemasundar.pojos.TestConfig mockConf = new com.hemasundar.pojos.TestConfig(
+                    null, null, null, null, null, null, null, true, null);
+            mockedConfig.when(com.hemasundar.pojos.TestConfig::getInstance).thenReturn(mockConf);
+
+            assertFalse(TelegramUtils.sendMessage("Test message"));
+        }
     }
 
     @Test

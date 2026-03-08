@@ -65,8 +65,10 @@ public class OptionChainResponse {
                 .distinct()
                 .min(Comparator.comparingInt(key -> Math.abs(key.getDaysToExpiry() - targetDays)))
                 .map(OptionChainResponse.ExpirationDateKey::getDate)
-                .orElseThrow(() -> new RuntimeException("No Expiry Found"));
-        log.debug("[{}] Target Expiry Date: {}", this.symbol, targetExpiryDate);
+                .orElse(null);
+        if (targetExpiryDate != null) {
+            log.debug("[{}] Target Expiry Date: {}", this.symbol, targetExpiryDate);
+        }
         return targetExpiryDate;
     }
 

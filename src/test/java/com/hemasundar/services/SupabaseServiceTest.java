@@ -1,4 +1,4 @@
-package com.hemasundar.unit.services;
+package com.hemasundar.services;
 
 import com.hemasundar.dto.ExecutionResult;
 import com.hemasundar.dto.StrategyResult;
@@ -204,7 +204,7 @@ public class SupabaseServiceTest {
     @Test
     public void testSaveCustomExecutionResult() throws IOException {
         StrategyResult result = StrategyResult.builder()
-                .strategyName("Custom Strateg")
+                .strategyName("Custom Strategy")
                 .trades(Collections.emptyList())
                 .build();
         List<String> securities = Arrays.asList("AAPL", "TSLA");
@@ -275,4 +275,103 @@ public class SupabaseServiceTest {
 
         supabaseService.getAllLatestStrategyResults();
     }
+
+    // --- ADDITIONAL EXCEPTION / EDGE CASE TESTS ---
+
+    @Test(expectedExceptions = IOException.class)
+    public void testConnectionException() throws IOException {
+        when(requestSpec.get(anyString())).thenThrow(new RuntimeException("Simulated Connection Error"));
+        supabaseService.testConnection();
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testUpsertIVDataInterruptedException() throws IOException, InterruptedException {
+        IVDataPoint dataPoint = IVDataPoint.builder().symbol("AAPL").currentDate(LocalDate.now()).build();
+        when(requestSpec.post(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(429);
+
+        Thread.currentThread().interrupt(); // This will cause Thread.sleep to throw InterruptedException
+
+        try {
+            supabaseService.upsertIVData(dataPoint);
+        } finally {
+            // Clear interrupt flag after test
+            Thread.interrupted();
+        }
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testUpsertIVDataGenericException() throws IOException {
+        IVDataPoint dataPoint = IVDataPoint.builder().symbol("AAPL").currentDate(LocalDate.now()).build();
+        when(requestSpec.post(anyString())).thenThrow(new RuntimeException("Simulated Error"));
+        supabaseService.upsertIVData(dataPoint);
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testSaveExecutionResultException() throws IOException {
+        ExecutionResult result = ExecutionResult.builder().executionId("exec-1").results(Collections.emptyList())
+                .build();
+        when(requestSpec.post(anyString())).thenThrow(new RuntimeException("Simulated Error"));
+        supabaseService.saveExecutionResult(result);
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testGetLatestExecutionResultException() throws IOException {
+        when(requestSpec.get(anyString())).thenThrow(new RuntimeException("Simulated Error"));
+        supabaseService.getLatestExecutionResult();
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testGetLatestExecutionResultParseError() throws IOException {
+        when(requestSpec.get(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        io.restassured.response.ResponseBody body = mock(io.restassured.response.ResponseBody.class);
+        when(response.getBody()).thenReturn(body);
+        when(body.asString()).thenReturn("[{ \"invalid\": \"json\" }]"); // missing required fields
+
+        supabaseService.getLatestExecutionResult();
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testSaveStrategyResultException() throws IOException {
+        StrategyResult result = StrategyResult.builder().strategyId("strat-1").trades(Collections.emptyList()).build();
+        when(requestSpec.post(anyString())).thenThrow(new RuntimeException("Simulated Error"));
+        supabaseService.saveStrategyResult(result);
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testGetAllLatestStrategyResultsParseError() throws IOException {
+        when(requestSpec.get(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        io.restassured.response.ResponseBody body = mock(io.restassured.response.ResponseBody.class);
+        when(response.getBody()).thenReturn(body);
+        when(body.asString()).thenReturn("[{ \"invalid\": \"json\" }]"); // missing required fields
+
+        supabaseService.getAllLatestStrategyResults();
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testSaveCustomExecutionResultException() throws IOException {
+        StrategyResult result = StrategyResult.builder().strategyName("cust-1").trades(Collections.emptyList()).build();
+        when(requestSpec.post(anyString())).thenThrow(new RuntimeException("Simulated Error"));
+        supabaseService.saveCustomExecutionResult(result, Collections.emptyList());
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testGetRecentCustomExecutionsException() throws IOException {
+        when(requestSpec.get(anyString())).thenThrow(new RuntimeException("Simulated Error"));
+        supabaseService.getRecentCustomExecutions(10);
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testGetRecentCustomExecutionsParseError() throws IOException {
+        when(requestSpec.get(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        io.restassured.response.ResponseBody body = mock(io.restassured.response.ResponseBody.class);
+        when(response.getBody()).thenReturn(body);
+        when(body.asString()).thenReturn("[{ \"invalid\": \"json\" }]");
+
+        supabaseService.getRecentCustomExecutions(10);
+    }
+
 }

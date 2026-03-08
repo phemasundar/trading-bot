@@ -1,4 +1,4 @@
-package com.hemasundar.unit.config;
+package com.hemasundar.config;
 
 import com.hemasundar.config.StrategiesConfigLoader;
 import com.hemasundar.options.models.OptionsConfig;

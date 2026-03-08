@@ -1,10 +1,10 @@
-package com.hemasundar.unit.strategies;
+package com.hemasundar.options.strategies;
 
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.ZebraFilter;
 import com.hemasundar.options.models.TradeSetup;
 import com.hemasundar.options.strategies.ZebraStrategy;
-import com.hemasundar.unit.StrategyTestUtils;
+import com.hemasundar.utils.StrategyTestUtils;
 import org.testng.annotations.Test;
 import java.util.List;
 import static org.testng.Assert.*;

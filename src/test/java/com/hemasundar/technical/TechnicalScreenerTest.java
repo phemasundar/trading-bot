@@ -1,4 +1,4 @@
-package com.hemasundar.unit.technical;
+package com.hemasundar.technical;
 
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.pojos.PriceHistoryResponse;
@@ -73,9 +73,6 @@ public class TechnicalScreenerTest {
         assertEquals(result.getSymbol(), "MSFT");
         assertTrue(result.getCurrentPrice() > 0);
         assertTrue(result.getRsi() >= 0);
-        // Since price is constant 100 in my mock, RSI should be 0 (no gains) or NaN (no
-        // changes)
-        // Bollinger bands will also be at 100 with 0 std dev.
     }
 
     @Test
@@ -83,11 +80,6 @@ public class TechnicalScreenerTest {
         PriceHistoryResponse response = createMockResponse(50.0, 30);
         mockedApis.when(() -> ThinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(response);
-
-        // Setup filter chain: Require price above MA200 (not possible with flat 50, but
-        // let's see)
-        // Wait, flat 50 means price == MA200.
-        // Let's use simpler criteria.
 
         TechnicalIndicators indicators = TechnicalIndicators.builder()
                 .rsiFilter(RSIFilter.builder().build())

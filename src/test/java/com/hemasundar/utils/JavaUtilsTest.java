@@ -1,4 +1,4 @@
-package com.hemasundar.unit.utils;
+package com.hemasundar.utils;
 
 import com.hemasundar.utils.JavaUtils;
 import lombok.Data;

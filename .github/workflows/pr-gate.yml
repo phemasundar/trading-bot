@@ -1,39 +1,40 @@
 name: PR Coverage Gate
 
 on:
-  pull_request:
-    branches:
-      - main
+    pull_request:
+        branches:
+            - main
 
 jobs:
-  coverage-check:
-    runs-on: ubuntu-latest
-    name: Verify 60% Unit Test Coverage
-    
-    env:
-      # Inject secrets as environment variables required by application context
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    coverage-check:
+        runs-on: ubuntu-latest
+        name: Verify 60% Unit Test Coverage
 
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+        env:
+            # Inject secrets as environment variables required by application context
+            SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+            SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+            SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+            TELEGRAM_ENABLED: "false"
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: "17"
-          distribution: "temurin"
-          cache: maven
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v4
 
-      - name: Run Unit Tests and Verify Coverage
-        # This will run the `jacoco:check` goal and fail the build if coverage is < 60%
-        run: mvn clean verify
+            - name: Set up JDK 17
+              uses: actions/setup-java@v4
+              with:
+                  java-version: "17"
+                  distribution: "temurin"
+                  cache: maven
 
-      - name: Upload Coverage Report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: jacoco-coverage-report
-          path: target/site/jacoco/
+            - name: Run Unit Tests and Verify Coverage
+              # This will run the `jacoco:check` goal and fail the build if coverage is < 60%
+              run: mvn clean verify
+
+            - name: Upload Coverage Report
+              uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: jacoco-coverage-report
+                  path: target/site/jacoco/

@@ -1,4 +1,4 @@
-package com.hemasundar.unit.technical;
+package com.hemasundar.technical;
 
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.technical.TechnicalIndicatorUtils;
