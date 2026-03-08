@@ -1,13 +1,11 @@
 package com.hemasundar.api;
 
-import com.hemasundar.api.StrategyController;
 import com.hemasundar.dto.StrategyResult;
 import com.hemasundar.options.models.OptionsConfig;
-import com.hemasundar.options.models.OptionsStrategyFilter;
 import com.hemasundar.options.strategies.StrategyType;
 import com.hemasundar.services.StrategyExecutionService;
-import com.hemasundar.services.SupabaseService;
 import com.hemasundar.api.StrategyController.ExecuteRequest;
+import com.hemasundar.api.StrategyController.CustomExecuteRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;

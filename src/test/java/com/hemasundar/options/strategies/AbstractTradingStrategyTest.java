@@ -6,8 +6,6 @@ import com.hemasundar.cache.PriceHistoryCache;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionsStrategyFilter;
 import com.hemasundar.options.models.TradeSetup;
-import com.hemasundar.options.strategies.AbstractTradingStrategy;
-import com.hemasundar.options.strategies.StrategyType;
 import com.hemasundar.pojos.EarningsCalendarResponse;
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.utils.VolatilityCalculator;

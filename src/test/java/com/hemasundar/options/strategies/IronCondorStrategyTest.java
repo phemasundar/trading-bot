@@ -1,20 +1,15 @@
 package com.hemasundar.options.strategies;
 
-import com.hemasundar.options.models.CallCreditSpread;
 import com.hemasundar.options.models.CreditSpreadFilter;
 import com.hemasundar.options.models.IronCondor;
 import com.hemasundar.options.models.IronCondorFilter;
 import com.hemasundar.options.models.LegFilter;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionType;
-import com.hemasundar.options.models.PutCreditSpread;
 import com.hemasundar.options.models.TradeSetup;
-import com.hemasundar.options.strategies.IronCondorStrategy;
-import com.hemasundar.options.strategies.StrategyType;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
