@@ -11,7 +11,7 @@ Implemented interactive filter descriptions using a premium "speech balloon" (to
 - **Speech Balloon UI**: Replaced modal dialogs with glassmorphic, auto-positioning tooltips. The tooltips feature a dark translucent background, primary colored borders, and dynamic pointer arrows that flip based on available screen space.
 - **Enriched Information**: Descriptions now include possible enum values for strategy types and priority list keys (e.g., `relaxationPriority`, `sortPriority`), providing immediate context for valid filter inputs.
 - **Externalized Content**: Detailed explanations are managed in a standalone `filter-descriptions.json` file for easier maintenance without code changes.
-- **Improved UX**: Added info icons (ℹ️) to all common filters, strategy-specific filters, and configuration viewer fields (including strategy types and securities sources). Tooltips auto-close on outside clicks or when toggling another icon.
+- **Improved UX**: Added info icons to all common filters, strategy-specific filters, and configuration viewer fields. Replaced the bright blue 'ℹ️' emoji with a custom, lightweight, transparent SVG icon inspired by Stitch MCP for a premium and non-intrusive look. Tooltips auto-close on outside clicks or when toggling another icon.
 
 ### Architecture
 - **Frontend**: Updated `app.js` with `loadFilterDescriptions()` and a dynamically positioned `showFilterHelp()` function.
