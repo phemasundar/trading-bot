@@ -3,6 +3,16 @@
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 > **CRITICAL AI RULE**: NEVER use GitHub MCP tools (create PR, merge, create release, etc.) unless the user explicitly asks. Do not assume permission for any GitHub operations.
 
+## Unit Test Infrastructure & CI Coverage Resolution (2026-03-08)
+
+Resolved the CI pipeline coverage failure through comprehensive test suite optimization and architectural realignment.
+
+### Improvements
+- **Coverage Restoration**: Expanded `UnitTests.xml` to include all unit test packages, restoring instruction coverage to >60% (from 27%).
+- **Package Realignment**: Refactored the test directory structure to perfectly mirror the `src/main/java` packages, resolving protected-access compilation issues.
+- **CI Environment Isolation**: Automated the injection of `TELEGRAM_ENABLED=false` in GitHub Actions to ensure non-blocking test execution in PR environments.
+- **Test Stability**: Fixed `UnsupportedOperationException` in `IronCondorStrategyTest` by utilizing mutable collections for expiration mappings.
+
 ## Unit Testing & CI/CD Coverage Isolation (2026-03-07)
 
 Expanded unit tests to achieve >60% instruction coverage enforcing a robust CI/CD gate.
