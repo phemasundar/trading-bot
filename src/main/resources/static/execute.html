@@ -71,65 +71,80 @@
                 <h3 style="font-size:0.9rem; margin-bottom:12px; color:var(--text-secondary)">Filters</h3>
                 <div class="form-grid" id="filter-form">
                     <div class="form-group">
-                        <label class="form-label">Target DTE</label>
+                        <label class="form-label">Target DTE <button type="button" class="info-btn"
+                                onclick="showFilterHelp(event, 'targetDTE', 'Target DTE')">ℹ️</button></label>
                         <input type="number" class="form-input" data-filter="targetDTE" placeholder="45">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Min DTE</label>
+                        <label class="form-label">Min DTE <button type="button" class="info-btn"
+                                onclick="showFilterHelp(event, 'minDTE', 'Min DTE')">ℹ️</button></label>
                         <input type="number" class="form-input" data-filter="minDTE" placeholder="20">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Max DTE</label>
+                        <label class="form-label">Max DTE <button type="button" class="info-btn"
+                                onclick="showFilterHelp(event, 'maxDTE', 'Max DTE')">ℹ️</button></label>
                         <input type="number" class="form-input" data-filter="maxDTE" placeholder="60">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Max Loss ($)</label>
+                        <label class="form-label">Max Loss ($) <button type="button" class="info-btn"
+                                onclick="showFilterHelp(event, 'maxLossLimit', 'Max Loss ($)')">ℹ️</button></label>
                         <input type="number" class="form-input" data-filter="maxLossLimit" placeholder="500">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Max Total Debit ($)</label>
+                        <label class="form-label">Max Total Debit ($) <button type="button" class="info-btn"
+                                onclick="showFilterHelp(event, 'maxTotalDebit', 'Max Total Debit ($)')">ℹ️</button></label>
                         <input type="number" class="form-input" data-filter="maxTotalDebit" placeholder="1000">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Max Total Credit ($)</label>
+                        <label class="form-label">Max Total Credit ($) <button type="button" class="info-btn"
+                                onclick="showFilterHelp(event, 'maxTotalCredit', 'Max Total Credit ($)')">ℹ️</button></label>
                         <input type="number" class="form-input" data-filter="maxTotalCredit" placeholder="2000">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Min Total Credit ($)</label>
+                        <label class="form-label">Min Total Credit ($) <button type="button" class="info-btn"
+                                onclick="showFilterHelp(event, 'minTotalCredit', 'Min Total Credit ($)')">ℹ️</button></label>
                         <input type="number" class="form-input" data-filter="minTotalCredit" placeholder="50">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Min Return on Risk (%)</label>
+                        <label class="form-label">Min Return on Risk (%) <button type="button" class="info-btn"
+                                onclick="showFilterHelp(event, 'minReturnOnRisk', 'Min Return on Risk (%)')">ℹ️</button></label>
                         <input type="number" class="form-input" data-filter="minReturnOnRisk" placeholder="10">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Min Historical Volatility</label>
+                        <label class="form-label">Min Historical Volatility <button type="button" class="info-btn"
+                                onclick="showFilterHelp(event, 'minHistoricalVolatility', 'Min Historical Volatility')">ℹ️</button></label>
                         <input type="number" class="form-input" data-filter="minHistoricalVolatility" placeholder="20"
                             step="0.1">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Max Break-Even %</label>
+                        <label class="form-label">Max Break-Even % <button type="button" class="info-btn"
+                                onclick="showFilterHelp(event, 'maxBreakEvenPercentage', 'Max Break-Even %')">ℹ️</button></label>
                         <input type="number" class="form-input" data-filter="maxBreakEvenPercentage" placeholder="5.0"
                             step="0.1">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Max Breakeven Delta</label>
+                        <label class="form-label">Max Breakeven Delta <button type="button" class="info-btn"
+                                onclick="showFilterHelp(event, 'maxUpperBreakevenDelta', 'Max Breakeven Delta')">ℹ️</button></label>
                         <input type="number" class="form-input" data-filter="maxUpperBreakevenDelta" placeholder="0.30"
                             step="0.01">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Max Extrinsic %</label>
+                        <label class="form-label">Max Extrinsic % <button type="button" class="info-btn"
+                                onclick="showFilterHelp(event, 'maxNetExtrinsicValueToPricePercentage', 'Max Extrinsic %')">ℹ️</button></label>
                         <input type="number" class="form-input" data-filter="maxNetExtrinsicValueToPricePercentage"
                             placeholder="0.5" step="0.1">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Min Extrinsic %</label>
+                        <label class="form-label">Min Extrinsic % <button type="button" class="info-btn"
+                                onclick="showFilterHelp(event, 'minNetExtrinsicValueToPricePercentage', 'Min Extrinsic %')">ℹ️</button></label>
                         <input type="number" class="form-input" data-filter="minNetExtrinsicValueToPricePercentage"
                             placeholder="0.0" step="0.1">
                     </div>
                     <div class="form-group" style="display:flex; align-items:center; gap:8px; padding-top:20px">
                         <input type="checkbox" id="ignore-earnings" data-filter="ignoreEarnings" checked>
-                        <label for="ignore-earnings" style="font-size:0.85rem; cursor:pointer">Ignore Earnings</label>
+                        <label for="ignore-earnings" style="font-size:0.85rem; cursor:pointer">Ignore Earnings <button
+                                type="button" class="info-btn"
+                                onclick="showFilterHelp(event, 'ignoreEarnings', 'Ignore Earnings')">ℹ️</button></label>
                     </div>
                     <!-- Strategy-specific filters are injected here -->
                     <div id="specific-filters" class="form-grid" style="grid-column: 1 / -1"></div>

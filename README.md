@@ -100,9 +100,9 @@ For detailed setup instructions:
 
 #### 1. Via the Web Interface (Static HTML/JS)
 Run `mvn spring-boot:run` to start the Spring Boot application with the built-in web dashboard.
-- **Dashboard (`/index.html`)**: View historical results or execute all predefined strategies.
-- **Execute Strategy (`/execute.html`)**: Build custom configurations for any strategy type, set filters, and execute instantly.
-- **Strategy Config (`/config.html`)**: Read-only view of all strategy configurations.
+- **Dashboard (`/index.html`)**: View historical results with interactive strategy descriptions.
+- **Execute Strategy (`/execute.html`)**: Build custom configurations for any strategy type, set filters, and view interactive "speech balloon" tooltips for every field.
+- **Strategy Config (`/config.html`)**: Read-only view of all strategy configurations with full parameter descriptions.
 - **Swagger API Docs (`/swagger-ui.html`)**: Interactive REST API documentation.
 
 All frontend calls go through Spring Boot REST APIs (`/api/*`) — Supabase keys are never exposed to the browser.

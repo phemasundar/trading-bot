@@ -4,6 +4,9 @@
  * No direct Supabase access from the frontend.
  */
 
+// ── Shared State ──
+let FILTER_DESCRIPTIONS = {};
+
 // ── API Client ──
 
 const API = {
@@ -339,6 +342,7 @@ function startPolling(onComplete) {
 // ══════════════════════════════════════
 
 async function initDashboard() {
+    await loadFilterDescriptions();
     await loadStrategies();
     await loadResults();
     await checkExecutionStatus();
@@ -464,6 +468,95 @@ async function showInfo(event, filename, strategyName) {
     }
 }
 
+async function loadFilterDescriptions() {
+    try {
+        const res = await fetch('/filter-descriptions.json');
+        if (res.ok) {
+            FILTER_DESCRIPTIONS = await res.json();
+        }
+    } catch (e) {
+        console.error('Failed to load filter descriptions:', e);
+    }
+}
+
+let activeTooltip = null;
+
+function showFilterHelp(event, key, label) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+
+    // Close existing tooltip
+    if (activeTooltip) {
+        activeTooltip.remove();
+        if (activeTooltip.dataset.key === key) {
+            activeTooltip = null;
+            return;
+        }
+    }
+
+    const description = FILTER_DESCRIPTIONS[key] || "No description available for this filter.";
+    const target = event.currentTarget;
+    const rect = target.getBoundingClientRect();
+
+    const tooltip = document.createElement('div');
+    tooltip.className = 'tooltip-balloon';
+    tooltip.dataset.key = key;
+    tooltip.innerHTML = `
+        <div style="font-weight: 600; font-size: 0.75rem; color: var(--primary); margin-bottom: 4px; text-transform: uppercase;">${label}</div>
+        <div>${description}</div>
+        <div class="tooltip-arrow"></div>
+    `;
+
+    document.body.appendChild(tooltip);
+
+    // Positioning
+    const tooltipRect = tooltip.getBoundingClientRect();
+    let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+    let top = rect.top - tooltipRect.height - 12; // 12px gap
+    let placement = 'top';
+
+    // Check if enough space above
+    if (top < 10) {
+        top = rect.bottom + 12;
+        placement = 'bottom';
+    }
+
+    // Keep within viewport horizontal bounds
+    const padding = 10;
+    if (left < padding) left = padding;
+    if (left + tooltipRect.width > window.innerWidth - padding) {
+        left = window.innerWidth - tooltipRect.width - padding;
+    }
+
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+    tooltip.setAttribute('data-placement', placement);
+
+    // Position arrow relative to icon
+    const arrow = tooltip.querySelector('.tooltip-arrow');
+    const arrowLeft = rect.left + (rect.width / 2) - left;
+    arrow.style.left = `${arrowLeft}px`;
+
+    // Trigger animation
+    setTimeout(() => tooltip.classList.add('active'), 10);
+
+    activeTooltip = tooltip;
+
+    // Global listener to close on click outside
+    const closeHandler = (e) => {
+        if (!tooltip.contains(e.target) && e.target !== target) {
+            tooltip.classList.remove('active');
+            setTimeout(() => tooltip.remove(), 150);
+            document.removeEventListener('click', closeHandler);
+            if (activeTooltip === tooltip) activeTooltip = null;
+        }
+    };
+    // Delay adding listener to prevent immediate trigger
+    setTimeout(() => document.addEventListener('click', closeHandler), 10);
+}
+
 async function executeSelected() {
     const checked = document.querySelectorAll('#strategy-checkboxes input[type="checkbox"]:checked');
     const indices = Array.from(checked).map(c => parseInt(c.value));
@@ -580,6 +673,8 @@ function initExecutePage() {
         opt.dataset.group = s.group;
         select.appendChild(opt);
     });
+
+    loadFilterDescriptions();
 
     // Listen for strategy type change to render specific filters
     select.addEventListener('change', () => {
@@ -733,15 +828,16 @@ function renderSpecificFilters(strategyValue) {
     let html = '<h4 style="font-size:0.8rem; color:var(--text-secondary); margin: 16px 0 8px; grid-column: 1 / -1">' +
         `${type.label} Specific Leg Filters & Options</h4>`;
     for (const f of filters) {
+        const infoBtn = `<button type="button" class="info-btn" onclick="showFilterHelp(event, '${f.key}', '${escapeAttr(f.label)}')">ℹ️</button>`;
         if (f.type === 'text') {
             html += `<div class="form-group">
-                <label class="form-label">${f.label}</label>
+                <label class="form-label">${f.label} ${infoBtn}</label>
                 <input type="text" class="form-input" data-filter="${f.key}"
                        placeholder="${f.placeholder}">
             </div>`;
         } else {
             html += `<div class="form-group">
-                <label class="form-label">${f.label}</label>
+                <label class="form-label">${f.label} ${infoBtn}</label>
                 <input type="number" class="form-input" data-filter="${f.key}"
                        placeholder="${f.placeholder}" step="${f.step || '1'}">
             </div>`;
@@ -847,6 +943,7 @@ async function initConfigPage() {
     const container = document.getElementById('config-container');
     if (!container) return;
     try {
+        await loadFilterDescriptions();
         const [config, securitiesMaps] = await Promise.all([
             API.get('/api/config'),
             API.get('/api/securities').catch(() => ({})) // Fallback if API fails
@@ -884,14 +981,14 @@ function renderConfig(config, container, securitiesMaps = {}) {
                         <span class="card-arrow">▶</span>
                         <strong>${strategy.alias || strategy.strategyType}</strong>
                         ${infoBtn}
-                        <span class="card-badge">${strategy.strategyType}</span>
+                        <span class="card-badge">${strategy.strategyType} <button type="button" class="info-btn" style="font-size: 0.7rem; padding: 0; color: inherit" onclick="showFilterHelp(event, 'strategyType', 'Strategy Type')">ℹ️</button></span>
                         ${enabledPill}
                     </div>
                 </div>
                 <div class="config-card-body">
                     ${renderFilterGrid(strategy.filter || {})}
-                    ${strategy.securitiesFile ? `<div class="mt-sm"><span class="config-item-label">Securities File</span> <span class="config-item-value">${strategy.securitiesFile}</span></div>` : ''}
-                    ${strategy.securities ? `<div class="mt-sm"><span class="config-item-label">Securities</span> <span class="config-item-value">${strategy.securities}</span></div>` : ''}
+                    ${strategy.securitiesFile ? `<div class="mt-sm"><span class="config-item-label">Securities File <button type="button" class="info-btn" style="font-size: 0.8rem; padding: 0" onclick="showFilterHelp(event, 'securitiesFile', 'Securities File')">ℹ️</button></span> <span class="config-item-value">${strategy.securitiesFile}</span></div>` : ''}
+                    ${strategy.securities ? `<div class="mt-sm"><span class="config-item-label">Securities <button type="button" class="info-btn" style="font-size: 0.8rem; padding: 0" onclick="showFilterHelp(event, 'securities', 'Securities')">ℹ️</button></span> <span class="config-item-value">${strategy.securities}</span></div>` : ''}
                 </div>`;
 
             // Toggle on header click
@@ -982,8 +1079,9 @@ function renderFilterGrid(filter) {
             const displayVal = typeof value === 'boolean'
                 ? (value ? '✅ Yes' : '❌ No')
                 : value;
+            const infoBtn = `<button type="button" class="info-btn" style="font-size: 0.8rem; padding: 0" onclick="showFilterHelp(event, '${key}', '${escapeAttr(label)}')">ℹ️</button>`;
             html += `<div class="config-item">
-                <span class="config-item-label">${label}</span>
+                <span class="config-item-label">${label} ${infoBtn}</span>
                 <span class="config-item-value">${displayVal}</span>
             </div>`;
         }
@@ -1001,7 +1099,8 @@ function renderFilterGrid(filter) {
     const arrays = Object.entries(filter).filter(([k, v]) => Array.isArray(v));
     for (const [key, value] of arrays) {
         const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
-        html += `<div class="mt-sm"><span class="config-item-label">${label}</span> `;
+        const infoBtn = `<button type="button" class="info-btn" style="font-size: 0.8rem; padding: 0" onclick="showFilterHelp(event, '${key}', '${escapeAttr(label)}')">ℹ️</button>`;
+        html += `<div class="mt-sm"><span class="config-item-label">${label} ${infoBtn}</span> `;
         html += value.map(v => `<span class="card-badge" style="margin:2px">${v}</span>`).join('');
         html += '</div>';
     }
