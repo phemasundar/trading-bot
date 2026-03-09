@@ -933,3 +933,55 @@ a:hover {
     overflow-x: auto;
     margin-bottom: 1em;
 }
+
+/* ── Tooltip Balloon (Speech Balloon) ── */
+.tooltip-balloon {
+    position: fixed;
+    z-index: 2000;
+    background: rgba(30, 41, 59, 0.98);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    max-width: 280px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    line-height: 1.4;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(5px) scale(0.95);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+}
+
+.tooltip-balloon.active {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+.tooltip-arrow {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid rgba(30, 41, 59, 0.98);
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* For when tooltip is above the icon */
+.tooltip-balloon[data-placement="top"] .tooltip-arrow {
+    bottom: -8px;
+    border-top: 8px solid rgba(30, 41, 59, 0.98);
+}
+
+/* For when tooltip is below the icon */
+.tooltip-balloon[data-placement="bottom"] .tooltip-arrow {
+    top: -8px;
+    border-bottom: 8px solid rgba(30, 41, 59, 0.98);
+    border-top: none;
+}

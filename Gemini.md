@@ -3,6 +3,21 @@
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 > **CRITICAL AI RULE**: NEVER use GitHub MCP tools (create PR, merge, create release, etc.) unless the user explicitly asks. Do not assume permission for any GitHub operations.
 
+## Filter Descriptions with Speech Balloons (2026-03-08)
+
+Implemented interactive filter descriptions using a premium "speech balloon" (tooltip) UI across the execution and configuration screens.
+
+### Features
+- **Speech Balloon UI**: Replaced modal dialogs with glassmorphic, auto-positioning tooltips. The tooltips feature a dark translucent background, primary colored borders, and dynamic pointer arrows that flip based on available screen space.
+- **Enriched Information**: Descriptions now include possible enum values for strategy types and priority list keys (e.g., `relaxationPriority`, `sortPriority`), providing immediate context for valid filter inputs.
+- **Externalized Content**: Detailed explanations are managed in a standalone `filter-descriptions.json` file for easier maintenance without code changes.
+- **Improved UX**: Added info icons (ℹ️) to all common filters, strategy-specific filters, and configuration viewer fields (including strategy types and securities sources). Tooltips auto-close on outside clicks or when toggling another icon.
+
+### Architecture
+- **Frontend**: Updated `app.js` with `loadFilterDescriptions()` and a dynamically positioned `showFilterHelp()` function.
+- **Styling**: Added `.tooltip-balloon` and `.tooltip-arrow` components to `style.css`.
+- **Data**: Created `src/main/resources/static/filter-descriptions.json`.
+
 ## Unit Test Infrastructure & CI Coverage Resolution (2026-03-08)
 
 Resolved the CI pipeline coverage failure through comprehensive test suite optimization and architectural realignment.
