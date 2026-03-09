@@ -213,6 +213,10 @@ mvn test
 ```
 *Coverage reports are generated at `target/site/jacoco/index.html`.*
 
+### Test Architecture
+- **Package Mirroring**: The test suite (`src/test/java`) mirrors the main source package structure (`com.hemasundar.*`) for consistent access to package-private components.
+- **Suite Separation**: Unit tests are isolated from functional tests to ensure fast CI gates and prevent rate-limiting.
+
 ### Functional Tests
 Functional tests interact with real external APIs. To prevent rate-limiting and unnecessary data writes, they are **excluded from the default build**.
 To execute functional tests:

@@ -10,11 +10,12 @@ securities:
   - "MELI"
   - "NBIS"
   - "UNH"
-  - "NFLX"    # Netflix
-  - "AVGO"    # Broadcom
-  - "ORCL"    # Oracle
-  - "V"       # Visa
-  - "AMD"     # Advanced Micro Devices
-  - "INTU"    # Intuit
-  - "SPGI"    # S&P Global
-  - "BKNG"    # Booking Holdings
+  - "NFLX" # Netflix
+  - "AVGO" # Broadcom
+  - "ORCL" # Oracle
+  - "V" # Visa
+  - "AMD" # Advanced Micro Devices
+  - "INTU" # Intuit
+  - "SPGI" # S&P Global
+  - "BKNG" # Booking Holdings
+  - "HOOD" # Robinhood
