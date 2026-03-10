@@ -101,6 +101,7 @@ public class StrategiesConfig {
     public static class ScreenerEntry {
 
         private boolean enabled = true;
+        private String alias;
         private ScreenerType screenerType;
         private ScreenerConditionsConfig conditions;
     }

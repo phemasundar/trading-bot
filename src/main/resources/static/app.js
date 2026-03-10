@@ -1142,7 +1142,7 @@ function renderConfig(config, container, securitiesMaps = {}) {
                 <div class="config-card-header">
                     <div class="flex items-center gap-sm">
                         <span class="card-arrow">▶</span>
-                        <strong>${screener.name || 'Screener'}</strong>
+                        <strong>${screener.alias || screener.name || 'Screener'}</strong>
                     </div>
                 </div>
                 <div class="config-card-body">

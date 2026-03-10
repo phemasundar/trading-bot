@@ -319,6 +319,7 @@
     "technicalScreeners": [
         {
             "enabled": true,
+            "alias": "RSI/BB Bullish Crossover",
             "screenerType": "RSI_BB_BULLISH_CROSSOVER",
             "conditions": {
                 "rsiCondition": "BULLISH_CROSSOVER",
@@ -328,6 +329,7 @@
         },
         {
             "enabled": true,
+            "alias": "RSI/BB Bearish Crossover",
             "screenerType": "RSI_BB_BEARISH_CROSSOVER",
             "conditions": {
                 "rsiCondition": "BEARISH_CROSSOVER",
@@ -337,6 +339,7 @@
         },
         {
             "enabled": true,
+            "alias": "Below 200 Day MA",
             "screenerType": "BELOW_200_DAY_MA",
             "conditions": {
                 "requirePriceBelowMA200": true,
@@ -345,6 +348,7 @@
         },
         {
             "enabled": true,
+            "alias": "RSI Oversold",
             "screenerType": "RSI_OVERSOLD",
             "conditions": {
                 "rsiCondition": "OVERSOLD",
@@ -353,6 +357,7 @@
         },
         {
             "enabled": true,
+            "alias": "BB Lower Band",
             "screenerType": "BB_LOWER",
             "conditions": {
                 "bollingerCondition": "LOWER_BAND",
