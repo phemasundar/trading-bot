@@ -3,6 +3,18 @@
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 > **CRITICAL AI RULE**: NEVER use GitHub MCP tools (create PR, merge, create release, etc.) unless the user explicitly asks. Do not assume permission for any GitHub operations.
 
+## Technical Screener Aliases (2026-03-10)
+
+Implemented support for custom alias names for technical screeners in the configuration screen, mirroring the functionality available for options strategies.
+
+### Features
+- **Semantic Headers**: The configuration viewer now displays the user-defined `alias` from `strategies-config.json` in the collapsible card headers (e.g., "RSI/BB Bullish Crossover") instead of the generic "Screener" label.
+- **Improved UX**: Provides immediate context for why a specific screener is configured without needing to inspect its underlying parameters.
+
+### Architecture
+- **Backend Refactor**: Added `alias` field to `ScreenerEntry` in `StrategiesConfig.java` to allow property mapping during JSON deserialization.
+- **Frontend Update**: Modified `app.js` to prioritize `screener.alias` in the header rendering logic of `initConfigPage()`.
+
 ## Dashboard Custom Execution Leak Bugfix (2026-03-09)
 
 Resolved an issue where executing a custom strategy from the `/execute.html` screen would inadvertently save the results to the dashboard's `latest_strategy_results` database table, polluting the dashboard with non-predefined strategies.
