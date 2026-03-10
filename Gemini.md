@@ -3,6 +3,23 @@
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 > **CRITICAL AI RULE**: NEVER use GitHub MCP tools (create PR, merge, create release, etc.) unless the user explicitly asks. Do not assume permission for any GitHub operations.
 
+## Trades Table Column Sorting (2026-03-09)
+
+Added interactive column sorting to the trades tables on the dashboard and custom execution screens.
+
+### Features
+- **Dynamic Sorting**: Users can now click on specific table headers manually sort the underlying trades. Supports toggling between ascending (`↑`) and descending (`↓`) orders.
+- **Smart Data Handling**: Sorting logic natively understands various data types without breaking formats. 
+  - **Alphabetical**: `Ticker`
+  - **Numeric**: `Max Loss`, `ROR%`
+  - **Property-based**: `Expiry` (sorts by DTE), `Extrinsic` (sorts by annualized percentage), `Breakeven` (sorts by CAGR percentage, falling back to standard percentage if CAGR is absent).
+- **Independent State**: Each strategy result card maintains its own isolated sorting state, preventing interference when operating multiple cards concurrently.
+
+### Architecture
+- **State Management**: Added global `window.tableSortState` and `window.tradeDataMap` to `app.js` to preserve trade arrays and sort direction independently per card ID.
+- **Frontend Refactor**: Upgraded `buildTradeTable` to inject interactive `<th>` headers with `onclick` bindings hitting the new `handleTableSort` function.
+- **Styling**: Appended `.sort-header` to `style.css` supplying active/inactive pointer states, primary color highlighting, and bolding.
+
 ## Filter Descriptions with Speech Balloons (2026-03-08)
 
 Implemented interactive filter descriptions using a premium "speech balloon" (tooltip) UI across the execution and configuration screens.

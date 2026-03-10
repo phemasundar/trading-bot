@@ -105,6 +105,10 @@ function timeAgo(dateStr) {
     return 'Just now';
 }
 
+// ── Global State for Sorting ──
+window.tableSortState = window.tableSortState || {};
+window.tradeDataMap = window.tradeDataMap || {};
+
 // ── Card Builder ──
 
 function buildResultCard(result, badgeText = 'Standard') {
@@ -126,8 +130,11 @@ function buildResultCard(result, badgeText = 'Standard') {
         </div>
         <div class="card-params">${formatFilterParams(result.filterConfig)}</div>
         <div class="card-content" id="content-${cardId}">
-            ${buildTradeTable(result.trades || [])}
+            ${buildTradeTable(result.trades || [], cardId)}
         </div>`;
+
+    // Save trades for sorting
+    window.tradeDataMap[cardId] = result.trades || [];
 
     // Attach click handler
     card.querySelector('.card-header').addEventListener('click', () => toggleCard(cardId));
@@ -145,15 +152,33 @@ function toggleCard(id) {
 
 // ── Trade Table Builder ──
 
-function buildTradeTable(trades) {
+function buildTradeTable(trades, cardId = null) {
     if (!trades || trades.length === 0) {
         return '<div class="empty-state"><div class="empty-state-icon">📊</div>No trades found</div>';
     }
 
+    const state = cardId ? (window.tableSortState[cardId] || { column: null, direction: 'asc' }) : null;
+
+    // Sort Helper
+    const th = (key, label) => {
+        if (!cardId) return `<th>${label}</th>`;
+        const active = state && state.column === key;
+        const arrow = active ? (state.direction === 'asc' ? ' ↑' : ' ↓') : '';
+        const cls = active ? 'sort-header active' : 'sort-header';
+        return `<th class="${cls}" onclick="handleTableSort('${cardId}', '${key}')" title="Sort by ${label}">${label}${arrow}</th>`;
+    };
+
     let html = `<table class="data-table">
         <thead><tr>
-            <th>Ticker</th><th>Price</th><th>Type</th><th>Expiry</th>
-            <th>Credit/Debit</th><th>Max Loss</th><th>Extrinsic</th><th>Breakeven</th><th>ROR%</th>
+            ${th('ticker', 'Ticker')}
+            <th>Price</th>
+            <th>Type</th>
+            ${th('expiry', 'Expiry')}
+            <th>Credit/Debit</th>
+            ${th('maxLoss', 'Max Loss')}
+            ${th('extrinsic', 'Extrinsic')}
+            ${th('breakeven', 'Breakeven')}
+            ${th('ror', 'ROR%')}
         </tr></thead><tbody>`;
 
     for (const t of trades) {
@@ -180,6 +205,68 @@ function buildTradeTable(trades) {
 
     html += '</tbody></table>';
     return html;
+}
+
+function handleTableSort(cardId, column) {
+    const trades = window.tradeDataMap[cardId];
+    if (!trades || trades.length === 0) return;
+
+    // Initialize or toggle state
+    if (!window.tableSortState[cardId]) {
+        window.tableSortState[cardId] = { column: column, direction: 'asc' };
+    } else {
+        const state = window.tableSortState[cardId];
+        if (state.column === column) {
+            state.direction = state.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            state.column = column;
+            state.direction = 'asc'; // Reset to asc for new column
+        }
+    }
+
+    const dirMultiplier = window.tableSortState[cardId].direction === 'asc' ? 1 : -1;
+
+    // Perform sort
+    trades.sort((a, b) => {
+        let valA, valB;
+        switch (column) {
+            case 'ticker':
+                valA = a.symbol || '';
+                valB = b.symbol || '';
+                return valA.localeCompare(valB) * dirMultiplier;
+            case 'expiry':
+                valA = a.dte || 0;
+                valB = b.dte || 0;
+                break;
+            case 'maxLoss':
+                valA = a.maxLoss || 0;
+                valB = b.maxLoss || 0;
+                break;
+            case 'extrinsic':
+                valA = a.anulizedNetExtrinsicValueToCapitalPercentage || 0;
+                valB = b.anulizedNetExtrinsicValueToCapitalPercentage || 0;
+                break;
+            case 'breakeven':
+                // Compare by lowerBreakevenCagr if both have it, else lowerBreakevenPercentage
+                const hasCagr = a.breakevenCAGR != null && b.breakevenCAGR != null;
+                valA = hasCagr ? a.breakevenCAGR : (a.lowerBreakevenPercentage || 0);
+                valB = hasCagr ? b.breakevenCAGR : (b.lowerBreakevenPercentage || 0);
+                break;
+            case 'ror':
+                valA = a.maxReturnOnRiskPercentage || a.returnOnRisk || 0;
+                valB = b.maxReturnOnRiskPercentage || b.returnOnRisk || 0;
+                break;
+            default:
+                return 0;
+        }
+        return (valA - valB) * dirMultiplier;
+    });
+
+    // Re-render table inside the card
+    const contentDiv = document.getElementById(`content-${cardId}`);
+    if (contentDiv) {
+        contentDiv.innerHTML = buildTradeTable(trades, cardId);
+    }
 }
 
 function formatLegs(trade) {
