@@ -368,6 +368,21 @@ a:hover {
     border-bottom: 1px solid var(--border);
 }
 
+.sort-header {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.2s ease;
+}
+
+.sort-header:hover {
+    color: var(--primary);
+}
+
+.sort-header.active {
+    color: var(--primary);
+    font-weight: 700;
+}
+
 .data-table td {
     padding: 8px 12px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.04);
