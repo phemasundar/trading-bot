@@ -125,7 +125,7 @@ public class StrategyExecutionService {
                 OptionsConfig config = selectedStrategies.get(i);
                 log.info("Executing strategy {}/{}: {}", i + 1, selectedStrategies.size(), config.getName());
 
-                StrategyResult result = executeStrategy(config, cache);
+                StrategyResult result = executeStrategy(config, cache, false);
                 results.add(result);
                 totalTrades += result.getTradesFound();
             }
@@ -181,7 +181,7 @@ public class StrategyExecutionService {
             OptionChainCache cache = new OptionChainCache();
 
             // Execute the single custom strategy
-            StrategyResult result = executeStrategy(config, cache);
+            StrategyResult result = executeStrategy(config, cache, true);
 
             // Build execution result wrapper
             ExecutionResult executionResult = ExecutionResult.builder()
@@ -225,7 +225,7 @@ public class StrategyExecutionService {
     /**
      * Executes a single strategy and returns its result.
      */
-    private StrategyResult executeStrategy(OptionsConfig config, OptionChainCache cache) {
+    private StrategyResult executeStrategy(OptionsConfig config, OptionChainCache cache, boolean isCustomExecution) {
         long strategyStartTime = System.currentTimeMillis();
 
         List<String> securities = config.getSecurities();
@@ -258,13 +258,16 @@ public class StrategyExecutionService {
         StrategyResult result = StrategyResult.fromTrades(config.getName(), allTrades, executionTime,
                 config.getFilter(), config.getDescriptionFile());
 
-        // Save individual strategy result to database for per-strategy persistence
-        try {
-            supabaseService.saveStrategyResult(result);
-            log.info("[{}] Saved strategy result to database", config.getName());
-        } catch (IOException e) {
-            log.error("[{}] Failed to save strategy result to database: {}", config.getName(), e.getMessage());
-            // Don't fail the entire execution, just log the error
+        // Save individual strategy result to database for per-strategy persistence if
+        // not a custom execution
+        if (!isCustomExecution) {
+            try {
+                supabaseService.saveStrategyResult(result);
+                log.info("[{}] Saved strategy result to database", config.getName());
+            } catch (IOException e) {
+                log.error("[{}] Failed to save strategy result to database: {}", config.getName(), e.getMessage());
+                // Don't fail the entire execution, just log the error
+            }
         }
 
         return result;

@@ -3,6 +3,15 @@
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 > **CRITICAL AI RULE**: NEVER use GitHub MCP tools (create PR, merge, create release, etc.) unless the user explicitly asks. Do not assume permission for any GitHub operations.
 
+## Dashboard Custom Execution Leak Bugfix (2026-03-09)
+
+Resolved an issue where executing a custom strategy from the `/execute.html` screen would inadvertently save the results to the dashboard's `latest_strategy_results` database table, polluting the dashboard with non-predefined strategies.
+
+### Architecture
+- **Backend Refactor**: Modified `StrategyExecutionService.executeStrategy()` to accept a `boolean isCustomExecution` flag.
+- **Conditional Persistence**: The call to `supabaseService.saveStrategyResult()` (which targets the dashboard table) is now wrapped in an `if (!isCustomExecution)` block.
+- **Isolated Execution**: `executeCustomStrategy()` now explicitly passes `true`, guaranteeing that custom trades exclusively persist to `custom_execution_results` and no longer leak into the dashboard's `latest_strategy_results`.
+
 ## Trades Table Column Sorting (2026-03-09)
 
 Added interactive column sorting to the trades tables on the dashboard and custom execution screens.
