@@ -208,59 +208,64 @@ function buildTradeTable(trades, cardId = null) {
 }
 
 function handleTableSort(cardId, column) {
-    const trades = window.tradeDataMap[cardId];
-    if (!trades || trades.length === 0) return;
+    const originalTrades = window.tradeDataMap[cardId];
+    if (!originalTrades || originalTrades.length === 0) return;
 
     // Initialize or toggle state
-    if (!window.tableSortState[cardId]) {
+    if (!window.tableSortState[cardId] || window.tableSortState[cardId].column !== column) {
         window.tableSortState[cardId] = { column: column, direction: 'asc' };
     } else {
         const state = window.tableSortState[cardId];
-        if (state.column === column) {
-            state.direction = state.direction === 'asc' ? 'desc' : 'asc';
+        if (state.direction === 'asc') {
+            state.direction = 'desc';
         } else {
-            state.column = column;
-            state.direction = 'asc'; // Reset to asc for new column
+            // Third click: reset sorting state
+            window.tableSortState[cardId] = { column: null, direction: null };
         }
     }
 
-    const dirMultiplier = window.tableSortState[cardId].direction === 'asc' ? 1 : -1;
+    let trades = [...originalTrades];
+    const state = window.tableSortState[cardId];
 
-    // Perform sort
-    trades.sort((a, b) => {
-        let valA, valB;
-        switch (column) {
-            case 'ticker':
-                valA = a.symbol || '';
-                valB = b.symbol || '';
-                return valA.localeCompare(valB) * dirMultiplier;
-            case 'expiry':
-                valA = a.dte || 0;
-                valB = b.dte || 0;
-                break;
-            case 'maxLoss':
-                valA = a.maxLoss || 0;
-                valB = b.maxLoss || 0;
-                break;
-            case 'extrinsic':
-                valA = a.anulizedNetExtrinsicValueToCapitalPercentage || 0;
-                valB = b.anulizedNetExtrinsicValueToCapitalPercentage || 0;
-                break;
-            case 'breakeven':
-                // Compare by lowerBreakevenCagr if both have it, else lowerBreakevenPercentage
-                const hasCagr = a.breakevenCAGR != null && b.breakevenCAGR != null;
-                valA = hasCagr ? a.breakevenCAGR : (a.lowerBreakevenPercentage || 0);
-                valB = hasCagr ? b.breakevenCAGR : (b.lowerBreakevenPercentage || 0);
-                break;
-            case 'ror':
-                valA = a.maxReturnOnRiskPercentage || a.returnOnRisk || 0;
-                valB = b.maxReturnOnRiskPercentage || b.returnOnRisk || 0;
-                break;
-            default:
-                return 0;
-        }
-        return (valA - valB) * dirMultiplier;
-    });
+    if (state.column && state.direction) {
+        const dirMultiplier = state.direction === 'asc' ? 1 : -1;
+
+        // Perform sort
+        trades.sort((a, b) => {
+            let valA, valB;
+            switch (state.column) {
+                case 'ticker':
+                    valA = a.symbol || '';
+                    valB = b.symbol || '';
+                    return valA.localeCompare(valB) * dirMultiplier;
+                case 'expiry':
+                    valA = a.dte || 0;
+                    valB = b.dte || 0;
+                    break;
+                case 'maxLoss':
+                    valA = a.maxLoss || 0;
+                    valB = b.maxLoss || 0;
+                    break;
+                case 'extrinsic':
+                    valA = a.anulizedNetExtrinsicValueToCapitalPercentage || 0;
+                    valB = b.anulizedNetExtrinsicValueToCapitalPercentage || 0;
+                    break;
+                case 'breakeven':
+                    // Compare by breakevenCAGR if both have it, else breakEvenPercent
+                    const hasCagr = a.breakevenCAGR != null && b.breakevenCAGR != null;
+                    valA = hasCagr ? a.breakevenCAGR : (a.breakEvenPercent || 0);
+                    valB = hasCagr ? b.breakevenCAGR : (b.breakEvenPercent || 0);
+                    break;
+                case 'ror':
+                    valA = a.maxReturnOnRiskPercentage || a.returnOnRisk || 0;
+                    valB = b.maxReturnOnRiskPercentage || b.returnOnRisk || 0;
+                    break;
+                default:
+                    return 0;
+            }
+            return (valA - valB) * dirMultiplier;
+        });
+    }
 
     // Re-render table inside the card
     const contentDiv = document.getElementById(`content-${cardId}`);
