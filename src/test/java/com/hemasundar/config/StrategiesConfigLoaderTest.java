@@ -28,11 +28,16 @@ public class StrategiesConfigLoaderTest {
 
     @Test
     public void testLoadScreeners_Success() {
-        // The test resource (currently empty for screeners in my previous tool call)
-        // will still attempt to load.
         Map<String, List<String>> securitiesMap = new HashMap<>();
+        securitiesMap.put("top100.yaml", List.of("GOOG", "TSLA"));
+        
         List<com.hemasundar.technical.ScreenerConfig> screeners = StrategiesConfigLoader
                 .loadScreeners("test-strategies-config.json", securitiesMap);
+        
         assertNotNull(screeners);
+        assertFalse(screeners.isEmpty());
+        // Verify we loaded the screener from the test JSON
+        assertEquals(screeners.get(0).getAlias(), "Bullish Screener");
+        assertEquals(screeners.get(0).getSecurities().size(), 2);
     }
 }

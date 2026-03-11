@@ -197,4 +197,36 @@ public class StrategyExecutionServiceTest {
         assertNotNull(result);
         mockedScreener.verify(() -> TechnicalScreener.screenStocks(eq(List.of("AAPL", "MSFT")), any()));
     }
+
+    @Test
+    public void testExecuteStrategies_WithTechnicalScreeners() throws IOException {
+        // Mock at least one options strategy to avoid early return
+        OptionsConfig dummyConfig = mock(OptionsConfig.class);
+        when(dummyConfig.getName()).thenReturn("Dummy");
+        when(dummyConfig.getStrategy()).thenReturn(mock(AbstractTradingStrategy.class));
+
+        mockedLoader.when(() -> StrategiesConfigLoader.load(anyString(), anyMap()))
+                .thenReturn(List.of(dummyConfig));
+        
+        // Mock a screener
+        com.hemasundar.technical.ScreenerConfig screenerConfig = mock(com.hemasundar.technical.ScreenerConfig.class);
+        when(screenerConfig.getName()).thenReturn("Test Screener");
+        when(screenerConfig.getSecurities()).thenReturn(List.of("AAPL"));
+        when(screenerConfig.getScreenerType()).thenReturn(com.hemasundar.technical.ScreenerType.RSI_BB_BULLISH_CROSSOVER);
+        when(screenerConfig.getConditions()).thenReturn(mock(com.hemasundar.technical.TechFilterConditions.class));
+        
+        mockedLoader.when(() -> StrategiesConfigLoader.loadScreeners(anyMap()))
+                .thenReturn(List.of(screenerConfig));
+        
+        TechnicalScreener.ScreeningResult screenRes = mock(TechnicalScreener.ScreeningResult.class);
+        when(screenRes.getSymbol()).thenReturn("AAPL");
+        mockedScreener.when(() -> TechnicalScreener.screenStocks(anyList(), any()))
+                .thenReturn(List.of(screenRes));
+
+        ExecutionResult result = strategyExecutionService.executeStrategies(java.util.Set.of(0));
+        
+        assertNotNull(result);
+        mockedScreener.verify(() -> TechnicalScreener.screenStocks(anyList(), any()), atLeastOnce());
+        verify(supabaseService).saveScreenerResult(any());
+    }
 }
