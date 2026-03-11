@@ -3,6 +3,52 @@
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 > **CRITICAL AI RULE**: NEVER use GitHub MCP tools (create PR, merge, create release, etc.) unless the user explicitly asks. Do not assume permission for any GitHub operations.
 
+## Technical Screener Table Customization (2026-03-10)
+
+Implemented a data-rich, customizable results table for Technical Screeners on the dashboard.
+
+### Features
+- **Enhanced Data Visibility**: Added comprehensive technical indicator columns including Price, Volume, RSI, Bollinger Bands (Lower-Upper range), and Moving Averages (MA200, MA100, MA50, MA20).
+- **Smart Formatting**: 
+  - Tickers are color-coded based on signal type (Bullish/Bearish).
+  - Large volume numbers are formatted with 'K' and 'M' suffixes for scannability.
+  - RSI values are highlighted when in overbought (>70) or oversold (<30) territory.
+- **Responsive Table UI**: Enabled horizontal scrolling for wide screener tables within the dashboard cards, ensuring visibility on all screen sizes without breaking the layout.
+- **Robust Field Mapping**: Standardized the data bridge between the backend `ScreeningResult` DTO and the frontend, resolving a bug where numeric `0.0` values were being treated as missing.
+
+### Architecture
+- **Frontend Refactor**: Upgraded `buildScreenerTable()` in `app.js` with dynamic column generation and conditional styling.
+- **Utility Logic**: Integrated `formatLargeNumber()` and refined numeric type checking using `typeof` to handle Java's default numeric values correctly.
+- **Styling**: Appended `overflow-x: auto` to `.card-content` in `style.css` to govern wide table behavior.
+
+## Technical Screener Results on Dashboard (2026-03-10)
+
+Implemented the ability to view the execution results of configured Technical Screeners distinctly from Options Strategies.
+
+### Features
+- **Dashboard Separation**: Added a dedicated "Technical Screeners" section to the dashboard (`/index.html`) parallel to the existing Options Strategies section.
+- **Screener Cards**: Technical screener results correctly utilize the `alias` from configurations (e.g., "RSI/BB Bullish Crossover") and present matched stock tickers in a clean format using the existing UI components.
+- **Zero-Match Handling**: Screeners that do not find any matching tickers are rendered as disabled (grayed out) cards that cannot be expanded, mirroring the behavior of zero-trade Option Strategies.
+- **Real-Time Data**: The dashboard concurrently fetches both option trades and technical screening outputs via `Promise.all()` to minimize loading times.
+
+### Architecture
+- **API Endpoints**: Introduced `/api/results/screeners` to `StrategyController.java` with aggressive `Cache-Control` headers.
+- **Data Transfer**: Created the `ScreenerExecutionResult.java` DTO to securely encapsulate technical outputs isolated from options outputs.
+- **Database Persistence**: Extended `SupabaseService.java` with `saveScreenerResult` and `getAllLatestScreenerResults`, writing to a dedicated `latest_screener_results` remote table.
+- **Execution Pipeline**: `StrategyExecutionService` now natively executes technical filters en-masse, groups the results, and persists them via the new service methods.
+
+## Disabled Zero-Trade Strategy Cards (2026-03-10)
+
+Implemented a visual enhancement to the dashboard to clearly distinguish strategy configurations that did not yield any executing trades.
+
+### Features
+- **Visual Distinction**: Strategy result cards that have 0 trades are now visually grayed out (opacity reduced to 50%) to immediately signal they are empty.
+- **Interaction Prevention**: The click-to-expand functionality is disabled on zero-trade cards, preventing users from opening empty tables, improving the overall UX and saving unnecessary clicks.
+
+### Architecture
+- **Frontend Refactor**: Modified `buildResultCard()` in `app.js` to conditionally apply a `.disabled` CSS class if `result.trades` is empty or length > 0. Conditionally adds the `click` event listener.
+- **Styling**: Added `.card.disabled` rules to `style.css` to govern opacity and cursor behavior.
+
 ## Technical Screener Aliases (2026-03-10)
 
 Implemented support for custom alias names for technical screeners in the configuration screen, mirroring the functionality available for options strategies.

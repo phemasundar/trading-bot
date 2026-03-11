@@ -30,8 +30,9 @@ public class StrategiesConfigLoaderTest {
     public void testLoadScreeners_Success() {
         // The test resource (currently empty for screeners in my previous tool call)
         // will still attempt to load.
+        Map<String, List<String>> securitiesMap = new HashMap<>();
         List<com.hemasundar.technical.ScreenerConfig> screeners = StrategiesConfigLoader
-                .loadScreeners("test-strategies-config.json");
+                .loadScreeners("test-strategies-config.json", securitiesMap);
         assertNotNull(screeners);
     }
 }

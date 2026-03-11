@@ -10,6 +10,9 @@ import com.hemasundar.options.models.TradeSetup;
 import com.hemasundar.options.strategies.AbstractTradingStrategy;
 import com.hemasundar.pojos.Securities;
 import com.hemasundar.technical.TechnicalScreener;
+import com.hemasundar.technical.ScreenerConfig;
+import com.hemasundar.technical.TechnicalFilterChain;
+import com.hemasundar.dto.ScreenerExecutionResult;
 import com.hemasundar.utils.FilePaths;
 import com.hemasundar.utils.JavaUtils;
 import com.hemasundar.utils.OptionChainCache;
@@ -149,6 +152,68 @@ public class StrategyExecutionService {
                 // Don't fail the entire execution, just log the error
             }
 
+            // =============================================================
+            // TECHNICAL-ONLY STOCK SCREENERS
+            // =============================================================
+            
+            com.hemasundar.technical.TechnicalIndicators allIndicators = com.hemasundar.technical.TechnicalIndicators.builder()
+                    .rsiFilter(com.hemasundar.technical.RSIFilter.builder().period(14).oversoldThreshold(30.0).overboughtThreshold(70.0).build())
+                    .bollingerFilter(com.hemasundar.technical.BollingerBandsFilter.builder().period(20).standardDeviations(2.0).build())
+                    .ma20Filter(com.hemasundar.technical.MovingAverageFilter.builder().period(20).build())
+                    .ma50Filter(com.hemasundar.technical.MovingAverageFilter.builder().period(50).build())
+                    .ma100Filter(com.hemasundar.technical.MovingAverageFilter.builder().period(100).build())
+                    .ma200Filter(com.hemasundar.technical.MovingAverageFilter.builder().period(200).build())
+                    .volumeFilter(com.hemasundar.technical.VolumeFilter.builder().build())
+                    .build();
+
+            Map<String, List<String>> securitiesMap;
+            try {
+                securitiesMap = loadSecuritiesMaps();
+            } catch (IOException e) {
+                log.error("Failed to load securities map: {}", e.getMessage());
+                securitiesMap = new HashMap<>(); // Fallback
+            }
+
+            List<ScreenerConfig> technicalScreeners = StrategiesConfigLoader.loadScreeners(securitiesMap);
+            for (ScreenerConfig screenerConfig : technicalScreeners) {
+                log.info("Running screener: {}", screenerConfig.getName());
+                long screenerStartTime = System.currentTimeMillis();
+
+                TechnicalFilterChain filterChain = TechnicalFilterChain.of(allIndicators,
+                        screenerConfig.getConditions());
+                
+                // Get securities from config
+                List<String> securitiesToScan = screenerConfig.getSecurities();
+                if (securitiesToScan == null || securitiesToScan.isEmpty()) {
+                    log.warn("No securities configured for screener {}, skipping.", screenerConfig.getName());
+                    continue;
+                }
+
+                List<TechnicalScreener.ScreeningResult> screenerResults = TechnicalScreener.screenStocks(
+                        securitiesToScan, filterChain);
+
+                log.info("[{}] Found {} stocks matching criteria", screenerConfig.getName(), screenerResults.size());
+
+                if (!screenerResults.isEmpty()) {
+                    log.info("[{}] Matching stocks: {}", screenerConfig.getName(),
+                            screenerResults.stream().map(TechnicalScreener.ScreeningResult::getSymbol)
+                                    .toList());
+                    TelegramUtils.sendTechnicalScreenerAlert(screenerConfig.getName(), screenerResults);
+                }
+
+                // Save screener result
+                long screenerExecutionTime = System.currentTimeMillis() - screenerStartTime;
+                ScreenerExecutionResult scrResult = ScreenerExecutionResult.builder()
+                        .screenerId(screenerConfig.getScreenerType().name())
+                        .screenerName(screenerConfig.getName())
+                        .executionTimeMs(screenerExecutionTime)
+                        .resultsFound(screenerResults.size())
+                        .results(screenerResults)
+                        .build();
+                supabaseService.saveScreenerResult(scrResult);
+                log.info("[{}] Saved screener result to Supabase", screenerConfig.getName());
+            }
+
             // Print cache statistics
             cache.printStats();
 
@@ -201,6 +266,7 @@ public class StrategyExecutionService {
                 log.error("Failed to save custom execution result to Supabase: {}", e.getMessage());
             }
 
+            // Print cache statistics
             cache.printStats();
 
             log.info("Custom Execution completed: {} total trades, {}ms",
@@ -220,6 +286,13 @@ public class StrategyExecutionService {
      */
     public List<StrategyResult> getRecentCustomExecutions(int limit) throws IOException {
         return supabaseService.getRecentCustomExecutions(limit);
+    }
+
+    /**
+     * Retrieves all latest technical screener results from Supabase.
+     */
+    public List<com.hemasundar.dto.ScreenerExecutionResult> getLatestScreenerResults() throws IOException {
+        return supabaseService.getAllLatestScreenerResults();
     }
 
     /**

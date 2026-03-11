@@ -154,6 +154,18 @@ a:hover {
     margin-bottom: 12px;
 }
 
+.card.disabled {
+    opacity: 0.5;
+}
+
+.card.disabled .card-header {
+    cursor: default;
+}
+
+.card.disabled .card-header:hover {
+    opacity: 1;
+}
+
 .card-header {
     display: flex;
     align-items: center;
@@ -202,6 +214,7 @@ a:hover {
     margin-top: 16px;
     padding-top: 16px;
     border-top: 1px solid var(--border);
+    overflow-x: auto;
 }
 
 .card-content.open {

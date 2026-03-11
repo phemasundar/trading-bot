@@ -54,7 +54,9 @@ public class StrategyController {
                         return map;
                     })
                     .collect(Collectors.toList());
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok()
+                    .header("Cache-Control", "no-cache, no-store, must-revalidate")
+                    .body(response);
         } catch (IOException e) {
             log.error("Failed to load strategies", e);
             return ResponseEntity.internalServerError()
@@ -69,11 +71,30 @@ public class StrategyController {
     public ResponseEntity<?> getLatestResults() {
         try {
             List<StrategyResult> results = executionService.getAllLatestStrategyResults();
-            return ResponseEntity.ok(results);
+            return ResponseEntity.ok()
+                    .header("Cache-Control", "no-cache, no-store, must-revalidate")
+                    .body(results);
         } catch (Exception e) {
             log.error("Failed to load results", e);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Failed to load results: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * Returns all latest screener results from the database.
+     */
+    @GetMapping("/results/screeners")
+    public ResponseEntity<?> getScreenerResults() {
+        try {
+            // Note: Update to call the new service method
+            return ResponseEntity.ok()
+                    .header("Cache-Control", "no-cache, no-store, must-revalidate")
+                    .body(executionService.getLatestScreenerResults());
+        } catch (Exception e) {
+            log.error("Failed to load screener results", e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Failed to load screener results: " + e.getMessage()));
         }
     }
 
@@ -85,7 +106,9 @@ public class StrategyController {
             @RequestParam(defaultValue = "20") int limit) {
         try {
             List<StrategyResult> results = executionService.getRecentCustomExecutions(limit);
-            return ResponseEntity.ok(results);
+            return ResponseEntity.ok()
+                    .header("Cache-Control", "no-cache, no-store, must-revalidate")
+                    .body(results);
         } catch (Exception e) {
             log.error("Failed to load custom results", e);
             return ResponseEntity.internalServerError()
@@ -111,6 +134,7 @@ public class StrategyController {
             String content = Files.readString(path);
             return ResponseEntity.ok()
                     .header("Content-Type", "application/json")
+                    .header("Cache-Control", "no-cache, no-store, must-revalidate")
                     .body(content);
         } catch (Exception e) {
             log.error("Failed to read config", e);
@@ -126,7 +150,9 @@ public class StrategyController {
     @GetMapping("/securities")
     public ResponseEntity<?> getSecuritiesMaps() {
         try {
-            return ResponseEntity.ok(executionService.loadSecuritiesMaps());
+            return ResponseEntity.ok()
+                    .header("Cache-Control", "no-cache, no-store, must-revalidate")
+                    .body(executionService.loadSecuritiesMaps());
         } catch (IOException e) {
             log.error("Failed to load securities map", e);
             return ResponseEntity.internalServerError()
