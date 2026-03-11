@@ -31,14 +31,24 @@ public class ScreenerConfig {
     private final ScreenerType screenerType;
 
     /**
+     * Optional custom display name.
+     */
+    private final String alias;
+
+    /**
+     * List of stock tickers to run the screener against.
+     */
+    private final java.util.List<String> securities;
+
+    /**
      * Filter conditions defining what to screen for.
      */
     private final TechFilterConditions conditions;
 
     /**
-     * Gets the display name from the screener type.
+     * Gets the display name from the alias if present, otherwise screener type.
      */
     public String getName() {
-        return screenerType.toString();
+        return (alias != null && !alias.trim().isEmpty()) ? alias : screenerType.toString();
     }
 }

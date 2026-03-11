@@ -11,5 +11,17 @@
                 "minTotalCredit": 50.0
             }
         }
+    ],
+    "technicalScreeners": [
+        {
+            "screenerType": "RSI_BB_BULLISH_CROSSOVER",
+            "alias": "Bullish Screener",
+            "enabled": true,
+            "securities": "GOOG, TSLA",
+            "conditions": {
+                "rsiCondition": "OVERSOLD",
+                "minVolume": 1000
+            }
+        }
     ]
 }

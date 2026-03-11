@@ -103,6 +103,8 @@ public class StrategiesConfig {
         private boolean enabled = true;
         private String alias;
         private ScreenerType screenerType;
+        private String securitiesFile;
+        private String securities;
         private ScreenerConditionsConfig conditions;
     }
 

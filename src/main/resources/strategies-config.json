@@ -244,7 +244,7 @@
             }
         },
         {
-            "enabled": false,
+            "enabled": true,
             "alias": "BWB Conservative - Portfolio (Disabled)",
             "strategyType": "BULLISH_BROKEN_WING_BUTTERFLY",
             "descriptionFile": "bullish_bwb.md",
@@ -321,6 +321,7 @@
             "enabled": true,
             "alias": "RSI/BB Bullish Crossover",
             "screenerType": "RSI_BB_BULLISH_CROSSOVER",
+            "securitiesFile": "top100",
             "conditions": {
                 "rsiCondition": "BULLISH_CROSSOVER",
                 "bollingerCondition": "LOWER_BAND",
@@ -331,6 +332,7 @@
             "enabled": true,
             "alias": "RSI/BB Bearish Crossover",
             "screenerType": "RSI_BB_BEARISH_CROSSOVER",
+            "securitiesFile": "top100",
             "conditions": {
                 "rsiCondition": "BEARISH_CROSSOVER",
                 "bollingerCondition": "UPPER_BAND",
@@ -341,6 +343,7 @@
             "enabled": true,
             "alias": "Below 200 Day MA",
             "screenerType": "BELOW_200_DAY_MA",
+            "securitiesFile": "top100",
             "conditions": {
                 "requirePriceBelowMA200": true,
                 "minVolume": 1000000
@@ -350,6 +353,7 @@
             "enabled": true,
             "alias": "RSI Oversold",
             "screenerType": "RSI_OVERSOLD",
+            "securitiesFile": "top100",
             "conditions": {
                 "rsiCondition": "OVERSOLD",
                 "minVolume": 1000000
@@ -359,6 +363,7 @@
             "enabled": true,
             "alias": "BB Lower Band",
             "screenerType": "BB_LOWER",
+            "securitiesFile": "top100",
             "conditions": {
                 "bollingerCondition": "LOWER_BAND",
                 "minVolume": 1000000

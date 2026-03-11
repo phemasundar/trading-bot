@@ -101,8 +101,14 @@ function timeAgo(dateStr) {
     const days = Math.floor(diff / 86400000);
     if (days > 0) return `${days}d ago`;
     if (hours > 0) return `${hours}h ago`;
-    if (mins > 0) return `${mins}m ago`;
     return 'Just now';
+}
+
+function formatLargeNumber(num) {
+    if (!num && num !== 0) return '-';
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
 }
 
 // ── Global State for Sorting ──
@@ -113,7 +119,8 @@ window.tradeDataMap = window.tradeDataMap || {};
 
 function buildResultCard(result, badgeText = 'Standard') {
     const card = document.createElement('div');
-    card.className = 'card';
+    const hasTrades = result.trades && result.trades.length > 0;
+    card.className = hasTrades ? 'card' : 'card disabled';
 
     const cardId = (result.strategyId || 'card-' + Math.random()).replace(/\s+/g, '-');
     const arrow = `<span class="card-arrow" id="arrow-${cardId}">▶</span>`;
@@ -136,8 +143,17 @@ function buildResultCard(result, badgeText = 'Standard') {
     // Save trades for sorting
     window.tradeDataMap[cardId] = result.trades || [];
 
-    // Attach click handler
-    card.querySelector('.card-header').addEventListener('click', () => toggleCard(cardId));
+    // Attach click handler only if there are trades
+    if (hasTrades) {
+        card.querySelector('.card-header').addEventListener('click', () => toggleCard(cardId));
+    } else {
+        card.querySelector('.card-header').style.cursor = 'default';
+        if(card.querySelector('.info-btn')) {
+             card.querySelector('.info-btn').style.opacity = '0.5';
+             card.querySelector('.info-btn').style.cursor = 'default';
+             card.querySelector('.info-btn').onclick = (e) => { e.stopPropagation(); e.preventDefault(); };
+        }
+    }
 
     return card;
 }
@@ -148,6 +164,95 @@ function toggleCard(id) {
     if (!content) return;
     content.classList.toggle('open');
     if (arrow) arrow.classList.toggle('open');
+}
+
+// ── Screener Card Builder ──
+
+function buildScreenerCard(result) {
+    const card = document.createElement('div');
+    const hasResults = result.results && result.results.length > 0;
+    card.className = hasResults ? 'card' : 'card disabled';
+
+    const cardId = (result.screenerId || 'screener-' + Math.random()).replace(/\s+/g, '-');
+    const arrow = `<span class="card-arrow" id="arrow-${cardId}">▶</span>`;
+
+    card.innerHTML = `
+        <div class="card-header" data-target="${cardId}">
+            <div class="flex items-center gap-sm flex-wrap">
+                ${arrow}
+                <span class="card-name">${result.screenerName || 'Screener'}</span>
+                <span class="card-badge" style="background-color: var(--primary); color: #fff;">Screener</span>
+            </div>
+            <span class="card-stats">Last run: ${timeAgo(result.updatedAt)} · Found: ${result.resultsFound || 0}</span>
+        </div>
+        <div class="card-content" id="content-${cardId}">
+            ${buildScreenerTable(result.results || [])}
+        </div>`;
+
+    if (hasResults) {
+        card.querySelector('.card-header').addEventListener('click', () => toggleCard(cardId));
+    } else {
+        card.querySelector('.card-header').style.cursor = 'default';
+    }
+
+    return card;
+}
+
+// ── Screener Table Builder ──
+
+function buildScreenerTable(results) {
+    if (!results || results.length === 0) {
+        return '<div class="empty-state"><div class="empty-state-icon">🔎</div>No stocks found</div>';
+    }
+
+    let html = `<table class="data-table">
+        <thead><tr>
+            <th>Ticker</th>
+            <th>Price</th>
+            <th>Volume</th>
+            <th>RSI</th>
+            <th>BB (L-U)</th>
+            <th>MA 200</th>
+            <th>MA 100</th>
+            <th>MA 50</th>
+            <th>MA 20</th>
+        </tr></thead><tbody>`;
+
+    for (const r of results) {
+        const typeClass = r.signalType === 'BULLISH' ? 'text-success' : (r.signalType === 'BEARISH' ? 'text-danger' : 'text-muted');
+        
+        // Formatted indicators
+        const price = (typeof r.currentPrice === 'number') ? `$${r.currentPrice.toFixed(2)}` : '-';
+        const volume = formatLargeNumber(r.volume);
+        const rsi = (typeof r.rsi === 'number') ? rsiValue(r.rsi) : '-';
+        const bb = (typeof r.bollingerLower === 'number' && typeof r.bollingerUpper === 'number') 
+            ? `${r.bollingerLower.toFixed(1)} - ${r.bollingerUpper.toFixed(1)}` : '-';
+        
+        const ma200 = (typeof r.ma200 === 'number' && r.ma200 !== 0) ? r.ma200.toFixed(2) : '-';
+        const ma100 = (typeof r.ma100 === 'number' && r.ma100 !== 0) ? r.ma100.toFixed(2) : '-';
+        const ma50 = (typeof r.ma50 === 'number' && r.ma50 !== 0) ? r.ma50.toFixed(2) : '-';
+        const ma20 = (typeof r.ma20 === 'number' && r.ma20 !== 0) ? r.ma20.toFixed(2) : '-';
+
+        html += `<tr class="trade-row">
+            <td><strong class="${typeClass}">${r.symbol || ''}</strong></td>
+            <td class="text-mono">${price}</td>
+            <td>${volume}</td>
+            <td>${rsi}</td>
+            <td class="text-muted small">${bb}</td>
+            <td>${ma200}</td>
+            <td>${ma100}</td>
+            <td>${ma50}</td>
+            <td>${ma20}</td>
+        </tr>`;
+    }
+
+    html += '</tbody></table>';
+    return html;
+}
+
+function rsiValue(val) {
+    const cls = val < 30 ? 'text-success' : (val > 70 ? 'text-danger' : '');
+    return `<span class="${cls}">${val.toFixed(1)}</span>`;
 }
 
 // ── Trade Table Builder ──
@@ -459,20 +564,39 @@ async function loadStrategies() {
 }
 
 async function loadResults() {
-    const container = document.getElementById('results-container');
-    if (!container) return;
+    const optionsContainer = document.getElementById('results-container');
+    const screenerContainer = document.getElementById('screener-results-container');
+    
+    if (!optionsContainer || !screenerContainer) return;
+
     try {
-        const results = await API.get('/api/results');
-        container.innerHTML = '';
-        if (!results || results.length === 0) {
-            container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div>No results yet. Execute a strategy to see results.</div>';
-            return;
+        const [optionResults, screenerResults] = await Promise.all([
+            API.get('/api/results'),
+            API.get('/api/results/screeners').catch(() => []) // Graceful fail for screeners
+        ]);
+
+        // Render Option Results
+        optionsContainer.innerHTML = '';
+        if (!optionResults || optionResults.length === 0) {
+            optionsContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div>No option strategy results yet. Execute a strategy to see results.</div>';
+        } else {
+            for (const r of optionResults) {
+                optionsContainer.appendChild(buildResultCard(r));
+            }
         }
-        for (const r of results) {
-            container.appendChild(buildResultCard(r));
+
+        // Render Screener Results
+        screenerContainer.innerHTML = '';
+        if (!screenerResults || screenerResults.length === 0) {
+            screenerContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔎</div>No technical screener results yet.</div>';
+        } else {
+            for (const r of screenerResults) {
+                screenerContainer.appendChild(buildScreenerCard(r));
+            }
         }
     } catch (e) {
-        container.innerHTML = `<div class="empty-state text-danger">Failed to load results: ${e.message}</div>`;
+        optionsContainer.innerHTML = `<div class="empty-state text-danger">Failed to load results: ${e.message}</div>`;
+        screenerContainer.innerHTML = '';
     }
 }
 
@@ -1142,7 +1266,7 @@ function renderConfig(config, container, securitiesMaps = {}) {
                 <div class="config-card-header">
                     <div class="flex items-center gap-sm">
                         <span class="card-arrow">▶</span>
-                        <strong>${screener.alias || screener.name || 'Screener'}</strong>
+                        <strong>${screener.alias || screener.screenerType || 'Screener'}</strong>
                     </div>
                 </div>
                 <div class="config-card-body">

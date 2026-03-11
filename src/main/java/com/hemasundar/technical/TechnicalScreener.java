@@ -2,8 +2,10 @@ package com.hemasundar.technical;
 
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.pojos.PriceHistoryResponse;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.ta4j.core.BarSeries;
 
@@ -22,6 +24,8 @@ public class TechnicalScreener {
      */
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ScreeningResult {
         private String symbol;
         private double currentPrice;

@@ -76,18 +76,19 @@ public class StrategiesConfigLoader {
      *
      * @return list of enabled ScreenerConfig objects
      */
-    public static List<ScreenerConfig> loadScreeners() {
-        return loadScreeners(FilePaths.strategiesConfig);
+    public static List<ScreenerConfig> loadScreeners(Map<String, List<String>> securitiesMap) {
+        return loadScreeners(FilePaths.strategiesConfig, securitiesMap);
     }
 
     /**
      * Loads screener configurations from the specified config file.
      * Only returns enabled screeners.
      *
-     * @param configPath path to the strategies-config.json file
+     * @param configResource path to the strategies-config.json file
+     * @param securitiesMap map of securities
      * @return list of enabled ScreenerConfig objects
      */
-    public static List<ScreenerConfig> loadScreeners(String configResource) {
+    public static List<ScreenerConfig> loadScreeners(String configResource, Map<String, List<String>> securitiesMap) {
         List<ScreenerConfig> configs = new ArrayList<>();
 
         try {
@@ -99,7 +100,7 @@ public class StrategiesConfigLoader {
             // Convert each enabled screener entry to ScreenerConfig
             for (ScreenerEntry entry : rootConfig.getEnabledScreeners()) {
                 try {
-                    ScreenerConfig config = convertToScreenerConfig(entry);
+                    ScreenerConfig config = convertToScreenerConfig(entry, securitiesMap);
                     if (config != null) {
                         configs.add(config);
                     }
@@ -120,7 +121,7 @@ public class StrategiesConfigLoader {
     /**
      * Converts a ScreenerEntry POJO to a ScreenerConfig.
      */
-    private static ScreenerConfig convertToScreenerConfig(ScreenerEntry entry) {
+    private static ScreenerConfig convertToScreenerConfig(ScreenerEntry entry, Map<String, List<String>> securitiesMap) {
         ScreenerConditionsConfig condConfig = entry.getConditions();
 
         // Build TechFilterConditions from the POJO
@@ -138,8 +139,26 @@ public class StrategiesConfigLoader {
                 .requirePriceAboveMA200(condConfig.isRequirePriceAboveMA200())
                 .build();
 
+        // Get securities list from files (supports comma-separated file names)
+        List<String> securities = parseSecuritiesFromFiles(entry.getSecuritiesFile(), securitiesMap);
+
+        // Combine with inline securities if specified (supports comma-separated symbols)
+        if (entry.getSecurities() != null && !entry.getSecurities().trim().isEmpty()) {
+            java.util.Set<String> combined = new java.util.LinkedHashSet<>(securities);
+            for (String symbol : entry.getSecurities().split(",")) {
+                String trimmed = symbol.trim();
+                if (!trimmed.isEmpty()) {
+                    combined.add(trimmed);
+                }
+            }
+            securities = new java.util.ArrayList<>(combined);
+            log.debug("Combined {} unique securities from files + inline for screener", securities.size());
+        }
+
         return ScreenerConfig.builder()
                 .screenerType(entry.getScreenerType())
+                .alias(entry.getAlias())
+                .securities(securities)
                 .conditions(conditions)
                 .build();
     }

@@ -1,5 +1,6 @@
 package com.hemasundar.functional;
 
+import com.hemasundar.dto.ScreenerExecutionResult;
 import com.hemasundar.dto.StrategyResult;
 import com.hemasundar.pojos.RefreshToken;
 import com.hemasundar.pojos.Securities;
@@ -179,15 +180,25 @@ public class SampleTestNG {
                 // TECHNICAL-ONLY STOCK SCREENERS (Configuration-Driven)
                 // =============================================================
                 // Load screeners from strategies-config.json (enabled flag handled by loader)
-                List<ScreenerConfig> technicalScreeners = StrategiesConfigLoader.loadScreeners();
+                List<ScreenerConfig> technicalScreeners = StrategiesConfigLoader.loadScreeners(securitiesMap);
 
                 // Run all screeners with single loop
                 for (ScreenerConfig config : technicalScreeners) {
                         log.info("Running screener: {}", config.getName());
+                        long screenerStartTime = System.currentTimeMillis();
+
                         TechnicalFilterChain filterChain = TechnicalFilterChain.of(allIndicators,
                                         config.getConditions());
+                        
+                        // Use configured securities instead of hardcoded top100
+                        List<String> securitiesToScan = config.getSecurities();
+                        if (securitiesToScan == null || securitiesToScan.isEmpty()) {
+                                log.warn("No securities configured for screener {}, skipping.", config.getName());
+                                continue;
+                        }
+
                         List<TechnicalScreener.ScreeningResult> results = TechnicalScreener.screenStocks(
-                                        top100Securities, filterChain);
+                                        securitiesToScan, filterChain);
 
                         log.info("[{}] Found {} stocks matching criteria", config.getName(), results.size());
 
@@ -196,6 +207,25 @@ public class SampleTestNG {
                                                 results.stream().map(TechnicalScreener.ScreeningResult::getSymbol)
                                                                 .toList());
                                 TelegramUtils.sendTechnicalScreenerAlert(config.getName(), results);
+                        }
+
+                        // Save screener result to Supabase
+                        if (supabaseService != null) {
+                                try {
+                                        long screenerExecutionTime = System.currentTimeMillis() - screenerStartTime;
+                                        ScreenerExecutionResult scrResult = ScreenerExecutionResult.builder()
+                                                        .screenerId(config.getScreenerType().name())
+                                                        .screenerName(config.getName())
+                                                        .executionTimeMs(screenerExecutionTime)
+                                                        .resultsFound(results.size())
+                                                        .results(results)
+                                                        .build();
+                                        supabaseService.saveScreenerResult(scrResult);
+                                        log.info("[{}] Saved screener result to Supabase", config.getName());
+                                } catch (Exception e) {
+                                        log.error("[{}] Failed to save screener result to Supabase: {}", 
+                                                config.getName(), e.getMessage());
+                                }
                         }
                 }
 

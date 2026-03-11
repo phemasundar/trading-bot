@@ -466,6 +466,133 @@ public class SupabaseService {
         }
     }
 
+    // ==================== Per-Screener Result Persistence ====================
+
+    private static final String LATEST_SCREENER_RESULTS_PATH = "/rest/v1/latest_screener_results";
+
+    /**
+     * Saves or updates the latest result for a single technical screener.
+     *
+     * @param result Screener execution result to save
+     * @throws IOException if API call fails
+     */
+    public void saveScreenerResult(com.hemasundar.dto.ScreenerExecutionResult result) throws IOException {
+        try {
+            String resultsJson = OBJECT_MAPPER.writeValueAsString(result.getResults());
+            String updatedAt = java.time.Instant.now().toString();
+
+            com.fasterxml.jackson.databind.node.ObjectNode payloadNode = OBJECT_MAPPER.createObjectNode();
+            payloadNode.put("screener_id", result.getScreenerId());
+            payloadNode.put("screener_name", result.getScreenerName());
+            payloadNode.put("execution_time_ms", result.getExecutionTimeMs());
+            payloadNode.put("results_found", result.getResultsFound());
+            payloadNode.set("results", OBJECT_MAPPER.readTree(resultsJson));
+            payloadNode.put("updated_at", updatedAt);
+
+            String payload = OBJECT_MAPPER.writeValueAsString(payloadNode);
+            String url = projectUrl + LATEST_SCREENER_RESULTS_PATH;
+
+            Response response = RestAssured.given()
+                    .header("apikey", apiKey)
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .header("Prefer", "resolution=merge-duplicates")
+                    .body(payload)
+                    .post(url);
+
+            int statusCode = response.getStatusCode();
+            if (statusCode == 200 || statusCode == 201) {
+                log.info("Successfully saved screener result: {} finding {} stocks",
+                        result.getScreenerId(), result.getResultsFound());
+            } else {
+                String errorBody = response.getBody().asString();
+                throw new IOException(String.format(
+                        "Failed to save screener result: %d - %s. Body: %s",
+                        statusCode, response.getStatusLine(), errorBody));
+            }
+        } catch (Exception e) {
+            if (e instanceof IOException) {
+                throw (IOException) e;
+            }
+            throw new IOException("Failed to save screener result: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Retrieves all latest screener results from Supabase.
+     */
+    public java.util.List<com.hemasundar.dto.ScreenerExecutionResult> getAllLatestScreenerResults() throws IOException {
+        try {
+            String url = projectUrl + LATEST_SCREENER_RESULTS_PATH + "?select=*&order=updated_at.desc";
+
+            Response response = RestAssured.given()
+                    .header("apikey", apiKey)
+                    .header("Authorization", "Bearer " + apiKey)
+                    .get(url);
+
+            int statusCode = response.getStatusCode();
+            if (statusCode == 200) {
+                String body = response.getBody().asString();
+
+                if (body.equals("[]") || body.isEmpty()) {
+                    log.info("No screener results found in database");
+                    return java.util.Collections.emptyList();
+                }
+
+                com.fasterxml.jackson.databind.JsonNode arrayNode = OBJECT_MAPPER.readTree(body);
+                java.util.List<com.hemasundar.dto.ScreenerExecutionResult> results = new java.util.ArrayList<>();
+
+                for (com.fasterxml.jackson.databind.JsonNode node : arrayNode) {
+                    results.add(parseScreenerResult(node));
+                }
+
+                log.info("Retrieved {} screener results from database", results.size());
+                return results;
+            } else {
+                String errorBody = response.getBody().asString();
+                throw new IOException(String.format(
+                        "Failed to retrieve screener results: %d - %s. Body: %s",
+                        statusCode, response.getStatusLine(), errorBody));
+            }
+        } catch (Exception e) {
+            if (e instanceof IOException) {
+                throw (IOException) e;
+            }
+            throw new IOException("Failed to retrieve screener results: " + e.getMessage(), e);
+        }
+    }
+
+    private com.hemasundar.dto.ScreenerExecutionResult parseScreenerResult(com.fasterxml.jackson.databind.JsonNode node)
+            throws IOException {
+        try {
+            String screenerId = node.get("screener_id").asText();
+            String screenerName = node.get("screener_name").asText();
+            long executionTimeMs = node.get("execution_time_ms").asLong();
+            int resultsFound = node.get("results_found").asInt();
+
+            com.fasterxml.jackson.databind.JsonNode resultsNode = node.get("results");
+            java.util.List<com.hemasundar.technical.TechnicalScreener.ScreeningResult> results = OBJECT_MAPPER.readValue(
+                    resultsNode.toString(),
+                    OBJECT_MAPPER.getTypeFactory().constructCollectionType(
+                            java.util.List.class,
+                            com.hemasundar.technical.TechnicalScreener.ScreeningResult.class));
+
+            String updatedAtStr = node.get("updated_at").asText();
+            java.time.Instant updatedAt = java.time.Instant.parse(updatedAtStr);
+
+            return com.hemasundar.dto.ScreenerExecutionResult.builder()
+                    .screenerId(screenerId)
+                    .screenerName(screenerName)
+                    .executionTimeMs(executionTimeMs)
+                    .resultsFound(resultsFound)
+                    .results(results)
+                    .updatedAt(updatedAt)
+                    .build();
+        } catch (Exception e) {
+            throw new IOException("Failed to parse screener result: " + e.getMessage(), e);
+        }
+    }
+
     // ==================== Custom Execution Results (Execute View)
     // ====================
 
