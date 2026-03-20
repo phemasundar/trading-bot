@@ -59,11 +59,29 @@
 
                 <div id="strategy-templates" style="margin-top: 16px;"></div>
 
-                <div class="form-group" style="margin-top: 16px;">
-                    <label class="form-label">Securities * (comma-separated)</label>
-                    <input type="text" id="securities-input" class="form-input"
-                        placeholder="AAPL, MSFT, GOOG, AMZN, META">
+                <div class="form-grid" style="margin-top: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">Securities File (comma-separated file names) <button type="button" class="info-btn"
+                                onclick="showFilterHelp(event, 'securitiesFile', 'Securities File')"><svg class="info-icon"
+                                    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                </svg></button></label>
+                        <input type="text" id="securities-file-input" class="form-input"
+                            placeholder="portfolio, top100, tracking, bullish, 2026">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Securities (comma-separated tickers)</label>
+                        <input type="text" id="securities-input" class="form-input"
+                            placeholder="AAPL, MSFT, GOOG, AMZN, META">
+                    </div>
                 </div>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                    Provide a securities file, inline tickers, or both. File symbols and inline tickers are merged.
+                </p>
             </div>
 
             <!-- Common Filters -->

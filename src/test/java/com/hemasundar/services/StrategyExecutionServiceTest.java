@@ -97,7 +97,7 @@ public class StrategyExecutionServiceTest {
         mockedLoader.when(() -> StrategiesConfigLoader.load(anyString(), anyMap()))
                 .thenReturn(List.of(config));
 
-        ExecutionResult result = strategyExecutionService.executeStrategies(Set.of(0));
+        ExecutionResult result = strategyExecutionService.executeStrategies(Set.of(0), null);
 
         assertNotNull(result);
         assertEquals(result.getResults().size(), 1);
@@ -109,7 +109,7 @@ public class StrategyExecutionServiceTest {
         mockedLoader.when(() -> StrategiesConfigLoader.load(anyString(), anyMap()))
                 .thenReturn(Collections.emptyList());
 
-        ExecutionResult result = strategyExecutionService.executeStrategies(Collections.emptySet());
+        ExecutionResult result = strategyExecutionService.executeStrategies(Collections.emptySet(), null);
 
         assertNotNull(result);
         assertEquals(result.getResults().size(), 0);
@@ -140,7 +140,7 @@ public class StrategyExecutionServiceTest {
                 .thenReturn(List.of(config1, config2));
 
         Set<Integer> indices = new LinkedHashSet<>(List.of(0, 1));
-        ExecutionResult result = strategyExecutionService.executeStrategies(indices);
+        ExecutionResult result = strategyExecutionService.executeStrategies(indices, null);
 
         // Strategy 1 should finish, but Strategy 2 should be skipped due to
         // cancellation
@@ -223,7 +223,7 @@ public class StrategyExecutionServiceTest {
         mockedScreener.when(() -> TechnicalScreener.screenStocks(anyList(), any()))
                 .thenReturn(List.of(screenRes));
 
-        ExecutionResult result = strategyExecutionService.executeStrategies(java.util.Set.of(0));
+        ExecutionResult result = strategyExecutionService.executeStrategies(java.util.Set.of(0), java.util.Set.of(0));
         
         assertNotNull(result);
         mockedScreener.verify(() -> TechnicalScreener.screenStocks(anyList(), any()), atLeastOnce());

@@ -3,6 +3,7 @@ package com.hemasundar.api;
 import com.hemasundar.dto.StrategyResult;
 import com.hemasundar.options.models.*;
 import com.hemasundar.options.strategies.StrategyType;
+import com.hemasundar.technical.ScreenerConfig;
 import com.hemasundar.utils.OptionChainCache;
 import com.hemasundar.services.StrategyExecutionService;
 import lombok.RequiredArgsConstructor;
@@ -62,6 +63,34 @@ public class StrategyController {
             log.error("Failed to load strategies", e);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Failed to load strategies: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Returns all enabled technical screeners with index, name, and type.
+     * Used by the dashboard to populate screener checkboxes.
+     */
+    @GetMapping("/screeners")
+    public ResponseEntity<?> getEnabledScreeners() {
+        try {
+            List<ScreenerConfig> screeners = executionService.getEnabledScreeners();
+            List<Map<String, Object>> response = IntStream.range(0, screeners.size())
+                    .mapToObj(i -> {
+                        ScreenerConfig config = screeners.get(i);
+                        Map<String, Object> map = new LinkedHashMap<>();
+                        map.put("index", i);
+                        map.put("name", config.getName());
+                        map.put("type", config.getScreenerType().name());
+                        return map;
+                    })
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok()
+                    .header("Cache-Control", "no-cache, no-store, must-revalidate")
+                    .body(response);
+        } catch (IOException e) {
+            log.error("Failed to load screeners", e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Failed to load screeners: " + e.getMessage()));
         }
     }
 
@@ -177,19 +206,23 @@ public class StrategyController {
         }
 
         Set<Integer> indices = new HashSet<>(request.getStrategyIndices());
-        log.info("REST: Execute strategies with indices: {}", indices);
+        Set<Integer> screenerIndices = request.getScreenerIndices() != null
+                ? new HashSet<>(request.getScreenerIndices())
+                : null;
+        log.info("REST: Execute strategies with indices: {}, screener indices: {}", indices, screenerIndices);
 
         CompletableFuture.runAsync(() -> {
             try {
-                executionService.executeStrategies(indices);
+                executionService.executeStrategies(indices, screenerIndices);
             } catch (IOException e) {
                 log.error("Strategy execution failed", e);
             }
         });
 
+        int total = indices.size() + (screenerIndices != null ? screenerIndices.size() : 0);
         return ResponseEntity.ok(Map.of(
                 "status", "started",
-                "message", "Execution started for " + indices.size() + " strategies"));
+                "message", "Execution started for " + total + " items"));
     }
 
     /**
@@ -206,17 +239,45 @@ public class StrategyController {
         try {
             StrategyType type = StrategyType.fromString(request.getStrategyType());
 
-            // Parse securities
-            List<String> symbols = Arrays.stream(request.getSecurities().split(","))
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .map(String::toUpperCase)
-                    .collect(Collectors.toList());
+            // Resolve securities from file names and/or inline symbols
+            Set<String> symbolSet = new LinkedHashSet<>();
 
-            if (symbols.isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(Map.of("error", "At least one security is required"));
+            // 1. Resolve from securitiesFile (e.g., "portfolio, top100")
+            if (request.getSecuritiesFile() != null && !request.getSecuritiesFile().isBlank()) {
+                try {
+                    Map<String, List<String>> securitiesMap = executionService.loadSecuritiesMaps();
+                    String[] fileNames = request.getSecuritiesFile().split(",");
+                    for (String fileName : fileNames) {
+                        String key = fileName.trim().toLowerCase();
+                        List<String> fileSymbols = securitiesMap.get(key);
+                        if (fileSymbols != null) {
+                            symbolSet.addAll(fileSymbols);
+                        } else {
+                            log.warn("Securities file '{}' not found. Available: {}", key, securitiesMap.keySet());
+                        }
+                    }
+                } catch (IOException e) {
+                    log.error("Failed to load securities maps: {}", e.getMessage());
+                    return ResponseEntity.internalServerError()
+                            .body(Map.of("error", "Failed to load securities files: " + e.getMessage()));
+                }
             }
+
+            // 2. Add inline securities
+            if (request.getSecurities() != null && !request.getSecurities().isBlank()) {
+                Arrays.stream(request.getSecurities().split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .map(String::toUpperCase)
+                        .forEach(symbolSet::add);
+            }
+
+            if (symbolSet.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Provide a securities file, inline tickers, or both"));
+            }
+
+            List<String> symbols = new ArrayList<>(symbolSet);
 
             // Build filter from request
             OptionsStrategyFilter filter = buildFilter(type, request.getFilter());
@@ -229,7 +290,7 @@ public class StrategyController {
                     .filter(filter)
                     .build();
 
-            log.info("REST: Custom execute {} on {}", type.getDisplayName(), symbols);
+            log.info("REST: Custom execute {} on {} securities", type.getDisplayName(), symbols.size());
 
             CompletableFuture.runAsync(() -> {
                 executionService.executeCustomStrategy(config);
@@ -237,7 +298,7 @@ public class StrategyController {
 
             return ResponseEntity.ok(Map.of(
                     "status", "started",
-                    "message", "Custom execution started: " + type.getDisplayName()));
+                    "message", "Custom execution started: " + type.getDisplayName() + " on " + symbols.size() + " securities"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Invalid strategy type: " + request.getStrategyType()));
@@ -276,6 +337,7 @@ public class StrategyController {
     // Helper: build filter from request JSON
     // ────────────────────────────────────────────
 
+    @SuppressWarnings("unchecked")
     private OptionsStrategyFilter buildFilter(StrategyType type, Map<String, Object> filterMap) {
         OptionsStrategyFilter filter;
 
@@ -306,23 +368,96 @@ public class StrategyController {
                 filter = new OptionsStrategyFilter();
         }
 
-        // Apply common filter fields from request map
-        if (filterMap != null) {
-            applyIfPresent(filterMap, "targetDTE", v -> filter.setTargetDTE(toInt(v)));
-            applyIfPresent(filterMap, "minDTE", v -> filter.setMinDTE(toInt(v)));
-            applyIfPresent(filterMap, "maxDTE", v -> filter.setMaxDTE(toInt(v)));
-            applyIfPresent(filterMap, "maxLossLimit", v -> filter.setMaxLossLimit(toDouble(v)));
-            applyIfPresent(filterMap, "minReturnOnRisk", v -> filter.setMinReturnOnRisk(toInt(v)));
-            applyIfPresent(filterMap, "minHistoricalVolatility", v -> filter.setMinHistoricalVolatility(toDouble(v)));
-            applyIfPresent(filterMap, "maxBreakEvenPercentage", v -> filter.setMaxBreakEvenPercentage(toDouble(v)));
-            applyIfPresent(filterMap, "maxUpperBreakevenDelta", v -> filter.setMaxUpperBreakevenDelta(toDouble(v)));
-            applyIfPresent(filterMap, "maxNetExtrinsicValueToPricePercentage",
-                    v -> filter.setMaxNetExtrinsicValueToPricePercentage(toDouble(v)));
-            applyIfPresent(filterMap, "ignoreEarnings",
-                    v -> filter.setIgnoreEarnings(Boolean.parseBoolean(v.toString())));
+        if (filterMap == null) return filter;
+
+        // ── Common filter fields ──
+        applyIfPresent(filterMap, "targetDTE", v -> filter.setTargetDTE(toInt(v)));
+        applyIfPresent(filterMap, "minDTE", v -> filter.setMinDTE(toInt(v)));
+        applyIfPresent(filterMap, "maxDTE", v -> filter.setMaxDTE(toInt(v)));
+        applyIfPresent(filterMap, "maxLossLimit", v -> filter.setMaxLossLimit(toDouble(v)));
+        applyIfPresent(filterMap, "minReturnOnRisk", v -> filter.setMinReturnOnRisk(toInt(v)));
+        applyIfPresent(filterMap, "minHistoricalVolatility", v -> filter.setMinHistoricalVolatility(toDouble(v)));
+        applyIfPresent(filterMap, "maxBreakEvenPercentage", v -> filter.setMaxBreakEvenPercentage(toDouble(v)));
+        applyIfPresent(filterMap, "maxUpperBreakevenDelta", v -> filter.setMaxUpperBreakevenDelta(toDouble(v)));
+        applyIfPresent(filterMap, "maxNetExtrinsicValueToPricePercentage",
+                v -> filter.setMaxNetExtrinsicValueToPricePercentage(toDouble(v)));
+        applyIfPresent(filterMap, "minNetExtrinsicValueToPricePercentage",
+                v -> filter.setMinNetExtrinsicValueToPricePercentage(toDouble(v)));
+        applyIfPresent(filterMap, "ignoreEarnings",
+                v -> filter.setIgnoreEarnings(Boolean.parseBoolean(v.toString())));
+        applyIfPresent(filterMap, "maxTotalDebit", v -> filter.setMaxTotalDebit(toDouble(v)));
+        applyIfPresent(filterMap, "maxTotalCredit", v -> filter.setMaxTotalCredit(toDouble(v)));
+        applyIfPresent(filterMap, "minTotalCredit", v -> filter.setMinTotalCredit(toDouble(v)));
+        applyIfPresent(filterMap, "priceVsMaxDebitRatio", v -> filter.setPriceVsMaxDebitRatio(toDouble(v)));
+        applyIfPresent(filterMap, "maxCAGRForBreakEven", v -> filter.setMaxCAGRForBreakEven(toDouble(v)));
+        applyIfPresent(filterMap, "maxOptionPricePercent", v -> filter.setMaxOptionPricePercent(toDouble(v)));
+        applyIfPresent(filterMap, "marginInterestRate", v -> filter.setMarginInterestRate(toDouble(v)));
+        applyIfPresent(filterMap, "savingsInterestRate", v -> filter.setSavingsInterestRate(toDouble(v)));
+
+        // ── Strategy-specific fields ──
+        if (filter instanceof CreditSpreadFilter csFilter) {
+            applyLegFilter(filterMap, "shortLeg", csFilter::setShortLeg);
+            applyLegFilter(filterMap, "longLeg", csFilter::setLongLeg);
+        } else if (filter instanceof IronCondorFilter icFilter) {
+            applyLegFilter(filterMap, "putShortLeg", icFilter::setPutShortLeg);
+            applyLegFilter(filterMap, "putLongLeg", icFilter::setPutLongLeg);
+            applyLegFilter(filterMap, "callShortLeg", icFilter::setCallShortLeg);
+            applyLegFilter(filterMap, "callLongLeg", icFilter::setCallLongLeg);
+        } else if (filter instanceof LongCallLeapFilter leapFilter) {
+            applyLegFilter(filterMap, "longCall", leapFilter::setLongCall);
+            applyIfPresent(filterMap, "minCostSavingsPercent", v -> leapFilter.setMinCostSavingsPercent(toDouble(v)));
+            applyIfPresent(filterMap, "minCostEfficiencyPercent", v -> leapFilter.setMinCostEfficiencyPercent(toDouble(v)));
+            applyIfPresent(filterMap, "topTradesCount", v -> leapFilter.setTopTradesCount(toInt(v)));
+            applyIfPresent(filterMap, "relaxationPriority", v -> leapFilter.setRelaxationPriority(toStringList(v)));
+            applyIfPresent(filterMap, "sortPriority", v -> leapFilter.setSortPriority(toStringList(v)));
+        } else if (filter instanceof BrokenWingButterflyFilter bwbFilter) {
+            applyLegFilter(filterMap, "leg1Long", bwbFilter::setLeg1Long);
+            applyLegFilter(filterMap, "leg2Short", bwbFilter::setLeg2Short);
+            applyLegFilter(filterMap, "leg3Long", bwbFilter::setLeg3Long);
+        } else if (filter instanceof ZebraFilter zebraFilter) {
+            applyLegFilter(filterMap, "shortCall", zebraFilter::setShortCall);
+            applyLegFilter(filterMap, "longCall", zebraFilter::setLongCall);
         }
 
         return filter;
+    }
+
+    /**
+     * Builds a LegFilter from a nested map (e.g., "shortLeg": {"minDelta": 0.1, ...}).
+     */
+    @SuppressWarnings("unchecked")
+    private void applyLegFilter(Map<String, Object> filterMap, String key, java.util.function.Consumer<LegFilter> setter) {
+        if (!filterMap.containsKey(key) || filterMap.get(key) == null) return;
+
+        Object legObj = filterMap.get(key);
+        if (!(legObj instanceof Map)) return;
+
+        Map<String, Object> legMap = (Map<String, Object>) legObj;
+        if (legMap.isEmpty()) return;
+
+        LegFilter.LegFilterBuilder builder = LegFilter.builder();
+        applyIfPresent(legMap, "minDelta", v -> builder.minDelta(toDouble(v)));
+        applyIfPresent(legMap, "maxDelta", v -> builder.maxDelta(toDouble(v)));
+        applyIfPresent(legMap, "minPremium", v -> builder.minPremium(toDouble(v)));
+        applyIfPresent(legMap, "maxPremium", v -> builder.maxPremium(toDouble(v)));
+        applyIfPresent(legMap, "minOpenInterest", v -> builder.minOpenInterest(toInt(v)));
+        applyIfPresent(legMap, "minVolume", v -> builder.minVolume(toInt(v)));
+        applyIfPresent(legMap, "minVolatility", v -> builder.minVolatility(toDouble(v)));
+        applyIfPresent(legMap, "maxVolatility", v -> builder.maxVolatility(toDouble(v)));
+
+        setter.accept(builder.build());
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> toStringList(Object value) {
+        if (value instanceof List) {
+            return ((List<Object>) value).stream().map(Object::toString).collect(Collectors.toList());
+        }
+        // Handle comma-separated string
+        return Arrays.stream(value.toString().split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
     }
 
     private void applyIfPresent(Map<String, Object> map, String key, java.util.function.Consumer<Object> setter) {
@@ -346,12 +481,14 @@ public class StrategyController {
     @lombok.Data
     public static class ExecuteRequest {
         private List<Integer> strategyIndices;
+        private List<Integer> screenerIndices;
     }
 
     @lombok.Data
     public static class CustomExecuteRequest {
         private String strategyType;
-        private String securities;
+        private String securitiesFile; // e.g., "portfolio, top100"
+        private String securities;     // e.g., "AAPL, MSFT, GOOG"
         private String alias;
         private Integer maxTradesToSend;
         private Map<String, Object> filter;
