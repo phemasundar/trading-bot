@@ -4,6 +4,7 @@
     <test name="UnitTests">
         <packages>
             <package name="com.hemasundar" />
+            <package name="com.hemasundar.apis" />
             <package name="com.hemasundar.api" />
             <package name="com.hemasundar.config" />
             <package name="com.hemasundar.options.models" />

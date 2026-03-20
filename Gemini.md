@@ -2,6 +2,38 @@
 
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 > **CRITICAL AI RULE**: NEVER use GitHub MCP tools (create PR, merge, create release, etc.) unless the user explicitly asks. Do not assume permission for any GitHub operations.
+## Dashboard Technical Screener Selection (2026-03-19)
+
+Added the ability to select and execute technical screeners independently from the dashboard, with visual separation from options strategies.
+
+### Features
+- **Screener Selection**: Dashboard now shows technical screeners as selectable checkboxes alongside options strategies, separated by a visual divider.
+- **Selective Execution**: Previously all screeners ran unconditionally when any strategy was executed. Now only selected screeners are executed. If none are selected, screeners are skipped entirely.
+- **Select All / Clear All**: Toggles both options strategies and technical screeners.
+
+### Architecture
+- **`StrategyController.java`**: Added `GET /api/screeners` endpoint returning enabled screener list (index, name, type). Added `screenerIndices` to `ExecuteRequest` DTO. Updated `POST /api/execute` to pass screener indices to service.
+- **`StrategyExecutionService.java`**: Added `getEnabledScreeners()` public method. Updated `executeStrategies()` to accept `Set<Integer> screenerIndices` parameter for selective screener execution.
+- **`index.html`**: Added `#screener-checkboxes` container with visual `<hr>` separator and "Technical Screeners" sub-header.
+- **`app.js`**: Updated `loadStrategies()` to fetch `/api/screeners`, `executeSelected()` to send both strategy and screener indices, `selectAll()` to toggle both groups.
+
+## Execute Screen Filter Audit & SecuritiesFile Support (2026-03-19)
+
+Fixed multiple silent bugs where backend `buildFilter()` was ignoring most filter inputs from the /execute screen, and added `securitiesFile` support.
+
+### Features
+- **Securities File Input**: Added a text field on `/execute.html` allowing users to specify predefined securities file names (e.g., `portfolio, top100, tracking`) instead of manually typing all ticker symbols. File symbols and inline tickers are merged and deduplicated.
+- **Complete Backend Filter Parsing**: `buildFilter()` in `StrategyController.java` now correctly parses ALL filter fields sent from the frontend.
+
+### Bug Fixes (Silent Ignores)
+- **Leg Filters**: All strategy-specific leg filters (`shortLeg`, `longLeg`, `putShortLeg`, etc.) were being sent by the frontend but **silently ignored** by the backend. Now parsed via new `applyLegFilter()` helper.
+- **LEAP-Specific Fields**: `minCostSavingsPercent`, `minCostEfficiencyPercent`, `topTradesCount`, `relaxationPriority`, `sortPriority` were all silently ignored. Now fully parsed.
+- **Missing Common Filters**: `maxTotalDebit`, `maxTotalCredit`, `minTotalCredit`, `priceVsMaxDebitRatio`, `maxCAGRForBreakEven`, `maxOptionPricePercent`, `marginInterestRate`, `savingsInterestRate`, `minNetExtrinsicValueToPricePercentage` were all missing from the backend parser. Now fully parsed.
+
+### Architecture
+- **`execute.html`**: Added `securities-file-input` text field with info tooltip.
+- **`StrategyController.java`**: Added `securitiesFile` to `CustomExecuteRequest` DTO. Added securities resolution from file names via `loadSecuritiesMaps()`. Added `applyLegFilter()` and `toStringList()` helpers. Completed `buildFilter()` with all 18 common + strategy-specific fields.
+- **`app.js`**: Updated `executeCustom()` to send `securitiesFile`. Updated `loadTemplateParams()` to populate securities file from templates. Updated validation to accept either file or tickers.
 
 ## Technical Screener Table Customization (2026-03-10)
 
