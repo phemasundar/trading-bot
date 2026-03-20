@@ -233,7 +233,49 @@ function buildScreenerTable(results) {
         const ma50 = (typeof r.ma50 === 'number' && r.ma50 !== 0) ? r.ma50.toFixed(2) : '-';
         const ma20 = (typeof r.ma20 === 'number' && r.ma20 !== 0) ? r.ma20.toFixed(2) : '-';
 
-        html += `<tr class="trade-row">
+        // Build detail lines matching Telegram format
+        const detailLines = [];
+        detailLines.push(`💰 Price: $${(typeof r.currentPrice === 'number') ? r.currentPrice.toFixed(2) : '-'}`);
+        detailLines.push(`📊 Volume: ${(typeof r.volume === 'number') ? r.volume.toLocaleString() : '-'}`);
+
+        // RSI with previous + status
+        if (typeof r.rsi === 'number') {
+            let rsiLine = `📈 RSI: ${r.rsi.toFixed(2)}`;
+            if (typeof r.previousRsi === 'number') rsiLine += ` (prev: ${r.previousRsi.toFixed(2)})`;
+            if (r.rsiBullishCrossover) rsiLine += ' ⬆️ CROSSOVER';
+            else if (r.rsiBearishCrossover) rsiLine += ' ⬇️ CROSSOVER';
+            else if (r.rsiOversold) rsiLine += ' 🔴 OVERSOLD';
+            else if (r.rsiOverbought) rsiLine += ' 🟢 OVERBOUGHT';
+            detailLines.push(rsiLine);
+        }
+
+        // Bollinger Bands with position
+        if (typeof r.bollingerLower === 'number') {
+            let bbLine = '📉 BB: ';
+            if (r.priceTouchingLowerBand) bbLine += `Touching Lower ($${r.bollingerLower.toFixed(2)})`;
+            else if (r.priceTouchingUpperBand) bbLine += `Touching Upper ($${r.bollingerUpper.toFixed(2)})`;
+            else bbLine += `Within bands ($${r.bollingerLower.toFixed(2)} - $${r.bollingerUpper.toFixed(2)})`;
+            detailLines.push(bbLine);
+        }
+
+        // Moving Averages - above/below summary
+        const belowMAs = [];
+        const aboveMAs = [];
+        if (typeof r.ma20 === 'number' && r.ma20 !== 0) { r.priceBelowMA20 ? belowMAs.push('MA20') : aboveMAs.push('MA20'); }
+        if (typeof r.ma50 === 'number' && r.ma50 !== 0) { r.priceBelowMA50 ? belowMAs.push('MA50') : aboveMAs.push('MA50'); }
+        if (typeof r.ma100 === 'number' && r.ma100 !== 0) { r.priceBelowMA100 ? belowMAs.push('MA100') : aboveMAs.push('MA100'); }
+        if (typeof r.ma200 === 'number' && r.ma200 !== 0) { r.priceBelowMA200 ? belowMAs.push('MA200') : aboveMAs.push('MA200'); }
+        if (belowMAs.length > 0 || aboveMAs.length > 0) {
+            let maLine = '📊 MAs: ';
+            if (belowMAs.length > 0) maLine += `Below ${belowMAs.join(', ')}`;
+            if (belowMAs.length > 0 && aboveMAs.length > 0) maLine += ' | ';
+            if (aboveMAs.length > 0) maLine += `Above ${aboveMAs.join(', ')}`;
+            detailLines.push(maLine);
+        }
+
+        const detailStr = escapeAttr(detailLines.join('\n'));
+
+        html += `<tr class="trade-row" data-details="${detailStr}">
             <td><strong class="${typeClass}">${r.symbol || ''}</strong></td>
             <td class="text-mono">${price}</td>
             <td>${volume}</td>
@@ -546,20 +588,44 @@ async function initDashboard() {
 }
 
 async function loadStrategies() {
-    const container = document.getElementById('strategy-checkboxes');
-    if (!container) return;
-    try {
-        const strategies = await API.get('/api/strategies');
-        container.innerHTML = strategies.map(s => `
-            <div class="flex items-center gap-sm" style="margin-bottom: 8px;">
-                <label class="checkbox-label" style="margin: 0;">
-                    <input type="checkbox" value="${s.index}" checked>
-                    <span>${s.name}</span>
-                </label>
-                ${s.descriptionFile ? `<button type="button" class="info-btn" onclick="showInfo(event, '${s.descriptionFile}', '${escapeAttr(s.name)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>` : ''}
-            </div>`).join('');
-    } catch (e) {
-        container.innerHTML = `<span class="text-muted">Failed to load strategies</span>`;
+    const strategyContainer = document.getElementById('strategy-checkboxes');
+    const screenerContainer = document.getElementById('screener-checkboxes');
+
+    // Load options strategies
+    if (strategyContainer) {
+        try {
+            const strategies = await API.get('/api/strategies');
+            strategyContainer.innerHTML = strategies.map(s => `
+                <div class="flex items-center gap-sm" style="margin-bottom: 8px;">
+                    <label class="checkbox-label" style="margin: 0;">
+                        <input type="checkbox" value="${s.index}" data-type="strategy" checked>
+                        <span>${s.name}</span>
+                    </label>
+                    ${s.descriptionFile ? `<button type="button" class="info-btn" onclick="showInfo(event, '${s.descriptionFile}', '${escapeAttr(s.name)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>` : ''}
+                </div>`).join('');
+        } catch (e) {
+            strategyContainer.innerHTML = `<span class="text-muted">Failed to load strategies</span>`;
+        }
+    }
+
+    // Load technical screeners
+    if (screenerContainer) {
+        try {
+            const screeners = await API.get('/api/screeners');
+            if (screeners.length === 0) {
+                screenerContainer.innerHTML = `<span class="text-muted">No screeners configured</span>`;
+            } else {
+                screenerContainer.innerHTML = screeners.map(s => `
+                    <div class="flex items-center gap-sm" style="margin-bottom: 8px;">
+                        <label class="checkbox-label" style="margin: 0;">
+                            <input type="checkbox" value="${s.index}" data-type="screener" checked>
+                            <span>${s.name}</span>
+                        </label>
+                    </div>`).join('');
+            }
+        } catch (e) {
+            screenerContainer.innerHTML = `<span class="text-muted">Failed to load screeners</span>`;
+        }
     }
 }
 
@@ -774,15 +840,17 @@ function showFilterHelp(event, key, label) {
 }
 
 async function executeSelected() {
-    const checked = document.querySelectorAll('#strategy-checkboxes input[type="checkbox"]:checked');
-    const indices = Array.from(checked).map(c => parseInt(c.value));
-    if (indices.length === 0) {
-        showToast('Select at least one strategy', 'error');
+    const checkedStrategies = document.querySelectorAll('#strategy-checkboxes input[type="checkbox"]:checked');
+    const checkedScreeners = document.querySelectorAll('#screener-checkboxes input[type="checkbox"]:checked');
+    const strategyIndices = Array.from(checkedStrategies).map(c => parseInt(c.value));
+    const screenerIndices = Array.from(checkedScreeners).map(c => parseInt(c.value));
+    if (strategyIndices.length === 0 && screenerIndices.length === 0) {
+        showToast('Select at least one strategy or screener', 'error');
         return;
     }
     try {
         setDashboardBusy(true);
-        const res = await API.post('/api/execute', { strategyIndices: indices });
+        const res = await API.post('/api/execute', { strategyIndices, screenerIndices });
         showToast(res.message);
         startTimer(Date.now());
         startPolling(() => {
@@ -807,6 +875,8 @@ async function cancelExecution() {
 
 function selectAll(check) {
     document.querySelectorAll('#strategy-checkboxes input[type="checkbox"]')
+        .forEach(cb => cb.checked = check);
+    document.querySelectorAll('#screener-checkboxes input[type="checkbox"]')
         .forEach(cb => cb.checked = check);
 }
 
@@ -982,6 +1052,11 @@ function loadTemplateParams(strategyJson) {
             secInput.value = strategy.securities || '';
         }
 
+        const secFileInput = document.getElementById('securities-file-input');
+        if (secFileInput) {
+            secFileInput.value = strategy.securitiesFile || '';
+        }
+
         // 2. Clear existing filters by resetting to empty
         document.querySelectorAll('[data-filter]').forEach(inp => {
             if (inp.type === 'checkbox') {
@@ -1065,10 +1140,17 @@ function renderSpecificFilters(strategyValue) {
 async function executeCustom() {
     const typeEl = document.getElementById('strategy-type');
     const securitiesEl = document.getElementById('securities-input');
+    const securitiesFileEl = document.getElementById('securities-file-input');
     const aliasEl = document.getElementById('alias-input');
 
     if (!typeEl.value) { showToast('Select a strategy type', 'error'); return; }
-    if (!securitiesEl.value.trim()) { showToast('Enter at least one security', 'error'); return; }
+
+    const hasFile = securitiesFileEl && securitiesFileEl.value.trim();
+    const hasTickers = securitiesEl && securitiesEl.value.trim();
+    if (!hasFile && !hasTickers) {
+        showToast('Provide a securities file, inline tickers, or both', 'error');
+        return;
+    }
 
     // Collect all filter values (common + specific)
     const filter = {};
@@ -1107,7 +1189,8 @@ async function executeCustom() {
 
     const body = {
         strategyType: typeEl.value,
-        securities: securitiesEl.value,
+        securitiesFile: securitiesFileEl ? securitiesFileEl.value.trim() : '',
+        securities: securitiesEl ? securitiesEl.value.trim() : '',
         alias: aliasEl ? aliasEl.value : '',
         maxTradesToSend: 30,
         filter
