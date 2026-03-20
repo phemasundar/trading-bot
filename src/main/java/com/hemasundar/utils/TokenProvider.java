@@ -19,6 +19,10 @@ public enum TokenProvider {
 
     private final AtomicReference<TokenData> tokenReference = new AtomicReference<>();
 
+    public void clearToken() {
+        tokenReference.set(null);
+    }
+
     public String getAccessToken() {
         TokenData current = tokenReference.get();
 

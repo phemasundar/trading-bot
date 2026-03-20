@@ -3331,6 +3331,20 @@
         "symbol" : "HOOD",
         "year" : 2026
       } ]
+    },
+    "TEST_TICKER" : {
+      "lastFetched" : "2026-03-19",
+      "earnings" : [ {
+        "date" : "2026-03-24",
+        "epsActual" : null,
+        "epsEstimate" : null,
+        "hour" : null,
+        "quarter" : null,
+        "revenueActual" : null,
+        "revenueEstimate" : null,
+        "symbol" : "TEST_TICKER",
+        "year" : null
+      } ]
     }
   }
 }

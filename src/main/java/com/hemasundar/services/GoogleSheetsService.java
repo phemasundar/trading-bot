@@ -49,6 +49,17 @@ public class GoogleSheetsService {
         }
 
         /**
+         * Constructor for testing.
+         *
+         * @param spreadsheetId Spreadsheet ID
+         * @param sheetsService Mocked Sheets service
+         */
+        GoogleSheetsService(String spreadsheetId, Sheets sheetsService) {
+                this.spreadsheetId = spreadsheetId;
+                this.sheetsService = sheetsService;
+        }
+
+        /**
          * Creates credentials for Google Sheets API using Service Account.
          * Authentication sources (in order of priority):
          * 1. GOOGLE_SERVICE_ACCOUNT_JSON environment variable (for CI/CD)
