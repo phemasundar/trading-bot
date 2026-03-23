@@ -7,11 +7,10 @@ import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionsConfig;
 import com.hemasundar.options.strategies.AbstractTradingStrategy;
 import com.hemasundar.pojos.Securities;
-import com.hemasundar.services.StrategyExecutionService;
-import com.hemasundar.services.SupabaseService;
 import com.hemasundar.technical.TechnicalScreener;
 import com.hemasundar.utils.FilePaths;
 import com.hemasundar.utils.JavaUtils;
+import com.hemasundar.utils.SecuritiesResolver;
 import com.hemasundar.utils.TelegramUtils;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -33,6 +32,9 @@ public class StrategyExecutionServiceTest {
 
     @Mock
     private SupabaseService supabaseService;
+
+    @Mock
+    private SecuritiesResolver securitiesResolver;
 
     @InjectMocks
     private StrategyExecutionService strategyExecutionService;
@@ -62,6 +64,12 @@ public class StrategyExecutionServiceTest {
         mockedFilePaths.when(() -> FilePaths.readResource(anyString())).thenReturn("securities: []");
         mockedJavaUtils.when(() -> JavaUtils.convertYamlToPojo(anyString(), eq(Securities.class)))
                 .thenReturn(new Securities(Collections.emptyList()));
+                
+        try {
+            when(securitiesResolver.loadSecuritiesMaps()).thenReturn(new HashMap<>());
+        } catch (IOException e) {
+            // ignore
+        }
     }
 
     @AfterMethod
@@ -97,7 +105,7 @@ public class StrategyExecutionServiceTest {
         mockedLoader.when(() -> StrategiesConfigLoader.load(anyString(), anyMap()))
                 .thenReturn(List.of(config));
 
-        ExecutionResult result = strategyExecutionService.executeStrategies(Set.of(0), null);
+        ExecutionResult result = strategyExecutionService.executeStrategies(Set.of(0));
 
         assertNotNull(result);
         assertEquals(result.getResults().size(), 1);
@@ -109,7 +117,7 @@ public class StrategyExecutionServiceTest {
         mockedLoader.when(() -> StrategiesConfigLoader.load(anyString(), anyMap()))
                 .thenReturn(Collections.emptyList());
 
-        ExecutionResult result = strategyExecutionService.executeStrategies(Collections.emptySet(), null);
+        ExecutionResult result = strategyExecutionService.executeStrategies(Collections.emptySet());
 
         assertNotNull(result);
         assertEquals(result.getResults().size(), 0);
@@ -140,7 +148,7 @@ public class StrategyExecutionServiceTest {
                 .thenReturn(List.of(config1, config2));
 
         Set<Integer> indices = new LinkedHashSet<>(List.of(0, 1));
-        ExecutionResult result = strategyExecutionService.executeStrategies(indices, null);
+        ExecutionResult result = strategyExecutionService.executeStrategies(indices);
 
         // Strategy 1 should finish, but Strategy 2 should be skipped due to
         // cancellation
@@ -148,17 +156,7 @@ public class StrategyExecutionServiceTest {
         assertTrue(strategyExecutionService.isCancellationRequested());
     }
 
-    @Test
-    public void testLoadSecuritiesMaps() throws IOException {
-        mockedFilePaths.when(() -> FilePaths.readResource(anyString())).thenReturn("securities: [AAPL, MSFT]");
-        mockedJavaUtils.when(() -> JavaUtils.convertYamlToPojo(anyString(), eq(Securities.class)))
-                .thenReturn(new Securities(List.of("AAPL", "MSFT")));
 
-        Map<String, List<String>> maps = strategyExecutionService.loadSecuritiesMaps();
-        assertNotNull(maps);
-        assertTrue(maps.containsKey("portfolio"));
-        assertEquals(maps.get("portfolio").size(), 2);
-    }
 
     @Test
     public void testExecuteCustomStrategy() throws IOException {
@@ -198,35 +196,5 @@ public class StrategyExecutionServiceTest {
         mockedScreener.verify(() -> TechnicalScreener.screenStocks(eq(List.of("AAPL", "MSFT")), any()));
     }
 
-    @Test
-    public void testExecuteStrategies_WithTechnicalScreeners() throws IOException {
-        // Mock at least one options strategy to avoid early return
-        OptionsConfig dummyConfig = mock(OptionsConfig.class);
-        when(dummyConfig.getName()).thenReturn("Dummy");
-        when(dummyConfig.getStrategy()).thenReturn(mock(AbstractTradingStrategy.class));
 
-        mockedLoader.when(() -> StrategiesConfigLoader.load(anyString(), anyMap()))
-                .thenReturn(List.of(dummyConfig));
-        
-        // Mock a screener
-        com.hemasundar.technical.ScreenerConfig screenerConfig = mock(com.hemasundar.technical.ScreenerConfig.class);
-        when(screenerConfig.getName()).thenReturn("Test Screener");
-        when(screenerConfig.getSecurities()).thenReturn(List.of("AAPL"));
-        when(screenerConfig.getScreenerType()).thenReturn(com.hemasundar.technical.ScreenerType.RSI_BB_BULLISH_CROSSOVER);
-        when(screenerConfig.getConditions()).thenReturn(mock(com.hemasundar.technical.TechFilterConditions.class));
-        
-        mockedLoader.when(() -> StrategiesConfigLoader.loadScreeners(anyMap()))
-                .thenReturn(List.of(screenerConfig));
-        
-        TechnicalScreener.ScreeningResult screenRes = mock(TechnicalScreener.ScreeningResult.class);
-        when(screenRes.getSymbol()).thenReturn("AAPL");
-        mockedScreener.when(() -> TechnicalScreener.screenStocks(anyList(), any()))
-                .thenReturn(List.of(screenRes));
-
-        ExecutionResult result = strategyExecutionService.executeStrategies(java.util.Set.of(0), java.util.Set.of(0));
-        
-        assertNotNull(result);
-        mockedScreener.verify(() -> TechnicalScreener.screenStocks(anyList(), any()), atLeastOnce());
-        verify(supabaseService).saveScreenerResult(any());
-    }
 }

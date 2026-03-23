@@ -8,6 +8,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.ta4j.core.BarSeries;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +28,7 @@ public class TechnicalScreener {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class ScreeningResult {
         private String symbol;
         private double currentPrice;
@@ -49,6 +52,77 @@ public class TechnicalScreener {
         private boolean rsiOverbought;
         private boolean rsiBullishCrossover;
         private boolean rsiBearishCrossover;
+
+        /**
+         * Returns a concise plain-text summary of the screening result.
+         * Used by both the Web UI (click-to-expand) and Telegram alerts.
+         * This is the single source of truth for screener result formatting.
+         */
+        @JsonIgnore
+        public String getFormattedSummary() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("  💰 Price: $").append(String.format("%.2f", currentPrice)).append("\n");
+
+            // Volume
+            sb.append("  📊 Volume: ").append(formatVolume(volume)).append("\n");
+
+            // RSI Section
+            sb.append("  📈 RSI: ").append(String.format("%.2f", rsi));
+            sb.append(" (prev: ").append(String.format("%.2f", previousRsi)).append(")");
+            if (rsiBullishCrossover) {
+                sb.append(" ⬆️ CROSSOVER");
+            } else if (rsiBearishCrossover) {
+                sb.append(" ⬇️ CROSSOVER");
+            } else if (rsiOversold) {
+                sb.append(" 🔴 OVERSOLD");
+            } else if (rsiOverbought) {
+                sb.append(" 🟢 OVERBOUGHT");
+            }
+            sb.append("\n");
+
+            // Bollinger Bands Section - Condensed
+            sb.append("  📉 BB: ");
+            if (priceTouchingLowerBand) {
+                sb.append("Touching Lower ($").append(String.format("%.2f", bollingerLower)).append(")");
+            } else if (priceTouchingUpperBand) {
+                sb.append("Touching Upper ($").append(String.format("%.2f", bollingerUpper)).append(")");
+            } else {
+                sb.append("Within bands ($").append(String.format("%.2f", bollingerLower))
+                        .append(" - $").append(String.format("%.2f", bollingerUpper)).append(")");
+            }
+            sb.append("\n");
+
+            // Moving Averages Section - Condensed summary
+            List<String> belowMAs = new ArrayList<>();
+            List<String> aboveMAs = new ArrayList<>();
+
+            if (priceBelowMA20) belowMAs.add("MA20"); else aboveMAs.add("MA20");
+            if (priceBelowMA50) belowMAs.add("MA50"); else aboveMAs.add("MA50");
+            if (priceBelowMA100) belowMAs.add("MA100"); else aboveMAs.add("MA100");
+            if (priceBelowMA200) belowMAs.add("MA200"); else aboveMAs.add("MA200");
+
+            sb.append("  📊 MAs: ");
+            if (!belowMAs.isEmpty()) {
+                sb.append("Below ").append(String.join(", ", belowMAs));
+            }
+            if (!belowMAs.isEmpty() && !aboveMAs.isEmpty()) {
+                sb.append(" | ");
+            }
+            if (!aboveMAs.isEmpty()) {
+                sb.append("Above ").append(String.join(", ", aboveMAs));
+            }
+            sb.append("\n");
+            return sb.toString();
+        }
+
+        private static String formatVolume(long volume) {
+            if (volume >= 1_000_000) {
+                return String.format("%.2fM", volume / 1_000_000.0);
+            } else if (volume >= 1_000) {
+                return String.format("%.2fK", volume / 1_000.0);
+            }
+            return String.valueOf(volume);
+        }
 
         @Override
         public String toString() {

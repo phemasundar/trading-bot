@@ -18,6 +18,7 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
 - **Technical Indicators**: RSI, Bollinger Bands, and Volume analysis using ta4j library
 - **Telegram Notifications**: Receive trade alerts directly to your Telegram
 - **Interactive UI Dashboard**: Execute custom strategy instances, explore strategy configurations with user-defined technical screener aliases, and view data-rich technical screening results with customizable indicator tables.
+- **Robust Architecture**: Strictly immutable Data Transfer Objects (DTOs) via Lombok `@Value` and `@Jacksonized` for thread-safe concurrent execution.
 
 ## Prerequisites
 
@@ -201,7 +202,7 @@ TechnicalFilterChain overboughtFilterChain = TechnicalFilterChain.of(indicators,
 
 ## Testing & CI/CD Coverage
 
-The project enforces a **minimum 60% instruction coverage** for all core business logic using JaCoCo. This is enforced locally during Maven verification and via GitHub Actions for any Pull Request targeting the `main` branch.
+The project enforces a **minimum 75% instruction coverage** for all core business logic using JaCoCo. This is enforced locally during Maven verification and via GitHub Actions for any Pull Request targeting the `main` branch.
 
 ### Unit Tests
 Unit tests run locally without making real external API calls (Schwab, Supabase, Telegram are mocked).

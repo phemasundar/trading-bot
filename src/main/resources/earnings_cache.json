@@ -159,25 +159,25 @@
       } ]
     },
     "MA" : {
-      "lastFetched" : "2026-02-12",
+      "lastFetched" : "2026-03-22",
       "earnings" : [ {
         "date" : "2026-07-29",
         "epsActual" : null,
-        "epsEstimate" : "4.9281",
+        "epsEstimate" : "4.9833",
         "hour" : "bmo",
         "quarter" : 2,
         "revenueActual" : null,
-        "revenueEstimate" : 9395085775,
+        "revenueEstimate" : 9386289842,
         "symbol" : "MA",
         "year" : 2026
       }, {
         "date" : "2026-04-29",
         "epsActual" : null,
-        "epsEstimate" : "4.5252",
+        "epsEstimate" : "4.5211",
         "hour" : "bmo",
         "quarter" : 1,
         "revenueActual" : null,
-        "revenueEstimate" : 8489505593,
+        "revenueEstimate" : 8490403959,
         "symbol" : "MA",
         "year" : 2026
       } ]
@@ -313,25 +313,15 @@
       } ]
     },
     "AVGO" : {
-      "lastFetched" : "2026-02-14",
+      "lastFetched" : "2026-03-22",
       "earnings" : [ {
         "date" : "2026-06-03",
         "epsActual" : null,
-        "epsEstimate" : "2.1859",
+        "epsEstimate" : "2.4359",
         "hour" : "amc",
         "quarter" : 2,
         "revenueActual" : null,
-        "revenueEstimate" : 21104175523,
-        "symbol" : "AVGO",
-        "year" : 2026
-      }, {
-        "date" : "2026-03-04",
-        "epsActual" : null,
-        "epsEstimate" : "2.0306",
-        "hour" : "amc",
-        "quarter" : 1,
-        "revenueActual" : null,
-        "revenueEstimate" : 19504331196,
+        "revenueEstimate" : 22652032020,
         "symbol" : "AVGO",
         "year" : 2026
       } ]
@@ -473,49 +463,39 @@
       } ]
     },
     "V" : {
-      "lastFetched" : "2026-02-14",
+      "lastFetched" : "2026-03-22",
       "earnings" : [ {
         "date" : "2026-07-27",
         "epsActual" : null,
-        "epsEstimate" : "3.2351",
+        "epsEstimate" : "3.2354",
         "hour" : "amc",
         "quarter" : 3,
         "revenueActual" : null,
-        "revenueEstimate" : 11362748714,
+        "revenueEstimate" : 11330677507,
         "symbol" : "V",
         "year" : 2026
       }, {
         "date" : "2026-04-27",
         "epsActual" : null,
-        "epsEstimate" : "3.1548",
+        "epsEstimate" : "3.154",
         "hour" : "amc",
         "quarter" : 2,
         "revenueActual" : null,
-        "revenueEstimate" : 10949341286,
+        "revenueEstimate" : 10949532169,
         "symbol" : "V",
         "year" : 2026
       } ]
     },
     "ORCL" : {
-      "lastFetched" : "2026-02-14",
+      "lastFetched" : "2026-03-22",
       "earnings" : [ {
         "date" : "2026-06-09",
         "epsActual" : null,
-        "epsEstimate" : "2.0014",
+        "epsEstimate" : "2.0047",
         "hour" : "amc",
         "quarter" : 4,
         "revenueActual" : null,
-        "revenueEstimate" : 19494352608,
-        "symbol" : "ORCL",
-        "year" : 2026
-      }, {
-        "date" : "2026-03-09",
-        "epsActual" : null,
-        "epsEstimate" : "1.7402",
-        "hour" : "amc",
-        "quarter" : 3,
-        "revenueActual" : null,
-        "revenueEstimate" : 17242967532,
+        "revenueEstimate" : 19485582138,
         "symbol" : "ORCL",
         "year" : 2026
       } ]
@@ -865,51 +845,41 @@
       } ]
     },
     "AMD" : {
-      "lastFetched" : "2026-02-14",
+      "lastFetched" : "2026-03-22",
       "earnings" : [ {
         "date" : "2026-08-03",
         "epsActual" : null,
-        "epsEstimate" : "1.3953",
+        "epsEstimate" : "1.4227",
         "hour" : "amc",
         "quarter" : 2,
         "revenueActual" : null,
-        "revenueEstimate" : 10151455146,
+        "revenueEstimate" : 10558798327,
         "symbol" : "AMD",
         "year" : 2026
       }, {
         "date" : "2026-05-04",
         "epsActual" : null,
-        "epsEstimate" : "1.2842",
+        "epsEstimate" : "1.2904",
         "hour" : "amc",
         "quarter" : 1,
         "revenueActual" : null,
-        "revenueEstimate" : 9945789250,
+        "revenueEstimate" : 9947470294,
         "symbol" : "AMD",
         "year" : 2026
       } ]
     },
     "CRM" : {
-      "lastFetched" : "2026-02-14",
+      "lastFetched" : "2026-03-22",
       "earnings" : [ {
         "date" : "2026-05-26",
         "epsActual" : null,
-        "epsEstimate" : "3.0309",
+        "epsEstimate" : "3.1478",
         "hour" : "amc",
         "quarter" : 1,
         "revenueActual" : null,
-        "revenueEstimate" : 11108318693,
+        "revenueEstimate" : 11161806990,
         "symbol" : "CRM",
         "year" : 2027
-      }, {
-        "date" : "2026-02-26",
-        "epsActual" : null,
-        "epsEstimate" : "3.0749",
-        "hour" : "amc",
-        "quarter" : 4,
-        "revenueActual" : null,
-        "revenueEstimate" : 11273647138,
-        "symbol" : "CRM",
-        "year" : 2026
       } ]
     },
     "IBM" : {
@@ -1535,25 +1505,25 @@
       } ]
     },
     "UBER" : {
-      "lastFetched" : "2026-02-14",
+      "lastFetched" : "2026-03-22",
       "earnings" : [ {
         "date" : "2026-08-04",
         "epsActual" : null,
-        "epsEstimate" : "0.8661",
+        "epsEstimate" : "0.8088",
         "hour" : "bmo",
         "quarter" : 2,
         "revenueActual" : null,
-        "revenueEstimate" : 15026120034,
+        "revenueEstimate" : 14476471635,
         "symbol" : "UBER",
         "year" : 2026
       }, {
         "date" : "2026-05-05",
         "epsActual" : null,
-        "epsEstimate" : "0.7175",
+        "epsEstimate" : "0.7188",
         "hour" : "bmo",
         "quarter" : 1,
         "revenueActual" : null,
-        "revenueEstimate" : 13597937464,
+        "revenueEstimate" : 13596560250,
         "symbol" : "UBER",
         "year" : 2026
       } ]
@@ -1627,61 +1597,51 @@
       } ]
     },
     "SPGI" : {
-      "lastFetched" : "2026-02-14",
+      "lastFetched" : "2026-03-22",
       "earnings" : [ {
         "date" : "2026-07-29",
         "epsActual" : null,
-        "epsEstimate" : "5.0896",
+        "epsEstimate" : "5.0546",
         "hour" : "bmo",
         "quarter" : 2,
         "revenueActual" : null,
-        "revenueEstimate" : 4144178695,
+        "revenueEstimate" : 4168863756,
         "symbol" : "SPGI",
         "year" : 2026
       }, {
         "date" : "2026-04-27",
         "epsActual" : null,
-        "epsEstimate" : "5.0058",
+        "epsEstimate" : "4.9186",
         "hour" : "bmo",
         "quarter" : 1,
         "revenueActual" : null,
-        "revenueEstimate" : 4147693177,
+        "revenueEstimate" : 4156731315,
         "symbol" : "SPGI",
         "year" : 2026
       } ]
     },
     "BKNG" : {
-      "lastFetched" : "2026-02-14",
+      "lastFetched" : "2026-03-22",
       "earnings" : [ {
         "date" : "2026-07-27",
         "epsActual" : null,
-        "epsEstimate" : "66.164",
+        "epsEstimate" : "66.6401",
         "hour" : "amc",
         "quarter" : 2,
         "revenueActual" : null,
-        "revenueEstimate" : 7548478329,
+        "revenueEstimate" : 7722901021,
         "symbol" : "BKNG",
         "year" : 2026
       }, {
         "date" : "2026-04-27",
         "epsActual" : null,
-        "epsEstimate" : "30.6532",
+        "epsEstimate" : "27.9198",
         "hour" : "amc",
         "quarter" : 1,
         "revenueActual" : null,
-        "revenueEstimate" : 5441414094,
+        "revenueEstimate" : 5617045945,
         "symbol" : "BKNG",
         "year" : 2026
-      }, {
-        "date" : "2026-02-18",
-        "epsActual" : null,
-        "epsEstimate" : "49.0829",
-        "hour" : "amc",
-        "quarter" : 4,
-        "revenueActual" : null,
-        "revenueEstimate" : 6243334595,
-        "symbol" : "BKNG",
-        "year" : 2025
       } ]
     },
     "ISRG" : {
@@ -3333,9 +3293,9 @@
       } ]
     },
     "TEST_TICKER" : {
-      "lastFetched" : "2026-03-19",
+      "lastFetched" : "2026-03-22",
       "earnings" : [ {
-        "date" : "2026-03-24",
+        "date" : "2026-03-27",
         "epsActual" : null,
         "epsEstimate" : null,
         "hour" : null,
