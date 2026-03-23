@@ -1,11 +1,8 @@
 package com.hemasundar.api;
 
-import com.hemasundar.dto.StrategyResult;
-import com.hemasundar.options.models.OptionsConfig;
-import com.hemasundar.options.strategies.StrategyType;
 import com.hemasundar.services.StrategyExecutionService;
-import com.hemasundar.api.StrategyController.ExecuteRequest;
-import com.hemasundar.api.StrategyController.CustomExecuteRequest;
+import com.hemasundar.dto.ExecuteRequest;
+import com.hemasundar.dto.CustomExecuteRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -15,18 +12,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.HashSet;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -40,6 +31,12 @@ public class StrategyControllerTest {
     @Mock
     private StrategyExecutionService executionService;
 
+    @Mock
+    private com.hemasundar.services.ScreenerExecutionService screenerExecutionService;
+
+    @Mock
+    private com.hemasundar.utils.SecuritiesResolver securitiesResolver;
+
     @InjectMocks
     private StrategyController strategyController;
 
@@ -48,7 +45,7 @@ public class StrategyControllerTest {
     @BeforeMethod
     public void setup() {
         MockitoAnnotations.openMocks(this);
-        strategyController = new StrategyController(executionService);
+        strategyController = new StrategyController(executionService, screenerExecutionService, securitiesResolver);
         mockMvc = MockMvcBuilders.standaloneSetup(strategyController).build();
     }
 
@@ -66,7 +63,7 @@ public class StrategyControllerTest {
                 .alias("RSI Oversold")
                 .screenerType(com.hemasundar.technical.ScreenerType.RSI_OVERSOLD)
                 .build();
-        when(executionService.getEnabledScreeners()).thenReturn(Collections.singletonList(screener));
+        when(screenerExecutionService.getEnabledScreeners()).thenReturn(Collections.singletonList(screener));
 
         mockMvc.perform(get("/api/screeners"))
                 .andExpect(status().isOk())
@@ -76,7 +73,7 @@ public class StrategyControllerTest {
 
     @Test
     public void testGetEnabledScreeners_Error() throws Exception {
-        when(executionService.getEnabledScreeners()).thenThrow(new IOException("Disk error"));
+        when(screenerExecutionService.getEnabledScreeners()).thenThrow(new IOException("Disk error"));
         mockMvc.perform(get("/api/screeners"))
                 .andExpect(status().isInternalServerError());
     }
@@ -90,22 +87,23 @@ public class StrategyControllerTest {
 
     @Test
     public void testGetScreenerResults() throws Exception {
-        when(executionService.getLatestScreenerResults()).thenReturn(Collections.emptyList());
+        when(screenerExecutionService.getLatestScreenerResults()).thenReturn(Collections.emptyList());
         mockMvc.perform(get("/api/results/screeners"))
                 .andExpect(status().isOk());
     }
 
     @Test
     public void testGetScreenerResults_Error() throws Exception {
-        when(executionService.getLatestScreenerResults()).thenThrow(new RuntimeException("DB error"));
+        when(screenerExecutionService.getLatestScreenerResults()).thenThrow(new RuntimeException("DB error"));
         mockMvc.perform(get("/api/results/screeners"))
                 .andExpect(status().isInternalServerError());
     }
 
     @Test
     public void testExecuteStrategy_AlreadyRunning() throws Exception {
-        StrategyController.ExecuteRequest request = new StrategyController.ExecuteRequest();
-        request.setStrategyIndices(Arrays.asList(0));
+        ExecuteRequest request = ExecuteRequest.builder()
+                .strategyIndices(Arrays.asList(0))
+                .build();
         when(executionService.isExecutionRunning()).thenReturn(true);
 
         mockMvc.perform(post("/api/execute")
@@ -116,10 +114,11 @@ public class StrategyControllerTest {
     }
 
     @Test
-    public void testExecuteStrategy_WithScreeners() throws Exception {
-        StrategyController.ExecuteRequest request = new StrategyController.ExecuteRequest();
-        request.setStrategyIndices(Arrays.asList(0));
-        request.setScreenerIndices(Arrays.asList(1));
+    public void testExecuteStrategies() throws Exception {
+        ExecuteRequest request = ExecuteRequest.builder()
+                .strategyIndices(Arrays.asList(0))
+                .screenerIndices(Arrays.asList(1))
+                .build();
         when(executionService.isExecutionRunning()).thenReturn(false);
 
         mockMvc.perform(post("/api/execute")
@@ -131,8 +130,9 @@ public class StrategyControllerTest {
 
     @Test
     public void testExecuteCustomStrategy_AlreadyRunning() throws Exception {
-        StrategyController.CustomExecuteRequest request = new StrategyController.CustomExecuteRequest();
-        request.setStrategyType("PUT_CREDIT_SPREAD");
+        CustomExecuteRequest request = CustomExecuteRequest.builder()
+                .strategyType("PUT_CREDIT_SPREAD")
+                .build();
         when(executionService.isExecutionRunning()).thenReturn(true);
 
         mockMvc.perform(post("/api/execute/custom")
@@ -142,9 +142,10 @@ public class StrategyControllerTest {
     }
 
     @Test
-    public void testExecuteCustomStrategy_NoSecurities() throws Exception {
-        StrategyController.CustomExecuteRequest request = new StrategyController.CustomExecuteRequest();
-        request.setStrategyType("PUT_CREDIT_SPREAD");
+    public void testExecuteCustomStrategy_WithoutAlias() throws Exception {
+        CustomExecuteRequest request = CustomExecuteRequest.builder()
+                .strategyType("PUT_CREDIT_SPREAD")
+                .build();
         when(executionService.isExecutionRunning()).thenReturn(false);
 
         mockMvc.perform(post("/api/execute/custom")
@@ -156,9 +157,10 @@ public class StrategyControllerTest {
 
     @Test
     public void testExecuteCustomStrategy_InvalidType() throws Exception {
-        StrategyController.CustomExecuteRequest request = new StrategyController.CustomExecuteRequest();
-        request.setStrategyType("INVALID_TYPE");
-        request.setSecurities("AAPL");
+        CustomExecuteRequest request = CustomExecuteRequest.builder()
+                .strategyType("INVALID_TYPE")
+                .securities("AAPL")
+                .build();
         when(executionService.isExecutionRunning()).thenReturn(false);
 
         mockMvc.perform(post("/api/execute/custom")
@@ -169,14 +171,15 @@ public class StrategyControllerTest {
 
     @Test
     public void testExecuteCustomStrategy_WithSecuritiesFile() throws Exception {
-        StrategyController.CustomExecuteRequest request = new StrategyController.CustomExecuteRequest();
-        request.setStrategyType("PUT_CREDIT_SPREAD");
-        request.setSecuritiesFile("portfolio");
+        CustomExecuteRequest request = CustomExecuteRequest.builder()
+                .strategyType("PUT_CREDIT_SPREAD")
+                .securitiesFile("portfolio")
+                .build();
         when(executionService.isExecutionRunning()).thenReturn(false);
         
         Map<String, List<String>> securities = new HashMap<>();
         securities.put("portfolio", Arrays.asList("AAPL", "MSFT"));
-        when(executionService.loadSecuritiesMaps()).thenReturn(securities);
+        when(securitiesResolver.loadSecuritiesMaps()).thenReturn(securities);
 
         mockMvc.perform(post("/api/execute/custom")
                 .content(objectMapper.writeValueAsString(request))
@@ -186,19 +189,14 @@ public class StrategyControllerTest {
 
     @Test
     public void testExecuteCustomStrategy_WithComplexFilter() throws Exception {
-        StrategyController.CustomExecuteRequest request = new StrategyController.CustomExecuteRequest();
-        request.setStrategyType("PUT_CREDIT_SPREAD");
-        request.setSecurities("AAPL");
-        
-        Map<String, Object> filterMap = new HashMap<>();
-        filterMap.put("targetDTE", 45);
-        filterMap.put("maxLossLimit", 500.0);
-        
-        Map<String, Object> shortLeg = new HashMap<>();
-        shortLeg.put("minDelta", 0.15);
-        filterMap.put("shortLeg", shortLeg);
-        
-        request.setFilter(filterMap);
+        CustomExecuteRequest request = CustomExecuteRequest.builder()
+                .strategyType("PUT_CREDIT_SPREAD")
+                .securities("AAPL")
+                .filter(Map.of(
+                        "targetDTE", 45,
+                        "maxLossLimit", 500.0,
+                        "shortLeg", Map.of("minDelta", 0.15)))
+                .build();
         when(executionService.isExecutionRunning()).thenReturn(false);
 
         mockMvc.perform(post("/api/execute/custom")
@@ -208,14 +206,12 @@ public class StrategyControllerTest {
     }
     
     @Test
-    public void testExecuteCustomStrategy_LeapFilter() throws Exception {
-        StrategyController.CustomExecuteRequest request = new StrategyController.CustomExecuteRequest();
-        request.setStrategyType("LONG_CALL_LEAP");
-        request.setSecurities("AAPL");
-        
-        Map<String, Object> filterMap = new HashMap<>();
-        filterMap.put("sortPriority", "delta,premium");
-        request.setFilter(filterMap);
+    public void testExecuteCustomStrategy_WithAlias() throws Exception {
+        CustomExecuteRequest request = CustomExecuteRequest.builder()
+                .strategyType("LONG_CALL_LEAP")
+                .securities("AAPL")
+                .filter(Map.of("sortPriority", "delta,premium"))
+                .build();
         
         when(executionService.isExecutionRunning()).thenReturn(false);
 

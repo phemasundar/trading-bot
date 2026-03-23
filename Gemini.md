@@ -2,6 +2,43 @@
 
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 > **CRITICAL AI RULE**: NEVER use GitHub MCP tools (create PR, merge, create release, etc.) unless the user explicitly asks. Do not assume permission for any GitHub operations.
+
+## DTO Immutability & Service Extraction (2026-03-22)
+
+Refactored core Data Transfer Objects to enforce immutability and centralized redundant execution logic into robust service classes.
+
+### Bug Fixes
+- **Dashboard Technical Screener Leak**: Fixed an issue where the Technical Screener results on the UI (`/api/results/screeners`) were failing to load due to a Jackson deserialization error from Supabase (`Unrecognized field "formattedSummary"`). Solved by adding `@JsonIgnore` and `@JsonIgnoreProperties` annotations to the `ScreeningResult` DTO.
+
+### Features
+- **Immutable DTOs**: Converted `ExecuteRequest`, `CustomExecuteRequest`, `ExecutionResult`, and `ScreenerExecutionResult` to be strictly immutable using Lombok's `@Value` and Heavily integrated `@Jacksonized` to preserve controller JSON deserialization.
+- **Service Segregation**: Extracted duplicate execution logic from `StrategyController` and UI views into `StrategyExecutionService` to streamline scheduled (TestNG) and ad-hoc (REST/UI) executions.
+- **Securities Resolution**: Extracted raw ticker arrays and file-parsing routines into a centralized `SecuritiesResolver`.
+
+### Architecture
+- **`StrategyControllerTest.java`**: Eliminated all setter-based DTO mutations in UI tests; migrated entirely to the Builder pattern.
+- **`ScreenerExecutionResultTest.java`**: Updated assertion paths to reflect immutable DTO state copies (`toBuilder()`).
+- **Code Clean-up**: Purged obsolete imports and dead setter references across services and test suites.
+## Unit Test Coverage Expansion (2026-03-20)
+
+Significantly increased the project's unit test coverage to ensure long-term stability and robust CI/CD gating.
+
+### Features
+- **Coverage Boost**: Instruction coverage increased from **59% to 78.00%**, significantly exceeding the 75% target.
+- **Strict Gating**: Updated `jacoco-maven-plugin` in `pom.xml` to mandate a **minimum 75% instruction coverage** for all future builds.
+- **Improved Test Infrastructure**: Addressed low-coverage areas in core services and utilities.
+
+### Improved Test Suites
+- **`SupabaseServiceTest.java`**: Added comprehensive tests for all CRUD operations, custom executions, and complex retry scenarios using mocked static RestAssured responses.
+- **`TelegramUtilsTest.java`**: Verified all alert formatting logic (Option strategies & Technical screeners) and edge cases for message splitting.
+- **`ThinkOrSwinAPIsTest.java`**: Refactored to properly mock the RestAssured fluent API chain and Jackson deserialization.
+- **`GoogleSheetsServiceTest.java`**: Implemented missing verification for sheet updates and credential handling.
+- **`StrategyControllerTest.java`**: Expanded to cover all REST endpoints including selective screener execution and securities file resolution.
+
+### Architecture
+- **`TokenProvider.java`**: Added `clearToken()` to reset singleton state between test runs, ensuring perfect test isolation.
+- **`UnitTests.xml`**: Added `com.hemasundar.apis` package to the primary unit test suite.
+
 ## Dashboard Technical Screener Selection (2026-03-19)
 
 Added the ability to select and execute technical screeners independently from the dashboard, with visual separation from options strategies.

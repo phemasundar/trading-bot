@@ -3,20 +3,14 @@ package com.hemasundar.services;
 import com.hemasundar.config.StrategiesConfigLoader;
 import com.hemasundar.dto.ExecutionResult;
 import com.hemasundar.dto.StrategyResult;
-import com.hemasundar.dto.Trade;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionsConfig;
 import com.hemasundar.options.models.TradeSetup;
 import com.hemasundar.options.strategies.AbstractTradingStrategy;
-import com.hemasundar.pojos.Securities;
-import com.hemasundar.technical.TechnicalScreener;
-import com.hemasundar.technical.ScreenerConfig;
-import com.hemasundar.technical.TechnicalFilterChain;
-import com.hemasundar.dto.ScreenerExecutionResult;
 import com.hemasundar.utils.FilePaths;
-import com.hemasundar.utils.JavaUtils;
 import com.hemasundar.utils.OptionChainCache;
 import com.hemasundar.utils.TelegramUtils;
+import com.hemasundar.technical.TechnicalScreener;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -36,6 +30,9 @@ public class StrategyExecutionService {
 
     @Autowired
     private SupabaseService supabaseService;
+
+    @Autowired
+    private com.hemasundar.utils.SecuritiesResolver securitiesResolver;
 
     // Execution state tracking (visible across page refreshes)
     private final java.util.concurrent.atomic.AtomicBoolean executionRunning = new java.util.concurrent.atomic.AtomicBoolean(
@@ -70,30 +67,19 @@ public class StrategyExecutionService {
      */
     public List<OptionsConfig> getEnabledStrategies() throws IOException {
         // Load securities maps
-        Map<String, List<String>> securitiesMap = loadSecuritiesMaps();
+        Map<String, List<String>> securitiesMap = securitiesResolver.loadSecuritiesMaps();
 
         // Load and return enabled strategies
         return StrategiesConfigLoader.load(FilePaths.strategiesConfig, securitiesMap);
     }
 
     /**
-     * Loads all enabled technical screeners from strategies-config.json
-     *
-     * @return List of enabled screener configurations
-     */
-    public List<ScreenerConfig> getEnabledScreeners() throws IOException {
-        Map<String, List<String>> securitiesMap = loadSecuritiesMaps();
-        return StrategiesConfigLoader.loadScreeners(securitiesMap);
-    }
-
-    /**
-     * Executes selected strategies and screeners.
+     * Executes selected strategies.
      *
      * @param strategyIndices Set of strategy indices to execute (0-based)
-     * @param screenerIndices Set of screener indices to execute (0-based), null or empty to skip screeners
      * @return ExecutionResult containing results from all executed strategies
      */
-    public ExecutionResult executeStrategies(Set<Integer> strategyIndices, Set<Integer> screenerIndices) throws IOException {
+    public ExecutionResult executeStrategies(Set<Integer> strategyIndices) throws IOException {
         executionRunning.set(true);
         cancellationRequested.set(false);
         executionStartTimeMs = System.currentTimeMillis();
@@ -163,78 +149,7 @@ public class StrategyExecutionService {
                 // Don't fail the entire execution, just log the error
             }
 
-            // =============================================================
-            // TECHNICAL-ONLY STOCK SCREENERS (only if screener indices provided)
-            // =============================================================
 
-            if (screenerIndices != null && !screenerIndices.isEmpty()) {
-                com.hemasundar.technical.TechnicalIndicators allIndicators = com.hemasundar.technical.TechnicalIndicators.builder()
-                        .rsiFilter(com.hemasundar.technical.RSIFilter.builder().period(14).oversoldThreshold(30.0).overboughtThreshold(70.0).build())
-                        .bollingerFilter(com.hemasundar.technical.BollingerBandsFilter.builder().period(20).standardDeviations(2.0).build())
-                        .ma20Filter(com.hemasundar.technical.MovingAverageFilter.builder().period(20).build())
-                        .ma50Filter(com.hemasundar.technical.MovingAverageFilter.builder().period(50).build())
-                        .ma100Filter(com.hemasundar.technical.MovingAverageFilter.builder().period(100).build())
-                        .ma200Filter(com.hemasundar.technical.MovingAverageFilter.builder().period(200).build())
-                        .volumeFilter(com.hemasundar.technical.VolumeFilter.builder().build())
-                        .build();
-
-                Map<String, List<String>> securitiesMap;
-                try {
-                    securitiesMap = loadSecuritiesMaps();
-                } catch (IOException e) {
-                    log.error("Failed to load securities map: {}", e.getMessage());
-                    securitiesMap = new HashMap<>(); // Fallback
-                }
-
-                List<ScreenerConfig> allScreeners = StrategiesConfigLoader.loadScreeners(securitiesMap);
-
-                // Filter to only selected screener indices
-                List<ScreenerConfig> selectedScreeners = screenerIndices.stream()
-                        .filter(i -> i >= 0 && i < allScreeners.size())
-                        .map(allScreeners::get)
-                        .collect(Collectors.toList());
-
-                for (ScreenerConfig screenerConfig : selectedScreeners) {
-                    log.info("Running screener: {}", screenerConfig.getName());
-                    long screenerStartTime = System.currentTimeMillis();
-
-                    TechnicalFilterChain filterChain = TechnicalFilterChain.of(allIndicators,
-                            screenerConfig.getConditions());
-                    
-                    // Get securities from config
-                    List<String> securitiesToScan = screenerConfig.getSecurities();
-                    if (securitiesToScan == null || securitiesToScan.isEmpty()) {
-                        log.warn("No securities configured for screener {}, skipping.", screenerConfig.getName());
-                        continue;
-                    }
-
-                    List<TechnicalScreener.ScreeningResult> screenerResults = TechnicalScreener.screenStocks(
-                            securitiesToScan, filterChain);
-
-                    log.info("[{}] Found {} stocks matching criteria", screenerConfig.getName(), screenerResults.size());
-
-                    if (!screenerResults.isEmpty()) {
-                        log.info("[{}] Matching stocks: {}", screenerConfig.getName(),
-                                screenerResults.stream().map(TechnicalScreener.ScreeningResult::getSymbol)
-                                        .toList());
-                        TelegramUtils.sendTechnicalScreenerAlert(screenerConfig.getName(), screenerResults);
-                    }
-
-                    // Save screener result
-                    long screenerExecutionTime = System.currentTimeMillis() - screenerStartTime;
-                    ScreenerExecutionResult scrResult = ScreenerExecutionResult.builder()
-                            .screenerId(screenerConfig.getScreenerType().name())
-                            .screenerName(screenerConfig.getName())
-                            .executionTimeMs(screenerExecutionTime)
-                            .resultsFound(screenerResults.size())
-                            .results(screenerResults)
-                            .build();
-                    supabaseService.saveScreenerResult(scrResult);
-                    log.info("[{}] Saved screener result to Supabase", screenerConfig.getName());
-                }
-            } else {
-                log.info("No screener indices provided, skipping technical screeners");
-            }
 
             // Print cache statistics
             cache.printStats();
@@ -310,12 +225,7 @@ public class StrategyExecutionService {
         return supabaseService.getRecentCustomExecutions(limit);
     }
 
-    /**
-     * Retrieves all latest technical screener results from Supabase.
-     */
-    public List<com.hemasundar.dto.ScreenerExecutionResult> getLatestScreenerResults() throws IOException {
-        return supabaseService.getAllLatestScreenerResults();
-    }
+
 
     /**
      * Executes a single strategy and returns its result.
@@ -341,17 +251,17 @@ public class StrategyExecutionService {
 
         if (!securities.isEmpty()) {
             allTrades = findTradesForStrategy(cache, securities, config);
-
-            // Send to Telegram
-            if (!allTrades.isEmpty()) {
-                TelegramUtils.sendTradeAlerts(config.getName(), allTrades);
-            }
         }
 
         // Build StrategyResult from trades map (uses shared Trade.fromTradeSetup)
         long executionTime = System.currentTimeMillis() - strategyStartTime;
         StrategyResult result = StrategyResult.fromTrades(config.getName(), allTrades, executionTime,
                 config.getFilter(), config.getDescriptionFile());
+
+        // Send to Telegram using pre-formatted Trade DTOs
+        if (!allTrades.isEmpty()) {
+            TelegramUtils.sendTradeAlerts(result);
+        }
 
         // Save individual strategy result to database for per-strategy persistence if
         // not a custom execution
@@ -454,25 +364,5 @@ public class StrategyExecutionService {
         }
     }
 
-    /**
-     * Loads all securities maps from YAML files.
-     */
-    public Map<String, List<String>> loadSecuritiesMaps() throws IOException {
-        return Map.of(
-                "portfolio", loadSecurities(FilePaths.portfolioSecurities),
-                "top100", loadSecurities(FilePaths.top100Securities),
-                "bullish", loadSecurities(FilePaths.bullishSecurities),
-                "2026", loadSecurities(FilePaths.securities2026),
-                "tracking", loadSecurities(FilePaths.trackingSecurities));
-    }
 
-    /**
-     * Loads securities from a YAML file.
-     */
-    private List<String> loadSecurities(String resourcePath) throws IOException {
-        String yaml = FilePaths.readResource(resourcePath);
-        Securities securities = JavaUtils.convertYamlToPojo(yaml, Securities.class);
-        log.info("Loading securities from: {} - Found {} symbols", resourcePath, securities.securities().size());
-        return securities.securities();
-    }
 }

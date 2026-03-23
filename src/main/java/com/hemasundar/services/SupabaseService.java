@@ -2,32 +2,24 @@ package com.hemasundar.services;
 
 import com.hemasundar.dto.ExecutionResult;
 import com.hemasundar.pojos.IVDataPoint;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import io.restassured.RestAssured;
-import io.restassured.response.Response;
-import io.restassured.specification.RequestSpecification;
+import com.hemasundar.services.supabase.*;
 import lombok.extern.log4j.Log4j2;
 
 import java.io.IOException;
-import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 
 /**
  * Service to interact with Supabase REST API for storing IV data and strategy
  * execution results.
- * Uses RestAssured client to make HTTP requests to Supabase's PostgREST API.
+ * This class now acts as a facade, delegating to specific repositories.
  */
 @Log4j2
 public class SupabaseService {
-    private static final String IV_DATA_PATH = "/rest/v1/iv_data";
-    private static final String EXECUTIONS_PATH = "/rest/v1/strategy_executions";
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
-            .registerModule(new JavaTimeModule());
-
-    private final String projectUrl;
-    private final String apiKey;
+    private final SupabaseClient client;
+    private final IVDataRepository ivDataRepository;
+    private final StrategyResultRepository strategyResultRepository;
+    private final ScreenerResultRepository screenerResultRepository;
+    private final CustomExecutionRepository customExecutionRepository;
 
     /**
      * Constructor initializes Supabase service with authentication.
@@ -36,17 +28,11 @@ public class SupabaseService {
      * @param apiKey     Supabase API key (Publishable/anon key)
      */
     public SupabaseService(String projectUrl, String apiKey) {
-        if (projectUrl == null || projectUrl.isEmpty()) {
-            throw new IllegalArgumentException("Supabase project URL cannot be null or empty");
-        }
-        if (apiKey == null || apiKey.isEmpty()) {
-            throw new IllegalArgumentException("Supabase API key cannot be null or empty");
-        }
-
-        this.projectUrl = projectUrl.endsWith("/") ? projectUrl.substring(0, projectUrl.length() - 1) : projectUrl;
-        this.apiKey = apiKey;
-
-        log.info("Supabase Service initialized for project: {}", projectUrl);
+        this.client = new SupabaseClient(projectUrl, apiKey);
+        this.ivDataRepository = new IVDataRepository(client);
+        this.strategyResultRepository = new StrategyResultRepository(client);
+        this.screenerResultRepository = new ScreenerResultRepository(client);
+        this.customExecutionRepository = new CustomExecutionRepository(client);
     }
 
     /**
@@ -56,685 +42,76 @@ public class SupabaseService {
      * @throws IOException if connection fails
      */
     public boolean testConnection() throws IOException {
-        String url = projectUrl + IV_DATA_PATH + "?select=id&limit=1";
-
-        try {
-            Response response = RestAssured.given()
-                    .header("apikey", apiKey)
-                    .header("Authorization", "Bearer " + apiKey)
-                    .get(url);
-
-            if (response.getStatusCode() == 200) {
-                log.info("Supabase connection test successful");
-                return true;
-            } else {
-                log.error("Supabase connection test failed: {} - {}",
-                        response.getStatusCode(), response.getStatusLine());
-                return false;
-            }
-        } catch (Exception e) {
-            log.error("Supabase connection test failed with exception: {}", e.getMessage());
-            throw new IOException("Failed to connect to Supabase: " + e.getMessage(), e);
-        }
+        return client.testConnection();
     }
 
     /**
      * Upserts (inserts or updates) IV data point to Supabase.
-     * Uses PostgreSQL's ON CONFLICT to update if entry exists for same symbol and
-     * date.
-     *
-     * @param dataPoint IV data point to upsert
-     * @throws IOException if API call fails after retries
      */
     public void upsertIVData(IVDataPoint dataPoint) throws IOException {
-        String symbol = dataPoint.getSymbol();
-        String date = dataPoint.getCurrentDate().format(DATE_FORMATTER);
-
-        // Build JSON payload
-        String jsonPayload = buildJsonPayload(dataPoint);
-
-        // Upsert URL with on_conflict parameter (PostgREST syntax)
-        // This tells Supabase to update if symbol+date already exists
-        String url = projectUrl + IV_DATA_PATH + "?on_conflict=symbol,date";
-
-        // Retry logic for transient errors
-        int maxRetries = 3;
-        int retryCount = 0;
-
-        while (retryCount <= maxRetries) {
-            try {
-                RequestSpecification request = RestAssured.given()
-                        .header("apikey", apiKey)
-                        .header("Authorization", "Bearer " + apiKey)
-                        .header("Content-Type", "application/json")
-                        .header("Prefer", "resolution=merge-duplicates") // UPSERT behavior
-                        .body(jsonPayload);
-
-                Response response = request.post(url);
-                int statusCode = response.getStatusCode();
-
-                if (statusCode == 200 || statusCode == 201) {
-                    log.info("[{}] Successfully upserted IV data for {} - PUT: {}%, CALL: {}%",
-                            symbol, date, dataPoint.getAtmPutIV(), dataPoint.getAtmCallIV());
-                    return; // Success
-                } else if (statusCode == 429 && retryCount < maxRetries) {
-                    // Rate limit - retry with exponential backoff
-                    retryCount++;
-                    long waitTime = (long) Math.pow(2, retryCount) * 1000; // 2s, 4s, 8s
-                    log.warn("[{}] Rate limit exceeded (429), retry {}/{} after {}ms",
-                            symbol, retryCount, maxRetries, waitTime);
-                    Thread.sleep(waitTime);
-                } else {
-                    // Other error
-                    String errorBody = response.getBody().asString();
-                    throw new IOException(String.format(
-                            "[%s] Supabase API error: %d - %s. Body: %s",
-                            symbol, statusCode, response.getStatusLine(), errorBody));
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IOException("Interrupted while waiting for retry", e);
-            } catch (Exception e) {
-                if (e instanceof IOException) {
-                    throw (IOException) e;
-                }
-                throw new IOException("Failed to upsert data: " + e.getMessage(), e);
-            }
-        }
-
-        throw new IOException(String.format("[%s] Failed to upsert data after %d retries", symbol, maxRetries));
-    }
-
-    /**
-     * Builds JSON payload for IV data point.
-     * Maps to Supabase table columns: symbol, date, strike, dte, expiry_date,
-     * put_iv, call_iv, underlying_price
-     *
-     * @param dataPoint IV data point
-     * @return JSON string
-     */
-    private String buildJsonPayload(IVDataPoint dataPoint) {
-        return String.format(
-                "{\"symbol\":\"%s\",\"date\":\"%s\",\"strike\":%s,\"dte\":%d,\"expiry_date\":\"%s\",\"put_iv\":%s,\"call_iv\":%s,\"underlying_price\":%s}",
-                dataPoint.getSymbol(),
-                dataPoint.getCurrentDate().format(DATE_FORMATTER),
-                dataPoint.getStrike(),
-                dataPoint.getDte(),
-                dataPoint.getExpiryDate(),
-                dataPoint.getAtmPutIV(),
-                dataPoint.getAtmCallIV(),
-                dataPoint.getUnderlyingPrice());
+        ivDataRepository.upsertIVData(dataPoint);
     }
 
     /**
      * Saves a strategy execution result to Supabase.
-     *
-     * @param result Execution result to save
-     * @throws IOException if API call fails
      */
     public void saveExecutionResult(ExecutionResult result) throws IOException {
-        try {
-            // Convert ExecutionResult to JSON
-            String jsonResults = OBJECT_MAPPER.writeValueAsString(result.getResults());
-
-            // Extract strategy IDs
-            String[] strategyIds = result.getResults().stream()
-                    .map(com.hemasundar.dto.StrategyResult::getStrategyId)
-                    .toArray(String[]::new);
-
-            // Build JSON payload
-            String payload = String.format(
-                    "{\"execution_id\":\"%s\",\"executed_at\":\"%s\",\"strategy_ids\":[\"%s\"],\"results\":%s,\"total_trades_found\":%d,\"execution_time_ms\":%d,\"telegram_sent\":%b}",
-                    result.getExecutionId(),
-                    result.getTimestamp(),
-                    String.join("\",\"", strategyIds),
-                    jsonResults,
-                    result.getTotalTradesFound(),
-                    result.getTotalExecutionTimeMs(),
-                    result.isTelegramSent());
-
-            String url = projectUrl + EXECUTIONS_PATH;
-
-            Response response = RestAssured.given()
-                    .header("apikey", apiKey)
-                    .header("Authorization", "Bearer " + apiKey)
-                    .header("Content-Type", "application/json")
-                    .header("Prefer", "return=minimal")
-                    .body(payload)
-                    .post(url);
-
-            int statusCode = response.getStatusCode();
-            if (statusCode == 200 || statusCode == 201) {
-                log.info("Successfully saved execution result: {} with {} trades",
-                        result.getExecutionId(), result.getTotalTradesFound());
-            } else {
-                String errorBody = response.getBody().asString();
-                throw new IOException(String.format(
-                        "Failed to save execution result: %d - %s. Body: %s",
-                        statusCode, response.getStatusLine(), errorBody));
-            }
-        } catch (Exception e) {
-            if (e instanceof IOException) {
-                throw (IOException) e;
-            }
-            throw new IOException("Failed to save execution result: " + e.getMessage(), e);
-        }
+        customExecutionRepository.saveExecutionResult(result);
     }
 
     /**
      * Retrieves the latest strategy execution result from Supabase.
-     *
-     * @return Optional containing the latest execution result, or empty if none
-     *         found
-     * @throws IOException if API call fails
      */
     public Optional<ExecutionResult> getLatestExecutionResult() throws IOException {
-        try {
-            String url = projectUrl + EXECUTIONS_PATH + "?select=*&order=executed_at.desc&limit=1";
-
-            Response response = RestAssured.given()
-                    .header("apikey", apiKey)
-                    .header("Authorization", "Bearer " + apiKey)
-                    .get(url);
-
-            int statusCode = response.getStatusCode();
-            if (statusCode == 200) {
-                String body = response.getBody().asString();
-
-                // Supabase returns array, even for single result
-                if (body.equals("[]") || body.isEmpty()) {
-                    log.info("No execution results found in database");
-                    return Optional.empty();
-                }
-
-                // Parse JSON array and get first element
-                com.fasterxml.jackson.databind.JsonNode arrayNode = OBJECT_MAPPER.readTree(body);
-                if (arrayNode.isArray() && arrayNode.size() > 0) {
-                    com.fasterxml.jackson.databind.JsonNode resultNode = arrayNode.get(0);
-
-                    // Parse back to ExecutionResult DTO
-                    ExecutionResult executionResult = parseExecutionResult(resultNode);
-                    log.info("Retrieved latest execution result: {} from {}",
-                            executionResult.getExecutionId(), executionResult.getTimestamp());
-                    return Optional.of(executionResult);
-                }
-
-                return Optional.empty();
-            } else {
-                String errorBody = response.getBody().asString();
-                throw new IOException(String.format(
-                        "Failed to retrieve execution results: %d - %s. Body: %s",
-                        statusCode, response.getStatusLine(), errorBody));
-            }
-        } catch (Exception e) {
-            if (e instanceof IOException) {
-                throw (IOException) e;
-            }
-            throw new IOException("Failed to retrieve execution result: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Parses a JSON node into an ExecutionResult DTO.
-     */
-    private ExecutionResult parseExecutionResult(com.fasterxml.jackson.databind.JsonNode node) throws IOException {
-        try {
-            String executionId = node.get("execution_id").asText();
-            String timestamp = node.get("executed_at").asText();
-            int totalTrades = node.get("total_trades_found").asInt();
-            long executionTime = node.get("execution_time_ms").asLong();
-            boolean telegramSent = node.get("telegram_sent").asBoolean();
-
-            // Parse results JSONB back to List<StrategyResult>
-            com.fasterxml.jackson.databind.JsonNode resultsNode = node.get("results");
-            java.util.List<com.hemasundar.dto.StrategyResult> strategyResults = OBJECT_MAPPER.readValue(
-                    resultsNode.toString(),
-                    OBJECT_MAPPER.getTypeFactory().constructCollectionType(
-                            java.util.List.class,
-                            com.hemasundar.dto.StrategyResult.class));
-
-            return ExecutionResult.builder()
-                    .executionId(executionId)
-                    .timestamp(
-                            java.time.LocalDateTime.parse(timestamp, java.time.format.DateTimeFormatter.ISO_DATE_TIME))
-                    .results(strategyResults)
-                    .totalTradesFound(totalTrades)
-                    .totalExecutionTimeMs(executionTime)
-                    .telegramSent(telegramSent)
-                    .build();
-        } catch (Exception e) {
-            throw new IOException("Failed to parse execution result: " + e.getMessage(), e);
-        }
+        return customExecutionRepository.getLatestExecutionResult();
     }
 
     // ==================== Per-Strategy Result Persistence ====================
 
-    private static final String LATEST_STRATEGY_RESULTS_PATH = "/rest/v1/latest_strategy_results";
-
     /**
      * Saves or updates the latest result for a single strategy.
-     *
-     * @param result Strategy result to save
-     * @throws IOException if API call fails
      */
     public void saveStrategyResult(com.hemasundar.dto.StrategyResult result) throws IOException {
-        try {
-            // Convert trades to JSON
-            String tradesJson = OBJECT_MAPPER.writeValueAsString(result.getTrades());
-
-            // Current UTC timestamp for updated_at (DEFAULT only works on INSERT, not
-            // UPSERT update)
-            String updatedAt = java.time.Instant.now().toString();
-
-            // Build JSON payload
-            // Use ObjectMapper for safe JSON construction to avoid escaping issues with
-            // filter_config
-            com.fasterxml.jackson.databind.node.ObjectNode payloadNode = OBJECT_MAPPER.createObjectNode();
-            payloadNode.put("strategy_id", result.getStrategyId());
-            payloadNode.put("strategy_name", result.getStrategyName());
-            payloadNode.put("execution_time_ms", result.getExecutionTimeMs());
-            payloadNode.put("trades_found", result.getTradesFound());
-            payloadNode.set("trades", OBJECT_MAPPER.readTree(tradesJson));
-            payloadNode.put("updated_at", updatedAt);
-
-            // Add filter config as JSONB (parse string back to JsonNode so it's stored as
-            // JSON, not escaped string)
-            if (result.getFilterConfig() != null && !result.getFilterConfig().isEmpty()) {
-                payloadNode.set("filter_config", OBJECT_MAPPER.readTree(result.getFilterConfig()));
-            }
-
-            String payload = OBJECT_MAPPER.writeValueAsString(payloadNode);
-
-            String url = projectUrl + LATEST_STRATEGY_RESULTS_PATH;
-
-            // Use UPSERT operation (insert or update based on primary key)
-            Response response = RestAssured.given()
-                    .header("apikey", apiKey)
-                    .header("Authorization", "Bearer " + apiKey)
-                    .header("Content-Type", "application/json")
-                    .header("Prefer", "resolution=merge-duplicates")
-                    .body(payload)
-                    .post(url);
-
-            int statusCode = response.getStatusCode();
-            if (statusCode == 200 || statusCode == 201) {
-                log.info("Successfully saved strategy result: {} with {} trades",
-                        result.getStrategyId(), result.getTradesFound());
-            } else {
-                String errorBody = response.getBody().asString();
-                throw new IOException(String.format(
-                        "Failed to save strategy result: %d - %s. Body: %s",
-                        statusCode, response.getStatusLine(), errorBody));
-            }
-        } catch (Exception e) {
-            if (e instanceof IOException) {
-                throw (IOException) e;
-            }
-            throw new IOException("Failed to save strategy result: " + e.getMessage(), e);
-        }
+        strategyResultRepository.saveStrategyResult(result);
     }
 
     /**
      * Retrieves all latest strategy results from Supabase.
-     *
-     * @return List of all strategy results, empty list if none found
-     * @throws IOException if API call fails
      */
     public java.util.List<com.hemasundar.dto.StrategyResult> getAllLatestStrategyResults() throws IOException {
-        try {
-            String url = projectUrl + LATEST_STRATEGY_RESULTS_PATH + "?select=*&order=updated_at.desc";
-
-            Response response = RestAssured.given()
-                    .header("apikey", apiKey)
-                    .header("Authorization", "Bearer " + apiKey)
-                    .get(url);
-
-            int statusCode = response.getStatusCode();
-            if (statusCode == 200) {
-                String body = response.getBody().asString();
-
-                if (body.equals("[]") || body.isEmpty()) {
-                    log.info("No strategy results found in database");
-                    return java.util.Collections.emptyList();
-                }
-
-                // Parse JSON array
-                com.fasterxml.jackson.databind.JsonNode arrayNode = OBJECT_MAPPER.readTree(body);
-                java.util.List<com.hemasundar.dto.StrategyResult> results = new java.util.ArrayList<>();
-
-                for (com.fasterxml.jackson.databind.JsonNode node : arrayNode) {
-                    results.add(parseStrategyResult(node));
-                }
-
-                log.info("Retrieved {} strategy results from database", results.size());
-                return results;
-            } else {
-                String errorBody = response.getBody().asString();
-                throw new IOException(String.format(
-                        "Failed to retrieve strategy results: %d - %s. Body: %s",
-                        statusCode, response.getStatusLine(), errorBody));
-            }
-        } catch (Exception e) {
-            if (e instanceof IOException) {
-                throw (IOException) e;
-            }
-            throw new IOException("Failed to retrieve strategy results: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Parses a JSON node into a StrategyResult DTO.
-     */
-    private com.hemasundar.dto.StrategyResult parseStrategyResult(com.fasterxml.jackson.databind.JsonNode node)
-            throws IOException {
-        try {
-            String strategyId = node.get("strategy_id").asText();
-            String strategyName = node.get("strategy_name").asText();
-            long executionTimeMs = node.get("execution_time_ms").asLong();
-            int tradesFound = node.get("trades_found").asInt();
-
-            // Parse trades JSONB back to List<Trade>
-            com.fasterxml.jackson.databind.JsonNode tradesNode = node.get("trades");
-            java.util.List<com.hemasundar.dto.Trade> trades = OBJECT_MAPPER.readValue(
-                    tradesNode.toString(),
-                    OBJECT_MAPPER.getTypeFactory().constructCollectionType(
-                            java.util.List.class,
-                            com.hemasundar.dto.Trade.class));
-
-            // Parse updated_at timestamp
-            String updatedAtStr = node.get("updated_at").asText();
-            java.time.Instant updatedAt = java.time.Instant.parse(updatedAtStr);
-
-            // Parse filter_config (may be null for old rows)
-            String filterConfig = null;
-            com.fasterxml.jackson.databind.JsonNode filterNode = node.get("filter_config");
-            if (filterNode != null && !filterNode.isNull()) {
-                filterConfig = filterNode.toString();
-            }
-
-            return com.hemasundar.dto.StrategyResult.builder()
-                    .strategyId(strategyId)
-                    .strategyName(strategyName)
-                    .executionTimeMs(executionTimeMs)
-                    .tradesFound(tradesFound)
-                    .trades(trades)
-                    .updatedAt(updatedAt)
-                    .filterConfig(filterConfig)
-                    .build();
-        } catch (Exception e) {
-            throw new IOException("Failed to parse strategy result: " + e.getMessage(), e);
-        }
+        return strategyResultRepository.getAllLatestStrategyResults();
     }
 
     // ==================== Per-Screener Result Persistence ====================
 
-    private static final String LATEST_SCREENER_RESULTS_PATH = "/rest/v1/latest_screener_results";
-
     /**
      * Saves or updates the latest result for a single technical screener.
-     *
-     * @param result Screener execution result to save
-     * @throws IOException if API call fails
      */
     public void saveScreenerResult(com.hemasundar.dto.ScreenerExecutionResult result) throws IOException {
-        try {
-            String resultsJson = OBJECT_MAPPER.writeValueAsString(result.getResults());
-            String updatedAt = java.time.Instant.now().toString();
-
-            com.fasterxml.jackson.databind.node.ObjectNode payloadNode = OBJECT_MAPPER.createObjectNode();
-            payloadNode.put("screener_id", result.getScreenerId());
-            payloadNode.put("screener_name", result.getScreenerName());
-            payloadNode.put("execution_time_ms", result.getExecutionTimeMs());
-            payloadNode.put("results_found", result.getResultsFound());
-            payloadNode.set("results", OBJECT_MAPPER.readTree(resultsJson));
-            payloadNode.put("updated_at", updatedAt);
-
-            String payload = OBJECT_MAPPER.writeValueAsString(payloadNode);
-            String url = projectUrl + LATEST_SCREENER_RESULTS_PATH;
-
-            Response response = RestAssured.given()
-                    .header("apikey", apiKey)
-                    .header("Authorization", "Bearer " + apiKey)
-                    .header("Content-Type", "application/json")
-                    .header("Prefer", "resolution=merge-duplicates")
-                    .body(payload)
-                    .post(url);
-
-            int statusCode = response.getStatusCode();
-            if (statusCode == 200 || statusCode == 201) {
-                log.info("Successfully saved screener result: {} finding {} stocks",
-                        result.getScreenerId(), result.getResultsFound());
-            } else {
-                String errorBody = response.getBody().asString();
-                throw new IOException(String.format(
-                        "Failed to save screener result: %d - %s. Body: %s",
-                        statusCode, response.getStatusLine(), errorBody));
-            }
-        } catch (Exception e) {
-            if (e instanceof IOException) {
-                throw (IOException) e;
-            }
-            throw new IOException("Failed to save screener result: " + e.getMessage(), e);
-        }
+        screenerResultRepository.saveScreenerResult(result);
     }
 
     /**
      * Retrieves all latest screener results from Supabase.
      */
     public java.util.List<com.hemasundar.dto.ScreenerExecutionResult> getAllLatestScreenerResults() throws IOException {
-        try {
-            String url = projectUrl + LATEST_SCREENER_RESULTS_PATH + "?select=*&order=updated_at.desc";
-
-            Response response = RestAssured.given()
-                    .header("apikey", apiKey)
-                    .header("Authorization", "Bearer " + apiKey)
-                    .get(url);
-
-            int statusCode = response.getStatusCode();
-            if (statusCode == 200) {
-                String body = response.getBody().asString();
-
-                if (body.equals("[]") || body.isEmpty()) {
-                    log.info("No screener results found in database");
-                    return java.util.Collections.emptyList();
-                }
-
-                com.fasterxml.jackson.databind.JsonNode arrayNode = OBJECT_MAPPER.readTree(body);
-                java.util.List<com.hemasundar.dto.ScreenerExecutionResult> results = new java.util.ArrayList<>();
-
-                for (com.fasterxml.jackson.databind.JsonNode node : arrayNode) {
-                    results.add(parseScreenerResult(node));
-                }
-
-                log.info("Retrieved {} screener results from database", results.size());
-                return results;
-            } else {
-                String errorBody = response.getBody().asString();
-                throw new IOException(String.format(
-                        "Failed to retrieve screener results: %d - %s. Body: %s",
-                        statusCode, response.getStatusLine(), errorBody));
-            }
-        } catch (Exception e) {
-            if (e instanceof IOException) {
-                throw (IOException) e;
-            }
-            throw new IOException("Failed to retrieve screener results: " + e.getMessage(), e);
-        }
+        return screenerResultRepository.getAllLatestScreenerResults();
     }
 
-    private com.hemasundar.dto.ScreenerExecutionResult parseScreenerResult(com.fasterxml.jackson.databind.JsonNode node)
-            throws IOException {
-        try {
-            String screenerId = node.get("screener_id").asText();
-            String screenerName = node.get("screener_name").asText();
-            long executionTimeMs = node.get("execution_time_ms").asLong();
-            int resultsFound = node.get("results_found").asInt();
-
-            com.fasterxml.jackson.databind.JsonNode resultsNode = node.get("results");
-            java.util.List<com.hemasundar.technical.TechnicalScreener.ScreeningResult> results = OBJECT_MAPPER.readValue(
-                    resultsNode.toString(),
-                    OBJECT_MAPPER.getTypeFactory().constructCollectionType(
-                            java.util.List.class,
-                            com.hemasundar.technical.TechnicalScreener.ScreeningResult.class));
-
-            String updatedAtStr = node.get("updated_at").asText();
-            java.time.Instant updatedAt = java.time.Instant.parse(updatedAtStr);
-
-            return com.hemasundar.dto.ScreenerExecutionResult.builder()
-                    .screenerId(screenerId)
-                    .screenerName(screenerName)
-                    .executionTimeMs(executionTimeMs)
-                    .resultsFound(resultsFound)
-                    .results(results)
-                    .updatedAt(updatedAt)
-                    .build();
-        } catch (Exception e) {
-            throw new IOException("Failed to parse screener result: " + e.getMessage(), e);
-        }
-    }
-
-    // ==================== Custom Execution Results (Execute View)
-    // ====================
-
-    private static final String CUSTOM_EXECUTION_RESULTS_PATH = "/rest/v1/custom_execution_results";
+    // ==================== Custom Execution Results (Execute View) ====================
 
     /**
      * Saves a custom execution result to the dedicated table.
-     * This is append-only (INSERT) — each execution creates a new row.
-     *
-     * @param result     Strategy result to save
-     * @param securities List of securities used in this execution
-     * @throws IOException if API call fails
      */
     public void saveCustomExecutionResult(com.hemasundar.dto.StrategyResult result,
             java.util.List<String> securities) throws IOException {
-        try {
-            String tradesJson = OBJECT_MAPPER.writeValueAsString(result.getTrades());
-
-            com.fasterxml.jackson.databind.node.ObjectNode payloadNode = OBJECT_MAPPER.createObjectNode();
-            payloadNode.put("strategy_name", result.getStrategyName());
-            payloadNode.put("execution_time_ms", result.getExecutionTimeMs());
-            payloadNode.put("trades_found", result.getTradesFound());
-            payloadNode.set("trades", OBJECT_MAPPER.readTree(tradesJson));
-
-            if (result.getFilterConfig() != null && !result.getFilterConfig().isEmpty()) {
-                payloadNode.set("filter_config", OBJECT_MAPPER.readTree(result.getFilterConfig()));
-            }
-
-            // Store securities as a Postgres TEXT array literal
-            com.fasterxml.jackson.databind.node.ArrayNode securitiesArray = OBJECT_MAPPER.createArrayNode();
-            if (securities != null) {
-                securities.forEach(securitiesArray::add);
-            }
-            payloadNode.set("securities", securitiesArray);
-
-            String payload = OBJECT_MAPPER.writeValueAsString(payloadNode);
-            String url = projectUrl + CUSTOM_EXECUTION_RESULTS_PATH;
-
-            Response response = RestAssured.given()
-                    .header("apikey", apiKey)
-                    .header("Authorization", "Bearer " + apiKey)
-                    .header("Content-Type", "application/json")
-                    .header("Prefer", "return=minimal")
-                    .body(payload)
-                    .post(url);
-
-            int statusCode = response.getStatusCode();
-            if (statusCode == 200 || statusCode == 201) {
-                log.info("Saved custom execution result: {} with {} trades",
-                        result.getStrategyName(), result.getTradesFound());
-            } else {
-                String errorBody = response.getBody().asString();
-                throw new IOException(String.format(
-                        "Failed to save custom execution result: %d - %s. Body: %s",
-                        statusCode, response.getStatusLine(), errorBody));
-            }
-        } catch (Exception e) {
-            if (e instanceof IOException) {
-                throw (IOException) e;
-            }
-            throw new IOException("Failed to save custom execution result: " + e.getMessage(), e);
-        }
+        customExecutionRepository.saveCustomExecutionResult(result, securities);
     }
 
     /**
      * Retrieves the most recent custom execution results.
-     *
-     * @param limit Maximum number of results to return
-     * @return List of StrategyResult, most recent first
-     * @throws IOException if API call fails
      */
     public java.util.List<com.hemasundar.dto.StrategyResult> getRecentCustomExecutions(int limit) throws IOException {
-        try {
-            String url = projectUrl + CUSTOM_EXECUTION_RESULTS_PATH
-                    + "?order=created_at.desc&limit=" + limit;
-
-            Response response = RestAssured.given()
-                    .header("apikey", apiKey)
-                    .header("Authorization", "Bearer " + apiKey)
-                    .header("Content-Type", "application/json")
-                    .get(url);
-
-            int statusCode = response.getStatusCode();
-            if (statusCode != 200) {
-                throw new IOException("Failed to retrieve custom executions: " + statusCode);
-            }
-
-            String body = response.getBody().asString();
-            com.fasterxml.jackson.databind.JsonNode rootArray = OBJECT_MAPPER.readTree(body);
-
-            java.util.List<com.hemasundar.dto.StrategyResult> results = new java.util.ArrayList<>();
-            for (com.fasterxml.jackson.databind.JsonNode node : rootArray) {
-                results.add(parseCustomExecutionResult(node));
-            }
-
-            log.info("Retrieved {} custom execution results from database", results.size());
-            return results;
-        } catch (Exception e) {
-            if (e instanceof IOException) {
-                throw (IOException) e;
-            }
-            throw new IOException("Failed to retrieve custom executions: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Parses a JSON node from custom_execution_results into a StrategyResult DTO.
-     */
-    private com.hemasundar.dto.StrategyResult parseCustomExecutionResult(
-            com.fasterxml.jackson.databind.JsonNode node) throws IOException {
-        try {
-            String strategyName = node.get("strategy_name").asText();
-            long executionTimeMs = node.get("execution_time_ms").asLong();
-            int tradesFound = node.get("trades_found").asInt();
-
-            com.fasterxml.jackson.databind.JsonNode tradesNode = node.get("trades");
-            java.util.List<com.hemasundar.dto.Trade> trades = OBJECT_MAPPER.readValue(
-                    tradesNode.toString(),
-                    OBJECT_MAPPER.getTypeFactory().constructCollectionType(
-                            java.util.List.class,
-                            com.hemasundar.dto.Trade.class));
-
-            String createdAtStr = node.get("created_at").asText();
-            java.time.Instant createdAt = java.time.Instant.parse(createdAtStr);
-
-            String filterConfig = null;
-            com.fasterxml.jackson.databind.JsonNode filterNode = node.get("filter_config");
-            if (filterNode != null && !filterNode.isNull()) {
-                filterConfig = filterNode.toString();
-            }
-
-            return com.hemasundar.dto.StrategyResult.builder()
-                    .strategyId(String.valueOf(node.get("id").asLong()))
-                    .strategyName(strategyName)
-                    .executionTimeMs(executionTimeMs)
-                    .tradesFound(tradesFound)
-                    .trades(trades)
-                    .updatedAt(createdAt)
-                    .filterConfig(filterConfig)
-                    .build();
-        } catch (Exception e) {
-            throw new IOException("Failed to parse custom execution result: " + e.getMessage(), e);
-        }
+        return customExecutionRepository.getRecentCustomExecutions(limit);
     }
 }

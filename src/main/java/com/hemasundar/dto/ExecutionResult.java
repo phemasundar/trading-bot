@@ -1,9 +1,8 @@
 package com.hemasundar.dto;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.Value;
+import lombok.extern.jackson.Jacksonized;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -12,10 +11,9 @@ import java.util.List;
  * Represents the complete result of a strategy execution session.
  * Contains results from multiple strategies executed together.
  */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
+@Value
+@Builder(toBuilder = true)
+@Jacksonized
 public class ExecutionResult {
 
     /**

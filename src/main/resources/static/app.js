@@ -96,11 +96,15 @@ function showToast(message, type = 'success') {
 function timeAgo(dateStr) {
     if (!dateStr) return 'Unknown';
     const diff = Date.now() - new Date(dateStr).getTime();
+    if (diff < 60000) return 'Just now';
+    
     const mins = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
+    
     if (days > 0) return `${days}d ago`;
     if (hours > 0) return `${hours}h ago`;
+    if (mins > 0) return `${mins}m ago`;
     return 'Just now';
 }
 

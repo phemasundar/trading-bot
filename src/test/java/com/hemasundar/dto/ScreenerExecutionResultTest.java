@@ -32,12 +32,12 @@ public class ScreenerExecutionResultTest {
         assertEquals(result.getResults(), results);
         assertEquals(result.getUpdatedAt(), now);
 
-        // Test setters
-        result.setScreenerId("new-id");
-        assertEquals(result.getScreenerId(), "new-id");
+        // Test toBuilder
+        ScreenerExecutionResult updatedResult = result.toBuilder().screenerId("new-id").build();
+        assertEquals(updatedResult.getScreenerId(), "new-id");
 
         // Test toString
-        assertNotNull(result.toString());
+        assertNotNull(updatedResult.toString());
         
         // Test Equals/HashCode
         ScreenerExecutionResult sameResult = ScreenerExecutionResult.builder()
@@ -49,7 +49,7 @@ public class ScreenerExecutionResultTest {
                 .updatedAt(now)
                 .build();
         
-        assertEquals(result, sameResult);
-        assertEquals(result.hashCode(), sameResult.hashCode());
+        assertEquals(updatedResult, sameResult);
+        assertEquals(updatedResult.hashCode(), sameResult.hashCode());
     }
 }
