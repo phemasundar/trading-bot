@@ -34,7 +34,7 @@ jobs:
           echo "Using Service Account for authentication (no credentials.json file needed)"
 
       - name: Run IV Data Collection
-        run: mvn test -DsuiteXmlFile=iv-data-collection.xml
+        run: mvn spring-boot:run "-Dspring-boot.run.arguments=--app.job.name=IV_DATA"
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           GOOGLE_SPREADSHEET_ID: ${{ secrets.GOOGLE_SPREADSHEET_ID }}
@@ -51,9 +51,4 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: target/surefire-reports/
+

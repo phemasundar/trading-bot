@@ -86,7 +86,8 @@ supabase_service_role_key=YOUR_SERVICE_ROLE_KEY
 
 **Running IV Data Collection:**
 ```bash
-mvn test -DsuiteXmlFile=iv-data-collection.xml
+# Using quotes ensures compatibility with PowerShell and CMD
+mvn spring-boot:run "-Dspring-boot.run.arguments=--app.job.name=IV_DATA"
 ```
 
 This automated test runs daily (recommended via cron/scheduler) to collect ATM IV data for PUT and CALL options (~30 DTE) for all securities in your `securities/` folder.
@@ -108,9 +109,10 @@ Run `mvn spring-boot:run` to start the Spring Boot application with the built-in
 
 All frontend calls go through Spring Boot REST APIs (`/api/*`) — Supabase keys are never exposed to the browser.
 
-#### 2. Via CLI (Testing)
+#### 2. Via CLI (Scheduled Background Jobs)
 ```bash
-mvn test -Dtest=SampleTestNG#getOptionChainData
+# Using quotes ensures compatibility with PowerShell and CMD
+mvn spring-boot:run "-Dspring-boot.run.arguments=--app.job.name=SCREENER"
 ```
 
 This will:
@@ -121,14 +123,18 @@ This will:
 
 ### Configuring Securities Files Per Strategy
 
-Each strategy can use a different securities file. Edit `SampleTestNG.java` to configure:
+Each strategy can use a different securities file. This is configured in `strategies-config.json` via the `securitiesFile` property for each enabled strategy definition.
 
-```java
-// Default strategies use securities.yaml
-String defaultSecuritiesFile = "securities.yaml";
-
-// RSI Bollinger strategies can use a different file
-String rsiBollingerSecuritiesFile = "top100.yaml";
+```json
+{
+  "strategies": [
+    {
+      "enabled": true,
+      "type": "PUT_CREDIT_SPREAD",
+      "securitiesFile": "securities"
+    }
+  ]
+}
 ```
 
 **Available securities files:**
