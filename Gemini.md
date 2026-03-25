@@ -3,6 +3,21 @@
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 > **CRITICAL AI RULE**: NEVER use GitHub MCP tools (create PR, merge, create release, etc.) unless the user explicitly asks. Do not assume permission for any GitHub operations.
 
+## Scheduled Jobs Migration to Spring (2026-03-24)
+
+Migrated the execution of background scheduled jobs from TestNG to native Spring Boot components, enabling TestNG to be used purely for functional integration/UI tests.
+
+### Architecture
+- **`ScheduledJobRunner.java`** [NEW]: A `CommandLineRunner` that acts as the entry point for GitHub actions via the `--app.job.name` parameter. It triggers jobs and gracefully exits via `System.exit(0)`.
+- **`ScreenerJobService.java`** [NEW]: Extracted options strategies and technical screener loops into a standard Spring `@Service`.
+- **`IVDataJobService.java`** [NEW]: Extracted the IV data scraper collection script into a Spring `@Service`. 
+- **`SchwabTokenGenerator.java`** [NEW]: Extracted the interactive `main` method for generating OAuth tokens out of `SampleTestNG.java`.
+
+### Cleanup
+- **Deleted**: `SampleTestNG.java` and `IVDataCollectionTest.java` from the test suite. 
+- **Deleted**: `execute-strategies.xml` and `iv-data-collection.xml`.
+- **CI/CD**: Replaced all `mvn test` usage for scheduled jobs with `mvn spring-boot:run` in `.github/workflows/daily-iv-collection.yml` and `ci.yml`. Removed the Surefire report upload steps for those background jobs.
+
 ## DTO Immutability & Service Extraction (2026-03-22)
 
 Refactored core Data Transfer Objects to enforce immutability and centralized redundant execution logic into robust service classes.
