@@ -105,6 +105,7 @@ public class StrategyExecutionServiceTest {
         mockedLoader.when(() -> StrategiesConfigLoader.load(anyString(), anyMap()))
                 .thenReturn(List.of(config));
 
+        strategyExecutionService.startGlobalExecution("Test");
         ExecutionResult result = strategyExecutionService.executeStrategies(Set.of(0));
 
         assertNotNull(result);
@@ -117,6 +118,7 @@ public class StrategyExecutionServiceTest {
         mockedLoader.when(() -> StrategiesConfigLoader.load(anyString(), anyMap()))
                 .thenReturn(Collections.emptyList());
 
+        strategyExecutionService.startGlobalExecution("Test");
         ExecutionResult result = strategyExecutionService.executeStrategies(Collections.emptySet());
 
         assertNotNull(result);
@@ -148,6 +150,7 @@ public class StrategyExecutionServiceTest {
                 .thenReturn(List.of(config1, config2));
 
         Set<Integer> indices = new LinkedHashSet<>(List.of(0, 1));
+        strategyExecutionService.startGlobalExecution("Test");
         ExecutionResult result = strategyExecutionService.executeStrategies(indices);
 
         // Strategy 1 should finish, but Strategy 2 should be skipped due to

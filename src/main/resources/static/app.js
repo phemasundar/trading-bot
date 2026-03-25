@@ -552,7 +552,8 @@ function startTimer(startTimeMs) {
         const elapsed = Math.floor((Date.now() - startTimeMs) / 1000);
         const mins = Math.floor(elapsed / 60);
         const secs = elapsed % 60;
-        el.textContent = `Elapsed: ${mins}m ${secs}s`;
+        const taskText = window.currentExecutionTaskName ? ` — Executing: ${window.currentExecutionTaskName}` : '';
+        el.textContent = `Elapsed: ${mins}m ${secs}s${taskText}`;
     }, 1000);
 }
 
@@ -570,9 +571,12 @@ function startPolling(onComplete) {
         try {
             const status = await API.get('/api/status');
             if (!status.running) {
+                window.currentExecutionTaskName = "";
                 clearInterval(pollInterval);
                 stopTimer();
                 if (onComplete) onComplete();
+            } else {
+                window.currentExecutionTaskName = status.currentTask || "";
             }
         } catch (e) {
             clearInterval(pollInterval);
@@ -674,6 +678,7 @@ async function checkExecutionStatus() {
     try {
         const status = await API.get('/api/status');
         if (status.running) {
+            window.currentExecutionTaskName = status.currentTask || "";
             setDashboardBusy(true);
             startTimer(status.startTimeMs);
             startPolling(() => {

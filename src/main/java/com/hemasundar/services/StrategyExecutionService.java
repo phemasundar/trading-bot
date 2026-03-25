@@ -35,10 +35,9 @@ public class StrategyExecutionService {
     private com.hemasundar.utils.SecuritiesResolver securitiesResolver;
 
     // Execution state tracking (visible across page refreshes)
-    private final java.util.concurrent.atomic.AtomicBoolean executionRunning = new java.util.concurrent.atomic.AtomicBoolean(
-            false);
-    private final java.util.concurrent.atomic.AtomicBoolean cancellationRequested = new java.util.concurrent.atomic.AtomicBoolean(
-            false);
+    private final java.util.concurrent.atomic.AtomicBoolean executionRunning = new java.util.concurrent.atomic.AtomicBoolean(false);
+    private final java.util.concurrent.atomic.AtomicBoolean cancellationRequested = new java.util.concurrent.atomic.AtomicBoolean(false);
+    private final java.util.concurrent.atomic.AtomicReference<String> currentExecutionTask = new java.util.concurrent.atomic.AtomicReference<>("");
     private volatile long executionStartTimeMs;
 
     public boolean isExecutionRunning() {
@@ -47,6 +46,26 @@ public class StrategyExecutionService {
 
     public long getExecutionStartTimeMs() {
         return executionStartTimeMs;
+    }
+
+    public String getCurrentExecutionTask() {
+        return currentExecutionTask.get();
+    }
+
+    public void setCurrentExecutionTask(String task) {
+        currentExecutionTask.set(task);
+    }
+
+    public void startGlobalExecution(String initialTask) {
+        executionRunning.set(true);
+        cancellationRequested.set(false);
+        executionStartTimeMs = System.currentTimeMillis();
+        currentExecutionTask.set(initialTask);
+    }
+
+    public void finishGlobalExecution() {
+        executionRunning.set(false);
+        currentExecutionTask.set("");
     }
 
     public void cancelExecution() {
@@ -80,10 +99,8 @@ public class StrategyExecutionService {
      * @return ExecutionResult containing results from all executed strategies
      */
     public ExecutionResult executeStrategies(Set<Integer> strategyIndices) throws IOException {
-        executionRunning.set(true);
-        cancellationRequested.set(false);
-        executionStartTimeMs = System.currentTimeMillis();
-        long startTime = executionStartTimeMs;
+        // The lock is now managed by the controller (via startGlobalExecution) to allow chained screener execution.
+        long startTime = executionStartTimeMs > 0 ? executionStartTimeMs : System.currentTimeMillis();
         String executionId = "exec_" + startTime;
 
         try {
@@ -123,6 +140,7 @@ public class StrategyExecutionService {
                     break;
                 }
                 OptionsConfig config = selectedStrategies.get(i);
+                setCurrentExecutionTask(config.getName());
                 log.info("Executing strategy {}/{}: {}", i + 1, selectedStrategies.size(), config.getName());
 
                 StrategyResult result = executeStrategy(config, cache, false);
@@ -159,7 +177,7 @@ public class StrategyExecutionService {
 
             return executionResult;
         } finally {
-            executionRunning.set(false);
+            // Lock handled externally
         }
     }
 
@@ -171,9 +189,7 @@ public class StrategyExecutionService {
      * @return ExecutionResult containing the single strategy's result
      */
     public ExecutionResult executeCustomStrategy(OptionsConfig config) {
-        executionRunning.set(true);
-        cancellationRequested.set(false);
-        executionStartTimeMs = System.currentTimeMillis();
+        startGlobalExecution(config.getName());
         long startTime = executionStartTimeMs;
         String executionId = "exec_custom_" + startTime;
 
@@ -211,7 +227,7 @@ public class StrategyExecutionService {
 
             return executionResult;
         } finally {
-            executionRunning.set(false);
+            finishGlobalExecution();
         }
     }
 

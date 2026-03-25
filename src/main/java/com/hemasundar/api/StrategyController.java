@@ -216,16 +216,20 @@ public class StrategyController {
         log.info("REST: Execute strategies with indices: {}, screener indices: {}", indices, screenerIndices);
 
         CompletableFuture.runAsync(() -> {
+            executionService.startGlobalExecution("Initializing execution...");
             try {
                 if (indices != null && !indices.isEmpty()) {
                     executionService.executeStrategies(indices);
                 }
                 if (screenerIndices != null && !screenerIndices.isEmpty()) {
                     List<ScreenerConfig> allScreeners = screenerExecutionService.getEnabledScreeners();
+                    executionService.setCurrentExecutionTask("Initializing Screeners...");
                     screenerExecutionService.executeScreeners(screenerIndices, allScreeners);
                 }
             } catch (Exception e) {
                 log.error("Strategy execution failed", e);
+            } finally {
+                executionService.finishGlobalExecution();
             }
         });
 
@@ -326,6 +330,7 @@ public class StrategyController {
         if (running) {
             response.put("startTimeMs", executionService.getExecutionStartTimeMs());
             response.put("elapsedMs", System.currentTimeMillis() - executionService.getExecutionStartTimeMs());
+            response.put("currentTask", executionService.getCurrentExecutionTask());
         }
         return ResponseEntity.ok(response);
     }

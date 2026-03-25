@@ -24,6 +24,9 @@ public class ScreenerExecutionService {
     @Autowired
     private com.hemasundar.utils.SecuritiesResolver securitiesResolver;
 
+    @Autowired
+    private StrategyExecutionService strategyExecutionService;
+
     /**
      * Loads all enabled technical screeners from strategies-config.json
      */
@@ -62,6 +65,9 @@ public class ScreenerExecutionService {
 
         for (ScreenerConfig screenerConfig : selectedScreeners) {
             log.info("Running screener: {}", screenerConfig.getName());
+            if (strategyExecutionService != null) {
+                strategyExecutionService.setCurrentExecutionTask("Screener: " + screenerConfig.getName());
+            }
             long screenerStartTime = System.currentTimeMillis();
 
             TechnicalFilterChain filterChain = TechnicalFilterChain.of(allIndicators,
