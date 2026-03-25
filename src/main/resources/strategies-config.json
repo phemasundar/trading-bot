@@ -14,7 +14,7 @@
                 "minHistoricalVolatility": 25.0,
                 "ignoreEarnings": false,
                 "shortLeg": {
-                    "maxDelta": 0.15,
+                    "maxDelta": 0.20,
                     "minOpenInterest": 500
                 }
             },
