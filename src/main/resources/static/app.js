@@ -1415,3 +1415,43 @@ function renderFilterGrid(filter) {
 
     return html;
 }
+
+// ── Market Status Live Injection ──
+
+document.addEventListener('DOMContentLoaded', fetchAndRenderMarketStatus);
+
+async function fetchAndRenderMarketStatus() {
+    const mainContent = document.querySelector('.main-content');
+    if (!mainContent) return;
+
+    // Create a container for the badges
+    const statusContainer = document.createElement('div');
+    statusContainer.className = 'market-status-container flex gap-sm';
+    statusContainer.style.position = 'absolute';
+    statusContainer.style.top = '32px';
+    statusContainer.style.right = '32px';
+
+    mainContent.style.position = 'relative'; // Ensure absolute positioning anchors here
+    mainContent.appendChild(statusContainer);
+
+    try {
+        const data = await API.get('/api/market-status');
+
+        const equityColor = data.equityOpen ? 'var(--success)' : 'var(--text-muted)';
+        const optionsColor = data.optionsOpen ? 'var(--success)' : 'var(--text-muted)';
+        
+        statusContainer.innerHTML = `
+            <span class="status-badge" style="border: 1px solid rgba(255, 255, 255, 0.1); color: ${equityColor}">
+                <span class="status-dot" style="background:${equityColor};"></span>
+                Equity: ${data.equityOpen ? 'OPEN' : 'CLOSED'}
+            </span>
+            <span class="status-badge" style="border: 1px solid rgba(255, 255, 255, 0.1); color: ${optionsColor}">
+                <span class="status-dot" style="background:${optionsColor};"></span>
+                Options: ${data.optionsOpen ? 'OPEN' : 'CLOSED'}
+            </span>
+        `;
+    } catch (e) {
+        statusContainer.innerHTML = `<span class="status-badge" style="color: var(--text-muted); border: 1px solid rgba(255, 255, 255, 0.1)">Market Status Offline</span>`;
+        console.error("Could not fetch market status", e);
+    }
+}
