@@ -8,6 +8,7 @@ import com.hemasundar.options.strategies.StrategyType;
 import com.hemasundar.technical.ScreenerConfig;
 import com.hemasundar.utils.FilterParser;
 import com.hemasundar.services.StrategyExecutionService;
+import com.hemasundar.apis.ThinkOrSwinAPIs;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.ResponseEntity;
@@ -346,6 +347,32 @@ public class StrategyController {
         }
         executionService.cancelExecution();
         return ResponseEntity.ok(Map.of("cancelled", true));
+    }
+
+
+    /**
+     * Fetches the current live status of the Equity and Options markets.
+     */
+    @GetMapping("/market-status")
+    public ResponseEntity<?> getMarketStatus() {
+        try {
+            com.hemasundar.pojos.MarketHoursResponse hours = ThinkOrSwinAPIs.getMarketHours();
+            boolean equityOpen = false;
+            boolean optionOpen = false;
+
+            if (hours.getEquity() != null && hours.getEquity().containsKey("EQ")) {
+                equityOpen = hours.getEquity().get("EQ").isOpen();
+            }
+            if (hours.getOption() != null && hours.getOption().containsKey("EQO")) {
+                optionOpen = hours.getOption().get("EQO").isOpen();
+            }
+
+            return ResponseEntity.ok(Map.of("equityOpen", equityOpen, "optionsOpen", optionOpen));
+        } catch (Exception e) {
+            log.error("Failed to fetch market hours", e);
+            // Default to closed gracefully
+            return ResponseEntity.ok(Map.of("equityOpen", false, "optionsOpen", false, "error", true));
+        }
     }
 
 }

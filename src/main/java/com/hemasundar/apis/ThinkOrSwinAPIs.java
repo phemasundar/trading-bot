@@ -242,4 +242,24 @@ public class ThinkOrSwinAPIs {
                 true);
     }
 
+    /**
+     * Fetches current market hours and status for Equities and Options.
+     *
+     * @return MarketHoursResponse detailing if the markets are currently open.
+     */
+    public static com.hemasundar.pojos.MarketHoursResponse getMarketHours() {
+        Response response = RestAssured.given()
+                .header("accept", "application/json")
+                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())
+                .queryParam("markets", "equity")
+                .queryParam("markets", "option")
+                .get("https://api.schwabapi.com/marketdata/v1/markets");
+
+        if (response.statusCode() != 200) {
+            throw new RuntimeException("Market Hours API failed: " + response.statusCode() + " - " + response.asString());
+        }
+
+        return JavaUtils.convertJsonToPojo(response.asString(), com.hemasundar.pojos.MarketHoursResponse.class);
+    }
+
 }

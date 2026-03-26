@@ -3,6 +3,20 @@
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 > **CRITICAL AI RULE**: NEVER use GitHub MCP tools (create PR, merge, create release, etc.) unless the user explicitly asks. Do not assume permission for any GitHub operations.
 
+## Market Hours Live Status (2026-03-25)
+
+Integrated the Charles Schwab Market Hours API to display real-time Equity and Options market status directly on the dashboard.
+
+### Features
+- **Live Status Badges**: Added dynamic floating badges to the top-right corner of the web UI indicating whether the US Equity and Options markets are currently OPEN or CLOSED.
+- **Graceful Degradation**: The API call safely recovers from network timeouts or parsing errors, defaulting to a "CLOSED" indicator rather than breaking the UI.
+
+### Architecture
+- **`MarketHoursResponse.java`** [NEW]: Immutable POJO mapping the nested Schwab `/v1/markets` JSON structure.
+- **`ThinkOrSwinAPIs.java`** [MODIFIED]: Added `getMarketHours()` to execute the REST call. 
+- **`StrategyController.java`** [MODIFIED]: Added the `GET /api/market-status` endpoint to serve the flattened boolean map to the frontend.
+- **`app.js` & `style.css`** [MODIFIED]: Implemented global DOM injection on `DOMContentLoaded` to fetch the status and style the "pill" badges identically to the main application theme.
+
 ## Scheduled Jobs Migration to Spring (2026-03-24)
 
 Migrated the execution of background scheduled jobs from TestNG to native Spring Boot components, enabling TestNG to be used purely for functional integration/UI tests.
