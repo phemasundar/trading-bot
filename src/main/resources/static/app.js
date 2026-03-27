@@ -1424,30 +1424,42 @@ async function fetchAndRenderMarketStatus() {
     const mainContent = document.querySelector('.main-content');
     if (!mainContent) return;
 
-    // Create a container for the badges
     const statusContainer = document.createElement('div');
     statusContainer.className = 'market-status-container flex gap-sm';
     statusContainer.style.position = 'absolute';
     statusContainer.style.top = '32px';
     statusContainer.style.right = '32px';
 
-    mainContent.style.position = 'relative'; // Ensure absolute positioning anchors here
+    mainContent.style.position = 'relative';
     mainContent.appendChild(statusContainer);
+
+    function statusColor(s) {
+        if (s === 'OPEN')       return 'var(--success)';
+        if (s === 'PRE_MARKET' || s === 'POST_MARKET') return '#f5a623';
+        return 'var(--text-muted)';
+    }
+
+    function statusLabel(s) {
+        if (s === 'PRE_MARKET')  return 'PRE MARKET';
+        if (s === 'POST_MARKET') return 'POST MARKET';
+        return s;
+    }
 
     try {
         const data = await API.get('/api/market-status');
+        const eq  = data.equityStatus  || 'CLOSED';
+        const opt = data.optionsStatus || 'CLOSED';
+        const equityColor  = statusColor(eq);
+        const optionsColor = statusColor(opt);
 
-        const equityColor = data.equityOpen ? 'var(--success)' : 'var(--text-muted)';
-        const optionsColor = data.optionsOpen ? 'var(--success)' : 'var(--text-muted)';
-        
         statusContainer.innerHTML = `
             <span class="status-badge" style="border: 1px solid rgba(255, 255, 255, 0.1); color: ${equityColor}">
                 <span class="status-dot" style="background:${equityColor};"></span>
-                Equity: ${data.equityOpen ? 'OPEN' : 'CLOSED'}
+                Equity: ${statusLabel(eq)}
             </span>
             <span class="status-badge" style="border: 1px solid rgba(255, 255, 255, 0.1); color: ${optionsColor}">
                 <span class="status-dot" style="background:${optionsColor};"></span>
-                Options: ${data.optionsOpen ? 'OPEN' : 'CLOSED'}
+                Options: ${statusLabel(opt)}
             </span>
         `;
     } catch (e) {
@@ -1455,3 +1467,4 @@ async function fetchAndRenderMarketStatus() {
         console.error("Could not fetch market status", e);
     }
 }
+

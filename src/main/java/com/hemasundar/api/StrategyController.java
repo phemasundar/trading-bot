@@ -9,6 +9,7 @@ import com.hemasundar.technical.ScreenerConfig;
 import com.hemasundar.utils.FilterParser;
 import com.hemasundar.services.StrategyExecutionService;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.pojos.MarketHoursResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.ResponseEntity;
@@ -352,27 +353,56 @@ public class StrategyController {
 
     /**
      * Fetches the current live status of the Equity and Options markets.
+     * Returns status strings: OPEN, CLOSED, PRE_MARKET, or POST_MARKET.
      */
     @GetMapping("/market-status")
     public ResponseEntity<?> getMarketStatus() {
         try {
-            com.hemasundar.pojos.MarketHoursResponse hours = ThinkOrSwinAPIs.getMarketHours();
-            boolean equityOpen = false;
-            boolean optionOpen = false;
+            MarketHoursResponse hours = ThinkOrSwinAPIs.getMarketHours();
+            String equityStatus = "CLOSED";
+            String optionsStatus = "CLOSED";
 
             if (hours.getEquity() != null && hours.getEquity().containsKey("EQ")) {
-                equityOpen = hours.getEquity().get("EQ").isOpen();
+                equityStatus = resolveMarketStatus(hours.getEquity().get("EQ"));
             }
             if (hours.getOption() != null && hours.getOption().containsKey("EQO")) {
-                optionOpen = hours.getOption().get("EQO").isOpen();
+                optionsStatus = resolveMarketStatus(hours.getOption().get("EQO"));
             }
 
-            return ResponseEntity.ok(Map.of("equityOpen", equityOpen, "optionsOpen", optionOpen));
+            return ResponseEntity.ok(Map.of("equityStatus", equityStatus, "optionsStatus", optionsStatus));
         } catch (Exception e) {
             log.error("Failed to fetch market hours", e);
-            // Default to closed gracefully
-            return ResponseEntity.ok(Map.of("equityOpen", false, "optionsOpen", false, "error", true));
+            return ResponseEntity.ok(Map.of("equityStatus", "CLOSED", "optionsStatus", "CLOSED", "error", true));
         }
+    }
+
+    /**
+     * Resolves the textual market status by comparing current time against session windows.
+     */
+    private String resolveMarketStatus(MarketHoursResponse.MarketData data) {
+        if (data == null || data.getSessionHours() == null) {
+            return data != null && data.isOpen() ? "OPEN" : "CLOSED";
+        }
+        java.time.OffsetDateTime now = java.time.OffsetDateTime.now();
+        MarketHoursResponse.SessionHours sh = data.getSessionHours();
+
+        if (isWithinWindows(now, sh.getRegularMarket())) return "OPEN";
+        if (isWithinWindows(now, sh.getPreMarket())) return "PRE_MARKET";
+        if (isWithinWindows(now, sh.getPostMarket())) return "POST_MARKET";
+        return "CLOSED";
+    }
+
+    private boolean isWithinWindows(java.time.OffsetDateTime now,
+                                     java.util.List<MarketHoursResponse.TimeWindow> windows) {
+        if (windows == null || windows.isEmpty()) return false;
+        for (MarketHoursResponse.TimeWindow w : windows) {
+            try {
+                java.time.OffsetDateTime start = java.time.OffsetDateTime.parse(w.getStart());
+                java.time.OffsetDateTime end   = java.time.OffsetDateTime.parse(w.getEnd());
+                if (!now.isBefore(start) && now.isBefore(end)) return true;
+            } catch (Exception ignored) {}
+        }
+        return false;
     }
 
 }
