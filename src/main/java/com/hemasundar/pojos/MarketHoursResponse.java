@@ -2,6 +2,9 @@ package com.hemasundar.pojos;
 
 import lombok.Data;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -23,6 +26,25 @@ public class MarketHoursResponse {
         private String category;
         private String product;
         private String productName;
+
+        @JsonProperty("isOpen")
         private boolean isOpen;
+
+        private SessionHours sessionHours;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class SessionHours {
+        private List<TimeWindow> preMarket;
+        private List<TimeWindow> regularMarket;
+        private List<TimeWindow> postMarket;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TimeWindow {
+        private String start;
+        private String end;
     }
 }
