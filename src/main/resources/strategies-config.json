@@ -212,7 +212,7 @@
         {
             "enabled": true,
             "alias": "LEAP Top 5 - Bullish Picks",
-            "strategyType": "LONG_CALL_LEAP_TOP_N",
+            "strategyType": "LONG_CALL_LEAP",
             "descriptionFile": "long_call_leap.md",
             "filterType": "LongCallLeapFilter",
             "securitiesFile": "bullish",
