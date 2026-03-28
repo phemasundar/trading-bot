@@ -14,10 +14,15 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
   - RSI Bollinger Bear Call Spread (overbought signal-based)
   - Bullish Broken Wing Butterfly (3-leg directional strategy)
   - Bullish ZEBRA (Zero Extrinsic Back Ratio Spread)
+- **Technical Screeners**: 
+  - RSI Bollinger Crossovers (Bullish/Bearish)
+  - Moving Average Crossovers
+  - Multi-day Price Drop (Selectable lookback from 0-N days)
+  - 52-Week High Drop (Percentage decline from yearly high)
 - **Object-Oriented Filter System**: Extensible filter hierarchy with strategy-specific and leg-specific filters
 - **Technical Indicators**: RSI, Bollinger Bands, and Volume analysis using ta4j library
 - **Telegram Notifications**: Receive trade alerts directly to your Telegram
-- **Interactive UI Dashboard**: Execute custom strategy instances, explore strategy configurations with user-defined technical screener aliases, and view data-rich technical screening results with customizable indicator tables. Integrated Charles Schwab API provides live Market Hours status directly on the dashboard.
+- **Interactive UI Dashboard**: Execute custom strategy instances, explore strategy configurations with user-defined technical screener aliases, and view data-rich technical screening results with customizable indicator tables. Integrated Charles Schwab API provides live Market Hours status directly on the dashboard. Sort results by any column (Price, Volume, RSI, Drop %, etc.) with persistent state.
 - **Robust Architecture**: Strictly immutable Data Transfer Objects (DTOs) via Lombok `@Value` and `@Jacksonized` for thread-safe concurrent execution.
 
 ## Prerequisites
@@ -33,7 +38,7 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
 
 1. Register for a Schwab Developer account
 2. Create an application to get your `app_key` and `pp_secret`
-3. Run the main method in `SampleTestNG` to generate a refresh token
+3. Run the main method in `SchwabTokenGenerator` to generate a refresh token
 
 ### Telegram Bot Setup
 
@@ -276,7 +281,31 @@ expirations.getExpirationList().forEach(exp -> {
 });
 ```
 
+### Market Hours
+```java
+// Get market hours for all equity and option markets
+MarketHoursResponse hours = ThinkOrSwinAPIs.getMarketHours();
 
+// Get market hours for a single market type
+String equityHours = ThinkOrSwinAPIs.getMarketHour("equity", "2024-04-15");
+```
+
+### Movers
+```java
+// Get top 10 movers for the S&P 500
+String movers = ThinkOrSwinAPIs.getMovers("$SPX", "PERCENT_CHANGE_UP", 0);
+```
+
+### Instruments
+```java
+// Search for instruments by symbol
+String results = ThinkOrSwinAPIs.getInstruments("AAPL", "symbol-search");
+
+// Get instrument by CUSIP
+String instrument = ThinkOrSwinAPIs.getInstrumentByCusip("037833100");
+```
+
+> 📄 For full API documentation, see [`SchwabAPI/schwab-market-data-api.md`](SchwabAPI/schwab-market-data-api.md)
 ## Strategy Dashboard
 
 The execution results dashboard is now maintained in a separate repository. It is a static HTML/JS application deployed to GitHub Pages that fetches live strategy results from Supabase.

@@ -91,6 +91,17 @@ public class TechFilterConditions {
     private final boolean requirePriceAboveMA200 = false;
 
     /**
+     * Minimum drop percentage for PRICE_DROP and HIGH_52W_DROP screeners.
+     */
+    private final Double minDropPercent;
+
+    /**
+     * Number of trading days to look back for PRICE_DROP screener.
+     * 0 = intraday (uses daily change), >0 = multi-day lookback.
+     */
+    private final Integer lookbackDays;
+
+    /**
      * Returns a readable summary of the conditions.
      */
     public String getSummary() {

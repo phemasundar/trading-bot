@@ -226,7 +226,7 @@ public class TechnicalScreenerTest {
             c.setHigh(price + i + 1);
             c.setLow(price + i - 1);
             c.setClose(price + i);
-            c.setVolume(1000);
+            c.setVolume(1000L);
             candles.add(c);
         }
         response.setCandles(candles);

@@ -3,7 +3,57 @@
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 > **CRITICAL AI RULE**: NEVER use GitHub MCP tools (create PR, merge, create release, etc.) unless the user explicitly asks. Do not assume permission for any GitHub operations.
 
+## Price Drop Technical Screeners (2026-03-28)
+
+Added two new Technical Screener types to identify stocks with significant price declines.
+
+### Features
+- **Multi-day Price Drop** (`PRICE_DROP`): Screens stocks down ≥ X% over N trading days. When `lookbackDays=0`, uses intraday (daily) percent change from Quotes API. When `lookbackDays>0`, uses Price History API for multi-day lookback.
+- **52-Week High Drop** (`HIGH_52W_DROP`): Screens stocks down ≥ X% from their 52-week high using the Quotes API.
+- **Configurable Parameters**: `minDropPercent` and `lookbackDays` are configurable per screener entry in `strategies-config.json`.
+- **Screener Consistency Fix**: Changed `screenerId` to use the screener name (alias) instead of the enum type name. This prevents screeners sharing the same type (like "Intraday Drop" and "5-Day Drop") from overwriting each other in the database.
+- **DTO Hardening & Null Safety**: Converted 100+ primitive fields (`double`, `long`, `int`, `boolean`) in `QuotesResponse`, `PriceHistoryResponse`, and `MarketHoursResponse` to boxed Wrapper types (`Double`, `Long`, `Integer`, `Boolean`). This prevents Jackson deserialization failures when the Schwab API returns `null` for fields like `nAV`, `previousClose`, or `isOpen`.
+- **Dashboard UI Improvements**:
+  - **Checkbox Default State**: All strategy and screener checkboxes on the dashboard are now unchecked by default on page load.
+  - **Technical Screener Sorting**: Implemented interactive column sorting for technical screener and price drop screener tables, sharing the same unified sorting logic as the options strategy tables.
+- **Dashboard Display**: Drop screener results show dedicated columns (Ticker, Current Price, Ref Price, Drop %, Volume, Type) sorted by largest drops, with red color intensity scaling.
+
+### Architecture
+- **`PriceDropScreener.java`** [NEW]: Standalone screener class with `screenPriceDrop()` and `screen52WeekHighDrop()` methods, using Quotes API and Price History API.
+- **`ScreenerType.java`** [MODIFIED]: Added `PRICE_DROP` and `HIGH_52W_DROP` enum values.
+- **`ScreenerExecutionService.java`** [MODIFIED]: Added switch-based routing for new screener types to `PriceDropScreener` vs `TechnicalScreener`.
+- **`TechnicalScreener.ScreeningResult`** [MODIFIED]: Added `dropPercent`, `referencePrice`, `dropType` fields with formatted summary support.
+- **`TechFilterConditions.java`** [MODIFIED]: Added `minDropPercent` and `lookbackDays` fields.
+- **`StrategiesConfig.java`** [MODIFIED]: Added drop fields to `ScreenerConditionsConfig`.
+- **`StrategiesConfigLoader.java`** [MODIFIED]: Maps new drop condition fields.
+- **`strategies-config.json`** [MODIFIED]: Added 3 default screener entries (Intraday Drop ≥ 3%, 5-Day Drop ≥ 5%, Down ≥ 20% from 52W High).
+- **`app.js`** [MODIFIED]: Added `buildDropScreenerTable()` for drop-specific display with color-coded severity.
+
+## Schwab Market Data API Documentation & Full Coverage (2026-03-28)
+
+Documented all available Schwab Market Data API endpoints from the saved Swagger HTML and implemented the 4 missing endpoints to achieve full API coverage.
+
+### Documentation
+- **`SchwabAPI/schwab-market-data-api.md`** [NEW]: Comprehensive reference covering all 10 endpoints across 7 API categories (Quotes, Option Chains, Expiration Chain, Price History, Movers, Market Hours, Instruments), 40+ data schemas, gap analysis table, and error response formats.
+
+### New API Methods
+- **`ThinkOrSwinAPIs.java`** [MODIFIED]: Added 4 missing Market Data API endpoints:
+  - `getMarketHour(marketId, date)`: Single market hours lookup (equity/option/bond/future/forex).
+  - `getMovers(indexSymbol, sort, frequency)`: Top 10 movers for a given index ($DJI, $SPX, etc.).
+  - `getInstruments(symbol, projection)`: Instrument search by symbol/description with configurable projection type.
+  - `getInstrumentByCusip(cusipId)`: Direct CUSIP-based instrument lookup.
+
+## Legacy Vaadin Artifact Removal (2026-03-27)
+
+Removed obsolete Vaadin-related directories and configuration files following the successful migration to a static HTML/JS frontend.
+
+### Cleanup
+- **Deleted `src/main/bundles`**: Removed pre-compiled Vaadin assets that were no longer used.
+- **Deleted NPM Configs**: Removed `package.json`, `package-lock.json`, `tsconfig.json`, and `types.d.ts` as the project no longer requires an npm build step for the frontend.
+- **Deleted `node_modules`**: Reclaimed ~266MB of disk space by removing unused legacy dependencies.
+
 ## Market Hours Live Status (2026-03-25)
+
 
 Integrated the Charles Schwab Market Hours API to display real-time Equity and Options market status directly on the dashboard.
 

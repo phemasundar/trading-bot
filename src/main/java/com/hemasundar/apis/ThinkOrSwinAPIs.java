@@ -2,6 +2,7 @@ package com.hemasundar.apis;
 
 import com.hemasundar.options.models.ExpirationChainResponse;
 import com.hemasundar.options.models.OptionChainResponse;
+import com.hemasundar.pojos.MarketHoursResponse;
 import com.hemasundar.pojos.QuotesResponse;
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.utils.ApiErrorHandler;
@@ -12,6 +13,7 @@ import io.restassured.response.Response;
 import lombok.extern.log4j.Log4j2;
 
 import java.util.List;
+import java.util.Map;
 
 @Log4j2
 public class ThinkOrSwinAPIs {
@@ -28,8 +30,8 @@ public class ThinkOrSwinAPIs {
      *                   $ABC.IV)
      * @return Map of symbol to QuoteData containing quote and reference information
      */
-    public static java.util.Map<String, QuotesResponse.QuoteData> getQuotes(List<String> symbols, String fields,
-            Boolean indicative) {
+    public static Map<String, QuotesResponse.QuoteData> getQuotes(List<String> symbols, String fields,
+                                                                  Boolean indicative) {
 
         String symbolsParam = String.join(",", symbols);
 
@@ -63,7 +65,7 @@ public class ThinkOrSwinAPIs {
      * @param symbols List of symbols to fetch quotes for (REQUIRED)
      * @return Map of symbol to QuoteData with all fields
      */
-    public static java.util.Map<String, QuotesResponse.QuoteData> getQuotes(List<String> symbols) {
+    public static Map<String, QuotesResponse.QuoteData> getQuotes(List<String> symbols) {
         return getQuotes(symbols, null, null); // Gets all fields by default
     }
 
@@ -91,7 +93,7 @@ public class ThinkOrSwinAPIs {
         }
 
         // The response is a map with the symbol as key
-        java.util.Map<String, QuotesResponse.QuoteData> result = JavaUtils.convertJsonToMap(response.asString(),
+        Map<String, QuotesResponse.QuoteData> result = JavaUtils.convertJsonToMap(response.asString(),
                 QuotesResponse.QuoteData.class);
         return result.get(symbol);
     }
@@ -247,7 +249,7 @@ public class ThinkOrSwinAPIs {
      *
      * @return MarketHoursResponse detailing if the markets are currently open.
      */
-    public static com.hemasundar.pojos.MarketHoursResponse getMarketHours() {
+    public static MarketHoursResponse getMarketHours() {
         Response response = RestAssured.given()
                 .header("accept", "application/json")
                 .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())
@@ -260,6 +262,126 @@ public class ThinkOrSwinAPIs {
         }
 
         return JavaUtils.convertJsonToPojo(response.asString(), com.hemasundar.pojos.MarketHoursResponse.class);
+    }
+
+    /**
+     * Fetches market hours for a single specific market type.
+     *
+     * @param marketId Market type: "equity", "option", "bond", "future", "forex"
+     * @param date     Optional date in YYYY-MM-DD format (defaults to today, up to 1 year ahead)
+     * @return Raw JSON string of market hours for the specified market
+     */
+    public static String getMarketHour(String marketId, String date) {
+        var request = RestAssured.given()
+                .header("accept", "application/json")
+                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken());
+
+        if (date != null && !date.isBlank()) {
+            request.queryParam("date", date);
+        }
+
+        Response response = request.get("https://api.schwabapi.com/marketdata/v1/markets/" + marketId);
+
+        if (response.statusCode() != 200) {
+            throw new RuntimeException(
+                    "Market Hour API failed for " + marketId + ": " + response.statusCode() + " - " + response.asString());
+        }
+
+        return response.asString();
+    }
+
+    /**
+     * Fetches the top 10 movers for a specific index.
+     *
+     * @param indexSymbol Index symbol: "$DJI", "$COMPX", "$SPX", "NYSE", "NASDAQ",
+     *                    "OTCBB", "INDEX_ALL", "EQUITY_ALL", "OPTION_ALL",
+     *                    "OPTION_PUT", "OPTION_CALL"
+     * @param sort        Optional sort direction: "VOLUME", "TRADES",
+     *                    "PERCENT_CHANGE_UP", "PERCENT_CHANGE_DOWN"
+     * @param frequency   Optional frequency: 0, 1, 5, 10, 30, 60
+     * @return Raw JSON string containing mover/screener data
+     */
+    public static String getMovers(String indexSymbol, String sort, Integer frequency) {
+        var request = RestAssured.given()
+                .header("accept", "application/json")
+                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken());
+
+        if (sort != null && !sort.isBlank()) {
+            request.queryParam("sort", sort);
+        }
+        if (frequency != null) {
+            request.queryParam("frequency", frequency);
+        }
+
+        Response response = request.get("https://api.schwabapi.com/marketdata/v1/movers/" + indexSymbol);
+
+        if (response.statusCode() != 200) {
+            if (response.statusCode() == 400) {
+                ApiErrorHandler.handle400Error("Movers API", indexSymbol, response.asString());
+                return null;
+            }
+            throw new RuntimeException(
+                    "Movers API failed for " + indexSymbol + ": " + response.statusCode() + " - " + response.asString());
+        }
+
+        return response.asString();
+    }
+
+    /**
+     * Searches for instruments by symbol and projection type.
+     * Supports symbol search, regex, description search, and fundamental data lookup.
+     *
+     * @param symbol     Symbol or search term (e.g., "AAPL", "Apple")
+     * @param projection Search type: "symbol-search", "symbol-regex", "desc-search",
+     *                   "desc-regex", "search", "fundamental"
+     * @return Raw JSON string containing matching instruments
+     */
+    public static String getInstruments(String symbol, String projection) {
+        Response response = RestAssured.given()
+                .header("accept", "application/json")
+                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())
+                .queryParam("symbol", symbol)
+                .queryParam("projection", projection)
+                .get("https://api.schwabapi.com/marketdata/v1/instruments");
+
+        if (response.statusCode() != 200) {
+            if (response.statusCode() == 400) {
+                ApiErrorHandler.handle400Error("Instruments API", symbol, response.asString());
+                return null;
+            }
+            throw new RuntimeException(
+                    "Instruments API failed for " + symbol + ": " + response.statusCode() + " - " + response.asString());
+        }
+
+        return response.asString();
+    }
+
+    /**
+     * Fetches basic instrument details by CUSIP identifier.
+     *
+     * @param cusipId CUSIP of the security (e.g., "037833100" for AAPL)
+     * @return Raw JSON string containing instrument details
+     */
+    public static String getInstrumentByCusip(String cusipId) {
+        Response response = RestAssured.given()
+                .header("accept", "application/json")
+                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())
+                .get("https://api.schwabapi.com/marketdata/v1/instruments/" + cusipId);
+
+        if (response.statusCode() != 200) {
+            if (response.statusCode() == 400) {
+                ApiErrorHandler.handle400Error("Instruments CUSIP API", cusipId, response.asString());
+                return null;
+            }
+            if (response.statusCode() == 404) {
+                log.warn("Instrument not found for CUSIP: {}", cusipId);
+                return null;
+            }
+            throw new RuntimeException(
+                    "Instruments CUSIP API failed for " + cusipId + ": " + response.statusCode() + " - " + response.asString());
+        }
+
+        return response.asString();
     }
 
 }

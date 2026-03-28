@@ -232,6 +232,32 @@ a:hover {
     transform: rotate(90deg);
 }
 
+/* ── Collapsible Sections ── */
+.collapsible-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    padding: 4px 0;
+    user-select: none;
+}
+
+.collapsible-header:hover h3 {
+    color: var(--primary) !important;
+}
+
+.collapsible-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+    padding: 0;
+}
+
+.collapsible-body.open {
+    max-height: 500px;
+    padding: 8px 0 0 0;
+}
+
 /* ── Buttons ── */
 .btn {
     display: inline-flex;

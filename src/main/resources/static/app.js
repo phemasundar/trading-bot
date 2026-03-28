@@ -180,6 +180,11 @@ function buildScreenerCard(result) {
     const cardId = (result.screenerId || 'screener-' + Math.random()).replace(/\s+/g, '-');
     const arrow = `<span class="card-arrow" id="arrow-${cardId}">▶</span>`;
 
+    // Detect table type and store data for sorting
+    const isDropScreener = hasResults && result.results[0].dropType && result.results[0].dropType.length > 0;
+    window.tradeDataMap[cardId] = result.results || [];
+    window.tradeDataMap[cardId]._type = isDropScreener ? 'drop' : 'screener';
+
     card.innerHTML = `
         <div class="card-header" data-target="${cardId}">
             <div class="flex items-center gap-sm flex-wrap">
@@ -190,7 +195,7 @@ function buildScreenerCard(result) {
             <span class="card-stats">Last run: ${timeAgo(result.updatedAt)} · Found: ${result.resultsFound || 0}</span>
         </div>
         <div class="card-content" id="content-${cardId}">
-            ${buildScreenerTable(result.results || [])}
+            ${buildScreenerTable(result.results || [], cardId)}
         </div>`;
 
     if (hasResults) {
@@ -204,22 +209,40 @@ function buildScreenerCard(result) {
 
 // ── Screener Table Builder ──
 
-function buildScreenerTable(results) {
+function buildScreenerTable(results, cardId = null) {
     if (!results || results.length === 0) {
         return '<div class="empty-state"><div class="empty-state-icon">🔎</div>No stocks found</div>';
     }
 
+    // Detect drop screener by checking if first result has dropType
+    const isDropScreener = results[0].dropType && results[0].dropType.length > 0;
+
+    if (isDropScreener) {
+        return buildDropScreenerTable(results, cardId);
+    }
+
+    const state = cardId ? (window.tableSortState[cardId] || { column: null, direction: 'asc' }) : null;
+
+    // Reuse the same sortable header pattern as trade tables
+    const th = (key, label) => {
+        if (!cardId) return `<th>${label}</th>`;
+        const active = state && state.column === key;
+        const arrow = active ? (state.direction === 'asc' ? ' ↑' : ' ↓') : '';
+        const cls = active ? 'sort-header active' : 'sort-header';
+        return `<th class="${cls}" onclick="handleTableSort('${cardId}', '${key}')" title="Sort by ${label}">${label}${arrow}</th>`;
+    };
+
     let html = `<table class="data-table">
         <thead><tr>
-            <th>Ticker</th>
-            <th>Price</th>
-            <th>Volume</th>
-            <th>RSI</th>
+            ${th('ticker', 'Ticker')}
+            ${th('price', 'Price')}
+            ${th('volume', 'Volume')}
+            ${th('rsi', 'RSI')}
             <th>BB (L-U)</th>
-            <th>MA 200</th>
-            <th>MA 100</th>
-            <th>MA 50</th>
-            <th>MA 20</th>
+            ${th('ma200', 'MA 200')}
+            ${th('ma100', 'MA 100')}
+            ${th('ma50', 'MA 50')}
+            ${th('ma20', 'MA 20')}
         </tr></thead><tbody>`;
 
     for (const r of results) {
@@ -296,6 +319,68 @@ function buildScreenerTable(results) {
     return html;
 }
 
+// ── Drop Screener Table Builder ──
+
+function buildDropScreenerTable(results, cardId = null) {
+    const state = cardId ? (window.tableSortState[cardId] || { column: null, direction: 'asc' }) : null;
+
+    const th = (key, label) => {
+        if (!cardId) return `<th>${label}</th>`;
+        const active = state && state.column === key;
+        const arrow = active ? (state.direction === 'asc' ? ' ↑' : ' ↓') : '';
+        const cls = active ? 'sort-header active' : 'sort-header';
+        return `<th class="${cls}" onclick="handleTableSort('${cardId}', '${key}')" title="Sort by ${label}">${label}${arrow}</th>`;
+    };
+
+    let html = `<table class="data-table">
+        <thead><tr>
+            ${th('ticker', 'Ticker')}
+            ${th('price', 'Current Price')}
+            ${th('refPrice', 'Ref Price')}
+            ${th('dropPct', 'Drop %')}
+            ${th('volume', 'Volume')}
+            <th>Type</th>
+        </tr></thead><tbody>`;
+
+    // Default sort by drop percent descending (biggest drops first) when no explicit sort
+    let sorted = results;
+    if (!state || !state.column) {
+        sorted = [...results].sort((a, b) => (b.dropPercent || 0) - (a.dropPercent || 0));
+    }
+
+    for (const r of sorted) {
+        const price = (typeof r.currentPrice === 'number') ? `$${r.currentPrice.toFixed(2)}` : '-';
+        const refPrice = (typeof r.referencePrice === 'number') ? `$${r.referencePrice.toFixed(2)}` : '-';
+        const dropPct = (typeof r.dropPercent === 'number') ? r.dropPercent.toFixed(2) : '0';
+        const volume = formatLargeNumber(r.volume);
+        const dropType = r.dropType || '-';
+
+        // Color intensity based on drop severity
+        const dropVal = r.dropPercent || 0;
+        const dropColor = dropVal >= 20 ? '#ff4444' : dropVal >= 10 ? '#ff6b6b' : dropVal >= 5 ? '#ffa07a' : '#ffcc80';
+
+        const detailLines = [
+            `📉 Drop: ${dropPct}% (${dropType})`,
+            `💰 Current: ${price}`,
+            `📌 Reference: ${refPrice}`,
+            `📊 Volume: ${(typeof r.volume === 'number') ? r.volume.toLocaleString() : '-'}`
+        ];
+        const detailStr = escapeAttr(detailLines.join('\n'));
+
+        html += `<tr class="trade-row" data-details="${detailStr}">
+            <td><strong class="text-danger">${r.symbol || ''}</strong></td>
+            <td class="text-mono">${price}</td>
+            <td class="text-muted text-mono">${refPrice}</td>
+            <td><span style="color: ${dropColor}; font-weight: 700;">-${dropPct}%</span></td>
+            <td>${volume}</td>
+            <td class="text-muted small">${dropType}</td>
+        </tr>`;
+    }
+
+    html += '</tbody></table>';
+    return html;
+}
+
 function rsiValue(val) {
     const cls = val < 30 ? 'text-success' : (val > 70 ? 'text-danger' : '');
     return `<span class="${cls}">${val.toFixed(1)}</span>`;
@@ -359,8 +444,8 @@ function buildTradeTable(trades, cardId = null) {
 }
 
 function handleTableSort(cardId, column) {
-    const originalTrades = window.tradeDataMap[cardId];
-    if (!originalTrades || originalTrades.length === 0) return;
+    const originalData = window.tradeDataMap[cardId];
+    if (!originalData || originalData.length === 0) return;
 
     // Initialize or toggle state
     if (!window.tableSortState[cardId] || window.tableSortState[cardId].column !== column) {
@@ -375,20 +460,26 @@ function handleTableSort(cardId, column) {
         }
     }
 
-    let trades = [...originalTrades];
+    let data = [...originalData];
     const state = window.tableSortState[cardId];
 
     if (state.column && state.direction) {
         const dirMultiplier = state.direction === 'asc' ? 1 : -1;
 
-        // Perform sort
-        trades.sort((a, b) => {
+        data.sort((a, b) => {
             let valA, valB;
             switch (state.column) {
+                // ── Shared keys (all table types) ──
                 case 'ticker':
                     valA = a.symbol || '';
                     valB = b.symbol || '';
                     return valA.localeCompare(valB) * dirMultiplier;
+                case 'volume':
+                    valA = a.volume || a.totalVolume || 0;
+                    valB = b.volume || b.totalVolume || 0;
+                    break;
+
+                // ── Trade table keys ──
                 case 'expiry':
                     valA = a.dte || 0;
                     valB = b.dte || 0;
@@ -402,7 +493,6 @@ function handleTableSort(cardId, column) {
                     valB = b.anulizedNetExtrinsicValueToCapitalPercentage || 0;
                     break;
                 case 'breakeven':
-                    // Compare by breakevenCAGR if both have it, else breakEvenPercent
                     const hasCagr = a.breakevenCAGR != null && b.breakevenCAGR != null;
                     valA = hasCagr ? a.breakevenCAGR : (a.breakEvenPercent || 0);
                     valB = hasCagr ? b.breakevenCAGR : (b.breakEvenPercent || 0);
@@ -411,6 +501,43 @@ function handleTableSort(cardId, column) {
                     valA = a.maxReturnOnRiskPercentage || a.returnOnRisk || 0;
                     valB = b.maxReturnOnRiskPercentage || b.returnOnRisk || 0;
                     break;
+
+                // ── Screener table keys ──
+                case 'price':
+                    valA = a.currentPrice || a.underlyingPrice || 0;
+                    valB = b.currentPrice || b.underlyingPrice || 0;
+                    break;
+                case 'rsi':
+                    valA = a.rsi || 0;
+                    valB = b.rsi || 0;
+                    break;
+                case 'ma200':
+                    valA = a.ma200 || 0;
+                    valB = b.ma200 || 0;
+                    break;
+                case 'ma100':
+                    valA = a.ma100 || 0;
+                    valB = b.ma100 || 0;
+                    break;
+                case 'ma50':
+                    valA = a.ma50 || 0;
+                    valB = b.ma50 || 0;
+                    break;
+                case 'ma20':
+                    valA = a.ma20 || 0;
+                    valB = b.ma20 || 0;
+                    break;
+
+                // ── Drop screener keys ──
+                case 'refPrice':
+                    valA = a.referencePrice || 0;
+                    valB = b.referencePrice || 0;
+                    break;
+                case 'dropPct':
+                    valA = a.dropPercent || 0;
+                    valB = b.dropPercent || 0;
+                    break;
+
                 default:
                     return 0;
             }
@@ -418,10 +545,17 @@ function handleTableSort(cardId, column) {
         });
     }
 
-    // Re-render table inside the card
+    // Re-render using the correct table builder based on data type
     const contentDiv = document.getElementById(`content-${cardId}`);
     if (contentDiv) {
-        contentDiv.innerHTML = buildTradeTable(trades, cardId);
+        const tableType = originalData._type;
+        if (tableType === 'drop') {
+            contentDiv.innerHTML = buildDropScreenerTable(data, cardId);
+        } else if (tableType === 'screener') {
+            contentDiv.innerHTML = buildScreenerTable(data, cardId);
+        } else {
+            contentDiv.innerHTML = buildTradeTable(data, cardId);
+        }
     }
 }
 
@@ -606,11 +740,13 @@ async function loadStrategies() {
             strategyContainer.innerHTML = strategies.map(s => `
                 <div class="flex items-center gap-sm" style="margin-bottom: 8px;">
                     <label class="checkbox-label" style="margin: 0;">
-                        <input type="checkbox" value="${s.index}" data-type="strategy" checked>
+                        <input type="checkbox" value="${s.index}" data-type="strategy">
                         <span>${s.name}</span>
                     </label>
                     ${s.descriptionFile ? `<button type="button" class="info-btn" onclick="showInfo(event, '${s.descriptionFile}', '${escapeAttr(s.name)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>` : ''}
                 </div>`).join('');
+            const badge = document.getElementById('strategy-count-badge');
+            if (badge) badge.textContent = `(${strategies.length})`;
         } catch (e) {
             strategyContainer.innerHTML = `<span class="text-muted">Failed to load strategies</span>`;
         }
@@ -626,11 +762,13 @@ async function loadStrategies() {
                 screenerContainer.innerHTML = screeners.map(s => `
                     <div class="flex items-center gap-sm" style="margin-bottom: 8px;">
                         <label class="checkbox-label" style="margin: 0;">
-                            <input type="checkbox" value="${s.index}" data-type="screener" checked>
+                            <input type="checkbox" value="${s.index}" data-type="screener">
                             <span>${s.name}</span>
                         </label>
                     </div>`).join('');
             }
+            const badge = document.getElementById('screener-count-badge');
+            if (badge) badge.textContent = `(${screeners.length})`;
         } catch (e) {
             screenerContainer.innerHTML = `<span class="text-muted">Failed to load screeners</span>`;
         }
@@ -882,11 +1020,29 @@ async function cancelExecution() {
     }
 }
 
+function toggleSection(sectionId) {
+    const body = document.getElementById(sectionId);
+    const arrow = document.getElementById('arrow-' + sectionId);
+    if (body) body.classList.toggle('open');
+    if (arrow) arrow.classList.toggle('open');
+}
+
 function selectAll(check) {
     document.querySelectorAll('#strategy-checkboxes input[type="checkbox"]')
         .forEach(cb => cb.checked = check);
     document.querySelectorAll('#screener-checkboxes input[type="checkbox"]')
         .forEach(cb => cb.checked = check);
+    // Auto-expand sections when selecting all so user can see the selections
+    if (check) {
+        ['strategy-section', 'screener-section'].forEach(id => {
+            const body = document.getElementById(id);
+            const arrow = document.getElementById('arrow-' + id);
+            if (body && !body.classList.contains('open')) {
+                body.classList.add('open');
+                if (arrow) arrow.classList.add('open');
+            }
+        });
+    }
 }
 
 // ══════════════════════════════════════

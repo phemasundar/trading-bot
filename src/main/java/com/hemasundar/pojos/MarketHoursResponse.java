@@ -28,7 +28,7 @@ public class MarketHoursResponse {
         private String productName;
 
         @JsonProperty("isOpen")
-        private boolean isOpen;
+        private Boolean isOpen;
 
         private SessionHours sessionHours;
     }

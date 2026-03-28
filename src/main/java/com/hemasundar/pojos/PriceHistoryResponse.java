@@ -17,9 +17,9 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class PriceHistoryResponse {
     private String symbol;
-    private boolean empty;
-    private double previousClose;
-    private long previousCloseDate;
+    private Boolean empty;
+    private Double previousClose;
+    private Long previousCloseDate;
     private List<CandleData> candles;
 
     /**
@@ -30,11 +30,11 @@ public class PriceHistoryResponse {
     @AllArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class CandleData {
-        private double open;
-        private double high;
-        private double low;
-        private double close;
-        private long volume;
-        private long datetime; // Unix timestamp in milliseconds
+        private Double open;
+        private Double high;
+        private Double low;
+        private Double close;
+        private Long volume;
+        private Long datetime; // Unix timestamp in milliseconds
     }
 }

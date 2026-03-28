@@ -1,9 +1,7 @@
 package com.hemasundar.services;
 
 import com.hemasundar.dto.ScreenerExecutionResult;
-import com.hemasundar.technical.ScreenerConfig;
-import com.hemasundar.technical.TechnicalFilterChain;
-import com.hemasundar.technical.TechnicalScreener;
+import com.hemasundar.technical.*;
 import com.hemasundar.utils.TelegramUtils;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +18,7 @@ public class ScreenerExecutionService {
 
     @Autowired
     private SupabaseService supabaseService;
-    
+
     @Autowired
     private com.hemasundar.utils.SecuritiesResolver securitiesResolver;
 
@@ -47,14 +45,14 @@ public class ScreenerExecutionService {
             return;
         }
 
-        com.hemasundar.technical.TechnicalIndicators allIndicators = com.hemasundar.technical.TechnicalIndicators.builder()
-                .rsiFilter(com.hemasundar.technical.RSIFilter.builder().period(14).oversoldThreshold(30.0).overboughtThreshold(70.0).build())
-                .bollingerFilter(com.hemasundar.technical.BollingerBandsFilter.builder().period(20).standardDeviations(2.0).build())
-                .ma20Filter(com.hemasundar.technical.MovingAverageFilter.builder().period(20).build())
-                .ma50Filter(com.hemasundar.technical.MovingAverageFilter.builder().period(50).build())
-                .ma100Filter(com.hemasundar.technical.MovingAverageFilter.builder().period(100).build())
-                .ma200Filter(com.hemasundar.technical.MovingAverageFilter.builder().period(200).build())
-                .volumeFilter(com.hemasundar.technical.VolumeFilter.builder().build())
+        TechnicalIndicators allIndicators = TechnicalIndicators.builder()
+                .rsiFilter(RSIFilter.builder().period(14).oversoldThreshold(30.0).overboughtThreshold(70.0).build())
+                .bollingerFilter(BollingerBandsFilter.builder().period(20).standardDeviations(2.0).build())
+                .ma20Filter(MovingAverageFilter.builder().period(20).build())
+                .ma50Filter(MovingAverageFilter.builder().period(50).build())
+                .ma100Filter(MovingAverageFilter.builder().period(100).build())
+                .ma200Filter(MovingAverageFilter.builder().period(200).build())
+                .volumeFilter(VolumeFilter.builder().build())
                 .build();
 
         // Filter to only selected screener indices
@@ -70,9 +68,6 @@ public class ScreenerExecutionService {
             }
             long screenerStartTime = System.currentTimeMillis();
 
-            TechnicalFilterChain filterChain = TechnicalFilterChain.of(allIndicators,
-                    screenerConfig.getConditions());
-
             // Get securities from config
             List<String> securitiesToScan = screenerConfig.getSecurities();
             if (securitiesToScan == null || securitiesToScan.isEmpty()) {
@@ -80,8 +75,25 @@ public class ScreenerExecutionService {
                 continue;
             }
 
-            List<TechnicalScreener.ScreeningResult> screenerResults = TechnicalScreener.screenStocks(
-                    securitiesToScan, filterChain);
+            // Route to appropriate screener based on type
+            List<TechnicalScreener.ScreeningResult> screenerResults = switch (screenerConfig.getScreenerType()) {
+                case PRICE_DROP -> {
+                    TechFilterConditions cond = screenerConfig.getConditions();
+                    double minDrop = cond.getMinDropPercent() != null ? cond.getMinDropPercent() : 5.0;
+                    int days = cond.getLookbackDays() != null ? cond.getLookbackDays() : 0;
+                    yield PriceDropScreener.screenPriceDrop(securitiesToScan, minDrop, days);
+                }
+                case HIGH_52W_DROP -> {
+                    TechFilterConditions cond = screenerConfig.getConditions();
+                    double minDrop = cond.getMinDropPercent() != null ? cond.getMinDropPercent() : 20.0;
+                    yield PriceDropScreener.screen52WeekHighDrop(securitiesToScan, minDrop);
+                }
+                default -> {
+                    TechnicalFilterChain filterChain = TechnicalFilterChain.of(allIndicators,
+                            screenerConfig.getConditions());
+                    yield TechnicalScreener.screenStocks(securitiesToScan, filterChain);
+                }
+            };
 
             log.info("[{}] Found {} stocks matching criteria", screenerConfig.getName(), screenerResults.size());
 
@@ -95,7 +107,7 @@ public class ScreenerExecutionService {
             // Save screener result
             long screenerExecutionTime = System.currentTimeMillis() - screenerStartTime;
             ScreenerExecutionResult scrResult = ScreenerExecutionResult.builder()
-                    .screenerId(screenerConfig.getScreenerType().name())
+                    .screenerId(screenerConfig.getName())
                     .screenerName(screenerConfig.getName())
                     .executionTimeMs(screenerExecutionTime)
                     .resultsFound(screenerResults.size())
