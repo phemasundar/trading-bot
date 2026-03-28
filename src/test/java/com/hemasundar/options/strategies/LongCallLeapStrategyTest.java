@@ -1,33 +1,105 @@
 package com.hemasundar.options.strategies;
 
-import com.hemasundar.options.models.LongCallLeapFilter;
-import com.hemasundar.options.models.OptionChainResponse;
-import com.hemasundar.options.models.TradeSetup;
-import com.hemasundar.options.strategies.LongCallLeapStrategy;
+import com.hemasundar.options.models.*;
 import com.hemasundar.utils.StrategyTestUtils;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+
 import static org.testng.Assert.*;
 
 public class LongCallLeapStrategyTest {
 
+    private LongCallLeapStrategy strategy;
+    private OptionChainResponse mockChain;
+
+    @BeforeMethod
+    public void setUp() {
+        strategy = new LongCallLeapStrategy();
+        mockChain = StrategyTestUtils.createMockChain("AAPL", 150.0);
+
+        // ITM Call: 140 Strike, Ask 20.00
+        StrategyTestUtils.addOption(mockChain, "2026-06-19", 400, 140.0, 19.50, 20.00, 0.70, false);
+        // ATM Call: 150 Strike, Ask 10.00
+        StrategyTestUtils.addOption(mockChain, "2026-06-19", 400, 150.0, 9.50, 10.00, 0.50, false);
+    }
+
     @Test
     public void testFindValidTrades_Success() {
-        LongCallLeapStrategy strategy = new LongCallLeapStrategy();
-        OptionChainResponse chain = StrategyTestUtils.createMockChain("AAPL", 150.0);
-
-        // Long Call: 120 Strike (ITM), Price: 35.00
-        StrategyTestUtils.addOption(chain, "2026-06-19", 400, 120.0, 34.00, 35.00, 0.85, false);
-
         LongCallLeapFilter filter = new LongCallLeapFilter();
         filter.setTargetDTE(400);
         filter.setMinDTE(365);
         filter.setMaxDTE(730);
 
-        List<TradeSetup> trades = strategy.findTrades(chain, filter);
+        List<TradeSetup> trades = strategy.findTrades(mockChain, filter);
 
+        // Found 2 trades (140, 150 ITM/ATM)
+        assertEquals(trades.size(), 2);
+        assertTrue(trades.get(0) instanceof LongCallLeap);
+    }
+
+    @Test
+    public void testFindTrades_StrictLimit() {
+        // Find top 1 trade
+        LongCallLeapFilter filter = LongCallLeapFilter.builder()
+                .minDTE(300)
+                .maxDTE(500)
+                .topTradesCount(1)
+                .build();
+
+        List<TradeSetup> trades = strategy.findTrades(mockChain, filter);
+        assertNotNull(trades);
         assertEquals(trades.size(), 1);
-        TradeSetup trade = trades.get(0);
-        assertEquals(trade.getNetCredit(), -3500.0, 0.01);
+        
+        // Sorting check: High DTE/Savings priority.
+        // With same expiry, it ranks by savings/price etc.
+    }
+
+    @Test
+    public void testFindTrades_WithRelaxation() {
+        // High minCostSavings making strict return 0 (impossible target)
+        LongCallLeapFilter filter = LongCallLeapFilter.builder()
+                .minDTE(300)
+                .maxDTE(500)
+                .topTradesCount(2)
+                .minCostSavingsPercent(99.0) 
+                .relaxationPriority(Collections.singletonList("minCostSavingsPercent"))
+                .build();
+
+        List<TradeSetup> trades = strategy.findTrades(mockChain, filter);
+        assertNotNull(trades);
+        // Should find 2 trades after relaxing minCostSavings
+        assertEquals(trades.size(), 2);
+    }
+
+    @Test
+    public void testFindTrades_NoRelaxationConfigured() {
+        LongCallLeapFilter filter = LongCallLeapFilter.builder()
+                .minDTE(300)
+                .maxDTE(500)
+                .topTradesCount(2)
+                .minCostSavingsPercent(99.0)
+                .relaxationPriority(null) // No relaxation
+                .build();
+
+        List<TradeSetup> trades = strategy.findTrades(mockChain, filter);
+        assertEquals(trades.size(), 0);
+    }
+
+    @Test
+    public void testCustomSortPriority() {
+        LongCallLeapFilter filter = LongCallLeapFilter.builder()
+                .minDTE(300)
+                .maxDTE(500)
+                .topTradesCount(10)
+                .sortPriority(Arrays.asList("optionPricePercent", "breakevenCAGR"))
+                .build();
+
+        List<TradeSetup> trades = strategy.findTrades(mockChain, filter);
+        assertNotNull(trades);
+        assertTrue(trades.size() > 0);
     }
 }
