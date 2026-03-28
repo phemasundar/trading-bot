@@ -31,7 +31,6 @@ public class FilterParser {
                 filter = new IronCondorFilter();
                 break;
             case LONG_CALL_LEAP:
-            case LONG_CALL_LEAP_TOP_N:
                 filter = new LongCallLeapFilter();
                 break;
             case BULLISH_BROKEN_WING_BUTTERFLY:

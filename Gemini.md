@@ -16,6 +16,9 @@ Added two new Technical Screener types to identify stocks with significant price
 - **Dashboard UI Improvements**:
   - **Checkbox Default State**: All strategy and screener checkboxes on the dashboard are now unchecked by default on page load.
   - **Technical Screener Sorting**: Implemented interactive column sorting for technical screener and price drop screener tables, sharing the same unified sorting logic as the options strategy tables.
+- **Strategy Architecture Consolidation**: Merged `LONG_CALL_LEAP_TOP_N` into the base `LONG_CALL_LEAP` strategy. The unified strategy now natively supports sorting, trade limits, and progressive relaxation, simplifying the codebase and user configuration.
+- **Execute Screen Persistence**: Fixed an issue where the progress bar would disappear on the `/execute` screen if the page was refreshed during strategy execution. Added `checkCustomExecutionStatus()` to the page initialization flow to sync with the backend state.
+- **LEAP Top N Strategy Update**: Changed default behavior of `LONG_CALL_LEAP_TOP_N` to return all matching results if `topTradesCount` is not specified in the filter. This also bypasses the progressive relaxation logic in "no-limit" mode to ensure only strict metadata matches are returned.
 - **Dashboard Display**: Drop screener results show dedicated columns (Ticker, Current Price, Ref Price, Drop %, Volume, Type) sorted by largest drops, with red color intensity scaling.
 
 ### Architecture

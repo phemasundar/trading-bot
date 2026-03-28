@@ -34,9 +34,8 @@ public class LongCallLeapFilter extends OptionsStrategyFilter {
     private Double minCostEfficiencyPercent;
 
     /**
-     * Number of top trades to return per stock (used by LONG_CALL_LEAP_TOP_N
-     * strategy).
-     * If null or not set, defaults to 3.
+     * Number of top trades to return per stock. If null, returns all matching results. 
+     * Ranks trades by priority criteria (DTE, Cost Savings, etc.).
      */
     private Integer topTradesCount;
 

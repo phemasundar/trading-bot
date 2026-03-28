@@ -1058,7 +1058,6 @@ const STRATEGY_TYPES = [
     { value: 'IRON_CONDOR', label: 'Iron Condor', group: 'iron_condor' },
     { value: 'BULLISH_LONG_IRON_CONDOR', label: 'Bullish Long Iron Condor', group: 'iron_condor' },
     { value: 'LONG_CALL_LEAP', label: 'Long Call LEAP', group: 'leap' },
-    { value: 'LONG_CALL_LEAP_TOP_N', label: 'Long Call LEAP Top N', group: 'leap' },
     { value: 'BULLISH_BROKEN_WING_BUTTERFLY', label: 'Bullish Broken Wing Butterfly', group: 'bwb' },
     { value: 'BULLISH_ZEBRA', label: 'Bullish ZEBRA', group: 'zebra' },
 ];
@@ -1134,6 +1133,27 @@ function initExecutePage() {
     });
 
     loadCustomResults();
+    checkCustomExecutionStatus();
+}
+
+async function checkCustomExecutionStatus() {
+    try {
+        const progress = document.getElementById('custom-progress');
+        if (!progress) return;
+
+        const status = await API.get('/api/status');
+        if (status.running) {
+            window.currentExecutionTaskName = status.currentTask || "";
+            progress.className = 'progress-container active';
+            startTimer(status.startTimeMs);
+            startPolling(() => {
+                progress.className = 'progress-container';
+                stopTimer();
+                loadCustomResults();
+                showToast('Custom execution completed!');
+            });
+        }
+    } catch (e) { /* ignore */ }
 }
 
 async function renderStrategyTemplates(strategyType) {
