@@ -53,6 +53,11 @@ public class TechnicalScreener {
         private boolean rsiBullishCrossover;
         private boolean rsiBearishCrossover;
 
+        // Price drop screener fields
+        private double dropPercent;
+        private double referencePrice;
+        private String dropType; // INTRADAY, <N>D (multi-day), 52W_HIGH
+
         /**
          * Returns a concise plain-text summary of the screening result.
          * Used by both the Web UI (click-to-expand) and Telegram alerts.
@@ -62,6 +67,13 @@ public class TechnicalScreener {
         public String getFormattedSummary() {
             StringBuilder sb = new StringBuilder();
             sb.append("  💰 Price: $").append(String.format("%.2f", currentPrice)).append("\n");
+
+            // Drop screener fields
+            if (dropType != null && !dropType.isEmpty()) {
+                sb.append("  📉 Drop: ").append(String.format("%.2f%%", dropPercent));
+                sb.append(" (").append(dropType).append(")").append("\n");
+                sb.append("  📌 Ref Price: $").append(String.format("%.2f", referencePrice)).append("\n");
+            }
 
             // Volume
             sb.append("  📊 Volume: ").append(formatVolume(volume)).append("\n");

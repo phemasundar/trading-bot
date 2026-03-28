@@ -41,8 +41,8 @@ public class QuotesResponse {
         private String assetMainType; // EQUITY, MUTUAL_FUND, INDEX, FOREX
         private String assetSubType; // COE, ETF, OEF
         private String quoteType; // NBBO
-        private boolean realtime;
-        private long ssid;
+        private Boolean realtime;
+        private Long ssid;
         private String symbol;
         private Extended extended;
         private Fundamental fundamental;
@@ -59,16 +59,16 @@ public class QuotesResponse {
     @AllArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Extended {
-        private double askPrice;
-        private int askSize;
-        private double bidPrice;
-        private int bidSize;
-        private double lastPrice;
-        private int lastSize;
-        private double mark;
-        private long quoteTime;
-        private long totalVolume;
-        private long tradeTime;
+        private Double askPrice;
+        private Integer askSize;
+        private Double bidPrice;
+        private Integer bidSize;
+        private Double lastPrice;
+        private Integer lastSize;
+        private Double mark;
+        private Long quoteTime;
+        private Long totalVolume;
+        private Long tradeTime;
     }
 
     /**
@@ -79,22 +79,22 @@ public class QuotesResponse {
     @AllArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Fundamental {
-        private long avg10DaysVolume;
-        private long avg1YearVolume;
+        private Long avg10DaysVolume;
+        private Long avg1YearVolume;
         private String declarationDate;
-        private double divAmount;
+        private Double divAmount;
         private String divExDate;
-        private int divFreq;
-        private double divPayAmount;
+        private Integer divFreq;
+        private Double divPayAmount;
         private String divPayDate;
-        private double divYield;
-        private double eps;
-        private double fundLeverageFactor;
+        private Double divYield;
+        private Double eps;
+        private Double fundLeverageFactor;
         private String lastEarningsDate;
         private String nextDivExDate;
         private String nextDivPayDate;
-        private double peRatio;
-        private long sharesOutstanding;
+        private Double peRatio;
+        private Long sharesOutstanding;
     }
 
     /**
@@ -106,39 +106,39 @@ public class QuotesResponse {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Quote {
         @JsonProperty("52WeekHigh")
-        private double fiftyTwoWeekHigh;
+        private Double fiftyTwoWeekHigh;
         @JsonProperty("52WeekLow")
-        private double fiftyTwoWeekLow;
+        private Double fiftyTwoWeekLow;
         private String askMICId;
-        private double askPrice;
-        private int askSize;
-        private long askTime;
+        private Double askPrice;
+        private Integer askSize;
+        private Long askTime;
         private String bidMICId;
-        private double bidPrice;
-        private int bidSize;
-        private long bidTime;
-        private double closePrice;
-        private double highPrice;
+        private Double bidPrice;
+        private Integer bidSize;
+        private Long bidTime;
+        private Double closePrice;
+        private Double highPrice;
         private String lastMICId;
-        private double lastPrice;
-        private int lastSize;
-        private double lowPrice;
-        private double mark;
-        private double markChange;
-        private double markPercentChange;
-        private double nAV; // Net Asset Value for mutual funds
-        private double netChange;
-        private double netPercentChange;
-        private double openPrice;
-        private double postMarketChange;
-        private double postMarketPercentChange;
-        private long quoteTime;
+        private Double lastPrice;
+        private Integer lastSize;
+        private Double lowPrice;
+        private Double mark;
+        private Double markChange;
+        private Double markPercentChange;
+        private Double nAV; // Net Asset Value for mutual funds (null for equities)
+        private Double netChange;
+        private Double netPercentChange;
+        private Double openPrice;
+        private Double postMarketChange;
+        private Double postMarketPercentChange;
+        private Long quoteTime;
         private String securityStatus;
-        private int tick;
-        private double tickAmount;
-        private long totalVolume;
-        private long tradeTime;
-        private double volatility;
+        private Integer tick;
+        private Double tickAmount;
+        private Long totalVolume;
+        private Long tradeTime;
+        private Double volatility;
     }
 
     /**
@@ -153,11 +153,11 @@ public class QuotesResponse {
         private String description;
         private String exchange;
         private String exchangeName;
-        private boolean isHardToBorrow;
-        private boolean isShortable;
-        private boolean isTradable;
-        private long htbQuantity;
-        private double htbRate;
+        private Boolean isHardToBorrow;
+        private Boolean isShortable;
+        private Boolean isTradable;
+        private Long htbQuantity;
+        private Double htbRate;
         private String otcMarketTier; // For OTC stocks: OTCID, Pink Limited
     }
 
@@ -169,11 +169,11 @@ public class QuotesResponse {
     @AllArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Regular {
-        private double regularMarketLastPrice;
-        private long regularMarketLastSize;
-        private double regularMarketNetChange;
-        private double regularMarketPercentChange;
-        private long regularMarketTradeTime;
+        private Double regularMarketLastPrice;
+        private Long regularMarketLastSize;
+        private Double regularMarketNetChange;
+        private Double regularMarketPercentChange;
+        private Long regularMarketTradeTime;
     }
 
     /**

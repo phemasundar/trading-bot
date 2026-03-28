@@ -137,6 +137,8 @@ public class StrategiesConfigLoader {
                 .requirePriceAboveMA100(condConfig.isRequirePriceAboveMA100())
                 .requirePriceBelowMA200(condConfig.isRequirePriceBelowMA200())
                 .requirePriceAboveMA200(condConfig.isRequirePriceAboveMA200())
+                .minDropPercent(condConfig.getMinDropPercent())
+                .lookbackDays(condConfig.getLookbackDays())
                 .build();
 
         // Get securities list from files (supports comma-separated file names)

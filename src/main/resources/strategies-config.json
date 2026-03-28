@@ -368,6 +368,35 @@
                 "bollingerCondition": "LOWER_BAND",
                 "minVolume": 1000000
             }
+        },
+        {
+            "enabled": true,
+            "alias": "Intraday Drop",
+            "screenerType": "PRICE_DROP",
+            "securitiesFile": "top100",
+            "conditions": {
+                "minDropPercent": 3.0,
+                "lookbackDays": 0
+            }
+        },
+        {
+            "enabled": true,
+            "alias": "5-Day Drop",
+            "screenerType": "PRICE_DROP",
+            "securitiesFile": "top100",
+            "conditions": {
+                "minDropPercent": 5.0,
+                "lookbackDays": 5
+            }
+        },
+        {
+            "enabled": true,
+            "alias": "Down from 52W High",
+            "screenerType": "HIGH_52W_DROP",
+            "securitiesFile": "top100",
+            "conditions": {
+                "minDropPercent": 20.0
+            }
         }
     ],
     "technicalIndicators": {

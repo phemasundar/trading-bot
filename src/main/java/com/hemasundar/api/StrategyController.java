@@ -381,7 +381,7 @@ public class StrategyController {
      */
     private String resolveMarketStatus(MarketHoursResponse.MarketData data) {
         if (data == null || data.getSessionHours() == null) {
-            return data != null && data.isOpen() ? "OPEN" : "CLOSED";
+            return data != null && Boolean.TRUE.equals(data.getIsOpen()) ? "OPEN" : "CLOSED";
         }
         java.time.OffsetDateTime now = java.time.OffsetDateTime.now();
         MarketHoursResponse.SessionHours sh = data.getSessionHours();

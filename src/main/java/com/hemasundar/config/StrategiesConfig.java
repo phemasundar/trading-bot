@@ -129,6 +129,10 @@ public class StrategiesConfig {
         private boolean requirePriceAboveMA100 = false;
         private boolean requirePriceBelowMA200 = false;
         private boolean requirePriceAboveMA200 = false;
+
+        // Price drop screener fields
+        private Double minDropPercent;
+        private Integer lookbackDays;
     }
 
     /**
