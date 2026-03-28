@@ -114,7 +114,8 @@ public class OptionChainResponse {
      */
     public List<String> getExpiryDatesInRange(int targetDays, int minDTE, int maxDTE) {
         if (targetDays > 0) {
-            return List.of(this.getExpiryDateBasedOnDTE(targetDays));
+            String expiry = this.getExpiryDateBasedOnDTE(targetDays);
+            return expiry != null ? List.of(expiry) : List.of();
         } else {
             Map<ExpirationDateKey, Map<String, List<OptionData>>> callMap = this.getCallExpDateMap();
             Map<ExpirationDateKey, Map<String, List<OptionData>>> putMap = this.getPutExpDateMap();

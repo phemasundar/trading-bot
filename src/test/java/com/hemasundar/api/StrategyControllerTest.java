@@ -50,6 +50,19 @@ public class StrategyControllerTest {
     }
 
     @Test
+    public void testGetStrategies_Success() throws Exception {
+        com.hemasundar.options.models.OptionsConfig config = com.hemasundar.options.models.OptionsConfig.builder()
+                .alias("Bullish Put Spread")
+                .strategy(com.hemasundar.options.strategies.StrategyType.PUT_CREDIT_SPREAD.createStrategy())
+                .build();
+        when(executionService.getEnabledStrategies()).thenReturn(Collections.singletonList(config));
+
+        mockMvc.perform(get("/api/strategies"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Bullish Put Spread"));
+    }
+
+    @Test
     public void testGetStrategies_Error() throws Exception {
         when(executionService.getEnabledStrategies()).thenThrow(new IOException("Disk error"));
         mockMvc.perform(get("/api/strategies"))
@@ -227,5 +240,26 @@ public class StrategyControllerTest {
         mockMvc.perform(post("/api/cancel"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("No execution is currently running"));
+    }
+
+    @Test
+    public void testCancelExecution_Success() throws Exception {
+        when(executionService.isExecutionRunning()).thenReturn(true);
+        mockMvc.perform(post("/api/cancel"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cancelled").value(true));
+    }
+
+    @Test
+    public void testGetExecutionStatus() throws Exception {
+        when(executionService.isExecutionRunning()).thenReturn(true);
+        when(executionService.getExecutionStartTimeMs()).thenReturn(1000L);
+        when(executionService.getCurrentExecutionTask()).thenReturn("Scanning AAPL");
+
+        mockMvc.perform(get("/api/status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.running").value(true))
+                .andExpect(jsonPath("$.currentTask").value("Scanning AAPL"))
+                .andExpect(jsonPath("$.startTimeMs").value(1000));
     }
 }

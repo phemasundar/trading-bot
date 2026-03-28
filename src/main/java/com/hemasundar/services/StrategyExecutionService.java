@@ -65,6 +65,7 @@ public class StrategyExecutionService {
 
     public void finishGlobalExecution() {
         executionRunning.set(false);
+        cancellationRequested.set(false);
         currentExecutionTask.set("");
     }
 

@@ -110,6 +110,26 @@ public class ThinkOrSwinAPIsTest {
     }
 
     @Test
+    public void testGetQuote_Single_400Error() {
+        Response mockResponse = mock(Response.class);
+        when(sharedMockRequest.get(anyString())).thenReturn(mockResponse);
+        when(mockResponse.statusCode()).thenReturn(400);
+        when(mockResponse.asString()).thenReturn("{\"error\": \"Invalid symbol\"}");
+
+        QuotesResponse.QuoteData quote = ThinkOrSwinAPIs.getQuote("INVALID");
+        assertNull(quote);
+    }
+
+    @Test(expectedExceptions = RuntimeException.class)
+    public void testGetQuote_Single_500Error() {
+        Response mockResponse = mock(Response.class);
+        when(sharedMockRequest.get(anyString())).thenReturn(mockResponse);
+        when(mockResponse.statusCode()).thenReturn(500);
+        
+        ThinkOrSwinAPIs.getQuote("AAPL");
+    }
+
+    @Test
     public void testGetOptionChain_Success() {
         Response mockResponse = mock(Response.class);
         when(sharedMockRequest.get(anyString())).thenReturn(mockResponse);
@@ -137,11 +157,90 @@ public class ThinkOrSwinAPIsTest {
         Response mockResponse = mock(Response.class);
         when(sharedMockRequest.get(anyString())).thenReturn(mockResponse);
         when(mockResponse.statusCode()).thenReturn(200);
-        // Include all mandatory primitive fields: empty (boolean), previousClose (double), previousCloseDate (long)
         when(mockResponse.asString()).thenReturn("{\"candles\": [], \"symbol\": \"AAPL\", \"empty\": false, \"previousClose\": 150.0, \"previousCloseDate\": 0}");
 
         PriceHistoryResponse history = ThinkOrSwinAPIs.getYearlyPriceHistory("AAPL", 1);
         assertNotNull(history);
         assertEquals(history.getSymbol(), "AAPL");
+    }
+
+    @Test
+    public void testGetMarketHours_Success() {
+        Response mockResponse = mock(Response.class);
+        when(sharedMockRequest.get(anyString())).thenReturn(mockResponse);
+        when(mockResponse.statusCode()).thenReturn(200);
+        when(mockResponse.asString()).thenReturn("{\"equity\": {}, \"option\": {}}");
+
+        com.hemasundar.pojos.MarketHoursResponse res = ThinkOrSwinAPIs.getMarketHours();
+        assertNotNull(res);
+    }
+
+    @Test
+    public void testGetMarketHour_Single_Success() {
+        Response mockResponse = mock(Response.class);
+        when(sharedMockRequest.get(anyString())).thenReturn(mockResponse);
+        when(mockResponse.statusCode()).thenReturn(200);
+        when(mockResponse.asString()).thenReturn("{\"equity\": {}}");
+
+        String res = ThinkOrSwinAPIs.getMarketHour("equity", null);
+        assertNotNull(res);
+        assertTrue(res.contains("equity"));
+    }
+
+    @Test
+    public void testGetMovers_Success() {
+        Response mockResponse = mock(Response.class);
+        when(sharedMockRequest.get(anyString())).thenReturn(mockResponse);
+        when(mockResponse.statusCode()).thenReturn(200);
+        when(mockResponse.asString()).thenReturn("[{\"symbol\": \"AAPL\", \"change\": 1.5, \"direction\": \"up\"}]");
+
+        String movers = ThinkOrSwinAPIs.getMovers("$SPX", "UP", 0);
+        assertNotNull(movers);
+        assertTrue(movers.contains("AAPL"));
+    }
+
+    @Test
+    public void testGetMovers_400Error() {
+        Response mockResponse = mock(Response.class);
+        when(sharedMockRequest.get(anyString())).thenReturn(mockResponse);
+        when(mockResponse.statusCode()).thenReturn(400);
+        when(mockResponse.asString()).thenReturn("Error");
+
+        String res = ThinkOrSwinAPIs.getMovers("INVALID", null, null);
+        assertNull(res);
+    }
+
+    @Test
+    public void testGetInstruments_Success() {
+        Response mockResponse = mock(Response.class);
+        when(sharedMockRequest.get(anyString())).thenReturn(mockResponse);
+        when(mockResponse.statusCode()).thenReturn(200);
+        when(mockResponse.asString()).thenReturn("{\"AAPL\": {\"symbol\": \"AAPL\", \"description\": \"Apple Inc.\"}}");
+
+        String instruments = ThinkOrSwinAPIs.getInstruments("AAPL", "symbol-search");
+        assertNotNull(instruments);
+        assertTrue(instruments.contains("AAPL"));
+    }
+
+    @Test
+    public void testGetInstrumentByCusip_Success() {
+        Response mockResponse = mock(Response.class);
+        when(sharedMockRequest.get(anyString())).thenReturn(mockResponse);
+        when(mockResponse.statusCode()).thenReturn(200);
+        when(mockResponse.asString()).thenReturn("[{\"symbol\": \"AAPL\", \"description\": \"Apple Inc.\"}]");
+
+        String res = ThinkOrSwinAPIs.getInstrumentByCusip("12345678");
+        assertNotNull(res);
+        assertTrue(res.contains("AAPL"));
+    }
+
+    @Test
+    public void testGetInstrumentByCusip_404Error() {
+        Response mockResponse = mock(Response.class);
+        when(sharedMockRequest.get(anyString())).thenReturn(mockResponse);
+        when(mockResponse.statusCode()).thenReturn(404);
+
+        String res = ThinkOrSwinAPIs.getInstrumentByCusip("NOTFOUND");
+        assertNull(res);
     }
 }
