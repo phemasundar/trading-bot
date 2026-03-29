@@ -199,5 +199,49 @@ public class StrategyExecutionServiceTest {
         mockedScreener.verify(() -> TechnicalScreener.screenStocks(eq(List.of("AAPL", "MSFT")), any()));
     }
 
+    @Test
+    public void testExecutionStateGetters() {
+        strategyExecutionService.startGlobalExecution("Testing Task");
+        assertTrue(strategyExecutionService.isExecutionRunning());
+        assertTrue(strategyExecutionService.getExecutionStartTimeMs() > 0);
+        assertEquals(strategyExecutionService.getCurrentExecutionTask(), "Testing Task");
+
+        strategyExecutionService.setCurrentExecutionTask("New Task");
+        assertEquals(strategyExecutionService.getCurrentExecutionTask(), "New Task");
+
+        strategyExecutionService.finishGlobalExecution();
+        assertFalse(strategyExecutionService.isExecutionRunning());
+        assertEquals(strategyExecutionService.getCurrentExecutionTask(), "");
+    }
+
+    @Test
+    public void testCancelExecution() {
+        assertFalse(strategyExecutionService.isCancellationRequested());
+        strategyExecutionService.startGlobalExecution("Test");
+        strategyExecutionService.cancelExecution();
+        assertTrue(strategyExecutionService.isCancellationRequested());
+        
+        strategyExecutionService.finishGlobalExecution();
+        assertFalse(strategyExecutionService.isCancellationRequested());
+    }
+
+    @Test
+    public void testResultRetrievalMethods() throws IOException {
+        when(supabaseService.getRecentCustomExecutions(anyInt())).thenReturn(Collections.emptyList());
+        List<?> customResults = strategyExecutionService.getRecentCustomExecutions(5);
+        assertNotNull(customResults);
+        verify(supabaseService).getRecentCustomExecutions(5);
+
+        when(supabaseService.getLatestExecutionResult()).thenReturn(Optional.empty());
+        Optional<ExecutionResult> latestExec = strategyExecutionService.getLatestExecutionResult();
+        assertFalse(latestExec.isPresent());
+        verify(supabaseService).getLatestExecutionResult();
+
+        when(supabaseService.getAllLatestStrategyResults()).thenReturn(Collections.emptyList());
+        List<?> allResults = strategyExecutionService.getAllLatestStrategyResults();
+        assertNotNull(allResults);
+        verify(supabaseService).getAllLatestStrategyResults();
+    }
+
 
 }

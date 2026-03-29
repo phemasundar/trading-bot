@@ -97,4 +97,20 @@ public class BearerTokenFilterTest {
 
         assertEquals(response.getStatus(), HttpServletResponse.SC_SERVICE_UNAVAILABLE);
     }
+
+    @Test
+    public void testDoFilter_Dev_NoToken() throws Exception {
+        when(mockEnv.getActiveProfiles()).thenReturn(new String[]{"dev"});
+        BearerTokenFilter devFilter = new BearerTokenFilter(mockEnv);
+        // expectedToken is null by default
+        
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/strategies");
+        request.setRequestURI("/api/strategies");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain filterChain = new MockFilterChain();
+
+        devFilter.doFilter(request, response, filterChain);
+
+        assertEquals(response.getStatus(), HttpServletResponse.SC_OK);
+    }
 }

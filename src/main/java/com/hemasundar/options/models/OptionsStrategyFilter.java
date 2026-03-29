@@ -45,6 +45,15 @@ public class OptionsStrategyFilter {
     @lombok.Builder.Default
     private boolean ignoreEarnings = true;
 
+    private java.util.List<String> includeOnly;
+    private java.util.List<String> excludeIf;
+
+    /**
+     * Number of top trades to return per stock. If null, returns all matching results. 
+     * Ranks trades by priority criteria (DTE, Cost Savings, etc.).
+     */
+    private Integer topTradesCount;
+
     private Double priceVsMaxDebitRatio;
 
     // Interest rates (for LEAP calculations)

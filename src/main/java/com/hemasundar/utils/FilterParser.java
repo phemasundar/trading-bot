@@ -68,6 +68,9 @@ public class FilterParser {
         applyIfPresent(filterMap, "maxOptionPricePercent", v -> filter.setMaxOptionPricePercent(toDouble(v)));
         applyIfPresent(filterMap, "marginInterestRate", v -> filter.setMarginInterestRate(toDouble(v)));
         applyIfPresent(filterMap, "savingsInterestRate", v -> filter.setSavingsInterestRate(toDouble(v)));
+        applyIfPresent(filterMap, "includeOnly", v -> filter.setIncludeOnly(toStringList(v)));
+        applyIfPresent(filterMap, "excludeIf", v -> filter.setExcludeIf(toStringList(v)));
+        applyIfPresent(filterMap, "topTradesCount", v -> filter.setTopTradesCount(toInt(v)));
 
         // ── Strategy-specific fields ──
         if (filter instanceof CreditSpreadFilter csFilter) {
@@ -82,7 +85,6 @@ public class FilterParser {
             applyLegFilter(filterMap, "longCall", leapFilter::setLongCall);
             applyIfPresent(filterMap, "minCostSavingsPercent", v -> leapFilter.setMinCostSavingsPercent(toDouble(v)));
             applyIfPresent(filterMap, "minCostEfficiencyPercent", v -> leapFilter.setMinCostEfficiencyPercent(toDouble(v)));
-            applyIfPresent(filterMap, "topTradesCount", v -> leapFilter.setTopTradesCount(toInt(v)));
             applyIfPresent(filterMap, "relaxationPriority", v -> leapFilter.setRelaxationPriority(toStringList(v)));
             applyIfPresent(filterMap, "sortPriority", v -> leapFilter.setSortPriority(toStringList(v)));
         } else if (filter instanceof BrokenWingButterflyFilter bwbFilter) {
