@@ -49,7 +49,8 @@ public class OptionsStrategyFilter {
     private java.util.List<String> excludeIf;
 
     /**
-     * Number of top trades to return per stock. If null, returns all matching results. 
+     * Number of top trades to return per stock. If null, returns all matching
+     * results.
      * Ranks trades by priority criteria (DTE, Cost Savings, etc.).
      */
     private Integer topTradesCount;
@@ -57,10 +58,8 @@ public class OptionsStrategyFilter {
     private Double priceVsMaxDebitRatio;
 
     // Interest rates (for LEAP calculations)
-    @lombok.Builder.Default
-    private double marginInterestRate = 6.0;
-    @lombok.Builder.Default
-    private double savingsInterestRate = 10.0;
+    private Double marginInterestRate;
+    private Double savingsInterestRate;
 
     private Double maxOptionPricePercent; // No default - must be explicitly set or left null
 

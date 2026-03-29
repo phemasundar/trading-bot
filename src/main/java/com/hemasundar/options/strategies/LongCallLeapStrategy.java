@@ -136,7 +136,10 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
         double intrinsic = Math.max(0, currentPrice - strikePrice);
         double extrinsic = callPremium - intrinsic;
 
-        double marginInterestAmountPerStock = 0.5 * currentPrice * (filter.getMarginInterestRate() / 100.0)
+        double marginRate = filter.getMarginInterestRate() != null ? filter.getMarginInterestRate() : 0.0;
+        double savingsRate = filter.getSavingsInterestRate() != null ? filter.getSavingsInterestRate() : 0.0;
+
+        double marginInterestAmountPerStock = 0.5 * currentPrice * (marginRate / 100.0)
                 * (dte / 365.0);
         double dividendAmountPerStock = currentPrice * (dividendYield / 100.0) * (dte / 365.0);
         double actualMoneySpentFromPocketPerStock = 0.5 * currentPrice;
@@ -145,7 +148,7 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
 
         double moneySpentExtraFromPocketPerStockForBuyingStock = actualMoneySpentFromPocketPerStock - callPremium;
         double interestEarningOnExtraMoneySpentForBuyingStock = moneySpentExtraFromPocketPerStockForBuyingStock
-                * (filter.getSavingsInterestRate() / 100) * (dte / 365.0);
+                * (savingsRate / 100) * (dte / 365.0);
         double costOfBuyingPerStock = marginInterestAmountPerStock + interestEarningOnExtraMoneySpentForBuyingStock;
 
         double breakEven = strikePrice + callPremium;
@@ -171,7 +174,7 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                 extrinsic,
                 costOfOptionBuyingPerStock,
                 costOfBuyingPerStock,
-                filter.getMarginInterestRate(),
+                filter.getMarginInterestRate() != null ? filter.getMarginInterestRate() : 0.0,
                 breakEvenPct,
                 breakevenCAGR,
                 costSavingsPercent));
