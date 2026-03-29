@@ -2,6 +2,8 @@
     "strategyType": "The type of options strategy to execute. Possible values: PUT_CREDIT_SPREAD, TECH_PUT_CREDIT_SPREAD, BULLISH_LONG_PUT_CREDIT_SPREAD, CALL_CREDIT_SPREAD, TECH_CALL_CREDIT_SPREAD, IRON_CONDOR, BULLISH_LONG_IRON_CONDOR, LONG_CALL_LEAP, BULLISH_BROKEN_WING_BUTTERFLY, BULLISH_ZEBRA.",
     "securitiesFile": "The name of the file containing the list of stock symbols to scan (e.g., 'portfolio', 'top100').",
     "securities": "A comma-separated list of individual stock symbols to include in the scan.",
+    "includeOnly": "A list of ticker symbols. If specified, only options for these tickers will be considered, regardless of other security settings.",
+    "excludeIf": "A list of ticker symbols to explicitly ignore, even if they match other security criteria.",
     "targetDTE": "The specific number of days until option expiration to target.",
     "minDTE": "The minimum number of days until option expiration.",
     "maxDTE": "The maximum number of days until option expiration.",

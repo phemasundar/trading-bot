@@ -1092,7 +1092,6 @@ const STRATEGY_SPECIFIC_FILTERS = {
         ...getLegFilters('longCall', 'Long Call'),
         { key: 'minCostSavingsPercent', label: 'Min Cost Savings %', placeholder: '10.0', step: '0.1' },
         { key: 'minCostEfficiencyPercent', label: 'Min Cost Efficiency %', placeholder: '90.0', step: '0.1' },
-        { key: 'topTradesCount', label: 'Top Trades Count', placeholder: '3' },
         { key: 'maxCAGRForBreakEven', label: 'Max Breakeven CAGR', placeholder: '15.0', step: '0.1' },
         { key: 'maxOptionPricePercent', label: 'Max Option Price %', placeholder: '30.0', step: '0.1' },
         { key: 'marginInterestRate', label: 'Margin Interest Rate', placeholder: '6.0', step: '0.1' },

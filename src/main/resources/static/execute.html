@@ -249,6 +249,42 @@
                         <input type="number" class="form-input" data-filter="minNetExtrinsicValueToPricePercentage"
                             placeholder="0.0" step="0.1">
                     </div>
+                    <div class="form-group">
+                        <label class="form-label">Top Trades Count <button type="button" class="info-btn"
+                                onclick="showFilterHelp(event, 'topTradesCount', 'Top Trades Count')"><svg
+                                    class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                </svg></button></label>
+                        <input type="number" class="form-input" data-filter="topTradesCount" placeholder="3">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Include Only <button type="button" class="info-btn"
+                                onclick="showFilterHelp(event, 'includeOnly', 'Include Only')"><svg
+                                    class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                </svg></button></label>
+                        <input type="text" class="form-input" data-filter="includeOnly" placeholder="AAPL, MSFT">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Exclude If <button type="button" class="info-btn"
+                                onclick="showFilterHelp(event, 'excludeIf', 'Exclude If')"><svg
+                                    class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                </svg></button></label>
+                        <input type="text" class="form-input" data-filter="excludeIf" placeholder="TSLA, NVDA">
+                    </div>
                     <div class="form-group" style="display:flex; align-items:center; gap:8px; padding-top:20px">
                         <input type="checkbox" id="ignore-earnings" data-filter="ignoreEarnings" checked>
                         <label for="ignore-earnings" style="font-size:0.85rem; cursor:pointer">Ignore Earnings <button
