@@ -321,7 +321,7 @@
             "enabled": true,
             "alias": "RSI/BB Bullish Crossover",
             "screenerType": "RSI_BB_BULLISH_CROSSOVER",
-            "securitiesFile": "top100",
+            "securitiesFile": "top100, portfolio, tracking, 2026",
             "conditions": {
                 "rsiCondition": "BULLISH_CROSSOVER",
                 "bollingerCondition": "LOWER_BAND",
@@ -332,7 +332,7 @@
             "enabled": true,
             "alias": "RSI/BB Bearish Crossover",
             "screenerType": "RSI_BB_BEARISH_CROSSOVER",
-            "securitiesFile": "top100",
+            "securitiesFile": "top100, portfolio, tracking, 2026",
             "conditions": {
                 "rsiCondition": "BEARISH_CROSSOVER",
                 "bollingerCondition": "UPPER_BAND",
@@ -343,7 +343,7 @@
             "enabled": true,
             "alias": "Below 200 Day MA",
             "screenerType": "BELOW_200_DAY_MA",
-            "securitiesFile": "top100",
+            "securitiesFile": "top100, portfolio, tracking, 2026",
             "conditions": {
                 "requirePriceBelowMA200": true,
                 "minVolume": 1000000
@@ -353,7 +353,7 @@
             "enabled": true,
             "alias": "RSI Oversold",
             "screenerType": "RSI_OVERSOLD",
-            "securitiesFile": "top100",
+            "securitiesFile": "top100, portfolio, tracking, 2026",
             "conditions": {
                 "rsiCondition": "OVERSOLD",
                 "minVolume": 1000000
@@ -363,7 +363,7 @@
             "enabled": true,
             "alias": "BB Lower Band",
             "screenerType": "BB_LOWER",
-            "securitiesFile": "top100",
+            "securitiesFile": "top100, portfolio, tracking, 2026",
             "conditions": {
                 "bollingerCondition": "LOWER_BAND",
                 "minVolume": 1000000
@@ -373,7 +373,7 @@
             "enabled": true,
             "alias": "Intraday Drop",
             "screenerType": "PRICE_DROP",
-            "securitiesFile": "top100",
+            "securitiesFile": "top100, portfolio, tracking, 2026",
             "conditions": {
                 "minDropPercent": 3.0,
                 "lookbackDays": 0
@@ -383,7 +383,7 @@
             "enabled": true,
             "alias": "5-Day Drop",
             "screenerType": "PRICE_DROP",
-            "securitiesFile": "top100",
+            "securitiesFile": "top100, portfolio, tracking, 2026",
             "conditions": {
                 "minDropPercent": 5.0,
                 "lookbackDays": 5
@@ -393,7 +393,7 @@
             "enabled": true,
             "alias": "Down from 52W High",
             "screenerType": "HIGH_52W_DROP",
-            "securitiesFile": "top100",
+            "securitiesFile": "top100, portfolio, tracking, 2026",
             "conditions": {
                 "minDropPercent": 20.0
             }
