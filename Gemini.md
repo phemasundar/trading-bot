@@ -3,6 +3,28 @@
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 > **CRITICAL AI RULE**: NEVER use GitHub MCP tools (create PR, merge, create release, etc.) unless the user explicitly asks. Do not assume permission for any GitHub operations.
 
+## Cloud Run Auth Error Visibility & Daily Redeployment (2026-04-03)
+
+Resolved silent "0 results" failures in the production Cloud Run deployment caused by Schwab API `REFRESH_TOKEN` expiry. Implemented automated redeployment and full error visibility.
+
+### Features
+- **Daily Auto-Redeployment**: Updated `deploy-cloud-run.yml` with a daily cron schedule (`0 6 * * *`) so Cloud Run picks up the latest rotated `REFRESH_TOKEN` from GitHub Secrets every 24 hours.
+- **Auth Error Detection**: `StrategyExecutionService` now tracks `lastExecutionError` via `AtomicReference`. An `isAuthError()` helper detects 401/Unauthorized/Access Token failures and persists them across the execution lifecycle.
+- **Auth Error Banner**: Frontend now displays a fixed, full-width red banner at the top of every page when the backend reports an authentication error. The banner:
+  - Slides in with a smooth CSS animation (`slideInDown`)
+  - Shows the specific error message from the backend
+  - Has a "Dismiss ✕" button that removes the banner AND calls `/api/clear-error` to reset backend state
+  - Deduplicates (only one banner ever shown at a time)
+- **`/api/clear-error` Endpoint**: Added to `StrategyController` to allow the UI to reset the error state after the user acknowledges it.
+- **Startup Auth Check**: `checkExecutionStatus()` and `checkCustomExecutionStatus()` both check for `lastError` on page load, so a previously cached error is shown immediately even if the user refreshes.
+
+### Architecture
+- **`.github/workflows/deploy-cloud-run.yml`** [MODIFIED]: Added `schedule: - cron: '0 6 * * *'` trigger.
+- **`StrategyExecutionService.java`** [MODIFIED]: Added `AtomicReference<String> lastExecutionError`, `isAuthError()` detection, `getLastExecutionError()` / `clearLastExecutionError()` methods.
+- **`StrategyController.java`** [MODIFIED]: Added `lastError` field to `/api/status` response body; added `POST /api/clear-error` endpoint.
+- **`app.js`** [MODIFIED]: Added `showAuthErrorBanner()` / `dismissAuthErrorBanner()` functions; wired into `startPolling()`, `checkExecutionStatus()`, and `checkCustomExecutionStatus()`.
+- **`style.css`** [MODIFIED]: Added `@keyframes slideInDown` animation for the banner entrance.
+
 ## Price Drop Technical Screeners (2026-03-28)
 
 Added two new Technical Screener types to identify stocks with significant price declines.

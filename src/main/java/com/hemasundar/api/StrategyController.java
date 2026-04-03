@@ -116,14 +116,13 @@ public class StrategyController {
                     .body(Map.of("error", "Failed to load results: " + e.getMessage()));
         }
     }
-    
+
     /**
      * Returns all latest screener results from the database.
      */
     @GetMapping("/results/screeners")
     public ResponseEntity<?> getScreenerResults() {
         try {
-            // Note: Update to call the new service method
             return ResponseEntity.ok()
                     .header("Cache-Control", "no-cache, no-store, must-revalidate")
                     .body(screenerExecutionService.getLatestScreenerResults());
@@ -321,8 +320,12 @@ public class StrategyController {
         }
     }
 
+    // ────────────────────────────────────────────
+    // STATUS / CONTROL endpoints
+    // ────────────────────────────────────────────
+
     /**
-     * Returns current execution status.
+     * Returns current execution status, including any auth error from the last execution.
      */
     @GetMapping("/status")
     public ResponseEntity<?> getStatus() {
@@ -334,7 +337,21 @@ public class StrategyController {
             response.put("elapsedMs", System.currentTimeMillis() - executionService.getExecutionStartTimeMs());
             response.put("currentTask", executionService.getCurrentExecutionTask());
         }
+        // Always include lastError so the UI can surface auth failures after execution completes
+        String lastError = executionService.getLastExecutionError();
+        if (lastError != null) {
+            response.put("lastError", lastError);
+        }
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Clears the last execution error (called by the UI dismiss button).
+     */
+    @PostMapping("/clear-error")
+    public ResponseEntity<?> clearLastError() {
+        executionService.clearLastExecutionError();
+        return ResponseEntity.ok(Map.of("cleared", true));
     }
 
     /**
@@ -350,6 +367,9 @@ public class StrategyController {
         return ResponseEntity.ok(Map.of("cancelled", true));
     }
 
+    // ────────────────────────────────────────────
+    // MARKET STATUS endpoint
+    // ────────────────────────────────────────────
 
     /**
      * Fetches the current live status of the Equity and Options markets.
