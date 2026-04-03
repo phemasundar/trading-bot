@@ -38,6 +38,7 @@ public class StrategyExecutionService {
     private final java.util.concurrent.atomic.AtomicBoolean executionRunning = new java.util.concurrent.atomic.AtomicBoolean(false);
     private final java.util.concurrent.atomic.AtomicBoolean cancellationRequested = new java.util.concurrent.atomic.AtomicBoolean(false);
     private final java.util.concurrent.atomic.AtomicReference<String> currentExecutionTask = new java.util.concurrent.atomic.AtomicReference<>("");
+    private final java.util.concurrent.atomic.AtomicReference<String> lastExecutionError = new java.util.concurrent.atomic.AtomicReference<>(null);
     private volatile long executionStartTimeMs;
 
     public boolean isExecutionRunning() {
@@ -59,6 +60,7 @@ public class StrategyExecutionService {
     public void startGlobalExecution(String initialTask) {
         executionRunning.set(true);
         cancellationRequested.set(false);
+        lastExecutionError.set(null); // Clear any prior error on new execution
         executionStartTimeMs = System.currentTimeMillis();
         currentExecutionTask.set(initialTask);
     }
@@ -67,6 +69,14 @@ public class StrategyExecutionService {
         executionRunning.set(false);
         cancellationRequested.set(false);
         currentExecutionTask.set("");
+    }
+
+    public String getLastExecutionError() {
+        return lastExecutionError.get();
+    }
+
+    public void clearLastExecutionError() {
+        lastExecutionError.set(null);
     }
 
     public void cancelExecution() {
@@ -348,6 +358,13 @@ public class StrategyExecutionService {
                 }
             } catch (Exception e) {
                 log.error("Error processing {}: {}", symbol, e.getMessage());
+                // Detect and surface Schwab API authentication failures
+                if (isAuthError(e)) {
+                    String authMsg = "Schwab API authentication failed (token may be expired). " +
+                            "Please update the REFRESH_TOKEN secret and redeploy.";
+                    lastExecutionError.compareAndSet(null, authMsg);
+                    log.error("AUTH ERROR detected during execution: {}", e.getMessage());
+                }
             }
         }
 
@@ -381,5 +398,18 @@ public class StrategyExecutionService {
         }
     }
 
+    /**
+     * Returns true if the exception indicates a Schwab API authentication failure (expired token).
+     */
+    private boolean isAuthError(Exception e) {
+        String msg = e.getMessage();
+        if (msg == null) return false;
+        String lower = msg.toLowerCase();
+        return lower.contains("401") ||
+               lower.contains("access token") ||
+               lower.contains("error fetching access token") ||
+               lower.contains("unauthorized");
+    }
 
 }
+

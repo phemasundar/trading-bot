@@ -695,6 +695,49 @@ function stopTimer() {
     clearInterval(timerInterval);
 }
 
+// ── Auth Error Banner ──
+
+/**
+ * Shows a persistent red banner at the top of the page when a Schwab
+ * API authentication error is detected. The banner has a dismiss button
+ * that also calls /api/clear-error on the backend.
+ */
+function showAuthErrorBanner(message) {
+    // Only show one banner at a time
+    if (document.getElementById('auth-error-banner')) return;
+
+    const banner = document.createElement('div');
+    banner.id = 'auth-error-banner';
+    banner.style.cssText = [
+        'position: fixed', 'top: 0', 'left: 0', 'right: 0', 'z-index: 99999',
+        'background: linear-gradient(135deg, #c0392b, #e74c3c)',
+        'color: #fff', 'padding: 12px 20px',
+        'display: flex', 'align-items: center', 'gap: 12px',
+        'font-size: 0.9rem', 'font-family: var(--font-sans, sans-serif)',
+        'box-shadow: 0 4px 16px rgba(0,0,0,0.4)',
+        'animation: slideInDown 0.3s ease'
+    ].join('; ');
+
+    banner.innerHTML = `
+        <span style="font-size:1.2rem;">⚠️</span>
+        <strong style="margin-right:4px;">Authentication Error:</strong>
+        <span style="flex:1;">${message}</span>
+        <button onclick="dismissAuthErrorBanner()" style="
+            background: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.5);
+            color:#fff; padding:4px 12px; border-radius:6px; cursor:pointer;
+            font-size:0.8rem; white-space:nowrap;
+        ">Dismiss ✕</button>
+    `;
+
+    document.body.prepend(banner);
+}
+
+async function dismissAuthErrorBanner() {
+    const banner = document.getElementById('auth-error-banner');
+    if (banner) banner.remove();
+    try { await API.post('/api/clear-error'); } catch (e) { /* ignore */ }
+}
+
 // ── Execution Status Polling ──
 
 let pollInterval = null;
@@ -708,6 +751,10 @@ function startPolling(onComplete) {
                 window.currentExecutionTaskName = "";
                 clearInterval(pollInterval);
                 stopTimer();
+                // Show auth error banner if the backend detected a token failure
+                if (status.lastError) {
+                    showAuthErrorBanner(status.lastError);
+                }
                 if (onComplete) onComplete();
             } else {
                 window.currentExecutionTaskName = status.currentTask || "";
@@ -824,6 +871,9 @@ async function checkExecutionStatus() {
                 loadResults();
                 showToast('Execution completed!');
             });
+        } else if (status.lastError) {
+            // Execution finished but left an auth error — surface it
+            showAuthErrorBanner(status.lastError);
         }
     } catch (e) { /* ignore */ }
 }
@@ -1151,6 +1201,9 @@ async function checkCustomExecutionStatus() {
                 loadCustomResults();
                 showToast('Custom execution completed!');
             });
+        } else if (status.lastError) {
+            // Execution finished but left an auth error — surface it
+            showAuthErrorBanner(status.lastError);
         }
     } catch (e) { /* ignore */ }
 }
