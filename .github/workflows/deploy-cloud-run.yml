@@ -4,6 +4,9 @@ on:
   push:
     branches: ["main"]
   workflow_dispatch:
+  schedule:
+    # Redeploy daily at 6:00 AM UTC to pick up the latest env vars (e.g. rotated REFRESH_TOKEN)
+    - cron: '0 6 * * *'
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
