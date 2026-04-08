@@ -99,7 +99,8 @@ This automated test runs daily (recommended via cron/scheduler) to collect ATM I
 
 For detailed setup instructions:
 - Google Sheets: See `SETUP_GUIDE.md`
-- Supabase: See `SUPABASE_SETUP_GUIDE.md` (Updated for Service Role Key security)
+- Supabase Database: See `SUPABASE_SETUP_GUIDE.md` (Updated for Service Role Key security)
+- Authentication (Used for dashboard login): See `AUTH_SETUP_GUIDE.md`
 
 ## Usage
 

@@ -7,38 +7,25 @@
 
 Replaced the manual static bearer token authentication system with Supabase Auth using Google and Apple OAuth providers. Users now sign in via their Google or Apple account, and the backend verifies Supabase-issued JWTs.
 
+  6. **GitHub Secrets**: Add `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and `ALLOWED_EMAILS` (comma-separated emails) to repository secrets. No JWT secret is needed as we use the public JWKS endpoint.
+
+## Supabase Auth Stability & Redirect Fixes (2026-04-08)
+
+Resolved the "infinite loop" bug where users were being kicked back to the login screen immediately after signing in. Fixed the backend JWT verification logic to properly handle Supabase's JWKS (JSON Web Key Set) public keys.
+
 ### Features
-- **Google & Apple OAuth Login**: New `/login.html` page with "Continue with Google" and "Continue with Apple" buttons using Supabase Auth's OAuth flow.
-- **JWT Verification via JWKS**: `BearerTokenFilter` now verifies Supabase-issued JWTs using the Supabase JWKS public key endpoint (`/auth/v1/.well-known/jwks.json`), supporting ECC P-256 (ES256) and RSA (RS256) key types. Supports both key types. No shared secret is required or stored. Public keys are cached for 24 hours.
-- **Email Allowlist**: Optional `ALLOWED_EMAILS` env var restricts access to specific email addresses. If unset, any authenticated Supabase user can access the API.
-- **Sidebar User Info**: After login, the sidebar displays the user's avatar, name, and a "Sign Out" link.
-- **Auth Guard**: All protected pages (`index.html`, `execute.html`, `config.html`) check for an active Supabase session on load and redirect to `/login.html` if unauthenticated.
-- **Auto Token Refresh**: Supabase JS client automatically refreshes expired access tokens via `onAuthStateChange`.
-- **Local Dev Bypass**: When `SUPABASE_JWT_SECRET` is not set (local development), the filter allows all requests through without authentication.
+- **JWKS Verification Finalized**: The backend now correctly fetches and caches Supabase's public keys from the `.well-known/jwks.json` endpoint. Supports both ECC P-256 (ES256) and RSA (RS256) algorithms.
+- **Race Condition Resolution**: Fixed a frontend bug where global API calls (like market status) were firing before the authentication session was fully initialized, triggering a 401 redirect loop.
+- **Improved UX**: Authentication checks and market status fetches now happen in a strict sequence. Removed diagnostic "Redirect Reason" messages from the login page for a cleaner production experience.
+- **Email Allowlist Hardening**: Enforced the `ALLOWED_EMAILS` check in the filter layer, ensuring only authorized users can access the system.
 
 ### Architecture
-- **`login.html`** [NEW]: Minimal dark-themed login page with Google/Apple OAuth buttons, error display, and loading state.
-- **`BearerTokenFilter.java`** [REWRITTEN]: JWT signature verification using `com.auth0:java-jwt`, email allowlist support, public path exclusions (`/api/auth/config`).
-- **`StrategyController.java`** [MODIFIED]: Added `GET /api/auth/config` endpoint returning `supabaseUrl` and `supabaseAnonKey` for frontend initialization.
-- **`app.js`** [MODIFIED]: Replaced `API.token`, `localStorage`, and `promptToken()` modal with Supabase session management (`initAuth()`, `injectUserInfo()`, `logout()`).
-- **`index.html`, `execute.html`, `config.html`** [MODIFIED]: Added Supabase JS CDN `<script>` tag.
-- **`style.css`** [MODIFIED]: Added login page styles (`.login-body`, `.btn-oauth`, `.btn-google`, `.btn-apple`), sidebar logout (`.nav-link-logout`), and user avatar (`.user-info`).
-- **`application.properties`** [MODIFIED]: Replaced `api.bearer.token` with `supabase.jwt.secret` and `allowed.emails`.
-- **`deploy-cloud-run.yml`** [MODIFIED]: Replaced `API_BEARER_TOKEN` env var with `SUPABASE_JWT_SECRET` and `ALLOWED_EMAILS`.
-- **`pom.xml`** [MODIFIED]: Added `com.auth0:java-jwt:4.4.0` dependency.
-- **`BearerTokenFilterTest.java`** [REWRITTEN]: Tests for valid JWT, expired JWT, invalid JWT, email allowlist (allowed/blocked), public endpoints, and dev/production modes.
+- **`BearerTokenFilter.java`** [STABILIZED]: Refined JWT verification with better error handling for signature, expiration, and issuer mismatches.
+- **`app.js`** [SYNCHRONIZED]: Moved all authorized API calls inside the page initialization flow to ensure they wait for `initAuth()` to complete.
+- **`login.html`** [POLISHED]: Cleared legacy redirect reasons and simplified the loading state.
+- **`AUTH_SETUP_GUIDE.md`** [NEW]: Comprehensive guide for Google Cloud Console and Supabase Auth configuration.
+- **`ReadMe.md` & `SUPABASE_SETUP_GUIDE.md`** [MODIFIED]: Added links to the new auth guide and updated outdated authentication descriptions.
 
-### Removed
-- `api.bearer.token` property and `API_BEARER_TOKEN` env var
-- Manual token modal (`promptToken()`) and `localStorage.getItem('api_token')` in `app.js`
-
-### Setup Required (Supabase Dashboard)
-1. **Enable Google OAuth**: Authentication → Providers → Google → Enable → Add OAuth credentials from Google Cloud Console
-2. **Enable Apple OAuth** (optional): Authentication → Providers → Apple → Enable → Add Apple Developer credentials
-3. **Get JWT Secret**: Project Settings → API → JWT Secret → Copy to `SUPABASE_JWT_SECRET` GitHub Secret
-4. **Set Site URL**: Authentication → URL Configuration → Site URL → Set to your Cloud Run URL
-5. **Set Redirect URLs**: Authentication → URL Configuration → Add `https://your-app-url/login.html` to redirect URLs
-6. **GitHub Secrets**: Add `SUPABASE_JWT_SECRET` and `ALLOWED_EMAILS` (comma-separated emails) to repository secrets
 
 ## Cloud Run Auth Error Visibility & Daily Redeployment (2026-04-03)
 

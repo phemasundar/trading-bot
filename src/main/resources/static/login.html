@@ -57,6 +57,13 @@
         let supabaseClient = null;
 
         async function initLogin() {
+            // Check for explicit auth errors from app.js
+            const authError = localStorage.getItem('authError');
+            if (authError) {
+                showError(authError);
+                localStorage.removeItem('authError');
+            }
+
             try {
                 // Fetch Supabase config from backend
                 const res = await fetch('/api/auth/config');

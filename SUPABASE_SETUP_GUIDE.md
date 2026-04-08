@@ -13,6 +13,7 @@ This guide walks you through setting up Supabase as a database backend for stori
 8. [Configure CI/CD Environment](#step-7-configure-cicd-environment-optional)
 9. [Test Connection](#step-8-test-connection)
 10. [Troubleshooting](#troubleshooting)
+11. [Authentication Setup](AUTH_SETUP_GUIDE.md)
 
 ---
 
@@ -23,7 +24,7 @@ Supabase is an open-source Firebase alternative that provides:
 - PostgreSQL database (powerful relational database)
 - Auto-generated REST API
 - Real-time subscriptions
-- Authentication (not needed for our use case)
+- Authentication (Used for dashboard login)
 - Row Level Security (RLS)
 
 **Why use it for IV data?**
