@@ -38,6 +38,29 @@ public class StrategyController {
     private final com.hemasundar.services.ScreenerExecutionService screenerExecutionService;
     private final com.hemasundar.utils.SecuritiesResolver securitiesResolver;
 
+    @org.springframework.beans.factory.annotation.Value("${supabase.url}")
+    private String supabaseUrl;
+
+    @org.springframework.beans.factory.annotation.Value("${supabase.anon.key}")
+    private String supabaseAnonKey;
+
+    // ────────────────────────────────────────────
+    // AUTH CONFIG (public — excluded from filter)
+    // ────────────────────────────────────────────
+
+    /**
+     * Returns Supabase project URL and anon key so the frontend can
+     * initialize the Supabase JS client for OAuth login.
+     * This endpoint is public (not behind the JWT filter).
+     */
+    @GetMapping("/auth/config")
+    public ResponseEntity<?> getAuthConfig() {
+        return ResponseEntity.ok(Map.of(
+                "supabaseUrl", supabaseUrl,
+                "supabaseAnonKey", supabaseAnonKey
+        ));
+    }
+
     // ────────────────────────────────────────────
     // READ endpoints (wrappers around Supabase)
     // ────────────────────────────────────────────

@@ -1,32 +1,130 @@
 /**
  * Trading Bot — Frontend Application Logic
  * All API calls go through Spring Boot REST endpoints.
- * No direct Supabase access from the frontend.
+ * No direct Supabase data access from the frontend.
+ * Authentication is handled via Supabase Auth (Google/Apple OAuth).
  */
 
 // ── Shared State ──
 let FILTER_DESCRIPTIONS = {};
+let _supabaseClient = null;
+
+// ── Supabase Auth Initialization ──
+
+/**
+ * Initializes the Supabase client for authentication and guards
+ * protected pages. Must be called before any API requests.
+ * This is NOT called on the login page (login.html has its own init).
+ */
+async function initAuth() {
+    try {
+        const res = await fetch('/api/auth/config');
+        const config = await res.json();
+        _supabaseClient = supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+
+        const { data: { session } } = await _supabaseClient.auth.getSession();
+        if (!session) {
+            window.location.href = '/login.html';
+            return false;
+        }
+
+        // Set the token on the API object
+        API._accessToken = session.access_token;
+
+        // Listen for auth state changes (auto-refresh, sign out)
+        _supabaseClient.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_OUT' || !session) {
+                // If this wasn't an intentional logout, we could set a reason here,
+                // but for now, we'll keep it silent for a cleaner UX.
+                window.location.href = '/login.html';
+            } else if (event === 'TOKEN_REFRESHED' && session) {
+                API._accessToken = session.access_token;
+            }
+        });
+
+        // Inject user info + logout into the sidebar
+        injectUserInfo(session.user);
+
+        return true;
+    } catch (e) {
+        console.error('Auth initialization failed:', e);
+        window.location.href = '/login.html';
+        return false;
+    }
+}
+
+/**
+ * Injects a user info row and logout link into the sidebar.
+ */
+function injectUserInfo(user) {
+    const sidebar = document.querySelector('.sidebar');
+    if (!sidebar || sidebar.querySelector('.user-info')) return;
+
+    const email = user?.email || '';
+    const avatar = user?.user_metadata?.avatar_url || '';
+    const name = user?.user_metadata?.full_name || email?.split('@')[0] || 'User';
+
+    // User info block (after brand, before nav links)
+    const userDiv = document.createElement('div');
+    userDiv.className = 'user-info';
+    userDiv.innerHTML = avatar
+        ? `<img class="user-avatar" src="${avatar}" alt="" referrerpolicy="no-referrer"><span title="${email}">${name}</span>`
+        : `<span title="${email}">👤 ${name}</span>`;
+
+    const brand = sidebar.querySelector('.sidebar-brand');
+    if (brand) brand.after(userDiv);
+
+    // Logout link (at bottom of sidebar)
+    const logoutLink = document.createElement('a');
+    logoutLink.href = '#';
+    logoutLink.className = 'nav-link nav-link-logout';
+    logoutLink.innerHTML = '<span class="nav-icon">🚪</span><span>Sign Out</span>';
+    logoutLink.onclick = async (e) => {
+        e.preventDefault();
+        await logout();
+    };
+    sidebar.appendChild(logoutLink);
+}
+
+/**
+ * Signs the user out and redirects to the login page.
+ */
+async function logout() {
+    localStorage.removeItem('authRedirectReason');
+    if (_supabaseClient) {
+        await _supabaseClient.auth.signOut();
+    }
+    window.location.href = '/login.html';
+}
 
 // ── API Client ──
 
 const API = {
-    token: localStorage.getItem('api_token') || '',
+    _accessToken: null,
 
     async request(method, path, body) {
         const opts = {
             method,
             headers: { 'Content-Type': 'application/json' }
         };
-        if (this.token) {
-            opts.headers['Authorization'] = `Bearer ${this.token}`;
+        if (this._accessToken) {
+            opts.headers['Authorization'] = `Bearer ${this._accessToken}`;
         }
         if (body) {
             opts.body = JSON.stringify(body);
         }
         const res = await fetch(path, opts);
-        if (res.status === 401 || res.status === 503) {
-            this.promptToken();
+        if (res.status === 401 || res.status === 403) {
+            // Token expired or user not authorized — force clear storage and redirect
+            try { 
+                if (_supabaseClient) await _supabaseClient.auth.signOut(); 
+            } catch(e) {}
+            
+            window.location.href = '/login.html';
             throw new Error('Unauthorized');
+        }
+        if (res.status === 503) {
+            throw new Error('Service unavailable');
         }
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Request failed');
@@ -34,45 +132,7 @@ const API = {
     },
 
     get(path) { return this.request('GET', path); },
-    post(path, body) { return this.request('POST', path, body); },
-
-    setToken(token) {
-        this.token = token;
-        localStorage.setItem('api_token', token);
-    },
-
-    promptToken() {
-        // Prevent multiple modals from stacking
-        if (document.querySelector('.modal-overlay')) return;
-
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay';
-        overlay.innerHTML = `
-            <div class="modal">
-                <h2>🔐 API Authentication</h2>
-                <p>Enter your Bearer token to access execution features.</p>
-                <div class="form-group">
-                    <input type="password" class="form-input token-input"
-                           placeholder="Paste your token here" />
-                </div>
-                <div class="flex gap-sm">
-                    <button class="btn btn-primary token-save">Save Token</button>
-                    <button class="btn btn-ghost token-cancel">Cancel</button>
-                </div>
-            </div>`;
-        document.body.appendChild(overlay);
-
-        // Use scoped selectors within this specific overlay
-        overlay.querySelector('.token-save').onclick = () => {
-            const token = overlay.querySelector('.token-input').value.trim();
-            if (token) {
-                this.setToken(token);
-                overlay.remove();
-                location.reload();
-            }
-        };
-        overlay.querySelector('.token-cancel').onclick = () => overlay.remove();
-    }
+    post(path, body) { return this.request('POST', path, body); }
 };
 
 // ── Mobile Sidebar Toggle ──
@@ -770,10 +830,13 @@ function startPolling(onComplete) {
 // ══════════════════════════════════════
 
 async function initDashboard() {
+    const authed = await initAuth();
+    if (!authed) return;
     await loadFilterDescriptions();
     await loadStrategies();
     await loadResults();
     await checkExecutionStatus();
+    fetchAndRenderMarketStatus();
 }
 
 async function loadStrategies() {
@@ -1161,7 +1224,9 @@ const STRATEGY_SPECIFIC_FILTERS = {
     ],
 };
 
-function initExecutePage() {
+async function initExecutePage() {
+    const authed = await initAuth();
+    if (!authed) return;
     const select = document.getElementById('strategy-type');
     if (!select) return;
 
@@ -1183,6 +1248,7 @@ function initExecutePage() {
 
     loadCustomResults();
     checkCustomExecutionStatus();
+    fetchAndRenderMarketStatus();
 }
 
 async function checkCustomExecutionStatus() {
@@ -1476,6 +1542,8 @@ async function loadCustomResults() {
 // ══════════════════════════════════════
 
 async function initConfigPage() {
+    const authed = await initAuth();
+    if (!authed) return;
     const container = document.getElementById('config-container');
     if (!container) return;
     try {
@@ -1486,6 +1554,7 @@ async function initConfigPage() {
         ]);
         container.innerHTML = '';
         renderConfig(config, container, securitiesMaps);
+        fetchAndRenderMarketStatus();
     } catch (e) {
         container.innerHTML = `<div class="empty-state text-danger">Failed to load config: ${e.message}</div>`;
     }
@@ -1645,8 +1714,6 @@ function renderFilterGrid(filter) {
 }
 
 // ── Market Status Live Injection ──
-
-document.addEventListener('DOMContentLoaded', fetchAndRenderMarketStatus);
 
 async function fetchAndRenderMarketStatus() {
     const mainContent = document.querySelector('.main-content');

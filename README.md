@@ -318,39 +318,30 @@ The execution results dashboard is now maintained in a separate repository. It i
 
 ## Deployment
 
-### API Bearer Token
+### Authentication (Supabase Auth)
 
-The REST API endpoints (`/api/*`) are protected with Bearer token authentication. You need to generate a token and configure it as a secret.
+The app uses **Supabase Auth** with Google and Apple OAuth for user authentication. API endpoints (`/api/*`) are protected with JWT verification using the **Supabase JWKS public key endpoint** — no shared secret is required.
 
-#### How to Generate a Token
+#### How It Works
 
-**Option A — Use OpenSSL (recommended):**
-```bash
-openssl rand -base64 32
-```
-This generates a random 32-byte Base64 string like `a3Rk9x7Lwq2MpN5vJ8BzQf1YhS4uT6wE0cXiDgOmKno=`.
+1. Users sign in via Google or Apple on the `/login.html` page
+2. Supabase issues a JWT (signed with ECC P-256 / ES256)
+3. The frontend automatically attaches the JWT to all API requests
+4. The backend `BearerTokenFilter` fetches Supabase's public key from the JWKS endpoint (cached 24 hours) and verifies the JWT signature — **no secret needed**
+5. Optionally, access is restricted to specific emails via `ALLOWED_EMAILS`
 
-**Option B — Use Python:**
-```bash
-python -c "import secrets; print(secrets.token_urlsafe(32))"
-```
+> **JWKS endpoint**: `https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json` (auto-derived from `SUPABASE_URL`)
 
-**Option C — Use PowerShell (Windows):**
-```powershell
-[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }) -as [byte[]])
-```
+#### Supabase Dashboard Setup
 
-> ⚠️ **Important:** Use the **same token** in both your GitHub Secret and when accessing the API from the frontend. The frontend will prompt you to enter the token on first use and stores it in `localStorage`.
+1. **Enable Google OAuth**: Authentication → Providers → Google → Enable → Add OAuth credentials from [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. **Enable Apple OAuth** (optional): Authentication → Providers → Apple → Enable
+3. **Set Site URL**: Authentication → URL Configuration → Site URL → `https://your-cloud-run-url`
+4. **Set Redirect URLs**: Authentication → URL Configuration → Add `https://your-cloud-run-url/login.html`
 
 #### Local Development
 
-For local development, the token is **optional**. If `api.bearer.token` is empty (the default in `application.properties`), the API is accessible without authentication.
-
-To test with auth locally, set the token in your IDE run config or environment:
-```bash
-set API_BEARER_TOKEN=my-local-test-token
-mvn spring-boot:run
-```
+For local development, authentication is **bypassed** when `SUPABASE_URL` is not set in the environment. All API requests pass through without JWT verification.
 
 ---
 
@@ -390,7 +381,7 @@ Go to your repo → **Settings → Secrets and variables → Actions** → **New
 | `SUPABASE_URL` | Supabase Dashboard → Settings → API → Project URL |
 | `SUPABASE_ANON_KEY` | Supabase Dashboard → Settings → API → `anon` / `public` key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → Settings → API → `service_role` key |
-| `API_BEARER_TOKEN` | Generate using one of the methods above (OpenSSL/Python/PowerShell) |
+| `ALLOWED_EMAILS` | Comma-separated list of authorized Google/Apple email addresses |
 
 #### Deploy
 
@@ -425,10 +416,10 @@ These are injected into the Cloud Run container at deploy time:
 
 | Variable | Purpose |
 |---|---|
-| `SUPABASE_URL` | Supabase REST API base URL |
-| `SUPABASE_ANON_KEY` | Public key for read operations |
-| `SUPABASE_SERVICE_ROLE_KEY` | Admin key for write operations |
-| `API_BEARER_TOKEN` | Protects `/api/*` endpoints from unauthorized access |
+| `SUPABASE_URL` | Supabase REST API base URL (also used to derive the JWKS endpoint for JWT verification) |
+| `SUPABASE_ANON_KEY` | Public key for frontend auth initialization |
+| `SUPABASE_SERVICE_ROLE_KEY` | Admin key for backend write operations |
+| `ALLOWED_EMAILS` | Comma-separated list of authorized email addresses |
 
 ---
 
@@ -495,4 +486,5 @@ To change log levels, edit the `log4j2.json` file:
 - ta4j-core - Technical analysis library (RSI, Bollinger Bands, etc.)
 - Log4j2 - Logging framework
 - Google Sheets API - For IV data storage in Google Sheets
+- **java-jwt** (Auth0) - JWT verification for Supabase Auth tokens
 
