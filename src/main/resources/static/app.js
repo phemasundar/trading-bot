@@ -115,11 +115,21 @@ const API = {
         }
         const res = await fetch(path, opts);
         if (res.status === 401 || res.status === 403) {
+            // Read backend error message if possible
+            let errorMessage = res.status === 403 ? 'User not authorized.' : 'Session expired. Please sign in again.';
+            try {
+                const errorData = await res.json();
+                if (errorData && errorData.error) {
+                    errorMessage = errorData.error;
+                }
+            } catch(e) {}
+
             // Token expired or user not authorized — force clear storage and redirect
             try { 
                 if (_supabaseClient) await _supabaseClient.auth.signOut(); 
             } catch(e) {}
             
+            localStorage.setItem('authError', errorMessage);
             window.location.href = '/login.html';
             throw new Error('Unauthorized');
         }
