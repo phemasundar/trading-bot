@@ -72,7 +72,7 @@ jobs:
             --set-env-vars "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" \
             --set-env-vars "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" \
             --set-env-vars "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            --set-env-vars "API_BEARER_TOKEN=${{ secrets.API_BEARER_TOKEN }}" \
+            --set-env-vars "ALLOWED_EMAILS=${{ secrets.ALLOWED_EMAILS }}" \
             --set-env-vars "REFRESH_TOKEN=${{ secrets.REFRESH_TOKEN }}" \
             --set-env-vars "APP_KEY=${{ secrets.APP_KEY }}" \
             --set-env-vars "PP_SECRET=${{ secrets.PP_SECRET }}" \

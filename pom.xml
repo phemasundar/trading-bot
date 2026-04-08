@@ -255,6 +255,18 @@
       <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
       <version>2.3.0</version>
     </dependency>
+    <!-- JWT Verification (for Supabase Auth tokens) -->
+    <dependency>
+      <groupId>com.auth0</groupId>
+      <artifactId>java-jwt</artifactId>
+      <version>4.4.0</version>
+    </dependency>
+    <!-- JWKS support — fetch Supabase ECC P-256 public keys for JWT verification -->
+    <dependency>
+      <groupId>com.auth0</groupId>
+      <artifactId>jwks-rsa</artifactId>
+      <version>0.22.1</version>
+    </dependency>
     <!-- Mockito for unit testing -->
     <dependency>
       <groupId>org.mockito</groupId>
