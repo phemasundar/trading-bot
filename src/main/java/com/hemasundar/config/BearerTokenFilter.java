@@ -68,14 +68,19 @@ public class BearerTokenFilter implements Filter {
     }
 
     @PostConstruct
-    public void initJwkProvider() throws Exception {
+    public void initJwkProvider() {
         if (supabaseUrl != null && !supabaseUrl.isBlank()) {
-            String jwksUrl = supabaseUrl.stripTrailing("/") + "/auth/v1/.well-known/jwks.json";
-            this.jwkProvider = new JwkProviderBuilder(new URL(jwksUrl))
-                    .cached(10, 24, TimeUnit.HOURS)
-                    .rateLimited(10, 1, TimeUnit.MINUTES)
-                    .build();
-            log.info("JWKS-based JWT verification configured: {}", jwksUrl);
+            try {
+                String baseUrl  = supabaseUrl.endsWith("/") ? supabaseUrl.substring(0, supabaseUrl.length() - 1) : supabaseUrl;
+                String jwksUrl  = baseUrl + "/auth/v1/.well-known/jwks.json";
+                this.jwkProvider = new JwkProviderBuilder(new URL(jwksUrl))
+                        .cached(10, 24, TimeUnit.HOURS)
+                        .rateLimited(10, 1, TimeUnit.MINUTES)
+                        .build();
+                log.info("JWKS-based JWT verification configured: {}", jwksUrl);
+            } catch (Exception e) {
+                log.error("Failed to initialize JWKS provider. JWT verification will fail.", e);
+            }
         }
     }
 
@@ -121,6 +126,10 @@ public class BearerTokenFilter implements Filter {
 
         String token = authHeader.substring(7).trim();
 
+        // [DEBUG] Check token structure since we are getting "> 3 parts" errors
+        long dotCount = token.chars().filter(ch -> ch == '.').count();
+        log.info("[DEBUG] Received Token Length: {}, Dot count: {}", token.length(), dotCount);
+
         try {
             DecodedJWT decoded  = JWT.decode(token);
             Jwk        jwk      = jwkProvider.get(decoded.getKeyId());
@@ -138,22 +147,22 @@ public class BearerTokenFilter implements Filter {
                         .collect(Collectors.toSet());
 
                 if (email == null || !allowed.contains(email.toLowerCase())) {
-                    log.warn("Email '{}' not in allowlist — denying {}", email, path);
+                    log.info("[AUTH ERROR] Email '{}' not in allowlist — denying {}", email, path);
                     sendError(response, HttpServletResponse.SC_FORBIDDEN,
                             "User not authorized. Contact the administrator.");
                     return;
                 }
             }
 
-            log.debug("JWT verified for {} on {}", email, path);
+            log.info("[AUTH SUCCESS] JWT verified for {} on {}", email, path);
             chain.doFilter(request, response);
 
         } catch (JWTVerificationException e) {
-            log.warn("JWT verification failed for {}: {}", path, e.getMessage());
+            log.info("[AUTH ERROR] JWT verification failed for {}: {}", path, e.getMessage());
             sendError(response, HttpServletResponse.SC_UNAUTHORIZED,
                     "Invalid or expired token. Please sign in again.");
         } catch (Exception e) {
-            log.error("Unexpected error during JWT verification for {}: {}", path, e.getMessage());
+            log.info("[AUTH ERROR] Unexpected error during JWT verification for {}: {}", path, e.getMessage(), e);
             sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "Token verification failed.");
         }
     }

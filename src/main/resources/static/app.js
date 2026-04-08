@@ -34,6 +34,8 @@ async function initAuth() {
         // Listen for auth state changes (auto-refresh, sign out)
         _supabaseClient.auth.onAuthStateChange((event, session) => {
             if (event === 'SIGNED_OUT' || !session) {
+                // If this wasn't an intentional logout, we could set a reason here,
+                // but for now, we'll keep it silent for a cleaner UX.
                 window.location.href = '/login.html';
             } else if (event === 'TOKEN_REFRESHED' && session) {
                 API._accessToken = session.access_token;
@@ -88,6 +90,7 @@ function injectUserInfo(user) {
  * Signs the user out and redirects to the login page.
  */
 async function logout() {
+    localStorage.removeItem('authRedirectReason');
     if (_supabaseClient) {
         await _supabaseClient.auth.signOut();
     }
@@ -112,8 +115,11 @@ const API = {
         }
         const res = await fetch(path, opts);
         if (res.status === 401 || res.status === 403) {
-            // Token expired or user not authorized — redirect to login
-            if (_supabaseClient) await _supabaseClient.auth.signOut();
+            // Token expired or user not authorized — force clear storage and redirect
+            try { 
+                if (_supabaseClient) await _supabaseClient.auth.signOut(); 
+            } catch(e) {}
+            
             window.location.href = '/login.html';
             throw new Error('Unauthorized');
         }
@@ -830,6 +836,7 @@ async function initDashboard() {
     await loadStrategies();
     await loadResults();
     await checkExecutionStatus();
+    fetchAndRenderMarketStatus();
 }
 
 async function loadStrategies() {
@@ -1241,6 +1248,7 @@ async function initExecutePage() {
 
     loadCustomResults();
     checkCustomExecutionStatus();
+    fetchAndRenderMarketStatus();
 }
 
 async function checkCustomExecutionStatus() {
@@ -1546,6 +1554,7 @@ async function initConfigPage() {
         ]);
         container.innerHTML = '';
         renderConfig(config, container, securitiesMaps);
+        fetchAndRenderMarketStatus();
     } catch (e) {
         container.innerHTML = `<div class="empty-state text-danger">Failed to load config: ${e.message}</div>`;
     }
@@ -1705,8 +1714,6 @@ function renderFilterGrid(filter) {
 }
 
 // ── Market Status Live Injection ──
-
-document.addEventListener('DOMContentLoaded', fetchAndRenderMarketStatus);
 
 async function fetchAndRenderMarketStatus() {
     const mainContent = document.querySelector('.main-content');

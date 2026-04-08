@@ -93,14 +93,25 @@
                     window.location.href = '/';
                 } else if (res.status === 403) {
                     const data = await res.json();
-                    await supabaseClient.auth.signOut();
+                    try { await supabaseClient.auth.signOut(); } catch(e) {}
+                    localStorage.clear();
+                    sessionStorage.clear();
                     showError(data.error || 'You are not authorized to access this application.');
                     showLoading(false);
                 } else {
-                    window.location.href = '/';
+                    // Backend threw 401 or 500 — Do NOT redirect to /
+                    try { await supabaseClient.auth.signOut(); } catch(e) {}
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    showError('Authentication failed. The token is invalid or expired.');
+                    showLoading(false);
                 }
             } catch (e) {
-                window.location.href = '/';
+                showError('Network error. Could not verify authentication.');
+                try { await supabaseClient.auth.signOut(); } catch(err) {}
+                localStorage.clear();
+                sessionStorage.clear();
+                showLoading(false);
             }
         }
 
