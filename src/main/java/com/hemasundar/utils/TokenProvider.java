@@ -60,6 +60,8 @@ public class TokenProvider {
             throw new RuntimeException("Error fetching Access token: " + response.statusLine()
                     + "\n"
                     + response.asPrettyString());
+        } else {
+            log.info("Refresh token API successful");
         }
 
         RefreshToken refreshToken = new ObjectMapper().readValue(response.asPrettyString(), RefreshToken.class);
