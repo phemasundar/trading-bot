@@ -75,7 +75,7 @@ jobs:
             --set-env-vars "ALLOWED_EMAILS=${{ secrets.ALLOWED_EMAILS }}" \
             --set-env-vars "REFRESH_TOKEN=${{ secrets.REFRESH_TOKEN }}" \
             --set-env-vars "APP_KEY=${{ secrets.APP_KEY }}" \
-            --set-env-vars "PP_SECRET=${{ secrets.PP_SECRET }}" \
+            --set-env-vars "APP_SECRET=${{ secrets.APP_SECRET }}" \
             --set-env-vars "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" \
             --set-env-vars "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}" \
             --quiet
