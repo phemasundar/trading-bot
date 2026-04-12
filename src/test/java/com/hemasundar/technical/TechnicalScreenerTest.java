@@ -19,25 +19,22 @@ import static org.testng.Assert.*;
 
 public class TechnicalScreenerTest {
 
-    private MockedStatic<ThinkOrSwinAPIs> mockedApis;
+    private TechnicalScreener technicalScreener;
+    private ThinkOrSwinAPIs thinkOrSwinAPIs;
 
     @BeforeMethod
     public void setUp() {
-        mockedApis = Mockito.mockStatic(ThinkOrSwinAPIs.class);
-    }
-
-    @AfterMethod
-    public void tearDown() {
-        mockedApis.close();
+        thinkOrSwinAPIs = Mockito.mock(ThinkOrSwinAPIs.class);
+        technicalScreener = new TechnicalScreener(thinkOrSwinAPIs);
     }
 
     @Test
     public void testAnalyzeStockNullHistory() {
-        mockedApis.when(() -> ThinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
+        Mockito.when(thinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(null);
 
         TechnicalIndicators indicators = TechnicalIndicators.builder().build();
-        TechnicalScreener.ScreeningResult result = TechnicalScreener.analyzeStock("AAPL", indicators);
+        TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("AAPL", indicators);
 
         assertNull(result);
     }
@@ -46,11 +43,11 @@ public class TechnicalScreenerTest {
     public void testAnalyzeStockEmptyHistory() {
         PriceHistoryResponse response = new PriceHistoryResponse();
         response.setCandles(new ArrayList<>());
-        mockedApis.when(() -> ThinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
+        Mockito.when(thinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(response);
 
         TechnicalIndicators indicators = TechnicalIndicators.builder().build();
-        TechnicalScreener.ScreeningResult result = TechnicalScreener.analyzeStock("TSLA", indicators);
+        TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("TSLA", indicators);
 
         assertNull(result);
     }
@@ -58,7 +55,7 @@ public class TechnicalScreenerTest {
     @Test
     public void testAnalyzeStockSuccess() {
         PriceHistoryResponse response = createMockResponse(100.0, 10);
-        mockedApis.when(() -> ThinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
+        Mockito.when(thinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(response);
 
         TechnicalIndicators indicators = TechnicalIndicators.builder()
@@ -67,7 +64,7 @@ public class TechnicalScreenerTest {
                 .ma20Filter(MovingAverageFilter.builder().period(20).build())
                 .build();
 
-        TechnicalScreener.ScreeningResult result = TechnicalScreener.analyzeStock("MSFT", indicators);
+        TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("MSFT", indicators);
 
         assertNotNull(result);
         assertEquals(result.getSymbol(), "MSFT");
@@ -78,7 +75,7 @@ public class TechnicalScreenerTest {
     @Test
     public void testScreenStocksCriteriaMet() {
         PriceHistoryResponse response = createMockResponse(50.0, 30);
-        mockedApis.when(() -> ThinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
+        Mockito.when(thinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(response);
 
         TechnicalIndicators indicators = TechnicalIndicators.builder()
@@ -91,7 +88,7 @@ public class TechnicalScreenerTest {
 
         TechnicalFilterChain chain = TechnicalFilterChain.of(indicators, conditions);
 
-        List<TechnicalScreener.ScreeningResult> results = TechnicalScreener.screenStocks(Arrays.asList("GOOGL"), chain);
+        List<TechnicalScreener.ScreeningResult> results = technicalScreener.screenStocks(Arrays.asList("GOOGL"), chain);
 
         assertNotNull(results);
         assertEquals(results.size(), 1, "Should find 1 stock as flat price meets volume 500 requirement");
@@ -101,7 +98,7 @@ public class TechnicalScreenerTest {
     @Test
     public void testScreenStocksCriteriaNotMet() {
         PriceHistoryResponse response = createMockResponse(100.0, 30);
-        mockedApis.when(() -> ThinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
+        Mockito.when(thinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(response);
 
         TechnicalIndicators indicators = TechnicalIndicators.builder().build();
@@ -113,7 +110,7 @@ public class TechnicalScreenerTest {
 
         TechnicalFilterChain chain = TechnicalFilterChain.of(indicators, conditions);
 
-        List<TechnicalScreener.ScreeningResult> results = TechnicalScreener.screenStocks(Arrays.asList("NVDA"), chain);
+        List<TechnicalScreener.ScreeningResult> results = technicalScreener.screenStocks(Arrays.asList("NVDA"), chain);
 
         assertNotNull(results);
         assertEquals(results.size(), 0, "Should find 0 stocks as volume 1000 < 10M");
@@ -123,7 +120,7 @@ public class TechnicalScreenerTest {
     public void testAnalyzeStock_AllIndicators() {
         // Create 201 candles for MA200
         PriceHistoryResponse response = createMockResponse(100.0, 201);
-        mockedApis.when(() -> ThinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
+        Mockito.when(thinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(response);
 
         TechnicalIndicators indicators = TechnicalIndicators.builder()
@@ -136,7 +133,7 @@ public class TechnicalScreenerTest {
                 .volumeFilter(VolumeFilter.builder().build())
                 .build();
 
-        TechnicalScreener.ScreeningResult result = TechnicalScreener.analyzeStock("TEST", indicators);
+        TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("TEST", indicators);
         
         assertNotNull(result);
         assertEquals(result.getSymbol(), "TEST");
@@ -148,7 +145,7 @@ public class TechnicalScreenerTest {
     public void testMeetsAllCriteria_ConditionCoverage() {
         // We will exercise meetsAllCriteria through evaluate indirectly
         PriceHistoryResponse response = createMockResponse(100.0, 201);
-        mockedApis.when(() -> ThinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
+        Mockito.when(thinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(response);
 
         // Scenario 1: RSI condition coverage
@@ -162,17 +159,14 @@ public class TechnicalScreenerTest {
         
         // This will call analyzeStock which builds result, then meetsAllCriteria
         List<TechnicalScreener.ScreeningResult> results = 
-                TechnicalScreener.screenStocks(List.of("T"), TechnicalFilterChain.of(indicators, conditions));
+                technicalScreener.screenStocks(List.of("T"), TechnicalFilterChain.of(indicators, conditions));
         assertNotNull(results);
 
         // Scenario 2: Require Price Below MA200
         conditions = TechFilterConditions.builder()
                 .requirePriceBelowMA200(true)
                 .build();
-        
-        results = TechnicalScreener.screenStocks(List.of("T"), TechnicalFilterChain.of(
-                        TechnicalIndicators.builder().ma200Filter(MovingAverageFilter.builder().period(200).build()).build(),
-                        conditions));
+        results = technicalScreener.screenStocks(List.of("T"), TechnicalFilterChain.of(indicators, conditions));
         assertNotNull(results);
     }
 

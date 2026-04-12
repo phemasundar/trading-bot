@@ -9,8 +9,11 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.SheetsScopes;
 import com.google.api.services.sheets.v4.model.*;
+import com.hemasundar.config.properties.GoogleSheetsConfig;
 import com.hemasundar.pojos.IVDataPoint;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -23,41 +26,30 @@ import java.util.stream.Collectors;
  * Uses Service Account authentication for both local and CI/CD environments.
  */
 @Log4j2
+@Service
+@RequiredArgsConstructor
 public class GoogleSheetsService {
 
         private static final String APPLICATION_NAME = "Trading Bot IV Tracker";
         private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
         private static final List<String> SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS);
 
-        private final Sheets sheetsService;
-        private final String spreadsheetId;
+        private final GoogleSheetsConfig googleSheetsConfig;
+        private Sheets sheetsService;
 
         /**
-         * Constructor initializes Google Sheets service with authentication.
-         *
-         * @param spreadsheetId Google Sheets spreadsheet ID
-         * @throws IOException              if credentials file is not found
-         * @throws GeneralSecurityException if there's a security issue
+         * Lazily initializes Google Sheets service with authentication.
          */
-        public GoogleSheetsService(String spreadsheetId) throws IOException, GeneralSecurityException {
-                this.spreadsheetId = spreadsheetId;
+        private synchronized void ensureInitialized() throws IOException, GeneralSecurityException {
+                if (this.sheetsService != null) return;
+                
                 final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
                 this.sheetsService = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
                                 .setApplicationName(APPLICATION_NAME)
                                 .build();
-                log.info("Google Sheets Service initialized for spreadsheet: {}", spreadsheetId);
+                log.info("Google Sheets Service initialized for spreadsheet: {}", googleSheetsConfig.getSpreadsheetId());
         }
 
-        /**
-         * Constructor for testing.
-         *
-         * @param spreadsheetId Spreadsheet ID
-         * @param sheetsService Mocked Sheets service
-         */
-        GoogleSheetsService(String spreadsheetId, Sheets sheetsService) {
-                this.spreadsheetId = spreadsheetId;
-                this.sheetsService = sheetsService;
-        }
 
         /**
          * Creates credentials for Google Sheets API using Service Account.
@@ -108,9 +100,14 @@ public class GoogleSheetsService {
          * @throws IOException if API call fails
          */
         public Integer getOrCreateSheet(String symbol) throws IOException {
+                try {
+                        ensureInitialized();
+                } catch (GeneralSecurityException e) {
+                        throw new IOException("Failed to initialize Google Sheets service", e);
+                }
                 // Get existing sheets
                 Spreadsheet spreadsheet = sheetsService.spreadsheets()
-                                .get(spreadsheetId)
+                                .get(googleSheetsConfig.getSpreadsheetId())
                                 .execute();
 
                 // Check if sheet already exists
@@ -131,7 +128,7 @@ public class GoogleSheetsService {
                                 .setRequests(Collections.singletonList(new Request().setAddSheet(addSheetRequest)));
 
                 BatchUpdateSpreadsheetResponse response = sheetsService.spreadsheets()
-                                .batchUpdate(spreadsheetId, batchRequest)
+                                .batchUpdate(googleSheetsConfig.getSpreadsheetId(), batchRequest)
                                 .execute();
 
                 Integer sheetId = response.getReplies().get(0).getAddSheet().getProperties().getSheetId();
@@ -163,7 +160,7 @@ public class GoogleSheetsService {
                                 .setValues(Collections.singletonList(headers));
 
                 sheetsService.spreadsheets().values()
-                                .append(spreadsheetId, symbol + "!A1", valueRange)
+                                .append(googleSheetsConfig.getSpreadsheetId(), symbol + "!A1", valueRange)
                                 .setValueInputOption("RAW")
                                 .setInsertDataOption("OVERWRITE")
                                 .execute();
@@ -179,6 +176,11 @@ public class GoogleSheetsService {
          * @throws IOException if API call fails after retries
          */
         public void appendIVData(IVDataPoint dataPoint) throws IOException {
+                try {
+                        ensureInitialized();
+                } catch (GeneralSecurityException e) {
+                        throw new IOException("Failed to initialize Google Sheets service", e);
+                }
                 String symbol = dataPoint.getSymbol();
                 String todayDate = dataPoint.getCurrentDate().toString();
 
@@ -211,7 +213,7 @@ public class GoogleSheetsService {
                                         // Update existing row
                                         String range = symbol + "!A" + existingRowIndex + ":G" + existingRowIndex;
                                         sheetsService.spreadsheets().values()
-                                                        .update(spreadsheetId, range, valueRange)
+                                                        .update(googleSheetsConfig.getSpreadsheetId(), range, valueRange)
                                                         .setValueInputOption("USER_ENTERED")
                                                         .execute();
 
@@ -221,7 +223,7 @@ public class GoogleSheetsService {
                                 } else {
                                         // Append new row
                                         sheetsService.spreadsheets().values()
-                                                        .append(spreadsheetId, symbol + "!A:G", valueRange)
+                                                        .append(googleSheetsConfig.getSpreadsheetId(), symbol + "!A:G", valueRange)
                                                         .setValueInputOption("USER_ENTERED")
                                                         .setInsertDataOption("INSERT_ROWS")
                                                         .execute();
@@ -265,9 +267,14 @@ public class GoogleSheetsService {
          * @throws IOException if API call fails
          */
         public void reorderSheets(List<String> symbolsInOrder) throws IOException {
+                try {
+                        ensureInitialized();
+                } catch (GeneralSecurityException e) {
+                        throw new IOException("Failed to initialize Google Sheets service", e);
+                }
                 // Get current sheets
                 Spreadsheet spreadsheet = sheetsService.spreadsheets()
-                                .get(spreadsheetId)
+                                .get(googleSheetsConfig.getSpreadsheetId())
                                 .execute();
 
                 // Build map of symbol -> sheetId
@@ -297,7 +304,7 @@ public class GoogleSheetsService {
                         BatchUpdateSpreadsheetRequest batchRequest = new BatchUpdateSpreadsheetRequest()
                                         .setRequests(requests);
                         sheetsService.spreadsheets()
-                                        .batchUpdate(spreadsheetId, batchRequest)
+                                        .batchUpdate(googleSheetsConfig.getSpreadsheetId(), batchRequest)
                                         .execute();
 
                         log.info("Reordered {} sheets to match securities order", requests.size());
@@ -316,7 +323,7 @@ public class GoogleSheetsService {
                 try {
                         // Read all dates from column A
                         ValueRange response = sheetsService.spreadsheets().values()
-                                        .get(spreadsheetId, symbol + "!A:A")
+                                        .get(googleSheetsConfig.getSpreadsheetId(), symbol + "!A:A")
                                         .execute();
 
                         List<List<Object>> values = response.getValues();

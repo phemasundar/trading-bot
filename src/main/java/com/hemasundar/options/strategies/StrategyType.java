@@ -13,78 +13,22 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 public enum StrategyType {
 
     // Put Credit Spread Strategies
-    PUT_CREDIT_SPREAD("Put Credit Spread") {
-        @Override
-        public AbstractTradingStrategy createStrategy() {
-            return new PutCreditSpreadStrategy();
-        }
-    },
-    TECH_PUT_CREDIT_SPREAD("Technical Put Credit Spread") {
-        @Override
-        public AbstractTradingStrategy createStrategy() {
-            return new PutCreditSpreadStrategy(this);
-        }
-    },
-    BULLISH_LONG_PUT_CREDIT_SPREAD("Bullish Long Put Credit Spread") {
-        @Override
-        public AbstractTradingStrategy createStrategy() {
-            return new PutCreditSpreadStrategy(this);
-        }
-    },
+    PUT_CREDIT_SPREAD("Put Credit Spread"),
+    TECH_PUT_CREDIT_SPREAD("Technical Put Credit Spread"),
+    BULLISH_LONG_PUT_CREDIT_SPREAD("Bullish Long Put Credit Spread"),
 
     // Call Credit Spread Strategies
-    CALL_CREDIT_SPREAD("Call Credit Spread") {
-        @Override
-        public AbstractTradingStrategy createStrategy() {
-            return new CallCreditSpreadStrategy();
-        }
-    },
-    TECH_CALL_CREDIT_SPREAD("Technical Call Credit Spread") {
-        @Override
-        public AbstractTradingStrategy createStrategy() {
-            return new CallCreditSpreadStrategy(this);
-        }
-    },
+    CALL_CREDIT_SPREAD("Call Credit Spread"),
+    TECH_CALL_CREDIT_SPREAD("Technical Call Credit Spread"),
 
     // Other Strategies
-    IRON_CONDOR("Iron Condor") {
-        @Override
-        public AbstractTradingStrategy createStrategy() {
-            return new IronCondorStrategy();
-        }
-    },
-    BULLISH_LONG_IRON_CONDOR("Bullish Long Iron Condor") {
-        @Override
-        public AbstractTradingStrategy createStrategy() {
-            return new IronCondorStrategy(this);
-        }
-    },
-    LONG_CALL_LEAP("Long Call LEAP") {
-        @Override
-        public AbstractTradingStrategy createStrategy() {
-            return new LongCallLeapStrategy();
-        }
-    },
-    BULLISH_BROKEN_WING_BUTTERFLY("Bullish Broken Wing Butterfly") {
-        @Override
-        public AbstractTradingStrategy createStrategy() {
-            return new BrokenWingButterflyStrategy();
-        }
-    },
-    BULLISH_ZEBRA("Bullish ZEBRA") {
-        @Override
-        public AbstractTradingStrategy createStrategy() {
-            return new ZebraStrategy();
-        }
-    };
+    IRON_CONDOR("Iron Condor"),
+    BULLISH_LONG_IRON_CONDOR("Bullish Long Iron Condor"),
+    LONG_CALL_LEAP("Long Call LEAP"),
+    BULLISH_BROKEN_WING_BUTTERFLY("Bullish Broken Wing Butterfly"),
+    BULLISH_ZEBRA("Bullish ZEBRA");
 
     private final String displayName;
-
-    /**
-     * Creates a new strategy instance for this type.
-     * Factory method pattern - each enum value knows how to create its strategy.
-     */
-    public abstract AbstractTradingStrategy createStrategy();
 
     /**
      * Jackson deserializer - allows parsing from enum name (e.g.,

@@ -1,6 +1,7 @@
 package com.hemasundar.utils;
 
 import com.hemasundar.pojos.PriceHistoryResponse;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.List;
@@ -8,6 +9,13 @@ import java.util.List;
 import static org.testng.Assert.*;
 
 public class VolatilityCalculatorTest {
+
+    private VolatilityCalculator volatilityCalculator;
+
+    @BeforeMethod
+    public void setUp() {
+        volatilityCalculator = new VolatilityCalculator();
+    }
 
     @Test
     public void testCalculateAnnualizedVolatility_Success() {
@@ -32,14 +40,14 @@ public class VolatilityCalculatorTest {
         
         priceHistory.setCandles(java.util.Arrays.asList(c1, c2));
 
-        Double result = VolatilityCalculator.calculateAnnualizedVolatility(priceHistory);
+        Double result = volatilityCalculator.calculateAnnualizedVolatility(priceHistory);
         assertNotNull(result);
         assertTrue(result >= 0, "Volatility should be non-negative");
     }
 
     @Test
     public void testCalculateAnnualizedVolatility_NullHistory() {
-        Double result = VolatilityCalculator.calculateAnnualizedVolatility(null);
+        Double result = volatilityCalculator.calculateAnnualizedVolatility(null);
         assertNull(result);
     }
 
@@ -47,7 +55,7 @@ public class VolatilityCalculatorTest {
     public void testCalculateAnnualizedVolatility_EmptyCandles() {
         PriceHistoryResponse priceHistory = new PriceHistoryResponse();
         priceHistory.setCandles(java.util.Arrays.asList());
-        Double result = VolatilityCalculator.calculateAnnualizedVolatility(priceHistory);
+        Double result = volatilityCalculator.calculateAnnualizedVolatility(priceHistory);
         assertNull(result);
     }
 
@@ -63,7 +71,7 @@ public class VolatilityCalculatorTest {
         c1.setDatetime(0L);
         
         priceHistory.setCandles(java.util.Arrays.asList(c1));
-        Double result = VolatilityCalculator.calculateAnnualizedVolatility(priceHistory);
+        Double result = volatilityCalculator.calculateAnnualizedVolatility(priceHistory);
         assertNull(result);
     }
 
@@ -88,7 +96,7 @@ public class VolatilityCalculatorTest {
         c2.setDatetime(0L);
         
         priceHistory.setCandles(java.util.Arrays.asList(c1, c2));
-        Double result = VolatilityCalculator.calculateAnnualizedVolatility(priceHistory);
+        Double result = volatilityCalculator.calculateAnnualizedVolatility(priceHistory);
         assertNull(result);
     }
 }

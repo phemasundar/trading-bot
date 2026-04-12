@@ -6,11 +6,13 @@ import com.hemasundar.config.StrategiesConfig.StrategyEntry;
 import com.hemasundar.config.StrategiesConfig.TechnicalFilterConfig;
 import com.hemasundar.options.models.*;
 import com.hemasundar.options.strategies.AbstractTradingStrategy;
+import com.hemasundar.options.strategies.StrategyType;
 import com.hemasundar.technical.*;
 import com.hemasundar.utils.FilePaths;
 import com.hemasundar.utils.JavaUtils;
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
+import org.springframework.stereotype.Component;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
 import java.io.IOException;
@@ -22,19 +24,46 @@ import java.util.*;
  * screeners.
  */
 @Log4j2
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
+@Component
+@RequiredArgsConstructor
 public class StrategiesConfigLoader {
+
+    private final List<AbstractTradingStrategy> availableStrategies;
+    private final Map<StrategyType, AbstractTradingStrategy> strategyMap = new HashMap<>();
+
+    @PostConstruct
+    public void init() {
+        for (AbstractTradingStrategy strategy : availableStrategies) {
+            strategyMap.put(strategy.getStrategyType(), strategy);
+        }
+        log.info("Initialized StrategiesConfigLoader with {} strategies", strategyMap.size());
+    }
+
+    /**
+     * Retrieves a strategy instance by its type.
+     *
+     * @param type StrategyType to look up
+     * @return AbstractTradingStrategy instance
+     * @throws IllegalArgumentException if no strategy is found for the type
+     */
+    public AbstractTradingStrategy getStrategy(StrategyType type) {
+        AbstractTradingStrategy strategy = strategyMap.get(type);
+        if (strategy == null) {
+            throw new IllegalArgumentException("No strategy found for type: " + type);
+        }
+        return strategy;
+    }
 
     // ==================== OPTIONS STRATEGIES ====================
 
     /**
      * Loads all strategy configurations from the JSON file.
      *
-     * @param configPath    Path to strategies-config.json
-     * @param securitiesMap Map of securities file key -> actual securities list
+     * @param configResource Path to strategies-config.json
+     * @param securitiesMap  Map of securities file key -> actual securities list
      * @return List of OptionsConfig ready to execute
      */
-    public static List<OptionsConfig> load(String configResource, Map<String, List<String>> securitiesMap) {
+    public List<OptionsConfig> load(String configResource, Map<String, List<String>> securitiesMap) {
         List<OptionsConfig> configs = new ArrayList<>();
 
         try {
@@ -76,7 +105,7 @@ public class StrategiesConfigLoader {
      *
      * @return list of enabled ScreenerConfig objects
      */
-    public static List<ScreenerConfig> loadScreeners(Map<String, List<String>> securitiesMap) {
+    public List<ScreenerConfig> loadScreeners(Map<String, List<String>> securitiesMap) {
         return loadScreeners(FilePaths.strategiesConfig, securitiesMap);
     }
 
@@ -88,7 +117,7 @@ public class StrategiesConfigLoader {
      * @param securitiesMap map of securities
      * @return list of enabled ScreenerConfig objects
      */
-    public static List<ScreenerConfig> loadScreeners(String configResource, Map<String, List<String>> securitiesMap) {
+    public List<ScreenerConfig> loadScreeners(String configResource, Map<String, List<String>> securitiesMap) {
         List<ScreenerConfig> configs = new ArrayList<>();
 
         try {
@@ -118,10 +147,7 @@ public class StrategiesConfigLoader {
         return configs;
     }
 
-    /**
-     * Converts a ScreenerEntry POJO to a ScreenerConfig.
-     */
-    private static ScreenerConfig convertToScreenerConfig(ScreenerEntry entry, Map<String, List<String>> securitiesMap) {
+    private ScreenerConfig convertToScreenerConfig(ScreenerEntry entry, Map<String, List<String>> securitiesMap) {
         ScreenerConditionsConfig condConfig = entry.getConditions();
 
         // Build TechFilterConditions from the POJO
@@ -167,16 +193,16 @@ public class StrategiesConfigLoader {
 
     // ==================== PRIVATE HELPERS ====================
 
-    /**
-     * Converts a StrategyEntry POJO to an OptionsConfig.
-     */
-    private static OptionsConfig convertToOptionsConfig(
+    private OptionsConfig convertToOptionsConfig(
             StrategyEntry entry,
             Map<String, List<String>> securitiesMap,
             Map<String, TechnicalFilterChain> filterChains) throws Exception {
 
-        // Create strategy instance using enum factory
-        AbstractTradingStrategy strategy = entry.getStrategyType().createStrategy();
+        // Fetch strategy instance from map
+        AbstractTradingStrategy strategy = strategyMap.get(entry.getStrategyType());
+        if (strategy == null) {
+            throw new IllegalArgumentException("Strategy not found for type: " + entry.getStrategyType());
+        }
 
         // Parse filter using FilterType enum
         FilterType filterType = FilterType.fromJsonName(entry.getFilterType());
@@ -217,10 +243,7 @@ public class StrategiesConfigLoader {
                 .build();
     }
 
-    /**
-     * Resolves technical filter - handles both string reference and inline config.
-     */
-    private static TechnicalFilterChain resolveTechnicalFilter(
+    private TechnicalFilterChain resolveTechnicalFilter(
             Object techFilter,
             Map<String, TechnicalFilterChain> filterChains) {
 
@@ -234,10 +257,7 @@ public class StrategiesConfigLoader {
         }
     }
 
-    /**
-     * Builds named filter chains from preset configurations.
-     */
-    private static Map<String, TechnicalFilterChain> buildFilterChains(
+    private Map<String, TechnicalFilterChain> buildFilterChains(
             Map<String, TechnicalFilterConfig> presets) {
 
         Map<String, TechnicalFilterChain> chains = new HashMap<>();
@@ -254,10 +274,7 @@ public class StrategiesConfigLoader {
         return chains;
     }
 
-    /**
-     * Builds a TechnicalFilterChain from config.
-     */
-    private static TechnicalFilterChain buildFilterChainFromConfig(TechnicalFilterConfig config) {
+    private TechnicalFilterChain buildFilterChainFromConfig(TechnicalFilterConfig config) {
         TechnicalIndicators indicators = TechnicalIndicators.builder()
                 .rsiFilter(RSIFilter.builder()
                         .period(config.getRsiPeriod())
@@ -283,16 +300,7 @@ public class StrategiesConfigLoader {
         return TechnicalFilterChain.of(indicators, conditions);
     }
 
-    /**
-     * Parses comma-separated securities file names and combines all securities into
-     * a unique list.
-     * 
-     * @param securitiesFile comma-separated file names (e.g.,
-     *                       "portfolio,tracking,2026")
-     * @param securitiesMap  map of file names to securities lists
-     * @return combined unique list of securities from all specified files
-     */
-    private static List<String> parseSecuritiesFromFiles(
+    private List<String> parseSecuritiesFromFiles(
             String securitiesFile,
             Map<String, List<String>> securitiesMap) {
 

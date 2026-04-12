@@ -4,8 +4,8 @@ import com.hemasundar.options.models.OptionsConfig;
 import com.hemasundar.technical.ScreenerConfig;
 import com.hemasundar.services.StrategyExecutionService;
 import com.hemasundar.services.ScreenerExecutionService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,13 +15,12 @@ import java.util.stream.IntStream;
 
 @Service
 @Log4j2
+@RequiredArgsConstructor
 public class ScreenerJobService {
 
-    @Autowired
-    private StrategyExecutionService strategyExecutionService;
+    private final StrategyExecutionService strategyExecutionService;
 
-    @Autowired
-    private ScreenerExecutionService screenerExecutionService;
+    private final ScreenerExecutionService screenerExecutionService;
 
     public void runScheduledScreeners() {
         log.info("Starting scheduled Options Strategies and Technical Screeners execution...");

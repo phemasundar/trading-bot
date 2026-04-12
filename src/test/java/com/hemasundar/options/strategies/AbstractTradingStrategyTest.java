@@ -12,7 +12,8 @@ import com.hemasundar.utils.VolatilityCalculator;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import org.mockito.MockedStatic;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -29,15 +30,23 @@ import static org.mockito.Mockito.*;
 public class AbstractTradingStrategyTest {
 
     private DummyStrategy strategy;
-    private MockedStatic<FinnHubAPIs> mockedFinnHub;
-    private MockedStatic<ThinkOrSwinAPIs> mockedThinkOrSwim;
-    private MockedStatic<VolatilityCalculator> mockedVolCalc;
+    
+    @Mock
+    private FinnHubAPIs finnHubAPIs;
+    
+    @Mock
+    private ThinkOrSwinAPIs thinkOrSwinAPIs;
+    
+    @Mock
+    private VolatilityCalculator volatilityCalculator;
+    
+    private AutoCloseable mocks;
 
     // A concrete subclass strictly for testing AbstractTradingStrategy logic
     private static class DummyStrategy extends AbstractTradingStrategy {
 
-        public DummyStrategy() {
-            super(StrategyType.PUT_CREDIT_SPREAD); // Use any valid type
+            public DummyStrategy(FinnHubAPIs finnHubAPIs, ThinkOrSwinAPIs thinkOrSwinAPIs, VolatilityCalculator volatilityCalculator) {
+            super(StrategyType.PUT_CREDIT_SPREAD, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
         }
 
         @Override
@@ -138,18 +147,16 @@ public class AbstractTradingStrategyTest {
 
     @BeforeMethod
     public void setup() {
-        strategy = new DummyStrategy();
-        mockedFinnHub = mockStatic(FinnHubAPIs.class);
-        mockedThinkOrSwim = mockStatic(ThinkOrSwinAPIs.class);
-        mockedVolCalc = mockStatic(VolatilityCalculator.class);
+        mocks = MockitoAnnotations.openMocks(this);
+        strategy = new DummyStrategy(finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
         PriceHistoryCache.getInstance().clear();
     }
 
     @AfterMethod
-    public void teardown() {
-        mockedFinnHub.close();
-        mockedThinkOrSwim.close();
-        mockedVolCalc.close();
+    public void teardown() throws Exception {
+        if (mocks != null) {
+            mocks.close();
+        }
     }
 
     @Test
@@ -265,8 +272,8 @@ public class AbstractTradingStrategyTest {
 
         // Set Volatility to fail
         PriceHistoryResponse priceHistory = new PriceHistoryResponse();
-        mockedThinkOrSwim.when(() -> ThinkOrSwinAPIs.getYearlyPriceHistory("AAPL", 1)).thenReturn(priceHistory);
-        mockedVolCalc.when(() -> VolatilityCalculator.calculateAnnualizedVolatility(priceHistory)).thenReturn(15.0);
+        when(thinkOrSwinAPIs.getYearlyPriceHistory("AAPL", 1)).thenReturn(priceHistory);
+        when(volatilityCalculator.calculateAnnualizedVolatility(priceHistory)).thenReturn(15.0);
 
         OptionsStrategyFilter filter = new OptionsStrategyFilter();
         filter.setMinHistoricalVolatility(20.0); // 15.0 < 20.0
@@ -283,8 +290,8 @@ public class AbstractTradingStrategyTest {
 
         // Setup API to return data
         PriceHistoryResponse priceHistory = new PriceHistoryResponse();
-        mockedThinkOrSwim.when(() -> ThinkOrSwinAPIs.getYearlyPriceHistory("AAPL", 1)).thenReturn(priceHistory);
-        mockedVolCalc.when(() -> VolatilityCalculator.calculateAnnualizedVolatility(priceHistory)).thenReturn(25.0);
+        when(thinkOrSwinAPIs.getYearlyPriceHistory("AAPL", 1)).thenReturn(priceHistory);
+        when(volatilityCalculator.calculateAnnualizedVolatility(priceHistory)).thenReturn(25.0);
 
         OptionsStrategyFilter filter = new OptionsStrategyFilter();
         filter.setMinHistoricalVolatility(20.0); // 25.0 > 20.0
@@ -292,13 +299,12 @@ public class AbstractTradingStrategyTest {
         // Call #1 (cache miss)
         List<TradeSetup> trades1 = strategy.findTrades(chain, filter);
         assertEquals(1, trades1.size());
-        mockedThinkOrSwim.verify(() -> ThinkOrSwinAPIs.getYearlyPriceHistory("AAPL", 1), times(1));
+        verify(thinkOrSwinAPIs, times(1)).getYearlyPriceHistory("AAPL", 1);
 
         // Call #2 (cache hit)
         List<TradeSetup> trades2 = strategy.findTrades(chain, filter);
         assertEquals(1, trades2.size());
-        mockedThinkOrSwim.verify(() -> ThinkOrSwinAPIs.getYearlyPriceHistory("AAPL", 1), times(1)); // Should not
-                                                                                                    // increase
+        verify(thinkOrSwinAPIs, times(1)).getYearlyPriceHistory("AAPL", 1); // Should not increase
     }
 
     @Test
@@ -308,7 +314,7 @@ public class AbstractTradingStrategyTest {
         when(chain.getExpiryDatesInRange(anyInt(), anyInt(), anyInt())).thenReturn(Arrays.asList("2024-01-01"));
 
         // Throws exception during API call
-        mockedThinkOrSwim.when(() -> ThinkOrSwinAPIs.getYearlyPriceHistory("AAPL", 1))
+        when(thinkOrSwinAPIs.getYearlyPriceHistory("AAPL", 1))
                 .thenThrow(new RuntimeException("API Error"));
 
         OptionsStrategyFilter filter = new OptionsStrategyFilter();
@@ -342,7 +348,7 @@ public class AbstractTradingStrategyTest {
 
         List<TradeSetup> trades = strategy.findTrades(chain, filter);
         assertEquals(1, trades.size());
-        mockedFinnHub.verifyNoInteractions(); // Should not even call FinnHub
+        verifyNoInteractions(finnHubAPIs); // Should not even call FinnHub
     }
 
     @Test
@@ -356,7 +362,7 @@ public class AbstractTradingStrategyTest {
         entry.setDate(LocalDate.of(2024, 1, 1));
         earningsResponse.setEarningsCalendar(Arrays.asList(entry));
 
-        mockedFinnHub.when(() -> FinnHubAPIs.getEarningsByTicker(eq("AAPL"), any(LocalDate.class)))
+        when(finnHubAPIs.getEarningsByTicker(eq("AAPL"), any(LocalDate.class)))
                 .thenReturn(earningsResponse);
 
         OptionsStrategyFilter filter = new OptionsStrategyFilter();
@@ -372,7 +378,7 @@ public class AbstractTradingStrategyTest {
         when(chain.getSymbol()).thenReturn("AAPL");
         when(chain.getExpiryDatesInRange(anyInt(), anyInt(), anyInt())).thenReturn(Arrays.asList("2024-01-01"));
 
-        mockedFinnHub.when(() -> FinnHubAPIs.getEarningsByTicker(eq("AAPL"), any(LocalDate.class)))
+        when(finnHubAPIs.getEarningsByTicker(eq("AAPL"), any(LocalDate.class)))
                 .thenThrow(new RuntimeException("FinnHub Error"));
 
         OptionsStrategyFilter filter = new OptionsStrategyFilter();

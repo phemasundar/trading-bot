@@ -23,7 +23,7 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
 - **Technical Indicators**: RSI, Bollinger Bands, and Volume analysis using ta4j library
 - **Telegram Notifications**: Receive trade alerts directly to your Telegram
 - **Interactive UI Dashboard**: Execute custom strategy instances, explore strategy configurations with user-defined technical screener aliases, and view data-rich technical screening results with customizable indicator tables. Integrated Charles Schwab API provides live Market Hours status directly on the dashboard. Sort results by any column (Price, Volume, RSI, Drop %, etc.) with persistent state.
-- **Robust Architecture**: Strictly immutable Data Transfer Objects (DTOs) via Lombok `@Value` and `@Jacksonized` for thread-safe concurrent execution.
+- **Robust Architecture**: Full Spring Dependency Injection (DI) system with standardized constructor-based bean management (via Lombok `@RequiredArgsConstructor`) for guaranteed initialization and enhanced testability. Strictly immutable Data Transfer Objects (DTOs) and standardized service layers ensure thread-safe concurrent execution and a clean, maintainable codebase.
 
 ## Prerequisites
 
@@ -472,9 +472,23 @@ To change log levels, edit the `log4j2.json` file:
 ```json
 {
   "name": "com.hemasundar",
-  "level": "debug"  // Change to "info", "warn", or "error"
+  "level": "debug"
 }
 ```
+
+Check individual service coverage locally via:
+```bash
+mvn clean test
+# Report: target/site/jacoco/index.html
+```
+
+## Technology Stack & Architecture
+- **Core**: Java 17, Spring Boot 3.2.2
+- **Persistence**: Supabase (PostgreSQL), Google Sheets API
+- **Market Data**: Charles Schwab Market Data API
+- **Architecture**: Domain-Driven Design (DDD) with Constructor-based Dependency Injection
+- **Testing**: TestNG, Mockito, JaCoCo (85% Coverage Gate)
+- **Configuration**: Standardized via `AppConfig.java`
 
 ## Dependencies
 
@@ -488,4 +502,3 @@ To change log levels, edit the `log4j2.json` file:
 - Log4j2 - Logging framework
 - Google Sheets API - For IV data storage in Google Sheets
 - **java-jwt** (Auth0) - JWT verification for Supabase Auth tokens
-

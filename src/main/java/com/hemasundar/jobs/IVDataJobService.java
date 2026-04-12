@@ -1,13 +1,16 @@
 package com.hemasundar.jobs;
 
+import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.config.properties.GoogleSheetsConfig;
+import com.hemasundar.config.properties.SupabaseConfig;
 import com.hemasundar.pojos.IVDataPoint;
 import com.hemasundar.services.GoogleSheetsService;
 import com.hemasundar.services.IVDataCollector;
 import com.hemasundar.services.SupabaseService;
 import com.hemasundar.utils.FilePaths;
 import com.hemasundar.utils.TelegramUtils;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.yaml.snakeyaml.Yaml;
 
@@ -19,12 +22,21 @@ import java.util.*;
 
 @Service
 @Log4j2
+@RequiredArgsConstructor
 public class IVDataJobService {
 
-    @Autowired(required = false)
-    private SupabaseService supabaseService;
+    private final Optional<SupabaseService> supabaseService;
 
-    private GoogleSheetsService sheetsService;
+    private final SupabaseConfig supabaseConfig;
+    private final GoogleSheetsConfig googleSheetsConfig;
+
+    private final ThinkOrSwinAPIs thinkOrSwinAPIs;
+
+    private final TelegramUtils telegramUtils;
+
+    private final IVDataCollector ivDataCollector;
+
+    private final GoogleSheetsService sheetsService;
     private Set<String> allSecurities;
 
     private boolean googleSheetsEnabled;
@@ -41,25 +53,22 @@ public class IVDataJobService {
 
         try {
             // Load database configuration
-            loadDatabaseConfiguration();
+            googleSheetsEnabled = googleSheetsConfig.isEnabled();
+            supabaseEnabled = supabaseConfig.isEnabled();
 
             if (googleSheetsEnabled) {
-                String spreadsheetId = loadSpreadsheetId();
-                sheetsService = new GoogleSheetsService(spreadsheetId);
                 log.info("✓ Google Sheets service initialized");
             } else {
                 log.info("✗ Google Sheets disabled");
             }
 
-            if (supabaseEnabled && supabaseService != null) {
+            if (supabaseEnabled && supabaseService.isPresent()) {
                 log.info("✓ Supabase service via Spring Bean active");
-            } else if (supabaseEnabled) {
-                initializeSupabaseManual();
             } else {
-                log.info("✗ Supabase disabled");
+                log.info("✗ Supabase disabled or bean not available");
             }
 
-            if (!googleSheetsEnabled && (!supabaseEnabled || supabaseService == null)) {
+            if (!googleSheetsEnabled && (!supabaseEnabled || !supabaseService.isPresent())) {
                 log.error("At least one database must be enabled.");
                 return;
             }
@@ -84,7 +93,7 @@ public class IVDataJobService {
             try {
                 IVDataPoint dataPoint = null;
                 try {
-                    dataPoint = IVDataCollector.collectIVDataPoint(symbol);
+                    dataPoint = ivDataCollector.collectIVDataPoint(symbol);
                 } catch (Exception e) {
                     log.warn("[{}] IV Data Collection Failed: {}", symbol, e.getMessage());
                     failCount++;
@@ -97,8 +106,8 @@ public class IVDataJobService {
                         log.info("[{}] ✓ Saved to Google Sheets", symbol);
                     }
 
-                    if (supabaseEnabled && supabaseService != null) {
-                        supabaseService.upsertIVData(dataPoint);
+                    if (supabaseEnabled && supabaseService.isPresent()) {
+                        supabaseService.get().upsertIVData(dataPoint);
                         log.info("[{}] ✓ Saved to Supabase", symbol);
                     }
 
@@ -153,67 +162,7 @@ public class IVDataJobService {
         message.append("\n📅 Date: <code>").append(java.time.LocalDate.now()).append("</code>");
         message.append("\n🕐 Time: <code>").append(java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"))).append("</code>");
 
-        TelegramUtils.sendMessage(message.toString());
-    }
-
-    private void loadDatabaseConfiguration() {
-        String sheetsEnabledEnv = System.getenv("GOOGLE_SHEETS_ENABLED");
-        String supabaseEnabledEnv = System.getenv("SUPABASE_ENABLED");
-
-        if (sheetsEnabledEnv != null || supabaseEnabledEnv != null) {
-            googleSheetsEnabled = Boolean.parseBoolean(sheetsEnabledEnv != null ? sheetsEnabledEnv : "true");
-            supabaseEnabled = Boolean.parseBoolean(supabaseEnabledEnv != null ? supabaseEnabledEnv : "false");
-            return;
-        }
-
-        try (InputStream input = new FileInputStream(FilePaths.testConfig.toFile())) {
-            Properties prop = new Properties();
-            prop.load(input);
-            googleSheetsEnabled = Boolean.parseBoolean(prop.getProperty("google_sheets_enabled", "true"));
-            supabaseEnabled = Boolean.parseBoolean(prop.getProperty("supabase_enabled", "false"));
-        } catch (IOException e) {
-            googleSheetsEnabled = true;
-            supabaseEnabled = false;
-        }
-    }
-
-    private String loadSpreadsheetId() throws IOException {
-        String spreadsheetId = System.getenv("GOOGLE_SPREADSHEET_ID");
-        if (spreadsheetId != null && !spreadsheetId.isEmpty()) return spreadsheetId;
-
-        if (FilePaths.testConfig.toFile().exists()) {
-            try (InputStream input = new FileInputStream(FilePaths.testConfig.toFile())) {
-                Properties prop = new Properties();
-                prop.load(input);
-                spreadsheetId = prop.getProperty("google_sheets_spreadsheet_id");
-                if (spreadsheetId != null && !spreadsheetId.isEmpty() && !spreadsheetId.equals("YOUR_SPREADSHEET_ID_HERE")) {
-                    return spreadsheetId;
-                }
-            }
-        }
-        throw new IllegalStateException("Google Sheets spreadsheet ID not configured.");
-    }
-
-    private void initializeSupabaseManual() {
-        try {
-            String supabaseUrl = System.getenv("SUPABASE_URL");
-            String supabaseKey = System.getenv("SUPABASE_SERVICE_ROLE_KEY");
-
-            if ((supabaseUrl == null || supabaseKey == null) && FilePaths.testConfig.toFile().exists()) {
-                try (InputStream input = new FileInputStream(FilePaths.testConfig.toFile())) {
-                    Properties prop = new Properties();
-                    prop.load(input);
-                    if (supabaseUrl == null) supabaseUrl = prop.getProperty("supabase_url");
-                    if (supabaseKey == null) supabaseKey = prop.getProperty("supabase_service_role_key");
-                }
-            }
-
-            if (supabaseUrl != null && supabaseKey != null) {
-                this.supabaseService = new SupabaseService(supabaseUrl, supabaseKey);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to manually initialize Supabase: {}", e.getMessage());
-        }
+        telegramUtils.sendMessage(message.toString());
     }
 
     private Set<String> loadAllSecurities() {

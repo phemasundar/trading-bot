@@ -9,6 +9,8 @@ import com.hemasundar.options.models.OptionType;
 import com.hemasundar.options.models.TradeSetup;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import java.util.HashMap;
 import java.util.List;
@@ -19,10 +21,21 @@ import static org.testng.Assert.*;
 public class IronCondorStrategyTest {
 
     private IronCondorStrategy strategy;
+    @Mock
+    private com.hemasundar.apis.FinnHubAPIs finnHubAPIs;
+    @Mock
+    private com.hemasundar.apis.ThinkOrSwinAPIs thinkOrSwinAPIs;
+    @Mock
+    private com.hemasundar.utils.VolatilityCalculator volatilityCalculator;
 
     @BeforeMethod
     public void setUp() {
-        strategy = new TestableIronCondorStrategy();
+        MockitoAnnotations.openMocks(this);
+        // Initialize real sub-strategies with mocks
+        PutCreditSpreadStrategy putStrategy = new PutCreditSpreadStrategy(finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
+        CallCreditSpreadStrategy callStrategy = new CallCreditSpreadStrategy(finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
+        
+        strategy = new TestableIronCondorStrategy(finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator, putStrategy, callStrategy);
     }
 
     @Test
@@ -176,8 +189,18 @@ public class IronCondorStrategyTest {
     // Since findValidTrades calls sub-strategies, we use a test subclass that
     // stubbs out sub-strategy behavior or provides real ones
     private static class TestableIronCondorStrategy extends IronCondorStrategy {
-        public TestableIronCondorStrategy() {
-            super();
+        public TestableIronCondorStrategy(com.hemasundar.apis.FinnHubAPIs finnHubAPIs,
+                                         com.hemasundar.apis.ThinkOrSwinAPIs thinkOrSwinAPIs,
+                                         com.hemasundar.utils.VolatilityCalculator volatilityCalculator,
+                                         PutCreditSpreadStrategy putCreditSpreadStrategy, 
+                                         CallCreditSpreadStrategy callCreditSpreadStrategy) {
+            super(finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator, putCreditSpreadStrategy, callCreditSpreadStrategy);
+        }
+
+        @Override
+        public List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
+                                                    com.hemasundar.options.models.OptionsStrategyFilter filter) {
+            return super.findValidTrades(chain, expiryDate, filter);
         }
     }
 }

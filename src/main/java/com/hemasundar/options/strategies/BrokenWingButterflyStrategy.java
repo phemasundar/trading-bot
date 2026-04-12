@@ -11,6 +11,8 @@ import com.hemasundar.options.models.TradeSetup;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.CollectionUtils;
 
+import org.springframework.stereotype.Component;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -19,11 +21,18 @@ import java.util.function.Predicate;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import com.hemasundar.apis.FinnHubAPIs;
+import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.utils.VolatilityCalculator;
+
 @Log4j2
+@Component
 public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
 
-    public BrokenWingButterflyStrategy() {
-        super(StrategyType.BULLISH_BROKEN_WING_BUTTERFLY);
+    public BrokenWingButterflyStrategy(FinnHubAPIs finnHubAPIs,
+                                      ThinkOrSwinAPIs thinkOrSwinAPIs,
+                                      VolatilityCalculator volatilityCalculator) {
+        super(StrategyType.BULLISH_BROKEN_WING_BUTTERFLY, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
     }
 
     @Override

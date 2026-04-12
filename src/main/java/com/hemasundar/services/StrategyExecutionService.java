@@ -1,5 +1,7 @@
 package com.hemasundar.services;
 
+import com.hemasundar.apis.FinnHubAPIs;
+import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.config.StrategiesConfigLoader;
 import com.hemasundar.dto.ExecutionResult;
 import com.hemasundar.dto.StrategyResult;
@@ -7,17 +9,21 @@ import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionsConfig;
 import com.hemasundar.options.models.TradeSetup;
 import com.hemasundar.options.strategies.AbstractTradingStrategy;
+import com.hemasundar.technical.TechnicalScreener;
 import com.hemasundar.utils.FilePaths;
 import com.hemasundar.utils.OptionChainCache;
+import com.hemasundar.utils.SecuritiesResolver;
 import com.hemasundar.utils.TelegramUtils;
-import com.hemasundar.technical.TechnicalScreener;
+import com.hemasundar.utils.VolatilityCalculator;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 /**
@@ -26,19 +32,23 @@ import java.util.stream.Collectors;
  */
 @Service
 @Log4j2
+@RequiredArgsConstructor
 public class StrategyExecutionService {
 
-    @Autowired
-    private SupabaseService supabaseService;
-
-    @Autowired
-    private com.hemasundar.utils.SecuritiesResolver securitiesResolver;
+    private final SupabaseService supabaseService;
+    private final SecuritiesResolver securitiesResolver;
+    private final ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private final FinnHubAPIs finnHubAPIs;
+    private final TelegramUtils telegramUtils;
+    private final TechnicalScreener technicalScreener;
+    private final VolatilityCalculator volatilityCalculator;
+    private final StrategiesConfigLoader strategiesConfigLoader;
 
     // Execution state tracking (visible across page refreshes)
-    private final java.util.concurrent.atomic.AtomicBoolean executionRunning = new java.util.concurrent.atomic.AtomicBoolean(false);
-    private final java.util.concurrent.atomic.AtomicBoolean cancellationRequested = new java.util.concurrent.atomic.AtomicBoolean(false);
-    private final java.util.concurrent.atomic.AtomicReference<String> currentExecutionTask = new java.util.concurrent.atomic.AtomicReference<>("");
-    private final java.util.concurrent.atomic.AtomicReference<String> lastExecutionError = new java.util.concurrent.atomic.AtomicReference<>(null);
+    private final AtomicBoolean executionRunning = new AtomicBoolean(false);
+    private final AtomicBoolean cancellationRequested = new AtomicBoolean(false);
+    private final AtomicReference<String> currentExecutionTask = new AtomicReference<>("");
+    private final AtomicReference<String> lastExecutionError = new AtomicReference<>(null);
     private volatile long executionStartTimeMs;
 
     public boolean isExecutionRunning() {
@@ -100,7 +110,7 @@ public class StrategyExecutionService {
         Map<String, List<String>> securitiesMap = securitiesResolver.loadSecuritiesMaps();
 
         // Load and return enabled strategies
-        return StrategiesConfigLoader.load(FilePaths.strategiesConfig, securitiesMap);
+        return strategiesConfigLoader.load(FilePaths.strategiesConfig, securitiesMap);
     }
 
     /**
@@ -139,7 +149,7 @@ public class StrategyExecutionService {
             }
 
             // Shared cache for option chains
-            OptionChainCache cache = new OptionChainCache();
+            OptionChainCache cache = new OptionChainCache(thinkOrSwinAPIs);
 
             // Execute each strategy
             List<StrategyResult> results = new ArrayList<>();
@@ -207,7 +217,7 @@ public class StrategyExecutionService {
         try {
             log.info("Starting custom execution: {}", executionId);
 
-            OptionChainCache cache = new OptionChainCache();
+            OptionChainCache cache = new OptionChainCache(thinkOrSwinAPIs);
 
             // Execute the single custom strategy
             StrategyResult result = executeStrategy(config, cache, true);
@@ -264,7 +274,7 @@ public class StrategyExecutionService {
 
         // Apply technical filter if configured
         if (config.hasTechnicalFilter()) {
-            List<TechnicalScreener.ScreeningResult> screeningResults = TechnicalScreener.screenStocks(
+            List<TechnicalScreener.ScreeningResult> screeningResults = technicalScreener.screenStocks(
                     securities, config.getTechnicalFilterChain());
             securities = screeningResults.stream()
                     .map(TechnicalScreener.ScreeningResult::getSymbol)
@@ -287,7 +297,7 @@ public class StrategyExecutionService {
 
         // Send to Telegram using pre-formatted Trade DTOs
         if (!allTrades.isEmpty()) {
-            TelegramUtils.sendTradeAlerts(result);
+            telegramUtils.sendTradeAlerts(result);
         }
 
         // Save individual strategy result to database for per-strategy persistence if

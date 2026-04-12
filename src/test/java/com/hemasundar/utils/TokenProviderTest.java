@@ -1,7 +1,7 @@
 package com.hemasundar.utils;
 
+import com.hemasundar.config.properties.SchwabConfig;
 import com.hemasundar.pojos.RefreshToken;
-import com.hemasundar.pojos.TestConfig;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
@@ -19,26 +19,23 @@ import static org.testng.Assert.*;
 public class TokenProviderTest {
 
     private MockedStatic<RestAssured> mockedRestAssured;
-    private MockedStatic<TestConfig> mockedTestConfig;
-    private TestConfig mockConfig;
+    private SchwabConfig mockConfig;
+    private TokenProvider tokenProvider;
 
     @BeforeMethod
     public void setUp() {
-        TokenProvider.INSTANCE.clearToken();
+        mockConfig = mock(SchwabConfig.class);
+        tokenProvider = new TokenProvider(mockConfig);
         mockedRestAssured = mockStatic(RestAssured.class);
-        mockedTestConfig = mockStatic(TestConfig.class);
         
-        mockConfig = mock(TestConfig.class);
-        when(TestConfig.getInstance()).thenReturn(mockConfig);
-        when(mockConfig.appKey()).thenReturn("test-app-key");
-        when(mockConfig.ppSecret()).thenReturn("test-secret");
-        when(mockConfig.refreshToken()).thenReturn("test-refresh-token");
+        when(mockConfig.getAppKey()).thenReturn("test-app-key");
+        when(mockConfig.getAppSecret()).thenReturn("test-secret");
+        when(mockConfig.getRefreshToken()).thenReturn("test-refresh-token");
     }
 
     @AfterMethod
     public void tearDown() {
         mockedRestAssured.close();
-        mockedTestConfig.close();
     }
 
     @Test
@@ -54,7 +51,6 @@ public class TokenProviderTest {
         when(mockPreemptive.basic(anyString(), anyString())).thenReturn(mockRequest);
         
         when(mockRequest.contentType(anyString())).thenReturn(mockRequest);
-        // Explicitly cast to Object to avoid ambiguity
         when(mockRequest.formParam(anyString(), (Object) any())).thenReturn(mockRequest);
         when(mockRequest.when()).thenReturn(mockRequest);
         when(mockRequest.post(anyString())).thenReturn(mockResponse);
@@ -63,7 +59,7 @@ public class TokenProviderTest {
         String jsonResponse = "{\"access_token\": \"new-token\", \"expires_in\": 3600}";
         when(mockResponse.asPrettyString()).thenReturn(jsonResponse);
 
-        String token = TokenProvider.INSTANCE.getAccessToken();
+        String token = tokenProvider.getAccessToken();
         assertEquals(token, "new-token");
     }
 
@@ -88,6 +84,6 @@ public class TokenProviderTest {
         when(mockResponse.statusLine()).thenReturn("Unauthorized");
         when(mockResponse.asPrettyString()).thenReturn("Invalid credentials");
 
-        TokenProvider.INSTANCE.getAccessToken();
+        tokenProvider.getAccessToken();
     }
 }

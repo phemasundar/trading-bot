@@ -1,21 +1,27 @@
 package com.hemasundar.utils;
 
+import com.hemasundar.config.properties.SchwabConfig;
 import com.hemasundar.pojos.RefreshToken;
-import com.hemasundar.pojos.TestConfig;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.stereotype.Component;
 
 import java.util.Scanner;
 
 /**
  * Interactive utility class to generate a new Schwab Refresh Token.
- * Run this standard main method manually to authenticate via a browser.
+ * Run via ScheduledJobRunner with --app.job.name=GENERATE_TOKEN
  */
 @Log4j2
+@Component
+@RequiredArgsConstructor
 public class SchwabTokenGenerator {
 
-    public static void main(String[] args) {
+    private final SchwabConfig schwabConfig;
+
+    public void runInteractiveGenerator() {
         // 1. YOUR CONFIGURATION
         String redirectUri = "https://127.0.0.1";
 
@@ -23,7 +29,7 @@ public class SchwabTokenGenerator {
         Scanner scanner = new Scanner(System.in);
         System.out.println(
                 "1. Log in via your browser. \nhttps://api.schwabapi.com/v1/oauth/authorize?client_id="
-                        + TestConfig.getInstance().appKey()
+                        + schwabConfig.getAppKey()
                         + "&redirect_uri=https://127.0.0.1");
         System.out.println(
                 "2. Copy the FULL URL of the page you are redirected to (the one starting with https://127.0.0.1).");
@@ -41,7 +47,7 @@ public class SchwabTokenGenerator {
         Response response = RestAssured.given()
                 .auth()
                 .preemptive()
-                .basic(TestConfig.getInstance().appKey(), TestConfig.getInstance().ppSecret())
+                .basic(schwabConfig.getAppKey(), schwabConfig.getAppSecret())
                 .contentType("application/x-www-form-urlencoded")
                 .formParam("grant_type", "authorization_code")
                 .formParam("code", code)

@@ -11,6 +11,8 @@ import com.hemasundar.options.models.TradeSetup;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.CollectionUtils;
 
+import org.springframework.stereotype.Component;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -19,15 +21,18 @@ import java.util.function.Predicate;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import com.hemasundar.apis.FinnHubAPIs;
+import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.utils.VolatilityCalculator;
+
 @Log4j2
+@Component
 public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
 
-    public CallCreditSpreadStrategy() {
-        super(StrategyType.CALL_CREDIT_SPREAD);
-    }
-
-    public CallCreditSpreadStrategy(StrategyType strategyType) {
-        super(strategyType);
+    public CallCreditSpreadStrategy(FinnHubAPIs finnHubAPIs,
+                                   ThinkOrSwinAPIs thinkOrSwinAPIs,
+                                   VolatilityCalculator volatilityCalculator) {
+        super(StrategyType.CALL_CREDIT_SPREAD, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
     }
 
     @Override

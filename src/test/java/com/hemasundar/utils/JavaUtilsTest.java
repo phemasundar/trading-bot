@@ -8,10 +8,14 @@ import static org.testng.Assert.*;
 
 public class JavaUtilsTest {
 
-    @Data
     public static class TestPojo {
         private String name;
         private int value;
+
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public int getValue() { return value; }
+        public void setValue(int value) { this.value = value; }
     }
 
     @Test

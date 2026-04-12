@@ -152,4 +152,45 @@ public class CustomExecutionRepositoryTest {
 
         repository.getLatestExecutionResult();
     }
+
+    @Test
+    public void testGetLatestExecutionResult_Empty() throws IOException {
+        when(requestSpec.get(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn("[]");
+
+        Optional<ExecutionResult> result = repository.getLatestExecutionResult();
+        Assert.assertFalse(result.isPresent());
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testParseExecutionResult_MalformedJson() throws IOException {
+        String malformedJson = "[{\"execution_id\":\"exec-123\", \"executed_at\":\"invalid-date\"}]";
+        when(requestSpec.get(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn(malformedJson);
+
+        repository.getLatestExecutionResult();
+    }
+
+    @Test
+    public void testSaveCustomExecutionResult_NullSecurities() throws IOException {
+        StrategyResult result = StrategyResult.builder()
+                .strategyName("custom-strat")
+                .trades(Collections.emptyList())
+                .tradesFound(0)
+                .executionTimeMs(50)
+                .build();
+
+        when(requestSpec.header(anyString(), anyString())).thenReturn(requestSpec);
+        when(requestSpec.body(anyString())).thenReturn(requestSpec);
+        when(requestSpec.post(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(201);
+
+        repository.saveCustomExecutionResult(result, null);
+
+        verify(requestSpec).post(anyString());
+    }
 }

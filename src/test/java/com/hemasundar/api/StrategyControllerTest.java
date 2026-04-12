@@ -1,6 +1,9 @@
 package com.hemasundar.api;
 
+import com.hemasundar.options.strategies.StrategyType;
+import com.hemasundar.pojos.MarketHoursResponse;
 import com.hemasundar.services.StrategyExecutionService;
+import com.hemasundar.config.properties.SupabaseConfig;
 import com.hemasundar.dto.ExecuteRequest;
 import com.hemasundar.dto.CustomExecuteRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,6 +21,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -37,7 +42,15 @@ public class StrategyControllerTest {
     @Mock
     private com.hemasundar.utils.SecuritiesResolver securitiesResolver;
 
-    @InjectMocks
+    @Mock
+    private com.hemasundar.apis.ThinkOrSwinAPIs thinkOrSwinAPIs;
+
+    @Mock
+    private com.hemasundar.config.StrategiesConfigLoader strategiesConfigLoader;
+
+    @Mock
+    private SupabaseConfig supabaseConfig;
+
     private StrategyController strategyController;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -45,15 +58,18 @@ public class StrategyControllerTest {
     @BeforeMethod
     public void setup() {
         MockitoAnnotations.openMocks(this);
-        strategyController = new StrategyController(executionService, screenerExecutionService, securitiesResolver);
+        // Manual constructor injection is safer than @InjectMocks for final fields
+        strategyController = new StrategyController(executionService, screenerExecutionService, securitiesResolver, thinkOrSwinAPIs, strategiesConfigLoader, supabaseConfig);
         mockMvc = MockMvcBuilders.standaloneSetup(strategyController).build();
     }
 
     @Test
     public void testGetStrategies_Success() throws Exception {
+        com.hemasundar.options.strategies.AbstractTradingStrategy mockStrategy = mock(com.hemasundar.options.strategies.AbstractTradingStrategy.class);
+        when(mockStrategy.getStrategyType()).thenReturn(com.hemasundar.options.strategies.StrategyType.PUT_CREDIT_SPREAD);
         com.hemasundar.options.models.OptionsConfig config = com.hemasundar.options.models.OptionsConfig.builder()
                 .alias("Bullish Put Spread")
-                .strategy(com.hemasundar.options.strategies.StrategyType.PUT_CREDIT_SPREAD.createStrategy())
+                .strategy(mockStrategy)
                 .build();
         when(executionService.getEnabledStrategies()).thenReturn(Collections.singletonList(config));
 
@@ -251,15 +267,81 @@ public class StrategyControllerTest {
     }
 
     @Test
-    public void testGetExecutionStatus() throws Exception {
+    public void testGetStatus() throws Exception {
         when(executionService.isExecutionRunning()).thenReturn(true);
         when(executionService.getExecutionStartTimeMs()).thenReturn(1000L);
         when(executionService.getCurrentExecutionTask()).thenReturn("Scanning AAPL");
+        when(executionService.getLastExecutionError()).thenReturn("Auth failed");
 
         mockMvc.perform(get("/api/status"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.running").value(true))
                 .andExpect(jsonPath("$.currentTask").value("Scanning AAPL"))
-                .andExpect(jsonPath("$.startTimeMs").value(1000));
+                .andExpect(jsonPath("$.startTimeMs").value(1000))
+                .andExpect(jsonPath("$.lastError").value("Auth failed"));
+    }
+
+    @Test
+    public void testClearError_Success() throws Exception {
+        mockMvc.perform(post("/api/clear-error"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cleared").value(true));
+        verify(executionService).clearLastExecutionError();
+    }
+
+    @Test
+    public void testGetAuthConfig() throws Exception {
+        when(supabaseConfig.getUrl()).thenReturn("https://xyz.supabase.co");
+        when(supabaseConfig.getAnonKey()).thenReturn("anon-key");
+
+        mockMvc.perform(get("/api/auth/config"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.supabaseUrl").value("https://xyz.supabase.co"));
+    }
+
+    @Test
+    public void testGetCustomResults() throws Exception {
+        when(executionService.getRecentCustomExecutions(10)).thenReturn(Collections.emptyList());
+        mockMvc.perform(get("/api/results/custom?limit=10"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void testGetConfig() throws Exception {
+        mockMvc.perform(get("/api/config"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void testGetSecuritiesMaps() throws Exception {
+        when(securitiesResolver.loadSecuritiesMaps()).thenReturn(Map.of("portfolio", List.of("AAPL")));
+        mockMvc.perform(get("/api/securities"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.portfolio[0]").value("AAPL"));
+    }
+
+    @Test
+    public void testGetMarketStatus_Success() throws Exception {
+        MarketHoursResponse mockResponse = new MarketHoursResponse();
+        // Setup mock response structure
+        MarketHoursResponse.MarketData equityData = new MarketHoursResponse.MarketData();
+        equityData.setIsOpen(true);
+        mockResponse.setEquity(Map.of("EQ", equityData));
+        
+        when(thinkOrSwinAPIs.getMarketHours()).thenReturn(mockResponse);
+
+        mockMvc.perform(get("/api/market-status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.equityStatus").value("OPEN"));
+    }
+
+    @Test
+    public void testGetMarketStatus_Error() throws Exception {
+        when(thinkOrSwinAPIs.getMarketHours()).thenThrow(new RuntimeException("API Down"));
+
+        mockMvc.perform(get("/api/market-status"))
+                .andExpect(status().isOk()) // Graceful degradation
+                .andExpect(jsonPath("$.equityStatus").value("CLOSED"))
+                .andExpect(jsonPath("$.error").value(true));
     }
 }

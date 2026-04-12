@@ -1,7 +1,8 @@
 package com.hemasundar.apis;
 
+import com.hemasundar.config.properties.FinnHubConfig;
 import com.hemasundar.pojos.EarningsCalendarResponse;
-import com.hemasundar.pojos.TestConfig;
+import com.hemasundar.utils.ApiErrorHandler;
 import com.hemasundar.utils.EarningsCacheManager;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
@@ -10,6 +11,9 @@ import org.mockito.MockedStatic;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import java.time.LocalDate;
 import java.util.Collections;
@@ -21,24 +25,29 @@ import static org.testng.Assert.*;
 public class FinnHubAPIsTest {
 
     private MockedStatic<RestAssured> mockedRestAssured;
-    private MockedStatic<TestConfig> mockedTestConfig;
     private MockedStatic<EarningsCacheManager> mockedCacheManager;
+    
+    @Mock
+    private FinnHubConfig mockConfig;
+    
+    @Mock
+    private ApiErrorHandler mockApiErrorHandler;
+    
+    private FinnHubAPIs apis;
 
     @BeforeMethod
     public void setUp() {
+        MockitoAnnotations.openMocks(this);
         mockedRestAssured = mockStatic(RestAssured.class);
-        mockedTestConfig = mockStatic(TestConfig.class);
         mockedCacheManager = mockStatic(EarningsCacheManager.class);
         
-        TestConfig mockConfig = mock(TestConfig.class);
-        when(TestConfig.getInstance()).thenReturn(mockConfig);
-        when(mockConfig.finnhubApiKey()).thenReturn("test-key");
+        when(mockConfig.getApiKey()).thenReturn("test-key");
+        apis = new FinnHubAPIs(mockConfig, mockApiErrorHandler);
     }
 
     @AfterMethod
     public void tearDown() {
         mockedRestAssured.close();
-        mockedTestConfig.close();
         mockedCacheManager.close();
     }
 
@@ -50,7 +59,7 @@ public class FinnHubAPIsTest {
         
         when(EarningsCacheManager.getEarningsFromCache(anyString(), any())).thenReturn(Collections.singletonList(earning));
 
-        EarningsCalendarResponse response = FinnHubAPIs.getEarningsByTicker("AAPL", LocalDate.now().plusDays(10));
+        EarningsCalendarResponse response = apis.getEarningsByTicker("AAPL", LocalDate.now().plusDays(10));
         
         assertNotNull(response);
         assertEquals(response.getEarningsCalendar().size(), 1);
@@ -72,7 +81,7 @@ public class FinnHubAPIsTest {
         when(mockResponse.statusCode()).thenReturn(200);
         when(mockResponse.asPrettyString()).thenReturn("{\"earningsCalendar\": []}");
 
-        EarningsCalendarResponse response = FinnHubAPIs.getEarningsByTicker("AAPL", LocalDate.now().plusDays(10));
+        EarningsCalendarResponse response = apis.getEarningsByTicker("AAPL", LocalDate.now().plusDays(10));
         
         assertNotNull(response);
         mockedCacheManager.verify(() -> EarningsCacheManager.updateCache(eq("AAPL"), any()), times(1));
@@ -93,6 +102,6 @@ public class FinnHubAPIsTest {
         when(mockResponse.statusCode()).thenReturn(500);
         when(mockResponse.statusLine()).thenReturn("Internal Server Error");
 
-        FinnHubAPIs.getEarningsByTicker("AAPL", LocalDate.now().plusDays(10));
+        apis.getEarningsByTicker("AAPL", LocalDate.now().plusDays(10));
     }
 }

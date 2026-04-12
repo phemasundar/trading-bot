@@ -14,12 +14,18 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.stereotype.Component;
+
 /**
  * Technical stock screener that filters stocks based on technical criteria
  * and prints all indicator values for matching stocks.
  */
 @Log4j2
+@Component
+@lombok.RequiredArgsConstructor
 public class TechnicalScreener {
+
+    private final ThinkOrSwinAPIs thinkOrSwinAPIs;
 
     /**
      * Result object containing stock symbol and all technical values.
@@ -127,7 +133,7 @@ public class TechnicalScreener {
             return sb.toString();
         }
 
-        private static String formatVolume(long volume) {
+        private String formatVolume(long volume) {
             if (volume >= 1_000_000) {
                 return String.format("%.2fM", volume / 1_000_000.0);
             } else if (volume >= 1_000) {
@@ -186,7 +192,7 @@ public class TechnicalScreener {
      *                    conditions
      * @return List of screening results for stocks matching all criteria
      */
-    public static List<ScreeningResult> screenStocks(List<String> symbols, TechnicalFilterChain filterChain) {
+    public List<ScreeningResult> screenStocks(List<String> symbols, TechnicalFilterChain filterChain) {
         List<ScreeningResult> results = new ArrayList<>();
 
         log.info("\n{}", filterChain.getFiltersSummary());
@@ -210,8 +216,8 @@ public class TechnicalScreener {
     /**
      * Analyzes a single stock and calculates all technical values.
      */
-    public static ScreeningResult analyzeStock(String symbol, TechnicalIndicators indicators) {
-        PriceHistoryResponse priceHistory = ThinkOrSwinAPIs.getYearlyPriceHistory(symbol, 1);
+    public ScreeningResult analyzeStock(String symbol, TechnicalIndicators indicators) {
+        PriceHistoryResponse priceHistory = thinkOrSwinAPIs.getYearlyPriceHistory(symbol, 1);
         if (priceHistory == null) {
             return null;
         }
@@ -292,7 +298,7 @@ public class TechnicalScreener {
     /**
      * Checks if the screening result meets all filter conditions.
      */
-    private static boolean meetsAllCriteria(ScreeningResult result, TechFilterConditions conditions) {
+    private boolean meetsAllCriteria(ScreeningResult result, TechFilterConditions conditions) {
         // RSI condition (via enum)
         if (conditions.getRsiCondition() != null) {
             boolean rsiMet = switch (conditions.getRsiCondition()) {

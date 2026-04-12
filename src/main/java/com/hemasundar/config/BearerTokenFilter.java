@@ -7,6 +7,8 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.hemasundar.config.properties.SecurityConfig;
+import com.hemasundar.config.properties.SupabaseConfig;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -16,7 +18,6 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
@@ -47,19 +48,17 @@ public class BearerTokenFilter implements Filter {
     /** Paths exempt from authentication — must be accessible before login. */
     private static final Set<String> PUBLIC_PATHS = Set.of("/api/auth/config");
 
-    @Value("${supabase.url:#{null}}")
-    private String supabaseUrl;
-
-    @Value("${allowed.emails:#{null}}")
-    String allowedEmailsConfig;
-
+    private final SupabaseConfig supabaseConfig;
+    private final SecurityConfig securityConfig;
     private final boolean isProduction;
 
     /** Lazily initialized — null when supabase.url is not configured (local dev). */
     private JwkProvider jwkProvider;
 
-    public BearerTokenFilter(Environment env) {
+    public BearerTokenFilter(Environment env, SupabaseConfig supabaseConfig, SecurityConfig securityConfig) {
         this.isProduction = Arrays.asList(env.getActiveProfiles()).contains("production");
+        this.supabaseConfig = supabaseConfig;
+        this.securityConfig = securityConfig;
     }
 
     /** Allows test code to inject a mock JwkProvider without network access. */
@@ -69,6 +68,7 @@ public class BearerTokenFilter implements Filter {
 
     @PostConstruct
     public void initJwkProvider() {
+        String supabaseUrl = supabaseConfig.getUrl();
         if (supabaseUrl != null && !supabaseUrl.isBlank()) {
             try {
                 String baseUrl  = supabaseUrl.endsWith("/") ? supabaseUrl.substring(0, supabaseUrl.length() - 1) : supabaseUrl;
@@ -139,6 +139,7 @@ public class BearerTokenFilter implements Filter {
 
             // Email allowlist — optional gate for invite-only access
             String email = decoded.getClaim("email").asString();
+            String allowedEmailsConfig = securityConfig.getEmails();
             if (allowedEmailsConfig != null && !allowedEmailsConfig.isBlank()) {
                 Set<String> allowed = Arrays.stream(allowedEmailsConfig.split(","))
                         .map(String::trim)

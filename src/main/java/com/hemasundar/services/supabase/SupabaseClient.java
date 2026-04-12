@@ -9,26 +9,33 @@ import lombok.extern.log4j.Log4j2;
 
 import java.io.IOException;
 
+import com.hemasundar.config.properties.SupabaseConfig;
+import org.springframework.stereotype.Component;
+
 /**
  * Core client for interacting with Supabase REST API.
  * Handles authentication, base URL configuration, and provides ObjectMapper.
  */
 @Log4j2
+@Component
 public class SupabaseClient {
     private final String projectUrl;
     private final String apiKey;
     private final ObjectMapper objectMapper;
 
-    public SupabaseClient(String projectUrl, String apiKey) {
-        if (projectUrl == null || projectUrl.isEmpty()) {
-            throw new IllegalArgumentException("Supabase project URL cannot be null or empty");
+    public SupabaseClient(SupabaseConfig supabaseConfig) {
+        String url = supabaseConfig.getUrl();
+        String key = supabaseConfig.getServiceRoleKey();
+
+        if (url == null || url.isEmpty()) {
+            log.warn("Supabase project URL is null or empty. Supabase features may be disabled.");
         }
-        if (apiKey == null || apiKey.isEmpty()) {
-            throw new IllegalArgumentException("Supabase API key cannot be null or empty");
+        if (key == null || key.isEmpty()) {
+            log.warn("Supabase API key is null or empty. Supabase features may be disabled.");
         }
 
-        this.projectUrl = projectUrl.endsWith("/") ? projectUrl.substring(0, projectUrl.length() - 1) : projectUrl;
-        this.apiKey = apiKey;
+        this.projectUrl = (url != null && url.endsWith("/")) ? url.substring(0, url.length() - 1) : url;
+        this.apiKey = key;
         
         this.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 

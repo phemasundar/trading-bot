@@ -10,37 +10,37 @@ import com.hemasundar.utils.TokenProvider;
 import com.hemasundar.utils.JavaUtils;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Spring-managed client for the Schwab Market Data API.
+ */
 @Log4j2
+@Component
+@RequiredArgsConstructor
 public class ThinkOrSwinAPIs {
+
+    private final TokenProvider tokenProvider;
+    private final ApiErrorHandler apiErrorHandler;
+
     /**
      * Fetches quotes for multiple symbols in a single API call.
-     * Returns quote and reference data for each symbol.
-     *
-     * @param symbols    List of symbols to fetch quotes for (e.g., ["AAPL", "TSLA",
-     *                   "AMZN"]) - REQUIRED
-     * @param fields     Optional: Comma-separated fields (quote, fundamental,
-     *                   extended, reference, regular)
-     *                   Default: all fields if not specified
-     * @param indicative Optional: Include indicative quotes for ETF symbols (e.g.,
-     *                   $ABC.IV)
-     * @return Map of symbol to QuoteData containing quote and reference information
      */
-    public static Map<String, QuotesResponse.QuoteData> getQuotes(List<String> symbols, String fields,
+    public Map<String, QuotesResponse.QuoteData> getQuotes(List<String> symbols, String fields,
                                                                   Boolean indicative) {
 
         String symbolsParam = String.join(",", symbols);
 
         var requestSpec = RestAssured.given()
                 .header("accept", "application/json")
-                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())
+                .header("Authorization", "Bearer " + tokenProvider.getAccessToken())
                 .queryParam("symbols", symbolsParam);
 
-        // Only add optional params if provided
         if (fields != null && !fields.isBlank()) {
             requestSpec.queryParam("fields", fields);
         }
@@ -55,44 +55,35 @@ public class ThinkOrSwinAPIs {
                     "Quotes API failed: " + response.statusCode() + " - " + response.asString());
         }
 
-        // The response is a direct map of symbol -> quote data
         return JavaUtils.convertJsonToMap(response.asString(), QuotesResponse.QuoteData.class);
     }
 
     /**
      * Fetches quotes for multiple symbols with all available fields.
-     *
-     * @param symbols List of symbols to fetch quotes for (REQUIRED)
-     * @return Map of symbol to QuoteData with all fields
      */
-    public static Map<String, QuotesResponse.QuoteData> getQuotes(List<String> symbols) {
-        return getQuotes(symbols, null, null); // Gets all fields by default
+    public Map<String, QuotesResponse.QuoteData> getQuotes(List<String> symbols) {
+        return getQuotes(symbols, null, null);
     }
 
     /**
      * Fetches quote for a single symbol.
-     *
-     * @param symbol The symbol to fetch quote for (e.g., "TSLA")
-     * @param fields Comma-separated fields to include (e.g., "quote,reference")
-     * @return QuoteData containing quote and reference information
      */
-    public static QuotesResponse.QuoteData getQuote(String symbol, String fields) {
+    public QuotesResponse.QuoteData getQuote(String symbol, String fields) {
         Response response = RestAssured.given()
                 .header("accept", "application/json")
-                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())
+                .header("Authorization", "Bearer " + tokenProvider.getAccessToken())
                 .queryParam("fields", fields)
                 .get("https://api.schwabapi.com/marketdata/v1/" + symbol + "/quotes");
 
         if (response.statusCode() != 200) {
             if (response.statusCode() == 400) {
-                ApiErrorHandler.handle400Error("Quote API", symbol, response.asString());
+                apiErrorHandler.handle400Error("Quote API", symbol, response.asString());
                 return null;
             }
             throw new RuntimeException(
                     "Quote API failed for " + symbol + ": " + response.statusCode() + " - " + response.asString());
         }
 
-        // The response is a map with the symbol as key
         Map<String, QuotesResponse.QuoteData> result = JavaUtils.convertJsonToMap(response.asString(),
                 QuotesResponse.QuoteData.class);
         return result.get(symbol);
@@ -100,35 +91,27 @@ public class ThinkOrSwinAPIs {
 
     /**
      * Fetches quote for a single symbol with default fields (quote and reference).
-     *
-     * @param symbol The symbol to fetch quote for
-     * @return QuoteData containing quote and reference information
      */
-    public static QuotesResponse.QuoteData getQuote(String symbol) {
+    public QuotesResponse.QuoteData getQuote(String symbol) {
         return getQuote(symbol, "quote,reference");
     }
 
-    public static OptionChainResponse getOptionChain(String symbol) {
+    public OptionChainResponse getOptionChain(String symbol) {
         Response response = RestAssured.given()
                 .header("accept", "application/json")
-                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())
+                .header("Authorization", "Bearer " + tokenProvider.getAccessToken())
                 .queryParam("symbol", symbol)
-                .queryParam("strikeCount", 150) // Limit total strikes to prevent 502 Body buffer overflow (e.g.
-                                                // QQQ/SPY)
+                .queryParam("strikeCount", 150)
                 .queryParam("strategy", "SINGLE")
                 .get("https://api.schwabapi.com/marketdata/v1/chains");
         if (response.statusCode() != 200) {
             if (response.statusCode() == 400) {
-                ApiErrorHandler.handle400Error("Option Chain API", symbol, response.asString());
+                apiErrorHandler.handle400Error("Option Chain API", symbol, response.asString());
                 return null;
             }
             throw new RuntimeException("Option Chain API failed for " + symbol + ": " + response.statusCode() + " - "
                     + response.asString());
         }
-
-        // System.out.println("Response code for Option chain API: " +
-        // response.getStatusCode());
-        // System.out.println("Response: \n" + response.asPrettyString());
 
         OptionChainResponse optionChainResponse = JavaUtils.convertJsonToPojo(response.asString(),
                 OptionChainResponse.class);
@@ -139,21 +122,17 @@ public class ThinkOrSwinAPIs {
 
     /**
      * Fetches the expiration chain for a symbol.
-     * Returns all available expiration dates for options on the symbol.
-     *
-     * @param symbol The symbol to fetch expiration chain for (e.g., "AAPL")
-     * @return ExpirationChainResponse containing list of expiration dates
      */
-    public static ExpirationChainResponse getExpirationChain(String symbol) {
+    public ExpirationChainResponse getExpirationChain(String symbol) {
         Response response = RestAssured.given()
                 .header("accept", "application/json")
-                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())
+                .header("Authorization", "Bearer " + tokenProvider.getAccessToken())
                 .queryParam("symbol", symbol)
                 .get("https://api.schwabapi.com/marketdata/v1/expirationchain");
 
         if (response.statusCode() != 200) {
             if (response.statusCode() == 400) {
-                ApiErrorHandler.handle400Error("Expiration Chain API", symbol, response.asString());
+                apiErrorHandler.handle400Error("Expiration Chain API", symbol, response.asString());
                 return null;
             }
             throw new RuntimeException(
@@ -166,21 +145,8 @@ public class ThinkOrSwinAPIs {
 
     /**
      * Fetches historical price data from Schwab API with full parameter control.
-     *
-     * @param symbol                The stock symbol (e.g., "AAPL")
-     * @param periodType            Period type: "day", "month", "year", "ytd"
-     * @param period                Number of periods (e.g., 1 for 1 year)
-     * @param frequencyType         Frequency type: "minute", "daily", "weekly",
-     *                              "monthly"
-     * @param frequency             Frequency value (e.g., 1 for daily)
-     * @param startDate             Start date as Unix timestamp in seconds
-     *                              (nullable)
-     * @param endDate               End date as Unix timestamp in seconds (nullable)
-     * @param needExtendedHoursData Include extended hours data
-     * @param needPreviousClose     Include previous close price
-     * @return PriceHistoryResponse containing OHLCV candle data
      */
-    public static PriceHistoryResponse getPriceHistory(
+    public PriceHistoryResponse getPriceHistory(
             String symbol,
             String periodType,
             int period,
@@ -193,7 +159,7 @@ public class ThinkOrSwinAPIs {
 
         var request = RestAssured.given()
                 .header("accept", "application/json")
-                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())
+                .header("Authorization", "Bearer " + tokenProvider.getAccessToken())
                 .queryParam("symbol", symbol)
                 .queryParam("periodType", periodType)
                 .queryParam("period", period)
@@ -213,7 +179,7 @@ public class ThinkOrSwinAPIs {
 
         if (response.statusCode() != 200) {
             if (response.statusCode() == 400) {
-                ApiErrorHandler.handle400Error("Price History API", symbol, response.asString());
+                apiErrorHandler.handle400Error("Price History API", symbol, response.asString());
                 return null;
             }
             throw new RuntimeException(
@@ -225,13 +191,8 @@ public class ThinkOrSwinAPIs {
 
     /**
      * Simplified method to fetch yearly price history with daily frequency.
-     * Useful for technical indicator calculations like RSI and Bollinger Bands.
-     *
-     * @param symbol The stock symbol (e.g., "AAPL")
-     * @param years  Number of years of historical data to fetch
-     * @return PriceHistoryResponse containing OHLCV candle data
      */
-    public static PriceHistoryResponse getYearlyPriceHistory(String symbol, int years) {
+    public PriceHistoryResponse getYearlyPriceHistory(String symbol, int years) {
         return getPriceHistory(
                 symbol,
                 "year",
@@ -246,13 +207,11 @@ public class ThinkOrSwinAPIs {
 
     /**
      * Fetches current market hours and status for Equities and Options.
-     *
-     * @return MarketHoursResponse detailing if the markets are currently open.
      */
-    public static MarketHoursResponse getMarketHours() {
+    public MarketHoursResponse getMarketHours() {
         Response response = RestAssured.given()
                 .header("accept", "application/json")
-                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())
+                .header("Authorization", "Bearer " + tokenProvider.getAccessToken())
                 .queryParam("markets", "equity")
                 .queryParam("markets", "option")
                 .get("https://api.schwabapi.com/marketdata/v1/markets");
@@ -266,15 +225,11 @@ public class ThinkOrSwinAPIs {
 
     /**
      * Fetches market hours for a single specific market type.
-     *
-     * @param marketId Market type: "equity", "option", "bond", "future", "forex"
-     * @param date     Optional date in YYYY-MM-DD format (defaults to today, up to 1 year ahead)
-     * @return Raw JSON string of market hours for the specified market
      */
-    public static String getMarketHour(String marketId, String date) {
+    public String getMarketHour(String marketId, String date) {
         var request = RestAssured.given()
                 .header("accept", "application/json")
-                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken());
+                .header("Authorization", "Bearer " + tokenProvider.getAccessToken());
 
         if (date != null && !date.isBlank()) {
             request.queryParam("date", date);
@@ -292,19 +247,11 @@ public class ThinkOrSwinAPIs {
 
     /**
      * Fetches the top 10 movers for a specific index.
-     *
-     * @param indexSymbol Index symbol: "$DJI", "$COMPX", "$SPX", "NYSE", "NASDAQ",
-     *                    "OTCBB", "INDEX_ALL", "EQUITY_ALL", "OPTION_ALL",
-     *                    "OPTION_PUT", "OPTION_CALL"
-     * @param sort        Optional sort direction: "VOLUME", "TRADES",
-     *                    "PERCENT_CHANGE_UP", "PERCENT_CHANGE_DOWN"
-     * @param frequency   Optional frequency: 0, 1, 5, 10, 30, 60
-     * @return Raw JSON string containing mover/screener data
      */
-    public static String getMovers(String indexSymbol, String sort, Integer frequency) {
+    public String getMovers(String indexSymbol, String sort, Integer frequency) {
         var request = RestAssured.given()
                 .header("accept", "application/json")
-                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken());
+                .header("Authorization", "Bearer " + tokenProvider.getAccessToken());
 
         if (sort != null && !sort.isBlank()) {
             request.queryParam("sort", sort);
@@ -317,7 +264,7 @@ public class ThinkOrSwinAPIs {
 
         if (response.statusCode() != 200) {
             if (response.statusCode() == 400) {
-                ApiErrorHandler.handle400Error("Movers API", indexSymbol, response.asString());
+                apiErrorHandler.handle400Error("Movers API", indexSymbol, response.asString());
                 return null;
             }
             throw new RuntimeException(
@@ -329,24 +276,18 @@ public class ThinkOrSwinAPIs {
 
     /**
      * Searches for instruments by symbol and projection type.
-     * Supports symbol search, regex, description search, and fundamental data lookup.
-     *
-     * @param symbol     Symbol or search term (e.g., "AAPL", "Apple")
-     * @param projection Search type: "symbol-search", "symbol-regex", "desc-search",
-     *                   "desc-regex", "search", "fundamental"
-     * @return Raw JSON string containing matching instruments
      */
-    public static String getInstruments(String symbol, String projection) {
+    public String getInstruments(String symbol, String projection) {
         Response response = RestAssured.given()
                 .header("accept", "application/json")
-                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())
+                .header("Authorization", "Bearer " + tokenProvider.getAccessToken())
                 .queryParam("symbol", symbol)
                 .queryParam("projection", projection)
                 .get("https://api.schwabapi.com/marketdata/v1/instruments");
 
         if (response.statusCode() != 200) {
             if (response.statusCode() == 400) {
-                ApiErrorHandler.handle400Error("Instruments API", symbol, response.asString());
+                apiErrorHandler.handle400Error("Instruments API", symbol, response.asString());
                 return null;
             }
             throw new RuntimeException(
@@ -358,19 +299,16 @@ public class ThinkOrSwinAPIs {
 
     /**
      * Fetches basic instrument details by CUSIP identifier.
-     *
-     * @param cusipId CUSIP of the security (e.g., "037833100" for AAPL)
-     * @return Raw JSON string containing instrument details
      */
-    public static String getInstrumentByCusip(String cusipId) {
+    public String getInstrumentByCusip(String cusipId) {
         Response response = RestAssured.given()
                 .header("accept", "application/json")
-                .header("Authorization", "Bearer " + TokenProvider.INSTANCE.getAccessToken())
+                .header("Authorization", "Bearer " + tokenProvider.getAccessToken())
                 .get("https://api.schwabapi.com/marketdata/v1/instruments/" + cusipId);
 
         if (response.statusCode() != 200) {
             if (response.statusCode() == 400) {
-                ApiErrorHandler.handle400Error("Instruments CUSIP API", cusipId, response.asString());
+                apiErrorHandler.handle400Error("Instruments CUSIP API", cusipId, response.asString());
                 return null;
             }
             if (response.statusCode() == 404) {
@@ -383,5 +321,4 @@ public class ThinkOrSwinAPIs {
 
         return response.asString();
     }
-
 }
