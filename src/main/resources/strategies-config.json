@@ -119,6 +119,30 @@
         },
         {
             "enabled": true,
+            "alias": "0 DTE Iron Condor - Portfolio",
+            "strategyType": "IRON_CONDOR",
+            "descriptionFile": "iron_condor.md",
+            "filterType": "IronCondorFilter",
+            "filter": {
+                "minDTE": 0,
+                "maxDTE": 1,
+                "maxLossLimit": 500,
+                "minReturnOnRisk": 12,
+                "minHistoricalVolatility": 25.0,
+                "ignoreEarnings": false,
+                "putShortLeg": {
+                    "maxDelta": 0.15,
+                    "minOpenInterest": 100
+                },
+                "callShortLeg": {
+                    "maxDelta": 0.15,
+                    "minOpenInterest": 100
+                }
+            },
+            "securitiesFile": "portfolio"
+        },
+        {
+            "enabled": true,
             "alias": "Mid-Term Iron Condor - Portfolio",
             "strategyType": "IRON_CONDOR",
             "descriptionFile": "iron_condor.md",
