@@ -18,16 +18,19 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class OptionsStrategyFilter {
-    // Time-based filters
-    private int targetDTE; // If > 0, uses single nearest expiry (backward compatible)
-    private int minDTE; // Used with maxDTE when targetDTE == 0
+    // Global filter constraints
+    private String strategyType;
+    private String securitiesFile;
+    private String securities;
 
-    @lombok.Builder.Default
-    private Integer maxDTE = Integer.MAX_VALUE; // Used with minDTE when targetDTE == 0
+    // Time-based filters
+    private Integer targetDTE; // If > 0, uses single nearest expiry (backward compatible)
+    private Integer minDTE; // Used with maxDTE when targetDTE == null or 0
+    private Integer maxDTE; // Used with minDTE when targetDTE == null or 0
 
     // Risk/Return filters
     private Double maxLossLimit;
-    private int minReturnOnRisk;
+    private Integer minReturnOnRisk;
     private Double maxTotalDebit;
     private Double maxTotalCredit;
     private Double minTotalCredit;
@@ -122,6 +125,7 @@ public class OptionsStrategyFilter {
      * @return true if return on risk meets the minimum threshold
      */
     public boolean passesMinReturnOnRisk(double profit, double maxLoss) {
+        if (this.minReturnOnRisk == null || this.minReturnOnRisk <= 0) return true;
         if (maxLoss <= 0)
             return true; // Avoid division by zero
         double requiredProfit = maxLoss * (this.minReturnOnRisk / 100.0);

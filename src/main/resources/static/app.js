@@ -198,18 +198,50 @@ function buildResultCard(result, badgeText = 'Standard') {
 
     const cardId = (result.strategyId || 'card-' + Math.random()).replace(/\s+/g, '-');
     const arrow = `<span class="card-arrow" id="arrow-${cardId}">▶</span>`;
+    const filterId = `filters-${cardId}`;
+
+    // Determine if we're on the execute page (has the filter form)
+    const isExecutePage = !!document.getElementById('strategy-type');
+
+    // Build the "Load Filters" button (only on execute page, only if filterConfig exists)
+    const loadFiltersBtn = (isExecutePage && result.filterConfig)
+        ? `<button type="button" class="btn btn-primary btn-sm" style="margin-left: auto;" onclick="event.stopPropagation(); loadFiltersFromResult(this)" data-filter-config="${escapeAttr(typeof result.filterConfig === 'string' ? result.filterConfig : JSON.stringify(result.filterConfig))}" data-strategy-name="${escapeAttr(result.strategyName || '')}">⬆ Load Filters</button>`
+        : '';
+
+    // Build collapsible filter details section
+    let filterDetailsHtml = '';
+    if (result.filterConfig) {
+        try {
+            const cfg = typeof result.filterConfig === 'string' ? JSON.parse(result.filterConfig) : result.filterConfig;
+            const filterGrid = renderFilterGrid(cfg);
+            if (filterGrid && !filterGrid.includes('No filters configured')) {
+                filterDetailsHtml = `
+                    <div class="filter-details-section">
+                        <div class="filter-details-toggle" data-target="${filterId}">
+                            <span class="card-arrow" id="arrow-${filterId}">▶</span>
+                            <span>Filter Details</span>
+                        </div>
+                        <div class="filter-details-body" id="${filterId}">
+                            ${filterGrid}
+                        </div>
+                    </div>`;
+            }
+        } catch (e) { /* ignore parse errors */ }
+    }
 
     card.innerHTML = `
         <div class="card-header" data-target="${cardId}">
-            <div class="flex items-center gap-sm flex-wrap">
+            <div class="flex items-center gap-sm flex-wrap" style="width: 100%;">
                 ${arrow}
                 <span class="card-name">${result.strategyName || 'Unknown'}</span>
                 ${result.descriptionFile ? `<button type="button" class="info-btn" onclick="showInfo(event, '${result.descriptionFile}', '${escapeAttr(result.strategyName)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>` : ''}
                 <span class="card-badge">${badgeText}</span>
+                ${loadFiltersBtn}
             </div>
             <span class="card-stats">Last run: ${timeAgo(result.updatedAt)} · Trades: ${result.tradesFound || 0}</span>
         </div>
         <div class="card-params">${formatFilterParams(result.filterConfig)}</div>
+        ${filterDetailsHtml}
         <div class="card-content" id="content-${cardId}">
             ${buildTradeTable(result.trades || [], cardId)}
         </div>`;
@@ -227,6 +259,19 @@ function buildResultCard(result, badgeText = 'Standard') {
              card.querySelector('.info-btn').style.cursor = 'default';
              card.querySelector('.info-btn').onclick = (e) => { e.stopPropagation(); e.preventDefault(); };
         }
+    }
+
+    // Attach toggle for filter details section
+    const filterToggle = card.querySelector('.filter-details-toggle');
+    if (filterToggle) {
+        filterToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const targetId = filterToggle.dataset.target;
+            const body = card.querySelector('#' + CSS.escape(targetId));
+            const arrowEl = card.querySelector('#' + CSS.escape('arrow-' + targetId));
+            if (body) body.classList.toggle('open');
+            if (arrowEl) arrowEl.classList.toggle('open');
+        });
     }
 
     return card;
@@ -720,13 +765,66 @@ document.addEventListener('DOMContentLoaded', initTradeRowClicks);
 
 // ── Filter Params Formatter ──
 
+/**
+ * Renders a filter config object as a config-grid HTML layout.
+ * Handles nested objects (e.g. shortLeg, longLeg) as labeled subsections.
+ */
+function renderFilterGrid(cfg) {
+    if (!cfg || typeof cfg !== 'object') return '';
+    const entries = Object.entries(cfg);
+    if (entries.length === 0) return '';
+
+    const formatLabel = (key) => key
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, s => s.toUpperCase())
+        .replace(/([a-z])(\d)/g, '$1 $2')
+        .trim();
+
+    const formatValue = (v) => {
+        if (v === null || v === undefined) return '—';
+        if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+        if (Array.isArray(v)) return v.join(', ') || '—';
+        return String(v);
+    };
+
+    let html = '<div class="config-grid">';
+    const nested = [];
+
+    for (const [key, val] of entries) {
+        if (key === 'maxDTE' && val === 2147483647) continue;
+        if ((key === 'targetDTE' || key === 'minDTE' || key === 'minReturnOnRisk') && val === 0) continue;
+        
+        if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
+            nested.push([key, val]);
+        } else {
+            html += `<div class="config-item"><span class="config-item-label">${formatLabel(key)}</span><span class="config-item-value">${formatValue(val)}</span></div>`;
+        }
+    }
+    html += '</div>';
+
+    // Render nested objects as subsections
+    for (const [key, obj] of nested) {
+        const nestedEntries = Object.entries(obj);
+        if (nestedEntries.length === 0) continue;
+        html += `<div class="nested-section"><div class="nested-heading">${formatLabel(key)}</div><div class="config-grid">`;
+        for (const [k, v] of nestedEntries) {
+            html += `<div class="config-item"><span class="config-item-label">${formatLabel(k)}</span><span class="config-item-value">${formatValue(v)}</span></div>`;
+        }
+        html += '</div></div>';
+    }
+
+    return html;
+}
+
 function formatFilterParams(filterConfigJson) {
     if (!filterConfigJson) return '';
     try {
         const cfg = typeof filterConfigJson === 'string' ? JSON.parse(filterConfigJson) : filterConfigJson;
         const parts = [];
         if (cfg.targetDTE) parts.push(`DTE: ${cfg.targetDTE}`);
-        else if (cfg.minDTE || cfg.maxDTE) parts.push(`DTE: ${cfg.minDTE || 0}-${cfg.maxDTE || '∞'}`);
+        else if (cfg.minDTE || (cfg.maxDTE && cfg.maxDTE !== 2147483647)) {
+            parts.push(`DTE: ${cfg.minDTE || 0}-${cfg.maxDTE === 2147483647 ? '∞' : cfg.maxDTE}`);
+        }
         if (cfg.maxUpperBreakevenDelta) parts.push(`Delta < ${cfg.maxUpperBreakevenDelta.toFixed(2)}`);
         if (cfg.maxLossLimit) parts.push(`Max Loss: <$${cfg.maxLossLimit.toFixed(0)}`);
         if (cfg.minReturnOnRisk) parts.push(`Min RoR: ${cfg.minReturnOnRisk}%`);
@@ -1416,6 +1514,106 @@ function loadTemplateParams(strategyJson) {
     } catch (e) {
         console.error('Error loading template:', e);
         showToast('Failed to load template', 'error');
+    }
+}
+
+/**
+ * Loads filter values from a custom execution result back into the execute form.
+ * Called when user clicks "Load Filters" on a result card.
+ */
+function loadFiltersFromResult(btn) {
+    try {
+        const filterConfigStr = decodeAttr(btn.dataset.filterConfig);
+        const strategyName = decodeAttr(btn.dataset.strategyName || '');
+        const filterConfig = JSON.parse(filterConfigStr);
+
+        // 1. Try to detect strategy type from the strategy name
+        const typeSelect = document.getElementById('strategy-type');
+        if (typeSelect) {
+            // Attempt to match by looking for the strategy type name within the strategy name
+            let matched = false;
+            for (const st of STRATEGY_TYPES) {
+                if (strategyName.toUpperCase().includes(st.value) ||
+                    strategyName.toLowerCase().includes(st.label.toLowerCase())) {
+                    typeSelect.value = st.value;
+                    renderSpecificFilters(st.value);
+                    renderStrategyTemplates(st.value);
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                // Try matching against the strategyType field inside filterConfig (some configs carry it)
+                if (filterConfig.strategyType) {
+                    typeSelect.value = filterConfig.strategyType;
+                    renderSpecificFilters(filterConfig.strategyType);
+                    renderStrategyTemplates(filterConfig.strategyType);
+                }
+            }
+        }
+
+        // 2. Set alias
+        const aliasEl = document.getElementById('alias-input');
+        if (aliasEl) aliasEl.value = strategyName ? strategyName + ' (Reload)' : '';
+
+        // 3. Clear existing filters
+        document.querySelectorAll('[data-filter]').forEach(inp => {
+            if (inp.type === 'checkbox') {
+                inp.checked = false;
+            } else {
+                inp.value = '';
+            }
+        });
+
+        // 4. Flatten nested filter object for data-filter matching
+        const flattenObj = (ob, prefix = '') => {
+            let res = {};
+            for (const [k, v] of Object.entries(ob)) {
+                if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
+                    Object.assign(res, flattenObj(v, prefix + k + '.'));
+                } else {
+                    res[prefix + k] = v;
+                }
+            }
+            return res;
+        };
+
+        const flatFilters = flattenObj(filterConfig);
+
+        // 5. Map securities specifically (they lack data-filter mapping)
+        if (flatFilters.securitiesFile !== undefined) {
+            const secFileEl = document.getElementById('securities-file-input');
+            if (secFileEl) secFileEl.value = flatFilters.securitiesFile || '';
+        }
+        if (flatFilters.securities !== undefined) {
+            const secEl = document.getElementById('securities-input');
+            if (secEl) {
+                secEl.value = Array.isArray(flatFilters.securities) ? flatFilters.securities.join(', ') : flatFilters.securities || '';
+            }
+        }
+
+        // 6. Set filter fields via data-filter matching
+        for (const [k, v] of Object.entries(flatFilters)) {
+            if (k === 'maxDTE' && v === 2147483647) continue;
+            if ((k === 'targetDTE' || k === 'minDTE' || k === 'minReturnOnRisk') && v === 0) continue;
+
+            const el = document.querySelector(`[data-filter="${k}"]`);
+            if (el) {
+                if (el.type === 'checkbox') {
+                    el.checked = !!v;
+                } else if (Array.isArray(v)) {
+                    el.value = v.join(', ');
+                } else if (v !== null && v !== undefined) {
+                    el.value = v;
+                }
+            }
+        }
+
+        showToast('Filters loaded from previous execution. Verify inputs before running.');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) {
+        console.error('Error loading filters from result:', e);
+        showToast('Failed to load filters', 'error');
     }
 }
 

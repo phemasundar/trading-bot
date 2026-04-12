@@ -319,6 +319,11 @@ public class StrategyController {
 
             // Build filter from request
             OptionsStrategyFilter filter = FilterParser.buildFilter(type, request.getFilter());
+            if (filter != null) {
+                filter.setStrategyType(type.name());
+                filter.setSecuritiesFile(request.getSecuritiesFile());
+                filter.setSecurities(request.getSecurities());
+            }
 
             OptionsConfig config = OptionsConfig.builder()
                     .alias(request.getAlias())
