@@ -9,30 +9,51 @@ import java.util.Collections;
 import java.util.List;
 import static org.testng.Assert.*;
 
+import com.hemasundar.config.properties.TelegramConfig;
+import com.hemasundar.dto.StrategyResult;
+import com.hemasundar.dto.Trade;
+import com.hemasundar.dto.TradeLegDTO;
+import com.hemasundar.technical.TechnicalScreener;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+import java.util.Collections;
+import java.util.List;
+
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.*;
+
 public class TelegramUtilsTest {
+
+    @Mock
+    private TelegramConfig telegramConfig;
+
+    private TelegramUtils telegramUtils;
+
+    @BeforeMethod
+    public void setUp() {
+        MockitoAnnotations.openMocks(this);
+        telegramUtils = new TelegramUtils(telegramConfig);
+        
+        // Default to disabled to avoid external calls by default
+        when(telegramConfig.isEnabled()).thenReturn(false);
+    }
 
     @Test
     public void testSendMessage_Disabled() {
-        try (org.mockito.MockedStatic<com.hemasundar.pojos.TestConfig> mockedConfig = org.mockito.Mockito
-                .mockStatic(com.hemasundar.pojos.TestConfig.class)) {
-            com.hemasundar.pojos.TestConfig mockConf = org.mockito.Mockito.mock(com.hemasundar.pojos.TestConfig.class);
-            org.mockito.Mockito.when(mockConf.telegramEnabled()).thenReturn(false);
-            mockedConfig.when(com.hemasundar.pojos.TestConfig::getInstance).thenReturn(mockConf);
-
-            assertTrue(TelegramUtils.sendMessage("Test message"));
-        }
+        when(telegramConfig.isEnabled()).thenReturn(false);
+        assertTrue(telegramUtils.sendMessage("Test message"));
     }
 
     @Test
     public void testSendMessage_MissingToken() {
-        try (org.mockito.MockedStatic<com.hemasundar.pojos.TestConfig> mockedConfig = org.mockito.Mockito
-                .mockStatic(com.hemasundar.pojos.TestConfig.class)) {
-            com.hemasundar.pojos.TestConfig mockConf = new com.hemasundar.pojos.TestConfig(
-                    null, null, null, null, null, null, null, true, null);
-            mockedConfig.when(com.hemasundar.pojos.TestConfig::getInstance).thenReturn(mockConf);
+        when(telegramConfig.isEnabled()).thenReturn(true);
+        when(telegramConfig.getBotToken()).thenReturn(null);
+        when(telegramConfig.getChatId()).thenReturn("chatId");
 
-            assertFalse(TelegramUtils.sendMessage("Test message"));
-        }
+        assertFalse(telegramUtils.sendMessage("Test message"));
     }
 
     @Test
@@ -61,7 +82,7 @@ public class TelegramUtilsTest {
                 .build();
 
         // This should not throw exception even if Telegram is disabled
-        TelegramUtils.sendTradeAlerts(result);
+        telegramUtils.sendTradeAlerts(result);
     }
 
     @Test
@@ -78,7 +99,7 @@ public class TelegramUtilsTest {
                 .priceBelowMA200(true)
                 .build();
 
-        TelegramUtils.sendTechnicalScreenerAlert("Oversold Screener", List.of(result));
+        telegramUtils.sendTechnicalScreenerAlert("Oversold Screener", List.of(result));
     }
 
     @Test
@@ -98,21 +119,17 @@ public class TelegramUtilsTest {
                 .priceBelowMA200(false)
                 .build();
 
-        TelegramUtils.sendTechnicalScreenerAlert("Overbought Screener", List.of(result));
+        telegramUtils.sendTechnicalScreenerAlert("Overbought Screener", List.of(result));
     }
 
     @Test
     public void testSendMessage_SplitMessage() {
-        try (org.mockito.MockedStatic<com.hemasundar.pojos.TestConfig> mockedConfig = org.mockito.Mockito
-                .mockStatic(com.hemasundar.pojos.TestConfig.class);
-             org.mockito.MockedStatic<io.restassured.RestAssured> mockedRestAssured = org.mockito.Mockito
+        try (org.mockito.MockedStatic<io.restassured.RestAssured> mockedRestAssured = org.mockito.Mockito
                 .mockStatic(io.restassured.RestAssured.class)) {
             
-            com.hemasundar.pojos.TestConfig mockConf = org.mockito.Mockito.mock(com.hemasundar.pojos.TestConfig.class);
-            org.mockito.Mockito.when(mockConf.telegramEnabled()).thenReturn(true);
-            org.mockito.Mockito.when(mockConf.telegramBotToken()).thenReturn("token");
-            org.mockito.Mockito.when(mockConf.telegramChatId()).thenReturn("chatId");
-            mockedConfig.when(com.hemasundar.pojos.TestConfig::getInstance).thenReturn(mockConf);
+            when(telegramConfig.isEnabled()).thenReturn(true);
+            when(telegramConfig.getBotToken()).thenReturn("token");
+            when(telegramConfig.getChatId()).thenReturn("chatId");
 
             io.restassured.specification.RequestSpecification requestSpec = org.mockito.Mockito.mock(io.restassured.specification.RequestSpecification.class);
             io.restassured.response.Response response = org.mockito.Mockito.mock(io.restassured.response.Response.class);
@@ -128,7 +145,7 @@ public class TelegramUtilsTest {
                 longMsg.append("Line ").append(i).append(" with some extra text to make it longer and cross the limit faster\n");
             }
             
-            assertTrue(TelegramUtils.sendMessage(longMsg.toString()));
+            assertTrue(telegramUtils.sendMessage(longMsg.toString()));
         }
     }
 
@@ -156,21 +173,17 @@ public class TelegramUtilsTest {
                 .trades(List.of(trade))
                 .build();
 
-        TelegramUtils.sendTradeAlerts(result);
+        telegramUtils.sendTradeAlerts(result);
     }
 
     @Test
     public void testSendMessage_SplitMessage_NoNewlines() {
-        try (org.mockito.MockedStatic<com.hemasundar.pojos.TestConfig> mockedConfig = org.mockito.Mockito
-                .mockStatic(com.hemasundar.pojos.TestConfig.class);
-             org.mockito.MockedStatic<io.restassured.RestAssured> mockedRestAssured = org.mockito.Mockito
+        try (org.mockito.MockedStatic<io.restassured.RestAssured> mockedRestAssured = org.mockito.Mockito
                 .mockStatic(io.restassured.RestAssured.class)) {
             
-            com.hemasundar.pojos.TestConfig mockConf = org.mockito.Mockito.mock(com.hemasundar.pojos.TestConfig.class);
-            org.mockito.Mockito.when(mockConf.telegramEnabled()).thenReturn(true);
-            org.mockito.Mockito.when(mockConf.telegramBotToken()).thenReturn("token");
-            org.mockito.Mockito.when(mockConf.telegramChatId()).thenReturn("chatId");
-            mockedConfig.when(com.hemasundar.pojos.TestConfig::getInstance).thenReturn(mockConf);
+            when(telegramConfig.isEnabled()).thenReturn(true);
+            when(telegramConfig.getBotToken()).thenReturn("token");
+            when(telegramConfig.getChatId()).thenReturn("chatId");
 
             io.restassured.specification.RequestSpecification requestSpec = org.mockito.Mockito.mock(io.restassured.specification.RequestSpecification.class);
             io.restassured.response.Response response = org.mockito.Mockito.mock(io.restassured.response.Response.class);
@@ -187,13 +200,13 @@ public class TelegramUtilsTest {
                 longMsg.append("a");
             }
             
-            assertTrue(TelegramUtils.sendMessage(longMsg.toString()));
+            assertTrue(telegramUtils.sendMessage(longMsg.toString()));
         }
     }
 
     @Test
     public void testSendTradeAlerts_NullResult() {
-        TelegramUtils.sendTradeAlerts(null);
+        telegramUtils.sendTradeAlerts(null);
     }
 
     @Test
@@ -202,7 +215,7 @@ public class TelegramUtilsTest {
                 .strategyName("Strategy")
                 .trades(Collections.emptyList())
                 .build();
-        TelegramUtils.sendTradeAlerts(result);
+        telegramUtils.sendTradeAlerts(result);
     }
 
     @Test
@@ -211,17 +224,17 @@ public class TelegramUtilsTest {
                 .strategyName("Strategy")
                 .trades(null)
                 .build();
-        TelegramUtils.sendTradeAlerts(result);
+        telegramUtils.sendTradeAlerts(result);
     }
 
     @Test
     public void testSendTechnicalScreenerAlert_NullResults() {
-        TelegramUtils.sendTechnicalScreenerAlert("Screener", null);
+        telegramUtils.sendTechnicalScreenerAlert("Screener", null);
     }
 
     @Test
     public void testSendTechnicalScreenerAlert_EmptyResults() {
-        TelegramUtils.sendTechnicalScreenerAlert("Screener", Collections.emptyList());
+        telegramUtils.sendTechnicalScreenerAlert("Screener", Collections.emptyList());
     }
 
     @Test

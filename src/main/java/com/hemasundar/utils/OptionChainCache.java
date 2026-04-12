@@ -15,11 +15,16 @@ import java.util.concurrent.ConcurrentHashMap;
  * Fetches from API only when a symbol is requested for the first time.
  * Subsequent requests for the same symbol return the cached response.
  * This minimizes API calls when multiple strategies use overlapping symbols.
+ * <p>
+ * Note: This is NOT a Spring bean — it is created per-execution by
+ * StrategyExecutionService.
  */
 @Log4j2
+@lombok.RequiredArgsConstructor
 public class OptionChainCache {
 
     private final Map<String, OptionChainResponse> cache = new ConcurrentHashMap<>();
+    private final ThinkOrSwinAPIs schwabApi;
 
     @Getter
     private int apiCallCount = 0;
@@ -35,7 +40,7 @@ public class OptionChainCache {
         return cache.computeIfAbsent(symbol, s -> {
             apiCallCount++;
             log.debug("Fetching from API: {} (API call #{})", s, apiCallCount);
-            return ThinkOrSwinAPIs.getOptionChain(s);
+            return schwabApi.getOptionChain(s);
         });
     }
 

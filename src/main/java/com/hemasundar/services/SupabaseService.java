@@ -8,32 +8,26 @@ import lombok.extern.log4j.Log4j2;
 import java.io.IOException;
 import java.util.Optional;
 
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.io.IOException;
+import java.util.Optional;
+
 /**
  * Service to interact with Supabase REST API for storing IV data and strategy
  * execution results.
  * This class now acts as a facade, delegating to specific repositories.
  */
 @Log4j2
+@Service
+@RequiredArgsConstructor
 public class SupabaseService {
     private final SupabaseClient client;
     private final IVDataRepository ivDataRepository;
     private final StrategyResultRepository strategyResultRepository;
     private final ScreenerResultRepository screenerResultRepository;
     private final CustomExecutionRepository customExecutionRepository;
-
-    /**
-     * Constructor initializes Supabase service with authentication.
-     *
-     * @param projectUrl Supabase project URL (e.g., https://abcdefg.supabase.co)
-     * @param apiKey     Supabase API key (Publishable/anon key)
-     */
-    public SupabaseService(String projectUrl, String apiKey) {
-        this.client = new SupabaseClient(projectUrl, apiKey);
-        this.ivDataRepository = new IVDataRepository(client);
-        this.strategyResultRepository = new StrategyResultRepository(client);
-        this.screenerResultRepository = new ScreenerResultRepository(client);
-        this.customExecutionRepository = new CustomExecutionRepository(client);
-    }
 
     /**
      * Tests connection to Supabase by making a simple GET request.

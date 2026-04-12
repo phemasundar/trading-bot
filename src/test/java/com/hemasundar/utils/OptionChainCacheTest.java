@@ -14,17 +14,12 @@ import static org.testng.Assert.*;
 public class OptionChainCacheTest {
 
     private OptionChainCache cache;
-    private MockedStatic<ThinkOrSwinAPIs> mockedApis;
+    private ThinkOrSwinAPIs thinkOrSwinAPIs;
 
     @BeforeMethod
     public void setUp() {
-        cache = new OptionChainCache();
-        mockedApis = mockStatic(ThinkOrSwinAPIs.class);
-    }
-
-    @AfterMethod
-    public void tearDown() {
-        mockedApis.close();
+        thinkOrSwinAPIs = mock(ThinkOrSwinAPIs.class);
+        cache = new OptionChainCache(thinkOrSwinAPIs);
     }
 
     @Test
@@ -33,7 +28,7 @@ public class OptionChainCacheTest {
         OptionChainResponse mockResponse = new OptionChainResponse();
         mockResponse.setSymbol(symbol);
         
-        when(ThinkOrSwinAPIs.getOptionChain(symbol)).thenReturn(mockResponse);
+        when(thinkOrSwinAPIs.getOptionChain(symbol)).thenReturn(mockResponse);
         
         // First call - should fetch from API
         OptionChainResponse result1 = cache.get(symbol);
@@ -46,7 +41,7 @@ public class OptionChainCacheTest {
         assertSame(result1, result2);
         assertEquals(cache.getApiCallCount(), 1);
         
-        mockedApis.verify(() -> ThinkOrSwinAPIs.getOptionChain(symbol), times(1));
+        verify(thinkOrSwinAPIs, times(1)).getOptionChain(symbol);
     }
 
     @Test
@@ -54,7 +49,7 @@ public class OptionChainCacheTest {
         String symbol = "TSLA";
         assertFalse(cache.isCached(symbol));
         
-        when(ThinkOrSwinAPIs.getOptionChain(symbol)).thenReturn(new OptionChainResponse());
+        when(thinkOrSwinAPIs.getOptionChain(symbol)).thenReturn(new OptionChainResponse());
         cache.get(symbol);
         
         assertTrue(cache.isCached(symbol));
@@ -62,7 +57,10 @@ public class OptionChainCacheTest {
 
     @Test
     public void testClear() {
-        cache.get("AAPL"); // Error handled by computeIfAbsent returning null if API fails without mock
+        // Mock API call to avoid null pointer or actual network call
+        when(thinkOrSwinAPIs.getOptionChain(anyString())).thenReturn(new OptionChainResponse());
+        
+        cache.get("AAPL"); 
         cache.clear();
         assertEquals(cache.size(), 0);
         assertEquals(cache.getApiCallCount(), 0);

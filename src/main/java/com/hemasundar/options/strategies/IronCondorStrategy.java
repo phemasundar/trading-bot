@@ -10,20 +10,28 @@ import com.hemasundar.options.models.TradeSetup;
 import com.hemasundar.options.models.PutCreditSpread;
 import com.hemasundar.options.models.CallCreditSpread;
 
+import org.springframework.stereotype.Component;
+
 import java.util.ArrayList;
 import java.util.List;
 
+import com.hemasundar.apis.FinnHubAPIs;
+import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.utils.VolatilityCalculator;
+
+@Component
 public class IronCondorStrategy extends AbstractTradingStrategy {
+    private final PutCreditSpreadStrategy putStrategy;
+    private final CallCreditSpreadStrategy callStrategy;
 
-    private final PutCreditSpreadStrategy putStrategy = new PutCreditSpreadStrategy();
-    private final CallCreditSpreadStrategy callStrategy = new CallCreditSpreadStrategy();
-
-    public IronCondorStrategy() {
-        super(StrategyType.IRON_CONDOR);
-    }
-
-    public IronCondorStrategy(StrategyType strategyType) {
-        super(strategyType);
+    public IronCondorStrategy(FinnHubAPIs finnHubAPIs,
+                             ThinkOrSwinAPIs thinkOrSwinAPIs,
+                             VolatilityCalculator volatilityCalculator,
+                             PutCreditSpreadStrategy putStrategy,
+                             CallCreditSpreadStrategy callStrategy) {
+        super(StrategyType.IRON_CONDOR, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
+        this.putStrategy = putStrategy;
+        this.callStrategy = callStrategy;
     }
 
     @Override

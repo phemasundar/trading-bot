@@ -1,10 +1,13 @@
 package com.hemasundar.services;
 
+import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.config.StrategiesConfigLoader;
 import com.hemasundar.dto.ScreenerExecutionResult;
 import com.hemasundar.technical.*;
+import com.hemasundar.utils.SecuritiesResolver;
 import com.hemasundar.utils.TelegramUtils;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -14,22 +17,23 @@ import java.util.stream.Collectors;
 
 @Service
 @Log4j2
+@RequiredArgsConstructor
 public class ScreenerExecutionService {
 
-    @Autowired
-    private SupabaseService supabaseService;
-
-    @Autowired
-    private com.hemasundar.utils.SecuritiesResolver securitiesResolver;
-
-    @Autowired
-    private StrategyExecutionService strategyExecutionService;
+    private final SupabaseService supabaseService;
+    private final SecuritiesResolver securitiesResolver;
+    private final StrategyExecutionService strategyExecutionService;
+    private final ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private final TelegramUtils telegramUtils;
+    private final TechnicalScreener technicalScreener;
+    private final PriceDropScreener priceDropScreener;
+    private final StrategiesConfigLoader strategiesConfigLoader;
 
     /**
      * Loads all enabled technical screeners from strategies-config.json
      */
     public List<ScreenerConfig> getEnabledScreeners() throws IOException {
-        return com.hemasundar.config.StrategiesConfigLoader.loadScreeners(securitiesResolver.loadSecuritiesMaps());
+        return strategiesConfigLoader.loadScreeners(securitiesResolver.loadSecuritiesMaps());
     }
 
     /**
@@ -81,17 +85,17 @@ public class ScreenerExecutionService {
                     TechFilterConditions cond = screenerConfig.getConditions();
                     double minDrop = cond.getMinDropPercent() != null ? cond.getMinDropPercent() : 5.0;
                     int days = cond.getLookbackDays() != null ? cond.getLookbackDays() : 0;
-                    yield PriceDropScreener.screenPriceDrop(securitiesToScan, minDrop, days);
+                    yield priceDropScreener.screenPriceDrop(securitiesToScan, minDrop, days);
                 }
                 case HIGH_52W_DROP -> {
                     TechFilterConditions cond = screenerConfig.getConditions();
                     double minDrop = cond.getMinDropPercent() != null ? cond.getMinDropPercent() : 20.0;
-                    yield PriceDropScreener.screen52WeekHighDrop(securitiesToScan, minDrop);
+                    yield priceDropScreener.screen52WeekHighDrop(securitiesToScan, minDrop);
                 }
                 default -> {
                     TechnicalFilterChain filterChain = TechnicalFilterChain.of(allIndicators,
                             screenerConfig.getConditions());
-                    yield TechnicalScreener.screenStocks(securitiesToScan, filterChain);
+                    yield technicalScreener.screenStocks(securitiesToScan, filterChain);
                 }
             };
 
@@ -101,7 +105,7 @@ public class ScreenerExecutionService {
                 log.info("[{}] Matching stocks: {}", screenerConfig.getName(),
                         screenerResults.stream().map(TechnicalScreener.ScreeningResult::getSymbol)
                                 .toList());
-                TelegramUtils.sendTechnicalScreenerAlert(screenerConfig.getName(), screenerResults);
+                telegramUtils.sendTechnicalScreenerAlert(screenerConfig.getName(), screenerResults);
             }
 
             // Save screener result

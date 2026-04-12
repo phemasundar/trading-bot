@@ -2,7 +2,10 @@ package com.hemasundar.services.supabase;
 
 import com.hemasundar.pojos.IVDataPoint;
 import io.restassured.response.Response;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.time.format.DateTimeFormatter;
@@ -11,15 +14,13 @@ import java.time.format.DateTimeFormatter;
  * Repository for handling IV data operations with Supabase.
  */
 @Log4j2
+@Component
+@RequiredArgsConstructor
 public class IVDataRepository {
     private static final String IV_DATA_PATH = "/rest/v1/iv_data";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
 
     private final SupabaseClient client;
-
-    public IVDataRepository(SupabaseClient client) {
-        this.client = client;
-    }
 
     /**
      * Upserts (inserts or updates) IV data point to Supabase.

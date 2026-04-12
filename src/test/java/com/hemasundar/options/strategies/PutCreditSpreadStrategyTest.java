@@ -4,17 +4,34 @@ import com.hemasundar.options.models.CreditSpreadFilter;
 import com.hemasundar.options.models.LegFilter;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.TradeSetup;
-import com.hemasundar.options.strategies.PutCreditSpreadStrategy;
 import com.hemasundar.utils.StrategyTestUtils;
 import org.testng.annotations.Test;
 import java.util.List;
 import static org.testng.Assert.*;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import com.hemasundar.apis.FinnHubAPIs;
+import com.hemasundar.apis.ThinkOrSwinAPIs;
+import org.testng.annotations.BeforeMethod;
 
 public class PutCreditSpreadStrategyTest {
+    @Mock
+    private FinnHubAPIs finnHubAPIs;
+    @Mock
+    private ThinkOrSwinAPIs thinkOrSwinAPIs;
+    @Mock
+    private com.hemasundar.utils.VolatilityCalculator volatilityCalculator;
+
+    private PutCreditSpreadStrategy strategy;
+
+    @BeforeMethod
+    public void setUp() {
+        MockitoAnnotations.openMocks(this);
+        strategy = new PutCreditSpreadStrategy(finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
+    }
 
     @Test
     public void testFindValidTrades_Success() {
-        PutCreditSpreadStrategy strategy = new PutCreditSpreadStrategy();
         OptionChainResponse chain = StrategyTestUtils.createMockChain("AAPL", 150.0);
 
         // Add a short put (higher strike, e.g. 145)
@@ -43,7 +60,6 @@ public class PutCreditSpreadStrategyTest {
 
     @Test
     public void testFindValidTrades_FilterOutByCredit() {
-        PutCreditSpreadStrategy strategy = new PutCreditSpreadStrategy();
         OptionChainResponse chain = StrategyTestUtils.createMockChain("AAPL", 150.0);
 
         StrategyTestUtils.addOption(chain, "2026-01-02", 30, 145.0, 2.50, 2.60, 0.30, true);

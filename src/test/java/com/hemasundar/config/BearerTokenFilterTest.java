@@ -4,6 +4,8 @@ import com.auth0.jwk.Jwk;
 import com.auth0.jwk.JwkProvider;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.hemasundar.config.properties.SecurityConfig;
+import com.hemasundar.config.properties.SupabaseConfig;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.env.Environment;
 import org.springframework.mock.web.MockFilterChain;
@@ -28,41 +30,40 @@ import static org.testng.Assert.assertNotEquals;
 
 /**
  * Unit tests for {@link BearerTokenFilter}.
- *
- * <p>Uses a locally generated EC P-256 key pair and a mocked {@link JwkProvider}
- * so no real JWKS network calls are made during testing.
  */
 public class BearerTokenFilterTest {
 
     private BearerTokenFilter filter;
     private Environment mockEnv;
 
-    // EC P-256 key pair generated fresh per test method
     private ECPublicKey  publicKey;
     private ECPrivateKey privateKey;
     private JwkProvider  mockJwkProvider;
+    private SupabaseConfig mockSupabaseConfig;
+    private SecurityConfig mockSecurityConfig;
 
     @BeforeMethod
     public void setUp() throws Exception {
-        // Generate a real P-256 key pair (matches Supabase's ECC P-256 signing key)
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC");
         kpg.initialize(new ECGenParameterSpec("secp256r1"));
         KeyPair keyPair = kpg.generateKeyPair();
         publicKey  = (ECPublicKey)  keyPair.getPublic();
         privateKey = (ECPrivateKey) keyPair.getPrivate();
 
-        // Mock JwkProvider to return our test public key
         Jwk mockJwk = mock(Jwk.class);
         when(mockJwk.getPublicKey()).thenReturn(publicKey);
 
         mockJwkProvider = mock(JwkProvider.class);
         when(mockJwkProvider.get(any())).thenReturn(mockJwk);
 
-        // Create filter in dev mode (no production profile)
         mockEnv = mock(Environment.class);
         when(mockEnv.getActiveProfiles()).thenReturn(new String[]{"dev"});
 
-        filter = new BearerTokenFilter(mockEnv);
+        mockSupabaseConfig = mock(SupabaseConfig.class);
+        mockSecurityConfig = mock(SecurityConfig.class);
+        when(mockSecurityConfig.getEmails()).thenReturn("");
+
+        filter = new BearerTokenFilter(mockEnv, mockSupabaseConfig, mockSecurityConfig);
         filter.setJwkProvider(mockJwkProvider);
     }
 
@@ -82,8 +83,6 @@ public class BearerTokenFilterTest {
                 .sign(Algorithm.ECDSA256(publicKey, privateKey));
     }
 
-    // ── Happy path ────────────────────────────────────────────────────────
-
     @Test
     public void testValidToken_allowed() throws Exception {
         MockHttpServletRequest  request  = apiRequest("/api/strategies");
@@ -94,8 +93,6 @@ public class BearerTokenFilterTest {
 
         assertEquals(response.getStatus(), HttpServletResponse.SC_OK);
     }
-
-    // ── Token errors ──────────────────────────────────────────────────────
 
     @Test
     public void testExpiredToken_returns401() throws Exception {
@@ -126,11 +123,9 @@ public class BearerTokenFilterTest {
         assertEquals(response.getStatus(), HttpServletResponse.SC_UNAUTHORIZED);
     }
 
-    // ── Email allowlist ───────────────────────────────────────────────────
-
     @Test
     public void testAllowedEmail_passes() throws Exception {
-        filter.allowedEmailsConfig = "admin@gmail.com,user@gmail.com";
+        when(mockSecurityConfig.getEmails()).thenReturn("admin@gmail.com,user@gmail.com");
 
         MockHttpServletRequest  request  = apiRequest("/api/strategies");
         request.addHeader("Authorization", "Bearer " + validToken("admin@gmail.com"));
@@ -143,7 +138,7 @@ public class BearerTokenFilterTest {
 
     @Test
     public void testBlockedEmail_returns403() throws Exception {
-        filter.allowedEmailsConfig = "admin@gmail.com";
+        when(mockSecurityConfig.getEmails()).thenReturn("admin@gmail.com");
 
         MockHttpServletRequest  request  = apiRequest("/api/strategies");
         request.addHeader("Authorization", "Bearer " + validToken("hacker@gmail.com"));
@@ -153,8 +148,6 @@ public class BearerTokenFilterTest {
 
         assertEquals(response.getStatus(), HttpServletResponse.SC_FORBIDDEN);
     }
-
-    // ── Public / non-API paths ────────────────────────────────────────────
 
     @Test
     public void testPublicAuthConfigEndpoint_noTokenRequired() throws Exception {
@@ -170,32 +163,22 @@ public class BearerTokenFilterTest {
         assertNotEquals(response.getStatus(), HttpServletResponse.SC_UNAUTHORIZED);
     }
 
-    // ── JWKS provider not configured ──────────────────────────────────────
-
     @Test
     public void testNoJwksProvider_devMode_bypassesAuth() throws Exception {
-        BearerTokenFilter devFilter = new BearerTokenFilter(mockEnv);
-        // No setJwkProvider() call — simulates local dev with no SUPABASE_URL
-
+        BearerTokenFilter devFilter = new BearerTokenFilter(mockEnv, mockSupabaseConfig, mockSecurityConfig);
         MockHttpServletResponse response = new MockHttpServletResponse();
         devFilter.doFilter(apiRequest("/api/strategies"), response, new MockFilterChain());
-
         assertEquals(response.getStatus(), HttpServletResponse.SC_OK);
     }
 
     @Test
     public void testNoJwksProvider_productionMode_returns503() throws Exception {
         when(mockEnv.getActiveProfiles()).thenReturn(new String[]{"production"});
-        BearerTokenFilter prodFilter = new BearerTokenFilter(mockEnv);
-        // No setJwkProvider() — simulates misconfigured production
-
+        BearerTokenFilter prodFilter = new BearerTokenFilter(mockEnv, mockSupabaseConfig, mockSecurityConfig);
         MockHttpServletResponse response = new MockHttpServletResponse();
         prodFilter.doFilter(apiRequest("/api/strategies"), response, new MockFilterChain());
-
         assertEquals(response.getStatus(), HttpServletResponse.SC_SERVICE_UNAVAILABLE);
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────
 
     private MockHttpServletRequest apiRequest(String uri) {
         MockHttpServletRequest req = new MockHttpServletRequest("GET", uri);

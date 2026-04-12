@@ -3,26 +3,19 @@ package com.hemasundar.technical;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.pojos.QuotesResponse;
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Price Drop screener that identifies stocks with significant price declines.
- * Supports two modes:
- * <ul>
- *     <li><b>PRICE_DROP</b>: Intraday (lookbackDays=0) or multi-day decline</li>
- *     <li><b>HIGH_52W_DROP</b>: Drop from 52-week high</li>
- * </ul>
- * Uses Quotes API for intraday/52-week data and Price History API for multi-day lookback.
- */
 @Log4j2
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
+@Component
+@lombok.RequiredArgsConstructor
 public class PriceDropScreener {
+
+    private final ThinkOrSwinAPIs thinkOrSwinAPIs;
 
     /**
      * Screens stocks for price drops over a given number of trading days.
@@ -34,7 +27,7 @@ public class PriceDropScreener {
      * @param lookbackDays   Number of trading days to look back (0 = intraday)
      * @return List of ScreeningResult for stocks matching the criteria
      */
-    public static List<TechnicalScreener.ScreeningResult> screenPriceDrop(
+    public List<TechnicalScreener.ScreeningResult> screenPriceDrop(
             List<String> symbols, double minDropPercent, int lookbackDays) {
 
         if (lookbackDays == 0) {
@@ -51,7 +44,7 @@ public class PriceDropScreener {
      * @param minDropPercent Minimum drop percentage from 52-week high (e.g., 20.0 for 20%)
      * @return List of ScreeningResult for stocks matching the criteria
      */
-    public static List<TechnicalScreener.ScreeningResult> screen52WeekHighDrop(
+    public List<TechnicalScreener.ScreeningResult> screen52WeekHighDrop(
             List<String> symbols, double minDropPercent) {
 
         List<TechnicalScreener.ScreeningResult> results = new ArrayList<>();
@@ -62,7 +55,7 @@ public class PriceDropScreener {
         for (int i = 0; i < symbols.size(); i += 50) {
             List<String> batch = symbols.subList(i, Math.min(i + 50, symbols.size()));
             try {
-                Map<String, QuotesResponse.QuoteData> quotes = ThinkOrSwinAPIs.getQuotes(batch);
+                Map<String, QuotesResponse.QuoteData> quotes = thinkOrSwinAPIs.getQuotes(batch);
 
                 for (Map.Entry<String, QuotesResponse.QuoteData> entry : quotes.entrySet()) {
                     String symbol = entry.getKey();
@@ -102,7 +95,7 @@ public class PriceDropScreener {
     /**
      * Screens for intraday price drops using Quotes API netPercentChange.
      */
-    private static List<TechnicalScreener.ScreeningResult> screenIntradayDrop(
+    private List<TechnicalScreener.ScreeningResult> screenIntradayDrop(
             List<String> symbols, double minDropPercent) {
 
         List<TechnicalScreener.ScreeningResult> results = new ArrayList<>();
@@ -112,7 +105,7 @@ public class PriceDropScreener {
         for (int i = 0; i < symbols.size(); i += 50) {
             List<String> batch = symbols.subList(i, Math.min(i + 50, symbols.size()));
             try {
-                Map<String, QuotesResponse.QuoteData> quotes = ThinkOrSwinAPIs.getQuotes(batch);
+                Map<String, QuotesResponse.QuoteData> quotes = thinkOrSwinAPIs.getQuotes(batch);
 
                 for (Map.Entry<String, QuotesResponse.QuoteData> entry : quotes.entrySet()) {
                     String symbol = entry.getKey();
@@ -149,7 +142,7 @@ public class PriceDropScreener {
     /**
      * Screens for multi-day price drops using Price History API.
      */
-    private static List<TechnicalScreener.ScreeningResult> screenMultiDayDrop(
+    private List<TechnicalScreener.ScreeningResult> screenMultiDayDrop(
             List<String> symbols, double minDropPercent, int lookbackDays) {
 
         List<TechnicalScreener.ScreeningResult> results = new ArrayList<>();
@@ -159,7 +152,7 @@ public class PriceDropScreener {
         for (String symbol : symbols) {
             try {
                 // Fetch enough daily data to cover the lookback period
-                PriceHistoryResponse history = ThinkOrSwinAPIs.getPriceHistory(
+                PriceHistoryResponse history = thinkOrSwinAPIs.getPriceHistory(
                         symbol, "month", 1, "daily", 1, null, null, false, false);
 
                 if (history == null || history.getCandles() == null || history.getCandles().isEmpty()) {
@@ -208,7 +201,7 @@ public class PriceDropScreener {
     /**
      * Builds a ScreeningResult with drop-specific fields populated.
      */
-    private static TechnicalScreener.ScreeningResult buildResult(
+    private TechnicalScreener.ScreeningResult buildResult(
             String symbol, double currentPrice, long volume,
             double dropPercent, double referencePrice, String dropType) {
 

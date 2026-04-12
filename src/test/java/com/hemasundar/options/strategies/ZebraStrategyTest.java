@@ -3,17 +3,34 @@ package com.hemasundar.options.strategies;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.ZebraFilter;
 import com.hemasundar.options.models.TradeSetup;
-import com.hemasundar.options.strategies.ZebraStrategy;
 import com.hemasundar.utils.StrategyTestUtils;
 import org.testng.annotations.Test;
 import java.util.List;
 import static org.testng.Assert.*;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import com.hemasundar.apis.FinnHubAPIs;
+import com.hemasundar.apis.ThinkOrSwinAPIs;
+import org.testng.annotations.BeforeMethod;
 
 public class ZebraStrategyTest {
+    @Mock
+    private FinnHubAPIs finnHubAPIs;
+    @Mock
+    private ThinkOrSwinAPIs thinkOrSwinAPIs;
+    @Mock
+    private com.hemasundar.utils.VolatilityCalculator volatilityCalculator;
+
+    private ZebraStrategy strategy;
+
+    @BeforeMethod
+    public void setUp() {
+        MockitoAnnotations.openMocks(this);
+        strategy = new ZebraStrategy(finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
+    }
 
     @Test
     public void testFindValidTrades_Success() {
-        ZebraStrategy strategy = new ZebraStrategy();
         OptionChainResponse chain = StrategyTestUtils.createMockChain("AAPL", 150.0);
 
         // Short Call: 150 Strike (ATM), Price: 5.00

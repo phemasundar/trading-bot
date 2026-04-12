@@ -8,6 +8,8 @@ import com.hemasundar.technical.TechnicalScreener.ScreeningResult;
 import io.restassured.response.Response;
 import lombok.extern.log4j.Log4j2;
 
+import org.springframework.stereotype.Component;
+
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -18,6 +20,7 @@ import java.util.List;
  * Repository for handling Technical Screener execution results with Supabase.
  */
 @Log4j2
+@Component
 public class ScreenerResultRepository {
     private static final String LATEST_SCREENER_RESULTS_PATH = "/rest/v1/latest_screener_results";
 

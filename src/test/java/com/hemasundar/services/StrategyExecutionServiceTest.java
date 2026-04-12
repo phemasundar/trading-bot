@@ -1,5 +1,6 @@
 package com.hemasundar.services;
 
+import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.config.StrategiesConfigLoader;
 import com.hemasundar.dto.ExecutionResult;
@@ -36,28 +37,50 @@ public class StrategyExecutionServiceTest {
     @Mock
     private SecuritiesResolver securitiesResolver;
 
+    @Mock
+    private com.hemasundar.utils.VolatilityCalculator volatilityCalculator;
+
+    @Mock
+    private StrategiesConfigLoader strategiesConfigLoader;
+
+    @Mock
+    private TechnicalScreener technicalScreener;
+
     @InjectMocks
     private StrategyExecutionService strategyExecutionService;
 
-    private MockedStatic<StrategiesConfigLoader> mockedLoader;
-    private MockedStatic<TechnicalScreener> mockedScreener;
-    private MockedStatic<TelegramUtils> mockedTelegram;
+    @Mock
+    private ThinkOrSwinAPIs thinkOrSwinAPIs;
+
+    @Mock
+    private FinnHubAPIs finnHubAPIs;
+
+    @Mock
+    private TelegramUtils telegramUtils;
+
     private MockedStatic<FilePaths> mockedFilePaths;
     private MockedStatic<JavaUtils> mockedJavaUtils;
-    private MockedStatic<ThinkOrSwinAPIs> mockedApis;
 
     @BeforeMethod
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        mockedLoader = Mockito.mockStatic(StrategiesConfigLoader.class);
-        mockedScreener = Mockito.mockStatic(TechnicalScreener.class);
-        mockedTelegram = Mockito.mockStatic(TelegramUtils.class);
+        // Explicit initialization to ensure all mocks are correctly injected into final fields
+        strategyExecutionService = new StrategyExecutionService(
+                supabaseService,
+                securitiesResolver,
+                thinkOrSwinAPIs,
+                finnHubAPIs,
+                telegramUtils,
+                technicalScreener,
+                volatilityCalculator,
+                strategiesConfigLoader
+        );
+
         mockedFilePaths = Mockito.mockStatic(FilePaths.class);
         mockedJavaUtils = Mockito.mockStatic(JavaUtils.class);
-        mockedApis = Mockito.mockStatic(ThinkOrSwinAPIs.class);
 
         // Global dummy API response
-        mockedApis.when(() -> ThinkOrSwinAPIs.getOptionChain(anyString()))
+        when(thinkOrSwinAPIs.getOptionChain(anyString()))
                 .thenReturn(new OptionChainResponse());
 
         // Global dummy securities response
@@ -74,18 +97,14 @@ public class StrategyExecutionServiceTest {
 
     @AfterMethod
     public void tearDown() {
-        mockedLoader.close();
-        mockedScreener.close();
-        mockedTelegram.close();
-        mockedFilePaths.close();
-        mockedJavaUtils.close();
-        mockedApis.close();
+        if (mockedFilePaths != null) mockedFilePaths.close();
+        if (mockedJavaUtils != null) mockedJavaUtils.close();
     }
 
     @Test
     public void testGetEnabledStrategies() throws IOException {
         OptionsConfig config = mock(OptionsConfig.class);
-        mockedLoader.when(() -> StrategiesConfigLoader.load(anyString(), anyMap()))
+        when(strategiesConfigLoader.load(anyString(), anyMap()))
                 .thenReturn(List.of(config));
 
         List<OptionsConfig> strategies = strategyExecutionService.getEnabledStrategies();
@@ -100,9 +119,19 @@ public class StrategyExecutionServiceTest {
         when(config.getSecurities()).thenReturn(List.of("AAPL"));
         AbstractTradingStrategy strategy = mock(AbstractTradingStrategy.class);
         when(strategy.getStrategyName()).thenReturn("Test Strategy");
+        when(strategy.getStrategyType()).thenReturn(com.hemasundar.options.strategies.StrategyType.PUT_CREDIT_SPREAD);
+        com.hemasundar.options.models.TradeSetup setupSuccess = mock(com.hemasundar.options.models.TradeSetup.class);
+        when(setupSuccess.getLegs()).thenReturn(Collections.emptyList());
+        when(setupSuccess.getNetCredit()).thenReturn(100.0);
+        when(setupSuccess.getMaxLoss()).thenReturn(500.0);
+        when(setupSuccess.getReturnOnRisk()).thenReturn(1.0);
+        when(setupSuccess.getBreakEvenPrice()).thenReturn(145.0);
+        when(setupSuccess.getBreakEvenPercentage()).thenReturn(3.0);
+        when(strategy.findTrades(any(), any()))
+                .thenReturn(List.of(setupSuccess));
         when(config.getStrategy()).thenReturn(strategy);
 
-        mockedLoader.when(() -> StrategiesConfigLoader.load(anyString(), anyMap()))
+        when(strategiesConfigLoader.load(anyString(), anyMap()))
                 .thenReturn(List.of(config));
 
         strategyExecutionService.startGlobalExecution("Test");
@@ -115,7 +144,7 @@ public class StrategyExecutionServiceTest {
 
     @Test
     public void testExecuteStrategiesNoSelection() throws IOException {
-        mockedLoader.when(() -> StrategiesConfigLoader.load(anyString(), anyMap()))
+        when(strategiesConfigLoader.load(anyString(), anyMap()))
                 .thenReturn(Collections.emptyList());
 
         strategyExecutionService.startGlobalExecution("Test");
@@ -138,6 +167,16 @@ public class StrategyExecutionServiceTest {
         AbstractTradingStrategy strategy1 = mock(AbstractTradingStrategy.class);
         when(config1.getStrategy()).thenReturn(strategy1);
         when(strategy1.getStrategyName()).thenReturn("S1");
+        when(strategy1.getStrategyType()).thenReturn(com.hemasundar.options.strategies.StrategyType.PUT_CREDIT_SPREAD);
+        com.hemasundar.options.models.TradeSetup setup1 = mock(com.hemasundar.options.models.TradeSetup.class);
+        when(setup1.getLegs()).thenReturn(Collections.emptyList());
+        when(setup1.getNetCredit()).thenReturn(100.0);
+        when(setup1.getMaxLoss()).thenReturn(500.0);
+        when(setup1.getReturnOnRisk()).thenReturn(20.0);
+        when(setup1.getBreakEvenPrice()).thenReturn(145.0);
+        when(setup1.getBreakEvenPercentage()).thenReturn(3.0);
+        when(strategy1.findTrades(any(), any()))
+                .thenReturn(List.of(setup1));
 
         OptionsConfig config2 = mock(OptionsConfig.class);
         when(config2.getName()).thenReturn("Strategy 2");
@@ -145,8 +184,9 @@ public class StrategyExecutionServiceTest {
         AbstractTradingStrategy strategy2 = mock(AbstractTradingStrategy.class);
         when(config2.getStrategy()).thenReturn(strategy2);
         when(strategy2.getStrategyName()).thenReturn("S2");
+        when(strategy2.getStrategyType()).thenReturn(com.hemasundar.options.strategies.StrategyType.PUT_CREDIT_SPREAD);
 
-        mockedLoader.when(() -> StrategiesConfigLoader.load(anyString(), anyMap()))
+        when(strategiesConfigLoader.load(anyString(), anyMap()))
                 .thenReturn(List.of(config1, config2));
 
         Set<Integer> indices = new LinkedHashSet<>(List.of(0, 1));
@@ -169,6 +209,16 @@ public class StrategyExecutionServiceTest {
         AbstractTradingStrategy strategy = mock(AbstractTradingStrategy.class);
         when(config.getStrategy()).thenReturn(strategy);
         when(strategy.getStrategyName()).thenReturn("Custom");
+        when(strategy.getStrategyType()).thenReturn(com.hemasundar.options.strategies.StrategyType.PUT_CREDIT_SPREAD);
+        com.hemasundar.options.models.TradeSetup setupCustom = mock(com.hemasundar.options.models.TradeSetup.class);
+        when(setupCustom.getLegs()).thenReturn(Collections.emptyList());
+        when(setupCustom.getNetCredit()).thenReturn(100.0);
+        when(setupCustom.getMaxLoss()).thenReturn(500.0);
+        when(setupCustom.getReturnOnRisk()).thenReturn(1.0);
+        when(setupCustom.getBreakEvenPrice()).thenReturn(145.0);
+        when(setupCustom.getBreakEvenPercentage()).thenReturn(3.0);
+        when(strategy.findTrades(any(), any()))
+                .thenReturn(List.of(setupCustom));
 
         ExecutionResult result = strategyExecutionService.executeCustomStrategy(config);
 
@@ -187,16 +237,26 @@ public class StrategyExecutionServiceTest {
         AbstractTradingStrategy strategy = mock(AbstractTradingStrategy.class);
         when(config.getStrategy()).thenReturn(strategy);
         when(strategy.getStrategyName()).thenReturn("Tech");
+        when(strategy.getStrategyType()).thenReturn(com.hemasundar.options.strategies.StrategyType.PUT_CREDIT_SPREAD);
+        com.hemasundar.options.models.TradeSetup setupTech = mock(com.hemasundar.options.models.TradeSetup.class);
+        when(setupTech.getLegs()).thenReturn(Collections.emptyList());
+        when(setupTech.getNetCredit()).thenReturn(100.0);
+        when(setupTech.getMaxLoss()).thenReturn(500.0);
+        when(setupTech.getReturnOnRisk()).thenReturn(1.0);
+        when(setupTech.getBreakEvenPrice()).thenReturn(145.0);
+        when(setupTech.getBreakEvenPercentage()).thenReturn(3.0);
+        when(strategy.findTrades(any(), any()))
+                .thenReturn(List.of(setupTech));
 
         TechnicalScreener.ScreeningResult res = mock(TechnicalScreener.ScreeningResult.class);
         when(res.getSymbol()).thenReturn("AAPL");
-        mockedScreener.when(() -> TechnicalScreener.screenStocks(anyList(), any()))
+        when(technicalScreener.screenStocks(anyList(), any()))
                 .thenReturn(List.of(res));
 
         ExecutionResult result = strategyExecutionService.executeCustomStrategy(config);
 
         assertNotNull(result);
-        mockedScreener.verify(() -> TechnicalScreener.screenStocks(eq(List.of("AAPL", "MSFT")), any()));
+        verify(technicalScreener).screenStocks(eq(List.of("AAPL", "MSFT")), any());
     }
 
     @Test

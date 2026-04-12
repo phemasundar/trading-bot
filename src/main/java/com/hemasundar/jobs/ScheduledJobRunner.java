@@ -1,26 +1,24 @@
 package com.hemasundar.jobs;
 
+import com.hemasundar.config.properties.JobConfig;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 @Component
 @Log4j2
+@RequiredArgsConstructor
 public class ScheduledJobRunner implements CommandLineRunner {
 
-    @Value("${app.job.name:NONE}")
-    private String jobName;
-
-    @Autowired
-    private IVDataJobService ivDataJobService;
-
-    @Autowired
-    private ScreenerJobService screenerJobService;
+    private final JobConfig jobConfig;
+    private final IVDataJobService ivDataJobService;
+    private final ScreenerJobService screenerJobService;
+    private final com.hemasundar.utils.SchwabTokenGenerator schwabTokenGenerator;
 
     @Override
     public void run(String... args) throws Exception {
+        String jobName = jobConfig.getName();
         if ("NONE".equalsIgnoreCase(jobName)) {
             // Normal Web Application Startup
             return;
@@ -33,6 +31,8 @@ public class ScheduledJobRunner implements CommandLineRunner {
                 ivDataJobService.runIVDataCollection();
             } else if ("SCREENER".equalsIgnoreCase(jobName)) {
                 screenerJobService.runScheduledScreeners();
+            } else if ("GENERATE_TOKEN".equalsIgnoreCase(jobName)) {
+                schwabTokenGenerator.runInteractiveGenerator();
             } else {
                 log.error("Unknown job name provided: {}", jobName);
             }
@@ -40,7 +40,11 @@ public class ScheduledJobRunner implements CommandLineRunner {
             log.error("Job encountered a critical error: {}", e.getMessage(), e);
         } finally {
             log.info("Job {} execution finished. System exiting...", jobName);
-            System.exit(0); // Exit the application explicitly when running as a scheduled job
+            this.exit(0); // Exit the application explicitly when running as a scheduled job
         }
+    }
+
+    protected void exit(int status) {
+        System.exit(status);
     }
 }

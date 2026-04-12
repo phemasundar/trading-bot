@@ -4,7 +4,6 @@ import com.hemasundar.options.models.ExpirationChainResponse;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.pojos.QuotesResponse;
-import com.hemasundar.pojos.TestConfig;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import io.restassured.specification.AuthenticationSpecification;
@@ -18,27 +17,30 @@ import org.testng.annotations.Test;
 import java.util.List;
 import java.util.Map;
 
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
 import static org.testng.Assert.*;
+import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.*;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import com.hemasundar.utils.ApiErrorHandler;
+import com.hemasundar.utils.TokenProvider;
 
 public class ThinkOrSwinAPIsTest {
 
     private MockedStatic<RestAssured> mockedRestAssured;
-    private MockedStatic<TestConfig> mockedTestConfig;
-    private TestConfig mockConfig;
     private RequestSpecification sharedMockRequest;
+
+    @Mock
+    private TokenProvider tokenProvider;
+    @Mock
+    private ApiErrorHandler apiErrorHandler;
+
+    private ThinkOrSwinAPIs apis;
 
     @BeforeMethod
     public void setUp() {
+        MockitoAnnotations.openMocks(this);
         mockedRestAssured = mockStatic(RestAssured.class);
-        mockedTestConfig = mockStatic(TestConfig.class);
-        
-        mockConfig = mock(TestConfig.class);
-        when(TestConfig.getInstance()).thenReturn(mockConfig);
-        when(mockConfig.appKey()).thenReturn("test-app-key");
-        when(mockConfig.ppSecret()).thenReturn("test-secret");
-        when(mockConfig.refreshToken()).thenReturn("test-refresh-token");
         
         // Mock RestAssured globally for all calls (including TokenProvider refresh)
         sharedMockRequest = mock(RequestSpecification.class);
@@ -68,12 +70,14 @@ public class ThinkOrSwinAPIsTest {
         // Response for token refresh
         when(mockResponse.statusCode()).thenReturn(200);
         when(mockResponse.asPrettyString()).thenReturn("{\"access_token\": \"test-token\", \"expires_in\": 3600}");
+
+        when(tokenProvider.getAccessToken()).thenReturn("test-token");
+        apis = new ThinkOrSwinAPIs(tokenProvider, apiErrorHandler);
     }
 
     @AfterMethod
     public void tearDown() {
         mockedRestAssured.close();
-        mockedTestConfig.close();
     }
 
     @Test
@@ -84,7 +88,7 @@ public class ThinkOrSwinAPIsTest {
         // Include mandatory primitive fields to avoid deserialization errors
         when(mockResponse.asString()).thenReturn("{\"AAPL\": {\"assetMainType\": \"EQUITY\", \"realtime\": true, \"ssid\": 12345}}");
 
-        Map<String, QuotesResponse.QuoteData> quotes = ThinkOrSwinAPIs.getQuotes(List.of("AAPL"));
+        Map<String, QuotesResponse.QuoteData> quotes = apis.getQuotes(List.of("AAPL"));
         assertNotNull(quotes);
         assertTrue(quotes.containsKey("AAPL"));
     }
@@ -95,7 +99,7 @@ public class ThinkOrSwinAPIsTest {
         when(sharedMockRequest.get(anyString())).thenReturn(mockResponse);
         when(mockResponse.statusCode()).thenReturn(500);
         
-        ThinkOrSwinAPIs.getQuotes(List.of("AAPL"));
+        apis.getQuotes(List.of("AAPL"));
     }
 
     @Test
@@ -105,7 +109,7 @@ public class ThinkOrSwinAPIsTest {
         when(mockResponse.statusCode()).thenReturn(200);
         when(mockResponse.asString()).thenReturn("{\"AAPL\": {\"assetMainType\": \"EQUITY\", \"realtime\": true, \"ssid\": 12345}}");
 
-        QuotesResponse.QuoteData quote = ThinkOrSwinAPIs.getQuote("AAPL");
+        QuotesResponse.QuoteData quote = apis.getQuote("AAPL");
         assertNotNull(quote);
     }
 
@@ -116,7 +120,7 @@ public class ThinkOrSwinAPIsTest {
         when(mockResponse.statusCode()).thenReturn(400);
         when(mockResponse.asString()).thenReturn("{\"error\": \"Invalid symbol\"}");
 
-        QuotesResponse.QuoteData quote = ThinkOrSwinAPIs.getQuote("INVALID");
+        QuotesResponse.QuoteData quote = apis.getQuote("INVALID");
         assertNull(quote);
     }
 
@@ -126,7 +130,7 @@ public class ThinkOrSwinAPIsTest {
         when(sharedMockRequest.get(anyString())).thenReturn(mockResponse);
         when(mockResponse.statusCode()).thenReturn(500);
         
-        ThinkOrSwinAPIs.getQuote("AAPL");
+        apis.getQuote("AAPL");
     }
 
     @Test
@@ -136,7 +140,7 @@ public class ThinkOrSwinAPIsTest {
         when(mockResponse.statusCode()).thenReturn(200);
         when(mockResponse.asString()).thenReturn("{\"symbol\": \"AAPL\", \"underlyingPrice\": 150.0}");
 
-        OptionChainResponse chain = ThinkOrSwinAPIs.getOptionChain("AAPL");
+        OptionChainResponse chain = apis.getOptionChain("AAPL");
         assertNotNull(chain);
         assertEquals(chain.getSymbol(), "AAPL");
     }
@@ -148,7 +152,7 @@ public class ThinkOrSwinAPIsTest {
         when(mockResponse.statusCode()).thenReturn(200);
         when(mockResponse.asString()).thenReturn("{\"expirations\": [{\"date\": \"2024-01-01\", \"daysToExpiration\": 10}]}");
 
-        ExpirationChainResponse expirationChain = ThinkOrSwinAPIs.getExpirationChain("AAPL");
+        ExpirationChainResponse expirationChain = apis.getExpirationChain("AAPL");
         assertNotNull(expirationChain);
     }
 
@@ -159,7 +163,7 @@ public class ThinkOrSwinAPIsTest {
         when(mockResponse.statusCode()).thenReturn(200);
         when(mockResponse.asString()).thenReturn("{\"candles\": [], \"symbol\": \"AAPL\", \"empty\": false, \"previousClose\": 150.0, \"previousCloseDate\": 0}");
 
-        PriceHistoryResponse history = ThinkOrSwinAPIs.getYearlyPriceHistory("AAPL", 1);
+        PriceHistoryResponse history = apis.getYearlyPriceHistory("AAPL", 1);
         assertNotNull(history);
         assertEquals(history.getSymbol(), "AAPL");
     }
@@ -171,7 +175,7 @@ public class ThinkOrSwinAPIsTest {
         when(mockResponse.statusCode()).thenReturn(200);
         when(mockResponse.asString()).thenReturn("{\"equity\": {}, \"option\": {}}");
 
-        com.hemasundar.pojos.MarketHoursResponse res = ThinkOrSwinAPIs.getMarketHours();
+        com.hemasundar.pojos.MarketHoursResponse res = apis.getMarketHours();
         assertNotNull(res);
     }
 
@@ -182,7 +186,7 @@ public class ThinkOrSwinAPIsTest {
         when(mockResponse.statusCode()).thenReturn(200);
         when(mockResponse.asString()).thenReturn("{\"equity\": {}}");
 
-        String res = ThinkOrSwinAPIs.getMarketHour("equity", null);
+        String res = apis.getMarketHour("equity", null);
         assertNotNull(res);
         assertTrue(res.contains("equity"));
     }
@@ -194,7 +198,7 @@ public class ThinkOrSwinAPIsTest {
         when(mockResponse.statusCode()).thenReturn(200);
         when(mockResponse.asString()).thenReturn("[{\"symbol\": \"AAPL\", \"change\": 1.5, \"direction\": \"up\"}]");
 
-        String movers = ThinkOrSwinAPIs.getMovers("$SPX", "UP", 0);
+        String movers = apis.getMovers("$SPX", "UP", 0);
         assertNotNull(movers);
         assertTrue(movers.contains("AAPL"));
     }
@@ -206,7 +210,7 @@ public class ThinkOrSwinAPIsTest {
         when(mockResponse.statusCode()).thenReturn(400);
         when(mockResponse.asString()).thenReturn("Error");
 
-        String res = ThinkOrSwinAPIs.getMovers("INVALID", null, null);
+        String res = apis.getMovers("INVALID", null, null);
         assertNull(res);
     }
 
@@ -217,7 +221,7 @@ public class ThinkOrSwinAPIsTest {
         when(mockResponse.statusCode()).thenReturn(200);
         when(mockResponse.asString()).thenReturn("{\"AAPL\": {\"symbol\": \"AAPL\", \"description\": \"Apple Inc.\"}}");
 
-        String instruments = ThinkOrSwinAPIs.getInstruments("AAPL", "symbol-search");
+        String instruments = apis.getInstruments("AAPL", "symbol-search");
         assertNotNull(instruments);
         assertTrue(instruments.contains("AAPL"));
     }
@@ -229,7 +233,7 @@ public class ThinkOrSwinAPIsTest {
         when(mockResponse.statusCode()).thenReturn(200);
         when(mockResponse.asString()).thenReturn("[{\"symbol\": \"AAPL\", \"description\": \"Apple Inc.\"}]");
 
-        String res = ThinkOrSwinAPIs.getInstrumentByCusip("12345678");
+        String res = apis.getInstrumentByCusip("12345678");
         assertNotNull(res);
         assertTrue(res.contains("AAPL"));
     }
@@ -240,7 +244,7 @@ public class ThinkOrSwinAPIsTest {
         when(sharedMockRequest.get(anyString())).thenReturn(mockResponse);
         when(mockResponse.statusCode()).thenReturn(404);
 
-        String res = ThinkOrSwinAPIs.getInstrumentByCusip("NOTFOUND");
+        String res = apis.getInstrumentByCusip("NOTFOUND");
         assertNull(res);
     }
 }

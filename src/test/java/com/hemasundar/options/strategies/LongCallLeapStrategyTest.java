@@ -10,15 +10,29 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.testng.Assert.*;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import com.hemasundar.apis.FinnHubAPIs;
+import com.hemasundar.apis.ThinkOrSwinAPIs;
 
 public class LongCallLeapStrategyTest {
 
     private LongCallLeapStrategy strategy;
     private OptionChainResponse mockChain;
 
+    @Mock
+    private FinnHubAPIs finnHubAPIs;
+
+    @Mock
+    private ThinkOrSwinAPIs thinkOrSwinAPIs;
+
+    @Mock
+    private com.hemasundar.utils.VolatilityCalculator volatilityCalculator;
+
     @BeforeMethod
     public void setUp() {
-        strategy = new LongCallLeapStrategy();
+        MockitoAnnotations.openMocks(this);
+        strategy = new LongCallLeapStrategy(finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
         mockChain = StrategyTestUtils.createMockChain("AAPL", 150.0);
 
         // ITM Call: 140 Strike, Ask 20.00

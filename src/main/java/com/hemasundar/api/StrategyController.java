@@ -1,5 +1,6 @@
 package com.hemasundar.api;
 
+import com.hemasundar.config.properties.SupabaseConfig;
 import com.hemasundar.dto.ExecuteRequest;
 import com.hemasundar.dto.CustomExecuteRequest;
 import com.hemasundar.dto.StrategyResult;
@@ -37,12 +38,9 @@ public class StrategyController {
     private final StrategyExecutionService executionService;
     private final com.hemasundar.services.ScreenerExecutionService screenerExecutionService;
     private final com.hemasundar.utils.SecuritiesResolver securitiesResolver;
-
-    @org.springframework.beans.factory.annotation.Value("${supabase.url}")
-    private String supabaseUrl;
-
-    @org.springframework.beans.factory.annotation.Value("${supabase.anon.key}")
-    private String supabaseAnonKey;
+    private final com.hemasundar.apis.ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private final com.hemasundar.config.StrategiesConfigLoader strategiesConfigLoader;
+    private final SupabaseConfig supabaseConfig;
 
     // ────────────────────────────────────────────
     // AUTH CONFIG (public — excluded from filter)
@@ -56,8 +54,8 @@ public class StrategyController {
     @GetMapping("/auth/config")
     public ResponseEntity<?> getAuthConfig() {
         return ResponseEntity.ok(Map.of(
-                "supabaseUrl", supabaseUrl,
-                "supabaseAnonKey", supabaseAnonKey
+                "supabaseUrl", supabaseConfig.getUrl() != null ? supabaseConfig.getUrl() : "",
+                "supabaseAnonKey", supabaseConfig.getAnonKey() != null ? supabaseConfig.getAnonKey() : ""
         ));
     }
 
@@ -327,7 +325,7 @@ public class StrategyController {
 
             OptionsConfig config = OptionsConfig.builder()
                     .alias(request.getAlias())
-                    .strategy(type.createStrategy())
+                    .strategy(strategiesConfigLoader.getStrategy(type))
                     .securities(symbols)
                     .maxTradesToSend(request.getMaxTradesToSend() != null ? request.getMaxTradesToSend() : 30)
                     .filter(filter)
@@ -406,7 +404,7 @@ public class StrategyController {
     @GetMapping("/market-status")
     public ResponseEntity<?> getMarketStatus() {
         try {
-            MarketHoursResponse hours = ThinkOrSwinAPIs.getMarketHours();
+            MarketHoursResponse hours = thinkOrSwinAPIs.getMarketHours();
             String equityStatus = "CLOSED";
             String optionsStatus = "CLOSED";
 

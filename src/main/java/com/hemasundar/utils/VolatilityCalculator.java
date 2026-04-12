@@ -7,12 +7,14 @@ import lombok.extern.log4j.Log4j2;
 
 import java.util.List;
 
+import org.springframework.stereotype.Component;
+
 /**
- * Utility class for calculating historical volatility from price data.
+ * Component for calculating historical volatility from price data.
  * Uses log returns method for better statistical properties.
  */
 @Log4j2
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
+@Component
 public class VolatilityCalculator {
 
     private static final int TRADING_DAYS_PER_YEAR = 252;
@@ -30,7 +32,7 @@ public class VolatilityCalculator {
      * @return Annualized volatility as a percentage (e.g., 25.0 for 25%), or null
      *         if calculation fails
      */
-    public static Double calculateAnnualizedVolatility(PriceHistoryResponse priceHistory) {
+    public Double calculateAnnualizedVolatility(PriceHistoryResponse priceHistory) {
         if (priceHistory == null || priceHistory.getCandles() == null || priceHistory.getCandles().isEmpty()) {
             log.warn("Cannot calculate volatility: price history is null or empty");
             return null;
@@ -79,7 +81,7 @@ public class VolatilityCalculator {
      * @param values Array of values
      * @return Sample standard deviation
      */
-    private static double calculateStdDev(double[] values) {
+    private double calculateStdDev(double[] values) {
         if (values.length == 0) {
             return 0.0;
         }

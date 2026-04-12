@@ -1,5 +1,7 @@
 package com.hemasundar.services;
 
+import org.springframework.test.util.ReflectionTestUtils;
+import com.hemasundar.config.properties.GoogleSheetsConfig;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.model.*;
 import com.hemasundar.pojos.IVDataPoint;
@@ -22,6 +24,7 @@ public class GoogleSheetsServiceTest {
     private Sheets.Spreadsheets mockSpreadsheets;
     private Sheets.Spreadsheets.Values mockValues;
     private GoogleSheetsService googleSheetsService;
+    private GoogleSheetsConfig mockConfig;
     private final String SPREADSHEET_ID = "test-spreadsheet-id";
 
     @BeforeMethod
@@ -29,11 +32,14 @@ public class GoogleSheetsServiceTest {
         mockSheets = mock(Sheets.class);
         mockSpreadsheets = mock(Sheets.Spreadsheets.class);
         mockValues = mock(Sheets.Spreadsheets.Values.class);
+        mockConfig = mock(GoogleSheetsConfig.class);
         
+        when(mockConfig.getSpreadsheetId()).thenReturn(SPREADSHEET_ID);
         when(mockSheets.spreadsheets()).thenReturn(mockSpreadsheets);
         when(mockSpreadsheets.values()).thenReturn(mockValues);
         
-        googleSheetsService = new GoogleSheetsService(SPREADSHEET_ID, mockSheets);
+        googleSheetsService = new GoogleSheetsService(mockConfig);
+        ReflectionTestUtils.setField(googleSheetsService, "sheetsService", mockSheets);
     }
 
     @Test
@@ -206,7 +212,96 @@ public class GoogleSheetsServiceTest {
         dp.setCurrentDate(LocalDate.now());
 
         googleSheetsService.appendIVData(dp);
-        // Should have called execute twice
         verify(mockAppend, times(2)).execute();
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testAppendIVData_MaxRetriesReached() throws IOException {
+        // Mock findRowByDate returning null
+        Sheets.Spreadsheets.Values.Get mockValuesGet = mock(Sheets.Spreadsheets.Values.Get.class);
+        when(mockValues.get(anyString(), anyString())).thenReturn(mockValuesGet);
+        when(mockValuesGet.execute()).thenReturn(new ValueRange());
+
+        // Mock getOrCreateSheet
+        Sheets.Spreadsheets.Get mockSpreadsheetsGet = mock(Sheets.Spreadsheets.Get.class);
+        when(mockSpreadsheets.get(SPREADSHEET_ID)).thenReturn(mockSpreadsheetsGet);
+        when(mockSpreadsheetsGet.execute()).thenReturn(new Spreadsheet().setSheets(Collections.singletonList(new Sheet().setProperties(new SheetProperties().setTitle("AAPL")))));
+
+        Sheets.Spreadsheets.Values.Append mockAppend = mock(Sheets.Spreadsheets.Values.Append.class);
+        when(mockValues.append(anyString(), anyString(), any())).thenReturn(mockAppend);
+        when(mockAppend.setValueInputOption(anyString())).thenReturn(mockAppend);
+        when(mockAppend.setInsertDataOption(anyString())).thenReturn(mockAppend);
+
+        com.google.api.client.googleapis.json.GoogleJsonResponseException limitExceeded = 
+            mock(com.google.api.client.googleapis.json.GoogleJsonResponseException.class);
+        when(limitExceeded.getStatusCode()).thenReturn(429);
+        when(mockAppend.execute()).thenThrow(limitExceeded);
+
+        IVDataPoint dp = new IVDataPoint();
+        dp.setSymbol("AAPL");
+        dp.setCurrentDate(LocalDate.now());
+
+        try {
+            googleSheetsService.appendIVData(dp);
+        } finally {
+            // Should have called execute 4 times (initial + 3 retries)
+            verify(mockAppend, times(4)).execute();
+        }
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testAppendIVData_OtherException() throws IOException {
+        Sheets.Spreadsheets.Values.Append mockAppend = mock(Sheets.Spreadsheets.Values.Append.class);
+        when(mockValues.append(anyString(), anyString(), any())).thenReturn(mockAppend);
+        when(mockAppend.setValueInputOption(anyString())).thenReturn(mockAppend);
+        when(mockAppend.setInsertDataOption(anyString())).thenReturn(mockAppend);
+
+        com.google.api.client.googleapis.json.GoogleJsonResponseException otherError = 
+            mock(com.google.api.client.googleapis.json.GoogleJsonResponseException.class);
+        when(otherError.getStatusCode()).thenReturn(403);
+        when(mockAppend.execute()).thenThrow(otherError);
+
+        // This will trigger findRowByDate which we need to mock
+        Sheets.Spreadsheets.Values.Get mockValuesGet = mock(Sheets.Spreadsheets.Values.Get.class);
+        when(mockValues.get(anyString(), anyString())).thenReturn(mockValuesGet);
+        when(mockValuesGet.execute()).thenReturn(new ValueRange());
+
+        // Mock getOrCreateSheet
+        Sheets.Spreadsheets.Get mockSpreadsheetsGet = mock(Sheets.Spreadsheets.Get.class);
+        when(mockSpreadsheets.get(SPREADSHEET_ID)).thenReturn(mockSpreadsheetsGet);
+        when(mockSpreadsheetsGet.execute()).thenReturn(new Spreadsheet().setSheets(Collections.singletonList(new Sheet().setProperties(new SheetProperties().setTitle("AAPL")))));
+
+        IVDataPoint dp = new IVDataPoint();
+        dp.setSymbol("AAPL");
+        dp.setCurrentDate(LocalDate.now());
+
+        googleSheetsService.appendIVData(dp);
+    }
+
+    @Test
+    public void testReorderSheets_Empty() throws IOException {
+        Spreadsheet mockSpreadsheet = mock(Spreadsheet.class);
+        when(mockSpreadsheet.getSheets()).thenReturn(Collections.emptyList());
+
+        Sheets.Spreadsheets.Get mockGet = mock(Sheets.Spreadsheets.Get.class);
+        when(mockSpreadsheets.get(anyString())).thenReturn(mockGet);
+        when(mockGet.execute()).thenReturn(mockSpreadsheet);
+
+        googleSheetsService.reorderSheets(Collections.emptyList());
+        
+        verify(mockSpreadsheets, never()).batchUpdate(anyString(), any());
+    }
+
+    @Test
+    public void testReorderSheets_NoMatch() throws IOException {
+        Sheet sheet1 = new Sheet().setProperties(new SheetProperties().setTitle("AAPL").setSheetId(123));
+        Spreadsheet mockSpreadsheet = new Spreadsheet().setSheets(List.of(sheet1));
+
+        Sheets.Spreadsheets.Get mockGet = mock(Sheets.Spreadsheets.Get.class);
+        when(mockSpreadsheets.get(anyString())).thenReturn(mockGet);
+        when(mockGet.execute()).thenReturn(mockSpreadsheet);
+
+        googleSheetsService.reorderSheets(List.of("TSLA"));
+        verify(mockSpreadsheets, never()).batchUpdate(anyString(), any());
     }
 }

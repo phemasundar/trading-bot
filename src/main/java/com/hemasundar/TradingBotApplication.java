@@ -2,6 +2,7 @@ package com.hemasundar;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 /**
  * Main Spring Boot application class for Trading Bot Web UI.
@@ -9,6 +10,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * functionality.
  */
 @SpringBootApplication
+@ConfigurationPropertiesScan
 public class TradingBotApplication {
 
     public static void main(String[] args) {

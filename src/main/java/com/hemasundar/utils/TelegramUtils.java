@@ -1,31 +1,32 @@
 package com.hemasundar.utils;
 
+import com.hemasundar.config.properties.TelegramConfig;
 import com.hemasundar.dto.StrategyResult;
 import com.hemasundar.dto.Trade;
-import com.hemasundar.pojos.TestConfig;
 import com.hemasundar.technical.TechnicalScreener;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Utility class for sending messages to Telegram via Bot API.
+ * Spring-managed service for sending messages to Telegram via Bot API.
  * <p>
  * This class is a pure <b>message transport</b> layer. It does NOT contain any
  * trade-specific or screener-specific formatting logic. All formatting is done
  * upstream in the DTO layer ({@link Trade#getTradeDetails()},
  * {@link TechnicalScreener.ScreeningResult#getFormattedSummary()}).
  * <p>
- * Requires telegram_bot_token and telegram_chat_id to be configured in
- * test.properties.
+ * Requires telegram.bot-token and telegram.chat-id in application.properties
+ * or as environment variables.
  */
 @Log4j2
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
+@Component
+@RequiredArgsConstructor
 public class TelegramUtils {
 
     private static final String TELEGRAM_API_BASE = "https://api.telegram.org/bot";
@@ -34,6 +35,8 @@ public class TelegramUtils {
      * We use a slightly smaller limit to account for HTML escaping overhead.
      */
     private static final int MAX_MESSAGE_LENGTH = 4000;
+
+    private final TelegramConfig telegramConfig;
 
     // ==================== Public API ====================
 
@@ -47,20 +50,20 @@ public class TelegramUtils {
      * @return true if all message parts were sent/logged successfully, false
      *         otherwise
      */
-    public static boolean sendMessage(String message) {
-        Boolean telegramEnabled = TestConfig.getInstance().telegramEnabled();
+    public boolean sendMessage(String message) {
+        boolean telegramEnabled = telegramConfig.isEnabled();
 
         // If Telegram is disabled, just log to console
-        if (telegramEnabled != null && !telegramEnabled) {
+        if (!telegramEnabled) {
             log.info("[TELEGRAM DISABLED] Message would be sent:\n{}", message);
             return true;
         }
 
-        String botToken = TestConfig.getInstance().telegramBotToken();
-        String chatId = TestConfig.getInstance().telegramChatId();
+        String botToken = telegramConfig.getBotToken();
+        String chatId = telegramConfig.getChatId();
 
         if (botToken == null || botToken.isBlank() || chatId == null || chatId.isBlank()) {
-            log.warn("Telegram not configured. Set telegram_bot_token and telegram_chat_id in test.properties");
+            log.warn("Telegram not configured. Set telegram.bot-token and telegram.chat-id in application.properties");
             log.info("[TELEGRAM] Message:\n{}", message);
             return false;
         }
@@ -100,13 +103,12 @@ public class TelegramUtils {
      *
      * @param result The strategy result containing trades with pre-formatted details
      */
-    public static void sendTradeAlerts(StrategyResult result) {
+    public void sendTradeAlerts(StrategyResult result) {
         if (result == null || result.getTrades() == null || result.getTrades().isEmpty()) {
             return;
         }
 
         // Group trades by symbol+expiry for per-symbol messages
-        // (matches previous behavior where each symbol/expiry combination was a separate message)
         var tradesByKey = new java.util.LinkedHashMap<String, List<Trade>>();
         for (Trade trade : result.getTrades()) {
             String key = trade.getSymbol() + "_" + trade.getExpiryDate();
@@ -144,7 +146,7 @@ public class TelegramUtils {
      * @param screenerName Name of the screener for display in the alert
      * @param results      List of screening results to send
      */
-    public static void sendTechnicalScreenerAlert(String screenerName,
+    public void sendTechnicalScreenerAlert(String screenerName,
             List<TechnicalScreener.ScreeningResult> results) {
         if (results == null || results.isEmpty()) {
             return;

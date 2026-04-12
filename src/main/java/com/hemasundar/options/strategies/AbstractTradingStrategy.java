@@ -11,27 +11,29 @@ import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.utils.VolatilityCalculator;
 import org.apache.commons.collections4.CollectionUtils;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Log4j2
+@RequiredArgsConstructor
 public abstract class AbstractTradingStrategy implements TradingStrategy {
 
     @Getter
     private final StrategyType strategyType;
 
-    protected AbstractTradingStrategy(StrategyType strategyType) {
-        this.strategyType = strategyType;
-    }
+    protected final FinnHubAPIs finnHubAPIs;
+    protected final ThinkOrSwinAPIs thinkOrSwinAPIs;
+    protected final VolatilityCalculator volatilityCalculator;
 
     @Override
     public List<TradeSetup> findTrades(OptionChainResponse chain, OptionsStrategyFilter filter) {
-        // Check historical volatility before processing
         if (!checkHistoricalVolatility(chain.getSymbol(), filter)) {
-            return new ArrayList<>(); // Skip symbol if volatility doesn't meet threshold
+            return Collections.emptyList();
         }
 
         int targetDTE = filter.getTargetDTE() != null ? filter.getTargetDTE() : 0;
@@ -53,7 +55,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             // Check earnings for this expiry if not ignored
             if (!filter.isIgnoreEarnings()) {
                 try {
-                    EarningsCalendarResponse earningsResponse = FinnHubAPIs.getEarningsByTicker(
+                    EarningsCalendarResponse earningsResponse = finnHubAPIs.getEarningsByTicker(
                             chain.getSymbol(), LocalDate.parse(expiryDate));
                     if (CollectionUtils.isNotEmpty(earningsResponse.getEarningsCalendar())) {
                         log.info("[{}] Skipping expiry {} due to upcoming earnings on {}",
@@ -205,8 +207,8 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             } else {
                 // Fetch price history and calculate volatility
                 log.debug("[{}] Fetching price history to calculate historical volatility", symbol);
-                PriceHistoryResponse priceHistory = ThinkOrSwinAPIs.getYearlyPriceHistory(symbol, 1);
-                historicalVolatility = VolatilityCalculator.calculateAnnualizedVolatility(priceHistory);
+                PriceHistoryResponse priceHistory = thinkOrSwinAPIs.getYearlyPriceHistory(symbol, 1);
+                historicalVolatility = volatilityCalculator.calculateAnnualizedVolatility(priceHistory);
 
                 // Cache the result
                 PriceHistoryCache.HistoricalData data = new PriceHistoryCache.HistoricalData(

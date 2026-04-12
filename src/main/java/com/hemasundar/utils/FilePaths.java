@@ -11,14 +11,13 @@ import java.nio.file.Path;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class FilePaths {
 
-    // Test config is read from the filesystem — only used in local test runs (not
-    // in Docker)
-    public static final Path testConfig = Path.of("src/test/resources/test.properties");
+
 
     // Securities directory as a filesystem Path — only used by IVDataCollectionTest
     // for directory scanning
     // (only ever runs locally where the source tree is present on disk)
     public static final Path securitiesDirectory = Path.of("src/main/resources/securities");
+    public static final Path testConfig = Path.of("src/test/resources/test.properties");
 
     // Classpath resource names — bundled inside the JAR via src/main/resources/
     // These work both in local IDE runs and inside Docker (via classpath, not

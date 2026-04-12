@@ -10,21 +10,25 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.springframework.stereotype.Component;
+
+import com.hemasundar.apis.FinnHubAPIs;
+import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.utils.VolatilityCalculator;
+
 /**
  * Unified Long Call LEAP strategy.
  * Supports both strict filtering and Top N ranked results with progressive
  * relaxation.
  */
 @Log4j2
+@Component
 public class LongCallLeapStrategy extends AbstractTradingStrategy {
 
-    public LongCallLeapStrategy() {
-        super(StrategyType.LONG_CALL_LEAP);
-    }
-
-    // Constructor for backward compatibility if needed, though mostly using the default
-    protected LongCallLeapStrategy(StrategyType strategyType) {
-        super(strategyType);
+    public LongCallLeapStrategy(FinnHubAPIs finnHubAPIs,
+                               ThinkOrSwinAPIs thinkOrSwinAPIs,
+                               VolatilityCalculator volatilityCalculator) {
+        super(StrategyType.LONG_CALL_LEAP, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
     }
 
     @Override

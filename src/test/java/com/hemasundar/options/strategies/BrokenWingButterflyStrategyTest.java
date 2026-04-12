@@ -9,12 +9,30 @@ import org.testng.annotations.Test;
 import java.util.List;
 
 import static org.testng.Assert.*;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import com.hemasundar.apis.FinnHubAPIs;
+import com.hemasundar.apis.ThinkOrSwinAPIs;
+import org.testng.annotations.BeforeMethod;
 
 public class BrokenWingButterflyStrategyTest {
+    @Mock
+    private FinnHubAPIs finnHubAPIs;
+    @Mock
+    private ThinkOrSwinAPIs thinkOrSwinAPIs;
+    @Mock
+    private com.hemasundar.utils.VolatilityCalculator volatilityCalculator;
+
+    private BrokenWingButterflyStrategy strategy;
+
+    @BeforeMethod
+    public void setUp() {
+        MockitoAnnotations.openMocks(this);
+        strategy = new BrokenWingButterflyStrategy(finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
+    }
 
     @Test
     public void testFindValidTrades_Success() {
-        BrokenWingButterflyStrategy strategy = new BrokenWingButterflyStrategy();
         OptionChainResponse chain = StrategyTestUtils.createMockChain("AAPL", 150.0);
 
         // BWB Call candidate: 140/150/155
@@ -46,7 +64,6 @@ public class BrokenWingButterflyStrategyTest {
 
     @Test
     public void testRejectByWingWidthRatio() {
-        BrokenWingButterflyStrategy strategy = new BrokenWingButterflyStrategy();
         OptionChainResponse chain = StrategyTestUtils.createMockChain("AAPL", 150.0);
 
         // 140/145/160 -> Lower Wing = 5, Upper Wing = 15. 15 > 2*5.
@@ -64,7 +81,6 @@ public class BrokenWingButterflyStrategyTest {
 
     @Test
     public void testRejectByDefaultDebitFilter() {
-        BrokenWingButterflyStrategy strategy = new BrokenWingButterflyStrategy();
         OptionChainResponse chain = StrategyTestUtils.createMockChain("AAPL", 150.0);
 
         // Leg 1 Cost: 10.0 -> Limit is 5.0
@@ -87,7 +103,6 @@ public class BrokenWingButterflyStrategyTest {
 
     @Test
     public void testFilterByPriceVsMaxDebitRatio() {
-        BrokenWingButterflyStrategy strategy = new BrokenWingButterflyStrategy();
         OptionChainResponse chain = StrategyTestUtils.createMockChain("AAPL", 100.0);
 
         StrategyTestUtils.addOption(chain, "2026-01-02", 30, 90.0, 12.00, 12.10, 0.80, false);
@@ -114,7 +129,6 @@ public class BrokenWingButterflyStrategyTest {
 
     @Test
     public void testFilterByUpperBreakevenDelta() {
-        BrokenWingButterflyStrategy strategy = new BrokenWingButterflyStrategy();
         OptionChainResponse chain = StrategyTestUtils.createMockChain("AAPL", 150.0);
 
         // 140/150/155

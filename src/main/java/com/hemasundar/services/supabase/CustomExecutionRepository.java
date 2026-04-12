@@ -10,6 +10,8 @@ import com.hemasundar.dto.Trade;
 import io.restassured.response.Response;
 import lombok.extern.log4j.Log4j2;
 
+import org.springframework.stereotype.Component;
+
 import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -22,6 +24,7 @@ import java.util.Optional;
  * Repository for handling custom executions and historical execution results with Supabase.
  */
 @Log4j2
+@Component
 public class CustomExecutionRepository {
     private static final String EXECUTIONS_PATH = "/rest/v1/strategy_executions";
     private static final String CUSTOM_EXECUTION_RESULTS_PATH = "/rest/v1/custom_execution_results";
