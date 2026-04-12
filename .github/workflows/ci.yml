@@ -16,7 +16,7 @@ jobs:
       # Inject secrets as environment variables
       REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
       APP_KEY: ${{ secrets.APP_KEY }}
-      PP_SECRET: ${{ secrets.PP_SECRET }}
+      APP_SECRET: ${{ secrets.APP_SECRET }}
       FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
       FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

@@ -1,0 +1,37 @@
+## Server Configuration
+server.port=8080
+spring.application.name=Trading Bot
+
+## JSON Configuration
+spring.jackson.serialization.indent-output=true
+
+## Schwab API Configuration
+schwab.refresh-token=${REFRESH_TOKEN:TQn_tWgP5Y2W0A6gPLeVFAV3KMRLeLhhnnqr6NBDWVYNEPqIqMZ6ha0dT_CApW707yYa1IYVYFB0AT5UtOAbt8dTVq8sJyZgngggSfvxZMXLYoXYSbEDHbHF-CI7KEJ6ToZ1md7ZByE@}
+schwab.app-key=${APP_KEY:bknaNSv5aEaa29s3dyj1UVOPedGN2pDVWBQQJv4mJBVh9rPU}
+schwab.app-secret=${APP_SECRET:8tx8O6l64jAeHtBX2kRzUFGDh5bxUHDxWbuAqOAS444H7GLrqmpaBcQtKwzGvuO3}
+
+## FinnHub API Configuration
+finnhub.api-key=${FINNHUB_API_KEY:d5aalc1r01qn2tat1qkgd5aalc1r01qn2tat1ql0}
+
+## FMP API Configuration
+fmp.api-key=${FMP_API_KEY:dXgE1gyJue8qcU5FKEBpzuGH90gWsP3A}
+
+## Telegram Configuration
+telegram.bot-token=${TELEGRAM_BOT_TOKEN:8576789118:AAFLNsn2pZU_iTYfLIovgzX21ApUwp_EIsI}
+telegram.chat-id=${TELEGRAM_CHAT_ID:7723829698}
+telegram.enabled=${TELEGRAM_ENABLED:true}
+
+## Supabase Configuration
+supabase.url=${SUPABASE_URL:https://snjbkdqbmlmwjllnoyqy.supabase.co}
+supabase.anon-key=${SUPABASE_ANON_KEY:sb_publishable_I_po8XQs4sqyPfahn50Zjw_HlHCp17U}
+supabase.service-role-key=${SUPABASE_SERVICE_ROLE_KEY:eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNuamJrZHFibWxtd2psbG5veXF5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDE3NTI0MCwiZXhwIjoyMDg1NzUxMjQwfQ.AV3IoPdcPjPTPmeJL2fT5oPhtm7UPqiV6oXdLEx8qdU}
+
+## Google Sheets Configuration
+google.sheets.spreadsheet-id=${GOOGLE_SPREADSHEET_ID:1SOoK_IGW3TVZlYQ_uYyIjSAUBTzh_tvk5qJghzTBLgA}
+google.sheets.enabled=${GOOGLE_SHEETS_ENABLED:true}
+supabase.enabled=${SUPABASE_ENABLED:true}
+
+## Allowed user emails (comma-separated)
+allowed.emails=${ALLOWED_EMAILS:p.hemasundar@gmail.com}
+
+logging.file.name=logs/trading-bot.log
