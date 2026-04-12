@@ -76,8 +76,14 @@ jobs:
             --set-env-vars "REFRESH_TOKEN=${{ secrets.REFRESH_TOKEN }}" \
             --set-env-vars "APP_KEY=${{ secrets.APP_KEY }}" \
             --set-env-vars "APP_SECRET=${{ secrets.APP_SECRET }}" \
+            --set-env-vars "FINNHUB_API_KEY=${{ secrets.FINNHUB_API_KEY }}" \
+            --set-env-vars "FMP_API_KEY=${{ secrets.FMP_API_KEY }}" \
+            --set-env-vars "GOOGLE_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }}" \
+            --set-env-vars "GOOGLE_SHEETS_ENABLED=${{ secrets.GOOGLE_SHEETS_ENABLED }}" \
+            --set-env-vars "SUPABASE_ENABLED=${{ secrets.SUPABASE_ENABLED }}" \
             --set-env-vars "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" \
             --set-env-vars "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}" \
+            --set-env-vars "TELEGRAM_ENABLED=${{ secrets.TELEGRAM_ENABLED }}" \
             --quiet
 
       # ── 8. Print the service URL ──────────────────────────────────────
