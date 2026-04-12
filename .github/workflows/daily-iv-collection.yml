@@ -2,8 +2,8 @@ name: Daily IV Data Collection
 
 on:
   schedule:
-    # Run at 5:00 PM EST (22:00 UTC) on weekdays (Monday-Friday)
-    - cron: "0 22 * * 1-5"
+    # Run at 5:00 PM EDT (21:00 UTC) on weekdays (Monday-Friday)
+    - cron: "0 21 * * 1-5"
   workflow_dispatch: # Allow manual trigger from GitHub UI
 
 jobs:

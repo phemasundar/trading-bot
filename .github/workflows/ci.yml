@@ -2,10 +2,10 @@ name: Trading Bot CI
 
 on:
   schedule:
-    # 9:00 AM CST = 15:00 UTC (CST is UTC-6)
-    - cron: "0 15 * * *"
-    # 2:30 PM CST = 20:30 UTC
-    - cron: "30 20 * * *"
+    # 10:00 AM EDT (9:00 AM CDT) = 14:00 UTC
+    - cron: "0 14 * * 1-5"
+    # 3:30 PM EDT (2:30 PM CDT) = 19:30 UTC
+    - cron: "30 19 * * 1-5"
   workflow_dispatch: # Allow manual trigger
 
 jobs:

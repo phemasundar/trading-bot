@@ -34,11 +34,14 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             return new ArrayList<>(); // Skip symbol if volatility doesn't meet threshold
         }
 
-        List<String> expiryDates = chain.getExpiryDatesInRange(filter.getTargetDTE(), filter.getMinDTE(),
-                filter.getMaxDTE());
+        int targetDTE = filter.getTargetDTE() != null ? filter.getTargetDTE() : 0;
+        int minDTE = filter.getMinDTE() != null ? filter.getMinDTE() : 0;
+        int maxDTE = filter.getMaxDTE() != null ? filter.getMaxDTE() : Integer.MAX_VALUE;
+
+        List<String> expiryDates = chain.getExpiryDatesInRange(targetDTE, minDTE, maxDTE);
         if (expiryDates.isEmpty()) {
             log.debug("[{}] No expiry dates found in range [{}-{}]",
-                    chain.getSymbol(), filter.getMinDTE(), filter.getMaxDTE());
+                    chain.getSymbol(), minDTE, maxDTE);
             return new ArrayList<>();
         }
 

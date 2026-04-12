@@ -217,6 +217,38 @@ a:hover {
     overflow-x: auto;
 }
 
+/* ── Filter Details (on result cards) ── */
+.filter-details-section {
+    margin-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 6px;
+}
+
+.filter-details-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    padding: 4px 0;
+    transition: color 0.15s;
+}
+
+.filter-details-toggle:hover {
+    color: var(--primary);
+}
+
+.filter-details-body {
+    display: none;
+    padding: 10px 0 4px;
+}
+
+.filter-details-body.open {
+    display: block;
+}
+
 .card-content.open {
     display: block;
 }

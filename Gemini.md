@@ -3,7 +3,21 @@
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 > **CRITICAL AI RULE**: NEVER use GitHub MCP tools (create PR, merge, create release, etc.) unless the user explicitly asks. Do not assume permission for any GitHub operations.
 
-## Supabase Auth Login with Google/Apple OAuth (2026-04-07)
+## Execute Screen Filter Display & Reload (2026-04-11)
+
+Added full filter visibility and reload capability to custom execution result cards on the Execute Strategy screen.
+
+### Features
+- **Filter Details Section**: Each custom execution result card now includes a collapsible "Filter Details" section that displays the complete filter configuration used during that execution, using the same `renderFilterGrid()` layout as the Config page.
+- **Load Filters Button**: On the Execute Strategy page, each result card shows a "⬆ Load Filters" button that populates the filter form with the exact parameters from that previous execution. This enables rapid iteration — users can re-run a strategy with the same or slightly modified filters without re-entering everything manually.
+- **Strategy Type Auto-Detection**: The Load Filters function automatically detects the strategy type from the result's strategy name and sets the dropdown + renders strategy-specific filters accordingly.
+- **Alias Annotation**: When loading filters from a result, the alias field is auto-populated with the original name + " (Reload)" suffix for traceability.
+
+### Architecture
+- **`app.js`** [MODIFIED]: Updated `buildResultCard()` to render a collapsible filter details section and a contextual "Load Filters" button (only visible on the execute page). Added `loadFiltersFromResult()` function with strategy type detection, filter flattening, and form population logic.
+- **`style.css`** [MODIFIED]: Added `.filter-details-section`, `.filter-details-toggle`, and `.filter-details-body` CSS classes for the collapsible filter details UI.
+
+
 
 Replaced the manual static bearer token authentication system with Supabase Auth using Google and Apple OAuth providers. Users now sign in via their Google or Apple account, and the backend verifies Supabase-issued JWTs.
 
