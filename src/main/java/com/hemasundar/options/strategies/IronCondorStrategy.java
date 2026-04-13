@@ -19,17 +19,17 @@ import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.utils.VolatilityCalculator;
 
-@Component
 public class IronCondorStrategy extends AbstractTradingStrategy {
     private final PutCreditSpreadStrategy putStrategy;
     private final CallCreditSpreadStrategy callStrategy;
 
-    public IronCondorStrategy(FinnHubAPIs finnHubAPIs,
+    public IronCondorStrategy(StrategyType strategyType,
+                             FinnHubAPIs finnHubAPIs,
                              ThinkOrSwinAPIs thinkOrSwinAPIs,
                              VolatilityCalculator volatilityCalculator,
                              PutCreditSpreadStrategy putStrategy,
                              CallCreditSpreadStrategy callStrategy) {
-        super(StrategyType.IRON_CONDOR, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
+        super(strategyType, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
         this.putStrategy = putStrategy;
         this.callStrategy = callStrategy;
     }

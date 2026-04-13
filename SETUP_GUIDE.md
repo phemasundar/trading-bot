@@ -85,6 +85,7 @@ You have two options for local development:
 3. Set environment variable before running tests:
 
 **PowerShell:**
+
 ```powershell
 $env:GOOGLE_SERVICE_ACCOUNT_JSON = Get-Content "path\to\trading-bot-iv-tracker-xxxxx.json" -Raw
 $env:GOOGLE_SPREADSHEET_ID = "YOUR_SPREADSHEET_ID_HERE"
@@ -92,6 +93,7 @@ mvn test -DsuiteXmlFile=iv-data-collection.xml
 ```
 
 **Command Prompt:**
+
 ```cmd
 set GOOGLE_SERVICE_ACCOUNT_JSON=<paste entire JSON content here>
 set GOOGLE_SPREADSHEET_ID=YOUR_SPREADSHEET_ID_HERE
@@ -112,11 +114,13 @@ mvn test -DsuiteXmlFile=iv-data-collection.xml
 ### Step 8: Test Local Execution
 
 Run the IV collection test:
+
 ```bash
 mvn test -DsuiteXmlFile=iv-data-collection.xml
 ```
 
 **Expected output:**
+
 ```
 [INFO] Using Service Account authentication for automated environment
 [INFO] Google Sheets Service initialized for spreadsheet: 1SOoK...
@@ -145,40 +149,49 @@ mvn test -DsuiteXmlFile=iv-data-collection.xml
 #### Required Secrets:
 
 **1. GOOGLE_SERVICE_ACCOUNT_JSON**
+
 - **Value**: Entire contents of your service account JSON file
 - Open `trading-bot-iv-tracker-xxxxx.json` → Copy ALL content → Paste
 
 **2. GOOGLE_SPREADSHEET_ID**
+
 - **Value**: Spreadsheet ID from Step 5
 - Example: `1SOoK_IGW3TVZlYQ_uYyIjSAUBTzh_tvk5qJghzTBLgA`
 
 **3. REFRESH_TOKEN**
+
 - **Value**: ThinkOrSwim API refresh token
 - Copy from your `test.properties` file
 
 **4. APP_KEY**
+
 - **Value**: ThinkOrSwim API app key
 - Copy from your `test.properties` file
 
-**5. PP_SECRET**
+**5. APP_SECRET**
+
 - **Value**: ThinkOrSwim API app secret
 - Copy from your `test.properties` file (field name `pp_secret`)
 
 **6. FINNHUB_API_KEY**
+
 - **Value**: Finnhub API key (for earnings data)
 - Copy from your `test.properties` file
 
 **7. FMP_API_KEY**
+
 - **Value**: Financial Modeling Prep API key
 - Copy from your `test.properties` file
 
 #### Optional Secrets (if using Telegram notifications):
 
 **8. TELEGRAM_BOT_TOKEN**
+
 - **Value**: Your Telegram bot token
 - Copy from your `test.properties` file
 
 **9. TELEGRAM_CHAT_ID**
+
 - **Value**: Your Telegram chat ID
 - Copy from your `test.properties` file
 
@@ -197,6 +210,7 @@ The workflow file `.github/workflows/daily-iv-collection.yml` is already configu
 5. Click "Run workflow"
 
 **Monitor the execution:**
+
 - The workflow should complete successfully
 - Check the Google Sheet for new data
 
@@ -207,7 +221,7 @@ The workflow file `.github/workflows/daily-iv-collection.yml` is already configu
 Each symbol's tab will contain:
 
 | Date       | Strike | DTE | Expiry Date | PUT IV (%) | CALL IV (%) | Underlying Price |
-|------------|--------|-----|-------------|------------|-------------|------------------|
+| ---------- | ------ | --- | ----------- | ---------- | ----------- | ---------------- |
 | 2026-01-31 | 150.0  | 30  | 2026-03-21  | 28.5       | 29.1        | 151.25           |
 | 2026-02-03 | 155.0  | 29  | 2026-03-21  | 27.8       | 28.4        | 156.50           |
 
@@ -224,9 +238,11 @@ IV Rank = (Current IV - Min IV 52w) / (Max IV 52w - Min IV 52w) × 100
 ```
 
 **Google Sheets Formula Example (for PUT IV):**
+
 ```
 =IF(MAX(E:E)-MIN(E:E)=0, 50, (E2-MIN(E:E))/(MAX(E:E)-MIN(E:E))*100)
 ```
+
 Where column E contains PUT IV (%) values.
 
 ---
@@ -236,28 +252,34 @@ Where column E contains PUT IV (%) values.
 ### Local Execution Issues
 
 **Error: "Credentials file not found"**
+
 - Ensure `GOOGLE_SERVICE_ACCOUNT_JSON` environment variable is set
 - Verify JSON content is valid (copy entire file including braces)
 
 **Error: "Invalid spreadsheet ID"**
+
 - Verify spreadsheet ID is correct
 - Ensure spreadsheet is shared with service account email
 
 **Error: "Permission denied"**
+
 - Check spreadsheet sharing settings
 - Ensure service account has "Editor" permission
 
 ### GitHub Actions Issues
 
 **Error: "userName cannot be null"**
+
 - Verify `GOOGLE_SERVICE_ACCOUNT_JSON` secret is set in GitHub
 - Ensure secret contains the entire JSON file content
 
 **Error: "Spreadsheet not found"**
+
 - Verify `GOOGLE_SPREADSHEET_ID` secret is correct
 - Ensure spreadsheet is shared with service account email from the JSON
 
 **Rate Limit Errors:**
+
 - The code has built-in retry logic and 1.5s delays
 - If errors persist, reduce the number of securities in YAML files
 
@@ -266,12 +288,14 @@ Where column E contains PUT IV (%) values.
 ## Security Best Practices
 
 ✅ **DO:**
+
 - Keep service account JSON file secure
 - Add `*.json` to `.gitignore`
 - Use GitHub Secrets for CI/CD
 - Rotate service account keys annually
 
 ❌ **DON'T:**
+
 - Commit service account JSON to Git
 - Share JSON file publicly
 - Hardcode credentials in code

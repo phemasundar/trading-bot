@@ -28,7 +28,7 @@ public class BrokenWingButterflyStrategyTest {
     @BeforeMethod
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        strategy = new BrokenWingButterflyStrategy(finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
+        strategy = new BrokenWingButterflyStrategy(StrategyType.BULLISH_BROKEN_WING_BUTTERFLY, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
     }
 
     @Test

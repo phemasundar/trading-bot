@@ -27,7 +27,7 @@ public class PutCreditSpreadStrategyTest {
     @BeforeMethod
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        strategy = new PutCreditSpreadStrategy(finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
+        strategy = new PutCreditSpreadStrategy(StrategyType.PUT_CREDIT_SPREAD, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
     }
 
     @Test
