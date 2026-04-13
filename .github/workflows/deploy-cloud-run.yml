@@ -79,18 +79,18 @@ jobs:
           add_var "SUPABASE_URL" "${{ secrets.SUPABASE_URL }}"
           add_var "SUPABASE_ANON_KEY" "${{ secrets.SUPABASE_ANON_KEY }}"
           add_var "SUPABASE_SERVICE_ROLE_KEY" "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
-          add_var "ALLOWED_EMAILS" "${{ secrets.ALLOWED_EMAILS }}"
+          add_var "ALLOWED_EMAILS" "${{ vars.ALLOWED_EMAILS }}"
           add_var "REFRESH_TOKEN" "${{ secrets.REFRESH_TOKEN }}"
           add_var "APP_KEY" "${{ secrets.APP_KEY }}"
           add_var "APP_SECRET" "${{ secrets.APP_SECRET }}"
           add_var "FINNHUB_API_KEY" "${{ secrets.FINNHUB_API_KEY }}"
           add_var "FMP_API_KEY" "${{ secrets.FMP_API_KEY }}"
           add_var "GOOGLE_SPREADSHEET_ID" "${{ secrets.GOOGLE_SPREADSHEET_ID }}"
-          add_var "GOOGLE_SHEETS_ENABLED" "${{ secrets.GOOGLE_SHEETS_ENABLED }}"
-          add_var "SUPABASE_ENABLED" "${{ secrets.SUPABASE_ENABLED }}"
+          add_var "GOOGLE_SHEETS_ENABLED" "${{ vars.GOOGLE_SHEETS_ENABLED }}"
+          add_var "SUPABASE_ENABLED" "${{ vars.SUPABASE_ENABLED }}"
           add_var "TELEGRAM_BOT_TOKEN" "${{ secrets.TELEGRAM_BOT_TOKEN }}"
           add_var "TELEGRAM_CHAT_ID" "${{ secrets.TELEGRAM_CHAT_ID }}"
-          add_var "TELEGRAM_ENABLED" "${{ secrets.TELEGRAM_ENABLED }}"
+          add_var "TELEGRAM_ENABLED" "${{ vars.TELEGRAM_ENABLED }}"
           
           # Build list of gcloud arguments
           DEPLOY_CMD="gcloud run deploy ${{ env.SERVICE_NAME }} \
