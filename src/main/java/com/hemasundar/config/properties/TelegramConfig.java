@@ -10,5 +10,5 @@ import org.springframework.stereotype.Component;
 public class TelegramConfig {
     private String botToken;
     private String chatId;
-    private boolean enabled;
+    private Boolean enabled;
 }

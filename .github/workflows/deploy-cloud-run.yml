@@ -59,18 +59,59 @@ jobs:
       # ── 7. Deploy to Cloud Run ────────────────────────────────────────
       - name: Deploy to Cloud Run
         run: |
-          gcloud run deploy ${{ env.SERVICE_NAME }} \
+          # Dynamically assemble the environment variables string.
+          # Secrets that are empty/missing in GitHub will be omitted,
+          # allowing Spring Boot to fall back to application.properties defaults.
+          VARS=""
+          
+          add_var() {
+            # Only add to the string if the value is non-empty
+            if [ -n "$2" ]; then
+              if [ -z "$VARS" ]; then
+                VARS="^|^$1=$2"
+              else
+                VARS="$VARS|$1=$2"
+              fi
+            fi
+          }
+          
+          # Map variables from secrets
+          add_var "SUPABASE_URL" "${{ secrets.SUPABASE_URL }}"
+          add_var "SUPABASE_ANON_KEY" "${{ secrets.SUPABASE_ANON_KEY }}"
+          add_var "SUPABASE_SERVICE_ROLE_KEY" "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
+          add_var "ALLOWED_EMAILS" "${{ secrets.ALLOWED_EMAILS }}"
+          add_var "REFRESH_TOKEN" "${{ secrets.REFRESH_TOKEN }}"
+          add_var "APP_KEY" "${{ secrets.APP_KEY }}"
+          add_var "APP_SECRET" "${{ secrets.APP_SECRET }}"
+          add_var "FINNHUB_API_KEY" "${{ secrets.FINNHUB_API_KEY }}"
+          add_var "FMP_API_KEY" "${{ secrets.FMP_API_KEY }}"
+          add_var "GOOGLE_SPREADSHEET_ID" "${{ secrets.GOOGLE_SPREADSHEET_ID }}"
+          add_var "GOOGLE_SHEETS_ENABLED" "${{ secrets.GOOGLE_SHEETS_ENABLED }}"
+          add_var "SUPABASE_ENABLED" "${{ secrets.SUPABASE_ENABLED }}"
+          add_var "TELEGRAM_BOT_TOKEN" "${{ secrets.TELEGRAM_BOT_TOKEN }}"
+          add_var "TELEGRAM_CHAT_ID" "${{ secrets.TELEGRAM_CHAT_ID }}"
+          add_var "TELEGRAM_ENABLED" "${{ secrets.TELEGRAM_ENABLED }}"
+          
+          # Build list of gcloud arguments
+          DEPLOY_CMD="gcloud run deploy ${{ env.SERVICE_NAME }} \
             --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}/app:${{ github.sha }} \
             --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated \
-            --memory 512Mi \
+            --memory 1Gi \
             --cpu 1 \
             --min-instances 1 \
             --max-instances 1 \
             --port 8080 \
-            --set-env-vars "^|^SUPABASE_URL=${{ secrets.SUPABASE_URL }}|SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}|SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}|ALLOWED_EMAILS=${{ secrets.ALLOWED_EMAILS }}|REFRESH_TOKEN=${{ secrets.REFRESH_TOKEN }}|APP_KEY=${{ secrets.APP_KEY }}|APP_SECRET=${{ secrets.APP_SECRET }}|FINNHUB_API_KEY=${{ secrets.FINNHUB_API_KEY }}|FMP_API_KEY=${{ secrets.FMP_API_KEY }}|GOOGLE_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }}|GOOGLE_SHEETS_ENABLED=${{ secrets.GOOGLE_SHEETS_ENABLED }}|SUPABASE_ENABLED=${{ secrets.SUPABASE_ENABLED }}|TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}|TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}|TELEGRAM_ENABLED=${{ secrets.TELEGRAM_ENABLED }}" \
-            --quiet
+            --timeout 300 \
+            --quiet"
+          
+          # Append env vars flag if any were added
+          if [ -n "$VARS" ]; then
+            eval "$DEPLOY_CMD --set-env-vars \"$VARS\""
+          else
+            eval "$DEPLOY_CMD"
+          fi
 
       # ── 8. Print the service URL ──────────────────────────────────────
       - name: Get service URL
