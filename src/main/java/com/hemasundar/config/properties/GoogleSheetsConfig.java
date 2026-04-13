@@ -9,5 +9,5 @@ import org.springframework.stereotype.Component;
 @Data
 public class GoogleSheetsConfig {
     private String spreadsheetId;
-    private boolean enabled;
+    private Boolean enabled;
 }

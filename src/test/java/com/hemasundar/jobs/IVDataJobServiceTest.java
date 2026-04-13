@@ -62,8 +62,8 @@ public class IVDataJobServiceTest {
     @Test
     public void testRunIVDataCollection_Success() throws Exception {
         // Mock config
-        when(googleSheetsConfig.isEnabled()).thenReturn(false);
-        when(supabaseConfig.isEnabled()).thenReturn(true);
+        when(googleSheetsConfig.getEnabled()).thenReturn(false);
+        when(supabaseConfig.getEnabled()).thenReturn(true);
         when(googleSheetsConfig.getSpreadsheetId()).thenReturn("test-id");
 
         // Mock data point collection
@@ -88,8 +88,8 @@ public class IVDataJobServiceTest {
 
     @Test
     public void testRunIVDataCollection_NoDatabasesEnabled() {
-        when(googleSheetsConfig.isEnabled()).thenReturn(false);
-        when(supabaseConfig.isEnabled()).thenReturn(false);
+        when(googleSheetsConfig.getEnabled()).thenReturn(false);
+        when(supabaseConfig.getEnabled()).thenReturn(false);
 
         ivDataJobService.runIVDataCollection();
 
