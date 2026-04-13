@@ -38,18 +38,18 @@ public class TelegramUtilsTest {
         telegramUtils = new TelegramUtils(telegramConfig);
         
         // Default to disabled to avoid external calls by default
-        when(telegramConfig.isEnabled()).thenReturn(false);
+        when(telegramConfig.getEnabled()).thenReturn(false);
     }
 
     @Test
     public void testSendMessage_Disabled() {
-        when(telegramConfig.isEnabled()).thenReturn(false);
+        when(telegramConfig.getEnabled()).thenReturn(false);
         assertTrue(telegramUtils.sendMessage("Test message"));
     }
 
     @Test
     public void testSendMessage_MissingToken() {
-        when(telegramConfig.isEnabled()).thenReturn(true);
+        when(telegramConfig.getEnabled()).thenReturn(true);
         when(telegramConfig.getBotToken()).thenReturn(null);
         when(telegramConfig.getChatId()).thenReturn("chatId");
 
@@ -127,7 +127,7 @@ public class TelegramUtilsTest {
         try (org.mockito.MockedStatic<io.restassured.RestAssured> mockedRestAssured = org.mockito.Mockito
                 .mockStatic(io.restassured.RestAssured.class)) {
             
-            when(telegramConfig.isEnabled()).thenReturn(true);
+            when(telegramConfig.getEnabled()).thenReturn(true);
             when(telegramConfig.getBotToken()).thenReturn("token");
             when(telegramConfig.getChatId()).thenReturn("chatId");
 
@@ -181,7 +181,7 @@ public class TelegramUtilsTest {
         try (org.mockito.MockedStatic<io.restassured.RestAssured> mockedRestAssured = org.mockito.Mockito
                 .mockStatic(io.restassured.RestAssured.class)) {
             
-            when(telegramConfig.isEnabled()).thenReturn(true);
+            when(telegramConfig.getEnabled()).thenReturn(true);
             when(telegramConfig.getBotToken()).thenReturn("token");
             when(telegramConfig.getChatId()).thenReturn("chatId");
 

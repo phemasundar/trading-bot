@@ -39,8 +39,8 @@ public class IVDataJobService {
     private final GoogleSheetsService sheetsService;
     private Set<String> allSecurities;
 
-    private boolean googleSheetsEnabled;
-    private boolean supabaseEnabled;
+    private Boolean googleSheetsEnabled;
+    private Boolean supabaseEnabled;
 
     private int successCount = 0;
     private int failCount = 0;
@@ -53,8 +53,8 @@ public class IVDataJobService {
 
         try {
             // Load database configuration
-            googleSheetsEnabled = googleSheetsConfig.isEnabled();
-            supabaseEnabled = supabaseConfig.isEnabled();
+            googleSheetsEnabled = googleSheetsConfig.getEnabled();
+            supabaseEnabled = supabaseConfig.getEnabled();
 
             if (googleSheetsEnabled) {
                 log.info("✓ Google Sheets service initialized");
