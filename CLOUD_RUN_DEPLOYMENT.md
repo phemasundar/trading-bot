@@ -36,6 +36,7 @@ You need to enable 3 APIs. Do this in order:
    - **IAM Credentials API** (needed for the service account)
 
 Or do it all at once — open Cloud Shell (terminal icon `>_` at the top right) and run:
+
 ```bash
 gcloud services enable run.googleapis.com artifactregistry.googleapis.com iamcredentials.googleapis.com
 ```
@@ -52,7 +53,7 @@ This is where your Docker images are stored.
    - **Name**: `trading-bot`
    - **Format**: `Docker`
    - **Mode**: `Standard`
-   - **Region**: `us-central1` *(must match the region in the GitHub Actions workflow)*
+   - **Region**: `us-central1` _(must match the region in the GitHub Actions workflow)_
 4. Click **"Create"**
 
 ---
@@ -74,11 +75,11 @@ GitHub Actions needs a GCP identity (Service Account) to push images and deploy.
 
 On the **"Grant this service account access to project"** step, add these 3 roles (click **"Add another role"** between each):
 
-| Role | Purpose |
-|------|---------|
-| **Artifact Registry Writer** | Push Docker images |
-| **Cloud Run Admin** | Deploy and manage Cloud Run services |
-| **Service Account User** | Allow deploying as a service account |
+| Role                         | Purpose                              |
+| ---------------------------- | ------------------------------------ |
+| **Artifact Registry Writer** | Push Docker images                   |
+| **Cloud Run Admin**          | Deploy and manage Cloud Run services |
+| **Service Account User**     | Allow deploying as a service account |
 
 5. Click **"Continue"** → **"Done"**
 
@@ -99,19 +100,19 @@ On the **"Grant this service account access to project"** step, add these 3 role
 2. In the left sidebar: **"Secrets and variables" → "Actions"**
 3. Click **"New repository secret"** for each of the following:
 
-| Secret Name | Value |
-|---|---|
-| `GCP_PROJECT_ID` | Your GCP Project ID (e.g. `trading-bot-123456`) |
-| `GCP_SA_KEY` | The **entire content** of the JSON key file you downloaded in Part 4c |
-| `SUPABASE_URL` | `https://snjbkdqbmlmwjllnoyqy.supabase.co` |
-| `SUPABASE_ANON_KEY` | Your Supabase publishable/anon key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Your Supabase service role key |
-| `API_BEARER_TOKEN` | Bearer token for accessing `/api/*` endpoints |
-| `REFRESH_TOKEN` | Schwab API Refresh Token |
-| `APP_KEY` | Schwab API App Key |
-| `PP_SECRET` | Schwab API Secret |
-| `TELEGRAM_BOT_TOKEN` | Telegram Bot Token for alerts |
-| `TELEGRAM_CHAT_ID` | Telegram Chat ID for alerts |
+| Secret Name                 | Value                                                                 |
+| --------------------------- | --------------------------------------------------------------------- |
+| `GCP_PROJECT_ID`            | Your GCP Project ID (e.g. `trading-bot-123456`)                       |
+| `GCP_SA_KEY`                | The **entire content** of the JSON key file you downloaded in Part 4c |
+| `SUPABASE_URL`              | `https://snjbkdqbmlmwjllnoyqy.supabase.co`                            |
+| `SUPABASE_ANON_KEY`         | Your Supabase publishable/anon key                                    |
+| `SUPABASE_SERVICE_ROLE_KEY` | Your Supabase service role key                                        |
+| `API_BEARER_TOKEN`          | Bearer token for accessing `/api/*` endpoints                         |
+| `REFRESH_TOKEN`             | Schwab API Refresh Token                                              |
+| `APP_KEY`                   | Schwab API App Key                                                    |
+| `APP_SECRET`                | Schwab API Secret                                                     |
+| `TELEGRAM_BOT_TOKEN`        | Telegram Bot Token for alerts                                         |
+| `TELEGRAM_CHAT_ID`          | Telegram Chat ID for alerts                                           |
 
 > **Tip:** To get the full JSON key content, open the downloaded `.json` file in any text editor, select all (`Ctrl+A`), and paste it as the secret value.
 
@@ -127,12 +128,15 @@ With everything set up, trigger your first deployment:
 The workflow will take about **5–8 minutes** on the first run (Maven downloads dependencies, Vaadin builds production bundle, Docker builds image).
 
 ### Watch the progress:
+
 1. Go to **GitHub → Actions**
 2. Click on the running workflow
 3. Click **"Build & Deploy to Cloud Run"** to see live logs
 
 ### Get your URL:
+
 At the end of the workflow, the last step "Get service URL" prints:
+
 ```
 ✅ Deployed successfully!
 🌐 URL: https://trading-bot-xxxxxxxx-uc.a.run.app
@@ -163,6 +167,7 @@ git push origin main
 ```
 
 GitHub Actions automatically:
+
 1. Builds a new Docker image (tagged with the commit SHA)
 2. Pushes to Artifact Registry
 3. Deploys to Cloud Run as a new revision (zero downtime)
@@ -175,11 +180,11 @@ The old revision stays running while new one starts, then traffic switches over 
 
 With the current configuration (`min-instances=1`, `max-instances=1`, 512Mi RAM, 1 CPU):
 
-| Resource | Free Tier | Our Usage | Estimated Cost |
-|---|---|---|---|
-| Cloud Run CPU | 180,000 vCPU-sec/month free | ~720,000 vCPU-sec | ~$10/month |
-| Cloud Run Memory | 360,000 GB-sec/month free | ~384,000 GB-sec/month | ~$1/month |
-| Artifact Registry | 0.5 GB free | ~300 MB | **Free** |
+| Resource          | Free Tier                   | Our Usage             | Estimated Cost |
+| ----------------- | --------------------------- | --------------------- | -------------- |
+| Cloud Run CPU     | 180,000 vCPU-sec/month free | ~720,000 vCPU-sec     | ~$10/month     |
+| Cloud Run Memory  | 360,000 GB-sec/month free   | ~384,000 GB-sec/month | ~$1/month      |
+| Artifact Registry | 0.5 GB free                 | ~300 MB               | **Free**       |
 
 > **To reduce cost to near-zero:** Change `--min-instances 1` to `--min-instances 0` in `deploy-cloud-run.yml`. This scales to zero when not used (cold start ~10–20 seconds on first request of the day). For a personal app accessed a few times a day, total cost would be **< $1/month**.
 
@@ -188,13 +193,16 @@ With the current configuration (`min-instances=1`, `max-instances=1`, 512Mi RAM,
 ## Troubleshooting
 
 ### Deployment fails with "Permission denied"
+
 - Verify the service account has all 3 roles from Part 4b
 - Ensure `GCP_SA_KEY` secret contains the full JSON (including curly braces)
 
 ### App starts but shows error / blank page
+
 - Check logs: GCP Console → Cloud Run → "trading-bot" → **Logs** tab
 - Or in GitHub Actions, check the Cloud Run step output
 
 ### "Artifact Registry repository not found"
+
 - Ensure the repository region (`us-central1`) matches the `REGISTRY` env var in `deploy-cloud-run.yml`
 - Ensure the repository name is exactly `trading-bot`

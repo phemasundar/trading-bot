@@ -26,13 +26,13 @@ import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.utils.VolatilityCalculator;
 
 @Log4j2
-@Component
 public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
 
-    public CallCreditSpreadStrategy(FinnHubAPIs finnHubAPIs,
+    public CallCreditSpreadStrategy(StrategyType strategyType,
+                                   FinnHubAPIs finnHubAPIs,
                                    ThinkOrSwinAPIs thinkOrSwinAPIs,
                                    VolatilityCalculator volatilityCalculator) {
-        super(StrategyType.CALL_CREDIT_SPREAD, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
+        super(strategyType, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
     }
 
     @Override

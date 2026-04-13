@@ -22,13 +22,13 @@ import com.hemasundar.utils.VolatilityCalculator;
  * relaxation.
  */
 @Log4j2
-@Component
 public class LongCallLeapStrategy extends AbstractTradingStrategy {
 
-    public LongCallLeapStrategy(FinnHubAPIs finnHubAPIs,
+    public LongCallLeapStrategy(StrategyType strategyType,
+                               FinnHubAPIs finnHubAPIs,
                                ThinkOrSwinAPIs thinkOrSwinAPIs,
                                VolatilityCalculator volatilityCalculator) {
-        super(StrategyType.LONG_CALL_LEAP, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
+        super(strategyType, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
     }
 
     @Override

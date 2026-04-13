@@ -26,7 +26,7 @@ public class ZebraStrategyTest {
     @BeforeMethod
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        strategy = new ZebraStrategy(finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
+        strategy = new ZebraStrategy(StrategyType.BULLISH_ZEBRA, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
     }
 
     @Test

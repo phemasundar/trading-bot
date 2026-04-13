@@ -26,13 +26,13 @@ import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.utils.VolatilityCalculator;
 
 @Log4j2
-@Component
 public class ZebraStrategy extends AbstractTradingStrategy {
 
-    public ZebraStrategy(FinnHubAPIs finnHubAPIs,
+    public ZebraStrategy(StrategyType strategyType,
+                        FinnHubAPIs finnHubAPIs,
                         ThinkOrSwinAPIs thinkOrSwinAPIs,
                         VolatilityCalculator volatilityCalculator) {
-        super(StrategyType.BULLISH_ZEBRA, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
+        super(strategyType, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
     }
 
     @Override

@@ -32,8 +32,8 @@ public class IronCondorStrategyTest {
     public void setUp() {
         MockitoAnnotations.openMocks(this);
         // Initialize real sub-strategies with mocks
-        PutCreditSpreadStrategy putStrategy = new PutCreditSpreadStrategy(finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
-        CallCreditSpreadStrategy callStrategy = new CallCreditSpreadStrategy(finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
+        PutCreditSpreadStrategy putStrategy = new PutCreditSpreadStrategy(StrategyType.PUT_CREDIT_SPREAD, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
+        CallCreditSpreadStrategy callStrategy = new CallCreditSpreadStrategy(StrategyType.CALL_CREDIT_SPREAD, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
         
         strategy = new TestableIronCondorStrategy(finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator, putStrategy, callStrategy);
     }
@@ -194,7 +194,7 @@ public class IronCondorStrategyTest {
                                          com.hemasundar.utils.VolatilityCalculator volatilityCalculator,
                                          PutCreditSpreadStrategy putCreditSpreadStrategy, 
                                          CallCreditSpreadStrategy callCreditSpreadStrategy) {
-            super(finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator, putCreditSpreadStrategy, callCreditSpreadStrategy);
+            super(StrategyType.IRON_CONDOR, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator, putCreditSpreadStrategy, callCreditSpreadStrategy);
         }
 
         @Override

@@ -26,13 +26,13 @@ import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.utils.VolatilityCalculator;
 
 @Log4j2
-@Component
 public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
 
-    public BrokenWingButterflyStrategy(FinnHubAPIs finnHubAPIs,
+    public BrokenWingButterflyStrategy(StrategyType strategyType,
+                                      FinnHubAPIs finnHubAPIs,
                                       ThinkOrSwinAPIs thinkOrSwinAPIs,
                                       VolatilityCalculator volatilityCalculator) {
-        super(StrategyType.BULLISH_BROKEN_WING_BUTTERFLY, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
+        super(strategyType, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
     }
 
     @Override

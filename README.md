@@ -429,6 +429,201 @@ These are injected into the Cloud Run container at deploy time:
 See [`ORACLE_CLOUD_DEPLOYMENT.md`](ORACLE_CLOUD_DEPLOYMENT.md) for deployment to an **Oracle Cloud Always-Free** compute instance.
 
 ## Project Structure
+mvn test -DsuiteXmlFile=FunctionalTests.xml
+```
+
+## API Methods
+
+The `ThinkOrSwinAPIs` class provides the following methods for interacting with Schwab's Market Data API:
+
+### Option Chain
+```java
+// Get full option chain for a symbol
+OptionChainResponse chain = ThinkOrSwinAPIs.getOptionChainResponse("AAPL");
+```
+
+### Price History
+```java
+// Get yearly price history with daily frequency
+PriceHistoryResponse history = ThinkOrSwinAPIs.getYearlyPriceHistory("AAPL", 1);
+
+// Get price history with custom parameters
+PriceHistoryResponse history = ThinkOrSwinAPIs.getPriceHistory(
+    "AAPL", "year", 1, "daily", 1, null, null, false, true);
+```
+
+### Quotes
+```java
+// Get quotes for multiple symbols
+Map<String, QuotesResponse.QuoteData> quotes = ThinkOrSwinAPIs.getQuotes(
+    List.of("AAPL", "TSLA", "AMZN"));
+
+// Get quote for a single symbol
+QuotesResponse.QuoteData quote = ThinkOrSwinAPIs.getQuote("TSLA");
+
+// Access quote data
+long volume = quote.getQuote().getTotalVolume();
+double lastPrice = quote.getQuote().getLastPrice();
+```
+
+### Expiration Chain
+```java
+// Get all available expiration dates for a symbol
+ExpirationChainResponse expirations = ThinkOrSwinAPIs.getExpirationChain("AAPL");
+
+// Access expiration dates
+expirations.getExpirationList().forEach(exp -> {
+    System.out.println(exp.getExpirationDate() + " - DTE: " + exp.getDaysToExpiration());
+});
+```
+
+### Market Hours
+```java
+// Get market hours for all equity and option markets
+MarketHoursResponse hours = ThinkOrSwinAPIs.getMarketHours();
+
+// Get market hours for a single market type
+String equityHours = ThinkOrSwinAPIs.getMarketHour("equity", "2024-04-15");
+```
+
+### Movers
+```java
+// Get top 10 movers for the S&P 500
+String movers = ThinkOrSwinAPIs.getMovers("$SPX", "PERCENT_CHANGE_UP", 0);
+```
+
+### Instruments
+```java
+// Search for instruments by symbol
+String results = ThinkOrSwinAPIs.getInstruments("AAPL", "symbol-search");
+
+// Get instrument by CUSIP
+String instrument = ThinkOrSwinAPIs.getInstrumentByCusip("037833100");
+```
+
+> 📄 For full API documentation, see [`SchwabAPI/schwab-market-data-api.md`](SchwabAPI/schwab-market-data-api.md)
+## Strategy Dashboard
+
+The execution results dashboard is now maintained in a separate repository. It is a static HTML/JS application deployed to GitHub Pages that fetches live strategy results from Supabase.
+
+### Setup (Separate Repo)
+1. Initialize the dashboard repository from the provided standalone export.
+2. Configure GitHub Secrets (`SUPABASE_URL`, `SUPABASE_ANON_KEY`) in the new repo.
+3. Enable GitHub Pages to deploy from the new repo.
+
+
+## Deployment
+
+### Authentication (Supabase Auth)
+
+The app uses **Supabase Auth** with Google and Apple OAuth for user authentication. API endpoints (`/api/*`) are protected with JWT verification using the **Supabase JWKS public key endpoint** — no shared secret is required.
+
+#### How It Works
+
+1. Users sign in via Google or Apple on the `/login.html` page
+2. Supabase issues a JWT (signed with ECC P-256 / ES256)
+3. The frontend automatically attaches the JWT to all API requests
+4. The backend `BearerTokenFilter` fetches Supabase's public key from the JWKS endpoint (cached 24 hours) and verifies the JWT signature — **no secret needed**
+5. Optionally, access is restricted to specific emails via `ALLOWED_EMAILS`
+
+> **JWKS endpoint**: `https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json` (auto-derived from `SUPABASE_URL`)
+
+#### Supabase Dashboard Setup
+
+1. **Enable Google OAuth**: Authentication → Providers → Google → Enable → Add OAuth credentials from [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. **Enable Apple OAuth** (optional): Authentication → Providers → Apple → Enable
+3. **Set Site URL**: Authentication → URL Configuration → Site URL → `https://your-cloud-run-url`
+4. **Set Redirect URLs**: Authentication → URL Configuration → Add `https://your-cloud-run-url/login.html`
+
+#### Local Development
+
+For local development, authentication is **bypassed** when `SUPABASE_URL` is not set in the environment. All API requests pass through without JWT verification.
+
+---
+
+### Google Cloud Run (CI/CD via GitHub Actions)
+
+The web app is deployed to **Google Cloud Run** automatically on every push to `main` via `.github/workflows/deploy-cloud-run.yml`.
+
+#### First-Time GCP Setup
+
+1. **Create a GCP project** at [console.cloud.google.com](https://console.cloud.google.com)
+2. **Enable APIs** — In the GCP Console, enable:
+   - Cloud Run API
+   - Artifact Registry API
+   - Cloud Build API
+3. **Create Artifact Registry repository:**
+   ```bash
+   gcloud artifacts repositories create trading-bot \
+     --repository-format=docker \
+     --location=us-central1
+   ```
+4. **Create a Service Account** with the following roles:
+   - Cloud Run Admin
+   - Artifact Registry Writer
+   - Service Account User
+5. **Download the Service Account JSON key** and save its contents
+
+For detailed GCP console screenshots and instructions, see [`CLOUD_RUN_DEPLOYMENT.md`](CLOUD_RUN_DEPLOYMENT.md).
+
+#### Configure GitHub Secrets
+
+Go to your repo → **Settings → Secrets and variables → Actions** → **New repository secret** and add:
+
+| Secret | How to Get It |
+|---|---|
+| `GCP_PROJECT_ID` | GCP Console → Dashboard → Project ID (e.g., `my-trading-bot-123`) |
+| `GCP_SA_KEY` | Full JSON content of the Service Account key file downloaded above |
+| `SUPABASE_URL` | Supabase Dashboard → Settings → API → Project URL |
+| `SUPABASE_ANON_KEY` | Supabase Dashboard → Settings → API → `anon` / `public` key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → Settings → API → `service_role` key |
+| `ALLOWED_EMAILS` | Comma-separated list of authorized Google/Apple email addresses |
+
+#### Deploy
+
+After configuring secrets:
+1. Push to `main` branch — GitHub Actions automatically builds, pushes, and deploys
+2. Or trigger manually: **Actions → Deploy to Google Cloud Run → Run workflow**
+
+The deployed app URL is printed at the end of the workflow:
+```
+https://trading-bot-<hash>-uc.a.run.app
+```
+
+#### How the Pipeline Works
+
+```
+Push to main → GitHub Actions → Docker Build → Artifact Registry → Cloud Run
+                                                                    ↓
+                                              HTTPS URL with env vars injected
+```
+
+1. Builds a Docker image using the multi-stage `Dockerfile`
+2. Pushes to **Google Artifact Registry** (tagged with commit SHA + `latest`)
+3. Deploys to Cloud Run with:
+   - 512Mi RAM, 1 CPU
+   - `min-instances=1` (always-on, no cold starts)
+   - HTTPS enabled automatically
+   - Environment variables injected from GitHub Secrets
+
+#### Production Environment Variables
+
+These are injected into the Cloud Run container at deploy time:
+
+| Variable | Purpose |
+|---|---|
+| `SUPABASE_URL` | Supabase REST API base URL (also used to derive the JWKS endpoint for JWT verification) |
+| `SUPABASE_ANON_KEY` | Public key for frontend auth initialization |
+| `SUPABASE_SERVICE_ROLE_KEY` | Admin key for backend write operations |
+| `ALLOWED_EMAILS` | Comma-separated list of authorized email addresses |
+
+---
+
+### Oracle Cloud Free Tier
+
+See [`ORACLE_CLOUD_DEPLOYMENT.md`](ORACLE_CLOUD_DEPLOYMENT.md) for deployment to an **Oracle Cloud Always-Free** compute instance.
+
+## Project Structure
 
 ```
 src/
@@ -451,7 +646,7 @@ src/
 
 ## Logging
 
-The application uses **Log4j2** for logging with JSON configuration.
+The application uses **Logback** (Spring Boot's native logging framework) for logging with XML configuration.
 
 ### Log Levels
 
@@ -464,17 +659,11 @@ The application uses **Log4j2** for logging with JSON configuration.
 
 ### Configuration
 
-Logs are configured in `src/main/resources/log4j2.json`:
-- **Console**: Outputs to stdout with pattern `HH:mm:ss.SSS LEVEL ClassName - message`
-- **RollingFile**: Writes to `logs/trading-bot.log` with daily rotation (max 10 files, 10MB each)
+Logs are configured in `src/main/resources/logback-spring.xml`:
+- **Console**: Displays only `WARN` level logs or higher to declutter terminal output.
+- **RollingFile**: Writes `INFO` level logs and above to `logs/trading-bot.log` with daily rotation (max 7 files, 10MB each).
 
-To change log levels, edit the `log4j2.json` file:
-```json
-{
-  "name": "com.hemasundar",
-  "level": "debug"
-}
-```
+To change log levels for local development, edit the `logback-spring.xml` file.
 
 Check individual service coverage locally via:
 ```bash
@@ -499,6 +688,6 @@ mvn clean test
 - Lombok - Boilerplate reduction
 - Jackson - JSON/YAML processing
 - ta4j-core - Technical analysis library (RSI, Bollinger Bands, etc.)
-- Log4j2 - Logging framework
+- **Logback** - Logging framework (via `spring-boot-starter-logging`)
 - Google Sheets API - For IV data storage in Google Sheets
 - **java-jwt** (Auth0) - JWT verification for Supabase Auth tokens

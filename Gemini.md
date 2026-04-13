@@ -1,7 +1,40 @@
 # Project Updates
 
+## Logging Framework Migration: Log4j 2 to Logback (2026-04-13)
+
+Migrated the application's logging infrastructure from a manual Log4j 2 configuration to Spring Boot's native **Logback** framework. This transition simplifies dependency management and optimizes log readability for both local development and production environments.
+
+### Features
+- **Console Noise Reduction**: Configured a `ThresholdFilter` for the console appender to display only `WARN` level logs or higher. This declutters the terminal output during execution, showing only critical information and errors.
+- **Detailed File Logging**: Maintained full auditability by continuing to log `INFO` level messages (and above) to `logs/trading-bot.log`.
+- **Log Rotation**: Implemented `SizeAndTimeBasedRollingPolicy` for file logs, ensuring they are rotated daily or when they reach 10MB, with a 7-day retention period.
+- **Dependency Cleanup**: Removed explicit `log4j-api` and `log4j-core` dependencies from `pom.xml`, allowing Spring Boot's `spring-boot-starter-logging` (which uses Logback) to take full control without conflicts.
+
+### Architecture
+- **Standardization**: Aligned the project with Spring Boot's default logging ecosystem, making it easier to configure using standard `logback-spring.xml` patterns.
+- **Configuration**: Replaced the obsolete `log4j2.json` with `src/main/resources/logback-spring.xml`.
+
+
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 > **CRITICAL AI RULE**: NEVER use GitHub MCP tools (create PR, merge, create release, etc.) unless the user explicitly asks. Do not assume permission for any GitHub operations.
+
+## Strategy Variant Restoration & Bean Configuration (2026-04-12)
+
+Resolved "Strategy not found" errors for variant strategy types (Technical, Bullish, etc.) that occurred after the Spring DI migration.
+
+### Features
+- **Multi-Type Support**: Refactored core strategy classes (`PutCreditSpreadStrategy`, `CallCreditSpreadStrategy`, `IronCondorStrategy`, etc.) to accept `StrategyType` via constructor.
+- **Centralized Strategy Registry**: Created `StrategiesBeanConfig.java` to explicitly define each strategy variant as a Spring bean. This restores support for:
+    - `Technical Put Credit Spread`
+    - `Technical Call Credit Spread`
+    - `Bullish Long Put Credit Spread`
+    - `Bullish Long Iron Condor`
+- **Standardized Constructor DI**: Removed `@Component` from strategy classes and transitioned to manual bean definition in configuration to allow multiple instances of the same logic with different type identities.
+- **Seamless Registry Integration**: `StrategiesConfigLoader` now correctly resolves all 10 defined strategy types during application startup.
+
+### Architecture
+- **Factory Compatibility**: Restored compatibility with the `StrategiesConfig.json` schema without sacrificing Spring DI benefits.
+- **Injection Safety**: Used named bean references to ensure `IronCondorStrategy` correctly receives its required leg strategy logic.
 
 ## Cloud Run Startup Fix & Environment Resilience (2026-04-12)
 
