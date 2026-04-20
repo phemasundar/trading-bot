@@ -52,6 +52,9 @@ public class StrategyControllerTest {
     @Mock
     private SupabaseConfig supabaseConfig;
 
+    @Mock
+    private com.hemasundar.utils.AuthErrorUtils authErrorUtils;
+
     private StrategyController strategyController;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -60,7 +63,7 @@ public class StrategyControllerTest {
     public void setup() {
         MockitoAnnotations.openMocks(this);
         // Manual constructor injection is safer than @InjectMocks for final fields
-        strategyController = new StrategyController(executionService, screenerExecutionService, securitiesResolver, thinkOrSwinAPIs, strategiesConfigLoader, supabaseConfig);
+        strategyController = new StrategyController(executionService, screenerExecutionService, securitiesResolver, thinkOrSwinAPIs, strategiesConfigLoader, supabaseConfig, authErrorUtils);
         mockMvc = MockMvcBuilders.standaloneSetup(strategyController).build();
     }
 
