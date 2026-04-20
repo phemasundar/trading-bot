@@ -553,6 +553,10 @@ a:hover {
     font-weight: 500;
     z-index: 1000;
     animation: slideIn 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 420px;
 }
 
 .toast-success {
@@ -563,6 +567,27 @@ a:hover {
 .toast-error {
     background: var(--danger);
     color: white;
+}
+
+.toast-message {
+    flex: 1;
+}
+
+.toast-dismiss {
+    background: rgba(255, 255, 255, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    line-height: 1;
+    transition: background 0.15s;
+    flex-shrink: 0;
+}
+
+.toast-dismiss:hover {
+    background: rgba(255, 255, 255, 0.4);
 }
 
 @keyframes slideIn {
@@ -587,6 +612,152 @@ a:hover {
         transform: translateY(0);
         opacity: 1;
     }
+}
+
+/* ── Execution Error Panel ── */
+.error-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 99999;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border-bottom: 2px solid var(--danger);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+    animation: slideInDown 0.3s ease;
+    font-family: var(--font-sans);
+    max-height: 40vh;
+    overflow-y: auto;
+}
+
+.error-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.2);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.error-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: #f1f1f1;
+}
+
+.error-panel-icon {
+    font-size: 1.1rem;
+}
+
+.error-panel-count {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.08);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.error-panel-dismiss-all {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #f87171;
+    padding: 4px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: all 0.15s;
+}
+
+.error-panel-dismiss-all:hover {
+    background: rgba(239, 68, 68, 0.35);
+    border-color: rgba(239, 68, 68, 0.6);
+}
+
+.error-panel-list {
+    padding: 4px 0;
+}
+
+.error-panel-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 20px;
+    font-size: 0.8rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    transition: background 0.15s;
+}
+
+.error-panel-item:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.error-panel-item:last-child {
+    border-bottom: none;
+}
+
+.error-panel-item-error {
+    border-left: 3px solid var(--danger);
+}
+
+.error-panel-item-warning {
+    border-left: 3px solid var(--warning);
+}
+
+.error-item-icon {
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+.error-item-source {
+    font-weight: 600;
+    color: var(--primary);
+    font-size: 0.75rem;
+    background: var(--primary-dim);
+    padding: 1px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.error-item-message {
+    flex: 1;
+    color: var(--text-secondary);
+    word-break: break-word;
+}
+
+.error-item-time {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.error-item-dismiss {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-muted);
+    padding: 2px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.7rem;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+
+.error-item-dismiss:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.4);
 }
 
 /* ── Auth Modal ── */

@@ -151,14 +151,37 @@ function toggleSidebar() {
     document.querySelector('.sidebar').classList.toggle('open');
 }
 
+// ── HTML Escaping ──
+
+/** Escapes HTML special characters to prevent XSS in dynamic content */
+function escapeAttr(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // ── Toast Notifications ──
 
 function showToast(message, type = 'success') {
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-    toast.textContent = message;
+
+    if (type === 'error') {
+        // Error toasts persist until manually dismissed
+        toast.innerHTML = `
+            <span class="toast-message">${message}</span>
+            <button class="toast-dismiss" onclick="this.parentElement.remove()" title="Dismiss">✕</button>
+        `;
+    } else {
+        // Success/info toasts auto-dismiss after 4 seconds
+        toast.textContent = message;
+        setTimeout(() => toast.remove(), 4000);
+    }
     document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 4000);
 }
 
 // ── Time Formatting ──
@@ -863,47 +886,105 @@ function stopTimer() {
     clearInterval(timerInterval);
 }
 
-// ── Auth Error Banner ──
+// ── Execution Error Panel ──
 
 /**
- * Shows a persistent red banner at the top of the page when a Schwab
- * API authentication error is detected. The banner has a dismiss button
- * that also calls /api/clear-error on the backend.
+ * Shows a persistent error panel at the top of the page displaying
+ * all warnings and errors captured during execution.
+ * Each alert can be dismissed individually, or all at once.
+ * The panel persists until the user manually dismisses it.
+ *
+ * @param {Array} alerts - Array of {severity, source, message, timestamp}
  */
-function showAuthErrorBanner(message) {
-    // Only show one banner at a time
-    if (document.getElementById('auth-error-banner')) return;
+function showErrorPanel(alerts) {
+    if (!alerts || alerts.length === 0) return;
 
-    const banner = document.createElement('div');
-    banner.id = 'auth-error-banner';
-    banner.style.cssText = [
-        'position: fixed', 'top: 0', 'left: 0', 'right: 0', 'z-index: 99999',
-        'background: linear-gradient(135deg, #c0392b, #e74c3c)',
-        'color: #fff', 'padding: 12px 20px',
-        'display: flex', 'align-items: center', 'gap: 12px',
-        'font-size: 0.9rem', 'font-family: var(--font-sans, sans-serif)',
-        'box-shadow: 0 4px 16px rgba(0,0,0,0.4)',
-        'animation: slideInDown 0.3s ease'
-    ].join('; ');
+    // Remove existing panel to rebuild
+    const existingPanel = document.getElementById('error-panel');
+    if (existingPanel) existingPanel.remove();
 
-    banner.innerHTML = `
-        <span style="font-size:1.2rem;">⚠️</span>
-        <strong style="margin-right:4px;">Authentication Error:</strong>
-        <span style="flex:1;">${message}</span>
-        <button onclick="dismissAuthErrorBanner()" style="
-            background: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.5);
-            color:#fff; padding:4px 12px; border-radius:6px; cursor:pointer;
-            font-size:0.8rem; white-space:nowrap;
-        ">Dismiss ✕</button>
+    const panel = document.createElement('div');
+    panel.id = 'error-panel';
+    panel.className = 'error-panel';
+
+    const header = document.createElement('div');
+    header.className = 'error-panel-header';
+
+    const errorCount = alerts.filter(a => a.severity === 'ERROR').length;
+    const warnCount = alerts.filter(a => a.severity === 'WARNING').length;
+    const countParts = [];
+    if (errorCount > 0) countParts.push(`${errorCount} error${errorCount > 1 ? 's' : ''}`);
+    if (warnCount > 0) countParts.push(`${warnCount} warning${warnCount > 1 ? 's' : ''}`);
+
+    header.innerHTML = `
+        <div class="error-panel-title">
+            <span class="error-panel-icon">⚠️</span>
+            <strong>Execution Alerts</strong>
+            <span class="error-panel-count">${countParts.join(', ')}</span>
+        </div>
+        <button class="error-panel-dismiss-all" onclick="dismissErrorPanel()" title="Dismiss All">Dismiss All ✕</button>
     `;
+    panel.appendChild(header);
 
-    document.body.prepend(banner);
+    const list = document.createElement('div');
+    list.className = 'error-panel-list';
+
+    alerts.forEach((alert, idx) => {
+        const item = document.createElement('div');
+        item.className = `error-panel-item error-panel-item-${alert.severity.toLowerCase()}`;
+        item.dataset.index = idx;
+
+        const icon = alert.severity === 'ERROR' ? '🔴' : '🟡';
+        const timeStr = new Date(alert.timestamp).toLocaleTimeString();
+
+        item.innerHTML = `
+            <span class="error-item-icon">${icon}</span>
+            <span class="error-item-source">${escapeAttr(alert.source)}</span>
+            <span class="error-item-message">${escapeAttr(alert.message)}</span>
+            <span class="error-item-time">${timeStr}</span>
+            <button class="error-item-dismiss" onclick="dismissSingleAlert(this)" title="Dismiss">✕</button>
+        `;
+        list.appendChild(item);
+    });
+
+    panel.appendChild(list);
+    document.body.prepend(panel);
 }
 
-async function dismissAuthErrorBanner() {
-    const banner = document.getElementById('auth-error-banner');
-    if (banner) banner.remove();
-    try { await API.post('/api/clear-error'); } catch (e) { /* ignore */ }
+/**
+ * Dismisses the entire error panel and clears alerts on the backend.
+ */
+async function dismissErrorPanel() {
+    const panel = document.getElementById('error-panel');
+    if (panel) panel.remove();
+    try { await API.post('/api/clear-errors'); } catch (e) { /* ignore */ }
+}
+
+/**
+ * Dismisses a single alert item from the error panel.
+ * If no more items remain, removes the entire panel and clears backend.
+ */
+function dismissSingleAlert(btn) {
+    const item = btn.closest('.error-panel-item');
+    if (item) item.remove();
+
+    // Check if any items remain
+    const panel = document.getElementById('error-panel');
+    if (panel) {
+        const remaining = panel.querySelectorAll('.error-panel-item');
+        if (remaining.length === 0) {
+            dismissErrorPanel();
+        } else {
+            // Update count in header
+            const errors = panel.querySelectorAll('.error-panel-item-error').length;
+            const warnings = panel.querySelectorAll('.error-panel-item-warning').length;
+            const parts = [];
+            if (errors > 0) parts.push(`${errors} error${errors > 1 ? 's' : ''}`);
+            if (warnings > 0) parts.push(`${warnings} warning${warnings > 1 ? 's' : ''}`);
+            const countEl = panel.querySelector('.error-panel-count');
+            if (countEl) countEl.textContent = parts.join(', ');
+        }
+    }
 }
 
 // ── Execution Status Polling ──
@@ -919,13 +1000,15 @@ function startPolling(onComplete) {
                 window.currentExecutionTaskName = "";
                 clearInterval(pollInterval);
                 stopTimer();
-                // Show auth error banner if the backend detected a token failure
-                if (status.lastError) {
-                    showAuthErrorBanner(status.lastError);
+                if (status.alerts && status.alerts.length > 0) {
+                    showErrorPanel(status.alerts);
                 }
                 if (onComplete) onComplete();
             } else {
                 window.currentExecutionTaskName = status.currentTask || "";
+                if (status.alerts && status.alerts.length > 0) {
+                    showErrorPanel(status.alerts);
+                }
             }
         } catch (e) {
             clearInterval(pollInterval);
@@ -1027,12 +1110,18 @@ async function loadResults() {
     } catch (e) {
         optionsContainer.innerHTML = `<div class="empty-state text-danger">Failed to load results: ${e.message}</div>`;
         screenerContainer.innerHTML = '';
+        if (typeof checkExecutionStatus === 'function') {
+            checkExecutionStatus();
+        }
     }
 }
 
 async function checkExecutionStatus() {
     try {
         const status = await API.get('/api/status');
+        if (status.alerts && status.alerts.length > 0) {
+            showErrorPanel(status.alerts);
+        }
         if (status.running) {
             window.currentExecutionTaskName = status.currentTask || "";
             setDashboardBusy(true);
@@ -1042,9 +1131,6 @@ async function checkExecutionStatus() {
                 loadResults();
                 showToast('Execution completed!');
             });
-        } else if (status.lastError) {
-            // Execution finished but left an auth error — surface it
-            showAuthErrorBanner(status.lastError);
         }
     } catch (e) { /* ignore */ }
 }
@@ -1375,9 +1461,9 @@ async function checkCustomExecutionStatus() {
                 loadCustomResults();
                 showToast('Custom execution completed!');
             });
-        } else if (status.lastError) {
-            // Execution finished but left an auth error — surface it
-            showAuthErrorBanner(status.lastError);
+        } else if (status.alerts && status.alerts.length > 0) {
+            // Execution finished but captured alerts — surface them
+            showErrorPanel(status.alerts);
         }
     } catch (e) { /* ignore */ }
 }
@@ -1742,6 +1828,9 @@ async function loadCustomResults() {
         }
     } catch (e) {
         container.innerHTML = `<div class="empty-state text-danger">Failed to load: ${e.message}</div>`;
+        if (typeof checkExecutionStatus === 'function') {
+            checkExecutionStatus();
+        }
     }
 }
 
@@ -1968,6 +2057,9 @@ async function fetchAndRenderMarketStatus() {
     } catch (e) {
         statusContainer.innerHTML = `<span class="status-badge" style="color: var(--text-muted); border: 1px solid rgba(255, 255, 255, 0.1)">Market Status Offline</span>`;
         console.error("Could not fetch market status", e);
+        if (typeof checkExecutionStatus === 'function') {
+            checkExecutionStatus();
+        }
     }
 }
 

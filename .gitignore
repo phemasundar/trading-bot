@@ -26,3 +26,4 @@ application-secret.properties
 .env
 .env.*
 src/main/resources/application.properties
+application.properties

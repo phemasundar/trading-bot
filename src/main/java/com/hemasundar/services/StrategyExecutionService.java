@@ -3,6 +3,8 @@ package com.hemasundar.services;
 import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.config.StrategiesConfigLoader;
+import com.hemasundar.dto.AlertMessages;
+import com.hemasundar.dto.ExecutionAlert;
 import com.hemasundar.dto.ExecutionResult;
 import com.hemasundar.dto.StrategyResult;
 import com.hemasundar.options.models.OptionChainResponse;
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
+
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -48,8 +51,12 @@ public class StrategyExecutionService {
     private final AtomicBoolean executionRunning = new AtomicBoolean(false);
     private final AtomicBoolean cancellationRequested = new AtomicBoolean(false);
     private final AtomicReference<String> currentExecutionTask = new AtomicReference<>("");
-    private final AtomicReference<String> lastExecutionError = new AtomicReference<>(null);
+
+    /** Ordered alert groups keyed by (severity:message) — deduplicates same-message alerts across symbols. */
+    private final Map<String, AlertGroup> alertGroups = new LinkedHashMap<>();
     private volatile long executionStartTimeMs;
+    /** Set to true on the first auth failure; stops processing further symbols/strategies. */
+    private final AtomicBoolean authFailed = new AtomicBoolean(false);
 
     public boolean isExecutionRunning() {
         return executionRunning.get();
@@ -70,7 +77,8 @@ public class StrategyExecutionService {
     public void startGlobalExecution(String initialTask) {
         executionRunning.set(true);
         cancellationRequested.set(false);
-        lastExecutionError.set(null); // Clear any prior error on new execution
+        synchronized (alertGroups) { alertGroups.clear(); } // Clear prior alerts on new execution
+        authFailed.set(false);
         executionStartTimeMs = System.currentTimeMillis();
         currentExecutionTask.set(initialTask);
     }
@@ -81,12 +89,45 @@ public class StrategyExecutionService {
         currentExecutionTask.set("");
     }
 
-    public String getLastExecutionError() {
-        return lastExecutionError.get();
+    // ── Alert Management ──
+
+    /**
+     * Adds an alert, deduplicating by (severity + message).
+     * Multiple symbols with the same error are merged into one alert,
+     * showing sources as "A, B, C (+N more)" for readability.
+     */
+    public void addAlert(ExecutionAlert.Severity severity, String source, String message) {
+        String key = severity.name() + ":" + message;
+        synchronized (alertGroups) {
+            AlertGroup group = alertGroups.get(key);
+            if (group == null) {
+                alertGroups.put(key, new AlertGroup(severity, message, source));
+            } else {
+                group.addSource(source);
+            }
+        }
+        if (severity == ExecutionAlert.Severity.ERROR) {
+            log.error("[ALERT][ERROR] {}: {}", source, message);
+        } else {
+            log.warn("[ALERT][WARN] {}: {}", source, message);
+        }
     }
 
-    public void clearLastExecutionError() {
-        lastExecutionError.set(null);
+    /** Returns an unmodifiable snapshot of deduplicated alerts. */
+    public List<ExecutionAlert> getAlerts() {
+        synchronized (alertGroups) {
+            return alertGroups.values().stream()
+                    .map(AlertGroup::toAlert)
+                    .collect(Collectors.toList());
+        }
+    }
+
+    /** Clears all captured alerts and resets the auth-fail flag. */
+    public void clearAlerts() {
+        synchronized (alertGroups) {
+            alertGroups.clear();
+        }
+        authFailed.set(false);
     }
 
     public void cancelExecution() {
@@ -160,6 +201,10 @@ public class StrategyExecutionService {
                     log.info("Execution cancelled after {}/{} strategies", i, selectedStrategies.size());
                     break;
                 }
+                if (authFailed.get()) {
+                    log.warn("Auth failure — stopping after {}/{} strategies", i, selectedStrategies.size());
+                    break;
+                }
                 OptionsConfig config = selectedStrategies.get(i);
                 setCurrentExecutionTask(config.getName());
                 log.info("Executing strategy {}/{}: {}", i + 1, selectedStrategies.size(), config.getName());
@@ -184,8 +229,8 @@ public class StrategyExecutionService {
                 supabaseService.saveExecutionResult(executionResult);
                 log.info("Saved execution result to Supabase: {}", executionId);
             } catch (IOException e) {
-                log.error("Failed to save execution result to Supabase: {}", e.getMessage());
-                // Don't fail the entire execution, just log the error
+                addAlert(ExecutionAlert.Severity.WARNING, AlertMessages.SRC_SUPABASE,
+                        AlertMessages.SAVE_EXEC_RESULT_FAILED);
             }
 
 
@@ -237,7 +282,8 @@ public class StrategyExecutionService {
                 supabaseService.saveCustomExecutionResult(result, config.getSecurities());
                 log.info("Saved custom execution result to Supabase: {}", executionId);
             } catch (IOException e) {
-                log.error("Failed to save custom execution result to Supabase: {}", e.getMessage());
+                addAlert(ExecutionAlert.Severity.WARNING, AlertMessages.SRC_SUPABASE,
+                        AlertMessages.SAVE_CUSTOM_RESULT_FAILED);
             }
 
             // Print cache statistics
@@ -297,7 +343,12 @@ public class StrategyExecutionService {
 
         // Send to Telegram using pre-formatted Trade DTOs
         if (!allTrades.isEmpty()) {
-            telegramUtils.sendTradeAlerts(result);
+            try {
+                telegramUtils.sendTradeAlerts(result);
+            } catch (Exception e) {
+                addAlert(ExecutionAlert.Severity.WARNING, config.getName(),
+                        AlertMessages.TELEGRAM_SEND_FAILED);
+            }
         }
 
         // Save individual strategy result to database for per-strategy persistence if
@@ -307,8 +358,8 @@ public class StrategyExecutionService {
                 supabaseService.saveStrategyResult(result);
                 log.info("[{}] Saved strategy result to database", config.getName());
             } catch (IOException e) {
-                log.error("[{}] Failed to save strategy result to database: {}", config.getName(), e.getMessage());
-                // Don't fail the entire execution, just log the error
+                addAlert(ExecutionAlert.Severity.WARNING, AlertMessages.SRC_SUPABASE,
+                        AlertMessages.SAVE_STRATEGY_RESULT_FAILED);
             }
         }
 
@@ -336,6 +387,10 @@ public class StrategyExecutionService {
         Map<String, List<TradeSetup>> allTrades = new LinkedHashMap<>();
 
         for (String symbol : symbols) {
+            if (authFailed.get()) {
+                log.warn("[{}] Skipping {} — auth already failed", strategy.getStrategyName(), symbol);
+                continue;
+            }
             try {
                 OptionChainResponse optionChainResponse = cache.get(symbol);
                 log.info("Processing symbol: {}", symbol);
@@ -368,12 +423,14 @@ public class StrategyExecutionService {
                 }
             } catch (Exception e) {
                 log.error("Error processing {}: {}", symbol, e.getMessage());
-                // Detect and surface Schwab API authentication failures
+                String source = String.format(AlertMessages.SRC_STRATEGY_SYMBOL_FMT, strategy.getStrategyName(), symbol);
                 if (isAuthError(e)) {
-                    String authMsg = "Schwab API authentication failed (token may be expired). " +
-                            "Please update the REFRESH_TOKEN secret and redeploy.";
-                    lastExecutionError.compareAndSet(null, authMsg);
-                    log.error("AUTH ERROR detected during execution: {}", e.getMessage());
+                    authFailed.set(true);
+                    addAlert(ExecutionAlert.Severity.ERROR, source, AlertMessages.AUTH_FAILED);
+                    break; // Auth error is unrecoverable — stop processing remaining symbols
+                } else {
+                    addAlert(ExecutionAlert.Severity.ERROR, source,
+                            String.format(AlertMessages.SYMBOL_PROCESSING_FAILED_FMT, e.getMessage()));
                 }
             }
         }
@@ -419,6 +476,46 @@ public class StrategyExecutionService {
                lower.contains("access token") ||
                lower.contains("error fetching access token") ||
                lower.contains("unauthorized");
+    }
+
+    // ── Private: Alert Grouping ───────────────────────────────────────────────
+
+    /**
+     * Groups multiple-source alerts under a single (severity, message) key.
+     * Displays first 3 sources; appends "(+N more)" for the rest.
+     */
+    private static final class AlertGroup {
+        private final ExecutionAlert.Severity severity;
+        private final String message;
+        private final long timestamp = System.currentTimeMillis();
+        private final List<String> sources = new ArrayList<>();
+
+        AlertGroup(ExecutionAlert.Severity severity, String message, String firstSource) {
+            this.severity = severity;
+            this.message = message;
+            this.sources.add(firstSource);
+        }
+
+        void addSource(String source) {
+            if (!sources.contains(source)) sources.add(source);
+        }
+
+        ExecutionAlert toAlert() {
+            int n = sources.size();
+            String combined;
+            if (n <= 3) {
+                combined = String.join(", ", sources);
+            } else {
+                combined = sources.get(0) + ", " + sources.get(1) + ", " + sources.get(2)
+                        + " (+" + (n - 3) + " more)";
+            }
+            return ExecutionAlert.builder()
+                    .severity(severity)
+                    .source(combined)
+                    .message(message)
+                    .timestamp(timestamp)
+                    .build();
+        }
     }
 
 }

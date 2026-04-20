@@ -1,5 +1,73 @@
 # Project Updates
 
+## Robust Error Handling: Phase 2 (2026-04-19)
+
+Completed the second phase of the robust error handling redesign, focusing on performance, usability, and fail-safe execution.
+
+### Features
+
+- **Alert Deduplication**: Multiple failures of the same type across different symbols (e.g., "Cannot fetch underlying prices" for AAPL, TSLA, MSFT) are now automatically merged into a single alert.
+    - Preserves UI cleanliness during wide-scale API outages or data issues.
+    - Appends `(+N more)` when more than 3 symbols fail with the exact same error.
+- **Fail-Fast Auth Circuit Breaker**: Introduced a top-level `AtomicBoolean authFailed` flag.
+    - If Schwab API returns a 401 Unauthorized or related token error, the system immediately trips the breaker.
+    - Instantly breaks out of both the symbol iteration loop and the strategy execution loop, preventing hundreds of redundant, doomed API calls.
+- **Real-Time UI Polling**: The frontend dashboard now surfaces alerts in real-time as they happen during execution.
+    - Moved `showErrorPanel()` from the execution completion callback directly into the active 3s polling cycle `checkExecutionStatus()`.
+
+### Architecture
+
+- **`StrategyExecutionService.java`** [MODIFIED]: Added `AlertGroup` static inner class using a `LinkedHashMap` keyed by `Severity:Message` for ordered alert deduplication. Added `authFailed` atomic flag and `break` conditions to `executeOptionsStrategy` and `executeScreeners`.
+- **`app.js`** [MODIFIED]: Updated `startPolling()` and `checkExecutionStatus()` to check `status.alerts > 0` even when `status.running === true`.
+
+## Robust Error Handling Redesign (2026-04-19)
+
+Completely redesigned the application's error handling mechanism from scratch to ensure **no error or warning goes unnoticed** in the UI. Replaced the previous single-error `AtomicReference<String>` with a comprehensive, multi-error alert system with severity levels.
+
+### Features
+
+- **ExecutionAlert DTO**: New `ExecutionAlert.java` with `Severity` enum (`WARNING`, `ERROR`), `source` context, human-readable `message`, and `timestamp`. Provides structured, typed error reporting.
+- **Thread-Safe Alert Collection**: Replaced `AtomicReference<String> lastExecutionError` with `CopyOnWriteArrayList<ExecutionAlert>` in `StrategyExecutionService`. Supports concurrent multi-error capture and snapshot reads.
+- **Comprehensive Error Capture**: Every `catch` block across the execution pipeline now generates an alert:
+  - Strategy execution errors (per-symbol option chain failures) → `ERROR`
+  - Schwab API authentication failures → `ERROR` with redeploy instructions
+  - Supabase save failures (execution results, strategy results, screener results) → `WARNING`
+  - Telegram send failures → `WARNING`
+  - Screener execution failures → `ERROR`
+  - Missing screener securities configuration → `WARNING`
+  - Unexpected top-level execution failures → `ERROR`
+- **Persistent Error Panel**: New fixed-position UI panel at the top of the page showing all alerts with:
+  - Severity icons (🔴 Error, 🟡 Warning), source badge, message, timestamp
+  - Individual dismiss (✕) per alert
+  - "Dismiss All" button that clears the panel and backend state
+  - Scrollable list with sticky header for large error counts
+  - Slide-in animation (`slideInDown`)
+- **Manual-Dismiss Error Toasts**: Error-type toasts now include a dismiss button and persist until clicked. Success toasts retain auto-dismiss behavior (4s).
+- **XSS Protection**: Added `escapeAttr()` utility function for safe HTML rendering of alert messages.
+
+### Architecture
+
+- **`ExecutionAlert.java`** [NEW]: Lombok-annotated DTO with `Severity` enum, `source`, `message`, `timestamp` fields.
+- **`StrategyExecutionService.java`** [MODIFIED]: Replaced single `AtomicReference<String>` with `CopyOnWriteArrayList<ExecutionAlert>`. Added `addAlert()`, `getAlerts()`, `clearAlerts()` methods.
+- **`ScreenerExecutionService.java`** [MODIFIED]: Wrapped all screener execution and persistence in try-catch blocks, propagating errors/warnings via `strategyExecutionService.addAlert()`.
+- **`StrategyController.java`** [MODIFIED]: `/api/status` now returns `alerts: [{severity, source, message, timestamp}]` instead of `lastError: "..."`. Added `/api/clear-errors` endpoint (v2). Kept `/api/clear-error` for backward compatibility.
+- **`app.js`** [MODIFIED]: Replaced `showAuthErrorBanner()`/`dismissAuthErrorBanner()` with `showErrorPanel()`/`dismissErrorPanel()`/`dismissSingleAlert()`. Updated all polling callbacks to check `status.alerts` array. Error toasts now require manual dismiss.
+- **`style.css`** [MODIFIED]: Added `.error-panel`, `.error-panel-item`, `.error-item-source`, `.toast-dismiss` and related CSS for the error panel and toast dismiss button.
+- **`StrategyControllerTest.java`** [MODIFIED]: Updated test assertions for `getAlerts()`/`clearAlerts()`, added test for new `/api/clear-errors` endpoint.
+
+
+## Alert Message Centralization (2026-04-19)
+
+Refactored all alert message strings out of service/controller classes into a dedicated constants class for mobile-friendly brevity and easy maintenance.
+
+### Features
+
+- **`AlertMessages.java`** [NEW]: Single utility class holding all alert message constants and source-format templates.
+  - Short, action-oriented messages (e.g. `"Auth failed — update REFRESH_TOKEN & redeploy"` instead of long prose)
+  - `_FMT` suffix marks templates requiring `String.format()` for dynamic values
+  - Source constants (`SRC_SUPABASE`, `SRC_EXECUTION`, `SRC_SCREENER_FMT`, `SRC_STRATEGY_SYMBOL_FMT`) prevent inconsistent source labels
+- **Caller updates**: `StrategyExecutionService`, `ScreenerExecutionService`, `StrategyController` — all `addAlert()` calls replaced with `AlertMessages.*` references; no inline strings remain.
+
 ## Logging Framework Migration: Log4j 2 to Logback (2026-04-13)
 
 Migrated the application's logging infrastructure from a manual Log4j 2 configuration to Spring Boot's native **Logback** framework. This transition simplifies dependency management and optimizes log readability for both local development and production environments.

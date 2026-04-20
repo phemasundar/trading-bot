@@ -2,6 +2,8 @@ package com.hemasundar.services;
 
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.config.StrategiesConfigLoader;
+import com.hemasundar.dto.AlertMessages;
+import com.hemasundar.dto.ExecutionAlert;
 import com.hemasundar.dto.ScreenerExecutionResult;
 import com.hemasundar.technical.*;
 import com.hemasundar.utils.SecuritiesResolver;
@@ -75,29 +77,39 @@ public class ScreenerExecutionService {
             // Get securities from config
             List<String> securitiesToScan = screenerConfig.getSecurities();
             if (securitiesToScan == null || securitiesToScan.isEmpty()) {
-                log.warn("No securities configured for screener {}, skipping.", screenerConfig.getName());
+                strategyExecutionService.addAlert(ExecutionAlert.Severity.WARNING,
+                        String.format(AlertMessages.SRC_SCREENER_FMT, screenerConfig.getName()),
+                        AlertMessages.NO_SECURITIES_CONFIGURED);
                 continue;
             }
 
-            // Route to appropriate screener based on type
-            List<TechnicalScreener.ScreeningResult> screenerResults = switch (screenerConfig.getScreenerType()) {
-                case PRICE_DROP -> {
-                    TechFilterConditions cond = screenerConfig.getConditions();
-                    double minDrop = cond.getMinDropPercent() != null ? cond.getMinDropPercent() : 5.0;
-                    int days = cond.getLookbackDays() != null ? cond.getLookbackDays() : 0;
-                    yield priceDropScreener.screenPriceDrop(securitiesToScan, minDrop, days);
-                }
-                case HIGH_52W_DROP -> {
-                    TechFilterConditions cond = screenerConfig.getConditions();
-                    double minDrop = cond.getMinDropPercent() != null ? cond.getMinDropPercent() : 20.0;
-                    yield priceDropScreener.screen52WeekHighDrop(securitiesToScan, minDrop);
-                }
-                default -> {
-                    TechnicalFilterChain filterChain = TechnicalFilterChain.of(allIndicators,
-                            screenerConfig.getConditions());
-                    yield technicalScreener.screenStocks(securitiesToScan, filterChain);
-                }
-            };
+            List<TechnicalScreener.ScreeningResult> screenerResults;
+            try {
+                // Route to appropriate screener based on type
+                screenerResults = switch (screenerConfig.getScreenerType()) {
+                    case PRICE_DROP -> {
+                        TechFilterConditions cond = screenerConfig.getConditions();
+                        double minDrop = cond.getMinDropPercent() != null ? cond.getMinDropPercent() : 5.0;
+                        int days = cond.getLookbackDays() != null ? cond.getLookbackDays() : 0;
+                        yield priceDropScreener.screenPriceDrop(securitiesToScan, minDrop, days);
+                    }
+                    case HIGH_52W_DROP -> {
+                        TechFilterConditions cond = screenerConfig.getConditions();
+                        double minDrop = cond.getMinDropPercent() != null ? cond.getMinDropPercent() : 20.0;
+                        yield priceDropScreener.screen52WeekHighDrop(securitiesToScan, minDrop);
+                    }
+                    default -> {
+                        TechnicalFilterChain filterChain = TechnicalFilterChain.of(allIndicators,
+                                screenerConfig.getConditions());
+                        yield technicalScreener.screenStocks(securitiesToScan, filterChain);
+                    }
+                };
+            } catch (Exception e) {
+                strategyExecutionService.addAlert(ExecutionAlert.Severity.ERROR,
+                        String.format(AlertMessages.SRC_SCREENER_FMT, screenerConfig.getName()),
+                        String.format(AlertMessages.SCREENER_EXEC_FAILED_FMT, e.getMessage()));
+                continue;
+            }
 
             log.info("[{}] Found {} stocks matching criteria", screenerConfig.getName(), screenerResults.size());
 
@@ -105,7 +117,13 @@ public class ScreenerExecutionService {
                 log.info("[{}] Matching stocks: {}", screenerConfig.getName(),
                         screenerResults.stream().map(TechnicalScreener.ScreeningResult::getSymbol)
                                 .toList());
-                telegramUtils.sendTechnicalScreenerAlert(screenerConfig.getName(), screenerResults);
+                try {
+                    telegramUtils.sendTechnicalScreenerAlert(screenerConfig.getName(), screenerResults);
+                } catch (Exception e) {
+                    strategyExecutionService.addAlert(ExecutionAlert.Severity.WARNING,
+                            String.format(AlertMessages.SRC_SCREENER_FMT, screenerConfig.getName()),
+                            AlertMessages.TELEGRAM_SEND_FAILED);
+                }
             }
 
             // Save screener result
@@ -121,7 +139,9 @@ public class ScreenerExecutionService {
                 supabaseService.saveScreenerResult(scrResult);
                 log.info("[{}] Saved screener result to Supabase", screenerConfig.getName());
             } catch (Exception e) {
-                log.error("[{}] Failed to save screener result: {}", screenerConfig.getName(), e.getMessage());
+                strategyExecutionService.addAlert(ExecutionAlert.Severity.WARNING,
+                        String.format(AlertMessages.SRC_SCREENER_FMT, screenerConfig.getName()),
+                        AlertMessages.SAVE_SCREENER_RESULT_FAILED);
             }
         }
     }
