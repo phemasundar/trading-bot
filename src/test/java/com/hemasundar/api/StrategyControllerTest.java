@@ -360,8 +360,8 @@ public class StrategyControllerTest {
         when(thinkOrSwinAPIs.getMarketHours()).thenThrow(new RuntimeException("API Down"));
 
         mockMvc.perform(get("/api/market-status"))
-                .andExpect(status().isOk()) // Graceful degradation
+                .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.equityStatus").value("CLOSED"))
-                .andExpect(jsonPath("$.error").value(true));
+                .andExpect(jsonPath("$.error").value("API Down"));
     }
 }
