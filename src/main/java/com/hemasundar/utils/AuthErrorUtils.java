@@ -17,7 +17,7 @@ public class AuthErrorUtils {
      * @param e The exception to analyze
      * @return true if it's an authentication error, false otherwise
      */
-    public boolean isAuthError(Exception e) {
+    public static boolean isAuthError(Exception e) {
         if (e == null) return false;
         
         String msg = e.getMessage();

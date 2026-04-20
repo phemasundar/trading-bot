@@ -432,7 +432,7 @@ public class StrategyController {
             return ResponseEntity.ok(Map.of("equityStatus", equityStatus, "optionsStatus", optionsStatus));
         } catch (Exception e) {
             log.error("Failed to fetch market hours", e);
-            if (com.hemasundar.utils.AuthErrorUtils.isAuthError(e.getMessage())) {
+            if (com.hemasundar.utils.AuthErrorUtils.isAuthError(e)) {
                 executionService.addAlert(ExecutionAlert.Severity.ERROR, "Market Status", AlertMessages.AUTH_FAILED);
             } else {
                 executionService.addAlert(ExecutionAlert.Severity.WARNING, "Market Status", String.format(AlertMessages.UNEXPECTED_FAILURE_FMT, e.getMessage()));
