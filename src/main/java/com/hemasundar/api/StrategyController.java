@@ -135,6 +135,7 @@ public class StrategyController {
                     .body(results);
         } catch (Exception e) {
             log.error("Failed to load results", e);
+            executionService.addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE, "Failed to load results: " + e.getMessage());
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Failed to load results: " + e.getMessage()));
         }
@@ -151,6 +152,7 @@ public class StrategyController {
                     .body(screenerExecutionService.getLatestScreenerResults());
         } catch (Exception e) {
             log.error("Failed to load screener results", e);
+            executionService.addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE, "Failed to load screener results: " + e.getMessage());
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Failed to load screener results: " + e.getMessage()));
         }
@@ -169,6 +171,7 @@ public class StrategyController {
                     .body(results);
         } catch (Exception e) {
             log.error("Failed to load custom results", e);
+            executionService.addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE, "Failed to load custom results: " + e.getMessage());
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Failed to load custom results: " + e.getMessage()));
         }

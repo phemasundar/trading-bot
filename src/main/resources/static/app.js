@@ -1110,6 +1110,9 @@ async function loadResults() {
     } catch (e) {
         optionsContainer.innerHTML = `<div class="empty-state text-danger">Failed to load results: ${e.message}</div>`;
         screenerContainer.innerHTML = '';
+        if (typeof checkExecutionStatus === 'function') {
+            checkExecutionStatus();
+        }
     }
 }
 
@@ -1825,6 +1828,9 @@ async function loadCustomResults() {
         }
     } catch (e) {
         container.innerHTML = `<div class="empty-state text-danger">Failed to load: ${e.message}</div>`;
+        if (typeof checkExecutionStatus === 'function') {
+            checkExecutionStatus();
+        }
     }
 }
 
