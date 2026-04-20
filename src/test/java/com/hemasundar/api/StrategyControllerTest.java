@@ -5,6 +5,7 @@ import com.hemasundar.pojos.MarketHoursResponse;
 import com.hemasundar.services.StrategyExecutionService;
 import com.hemasundar.config.properties.SupabaseConfig;
 import com.hemasundar.dto.ExecuteRequest;
+import com.hemasundar.dto.ExecutionAlert;
 import com.hemasundar.dto.CustomExecuteRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.mockito.InjectMocks;
@@ -271,14 +272,22 @@ public class StrategyControllerTest {
         when(executionService.isExecutionRunning()).thenReturn(true);
         when(executionService.getExecutionStartTimeMs()).thenReturn(1000L);
         when(executionService.getCurrentExecutionTask()).thenReturn("Scanning AAPL");
-        when(executionService.getLastExecutionError()).thenReturn("Auth failed");
+        when(executionService.getAlerts()).thenReturn(List.of(
+                ExecutionAlert.builder()
+                        .severity(ExecutionAlert.Severity.ERROR)
+                        .source("Auth")
+                        .message("Auth failed")
+                        .timestamp(123456789L)
+                        .build()
+        ));
 
         mockMvc.perform(get("/api/status"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.running").value(true))
                 .andExpect(jsonPath("$.currentTask").value("Scanning AAPL"))
                 .andExpect(jsonPath("$.startTimeMs").value(1000))
-                .andExpect(jsonPath("$.lastError").value("Auth failed"));
+                .andExpect(jsonPath("$.alerts[0].message").value("Auth failed"))
+                .andExpect(jsonPath("$.alerts[0].severity").value("ERROR"));
     }
 
     @Test
@@ -286,7 +295,15 @@ public class StrategyControllerTest {
         mockMvc.perform(post("/api/clear-error"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.cleared").value(true));
-        verify(executionService).clearLastExecutionError();
+        verify(executionService).clearAlerts();
+    }
+
+    @Test
+    public void testClearErrors_Success() throws Exception {
+        mockMvc.perform(post("/api/clear-errors"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cleared").value(true));
+        verify(executionService, org.mockito.Mockito.times(1)).clearAlerts();
     }
 
     @Test

@@ -1,8 +1,10 @@
 package com.hemasundar.api;
 
 import com.hemasundar.config.properties.SupabaseConfig;
-import com.hemasundar.dto.ExecuteRequest;
 import com.hemasundar.dto.CustomExecuteRequest;
+import com.hemasundar.dto.AlertMessages;
+import com.hemasundar.dto.ExecutionAlert;
+import com.hemasundar.dto.ExecuteRequest;
 import com.hemasundar.dto.StrategyResult;
 import com.hemasundar.options.models.*;
 import com.hemasundar.options.strategies.StrategyType;
@@ -250,6 +252,8 @@ public class StrategyController {
                 }
             } catch (Exception e) {
                 log.error("Strategy execution failed", e);
+                executionService.addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_EXECUTION,
+                        String.format(AlertMessages.UNEXPECTED_FAILURE_FMT, e.getMessage()));
             } finally {
                 executionService.finishGlobalExecution();
             }
@@ -351,7 +355,7 @@ public class StrategyController {
     // ────────────────────────────────────────────
 
     /**
-     * Returns current execution status, including any auth error from the last execution.
+     * Returns current execution status, including any alerts from the last execution.
      */
     @GetMapping("/status")
     public ResponseEntity<?> getStatus() {
@@ -363,20 +367,27 @@ public class StrategyController {
             response.put("elapsedMs", System.currentTimeMillis() - executionService.getExecutionStartTimeMs());
             response.put("currentTask", executionService.getCurrentExecutionTask());
         }
-        // Always include lastError so the UI can surface auth failures after execution completes
-        String lastError = executionService.getLastExecutionError();
-        if (lastError != null) {
-            response.put("lastError", lastError);
+        // Always include alerts so the UI can surface warnings/errors after execution completes
+        List<ExecutionAlert> alerts = executionService.getAlerts();
+        if (!alerts.isEmpty()) {
+            response.put("alerts", alerts);
         }
         return ResponseEntity.ok(response);
     }
 
     /**
-     * Clears the last execution error (called by the UI dismiss button).
+     * Clears all execution alerts (called by the UI dismiss button).
      */
+    @PostMapping("/clear-errors")
+    public ResponseEntity<?> clearErrors() {
+        executionService.clearAlerts();
+        return ResponseEntity.ok(Map.of("cleared", true));
+    }
+
+    /** @deprecated Use /api/clear-errors instead. Kept for backward compatibility. */
     @PostMapping("/clear-error")
     public ResponseEntity<?> clearLastError() {
-        executionService.clearLastExecutionError();
+        executionService.clearAlerts();
         return ResponseEntity.ok(Map.of("cleared", true));
     }
 
