@@ -43,6 +43,7 @@ public class StrategyController {
     private final com.hemasundar.apis.ThinkOrSwinAPIs thinkOrSwinAPIs;
     private final com.hemasundar.config.StrategiesConfigLoader strategiesConfigLoader;
     private final SupabaseConfig supabaseConfig;
+    private final com.hemasundar.utils.AuthErrorUtils authErrorUtils;
 
     // ────────────────────────────────────────────
     // AUTH CONFIG (public — excluded from filter)
@@ -432,7 +433,7 @@ public class StrategyController {
             return ResponseEntity.ok(Map.of("equityStatus", equityStatus, "optionsStatus", optionsStatus));
         } catch (Exception e) {
             log.error("Failed to fetch market hours", e);
-            if (com.hemasundar.utils.AuthErrorUtils.isAuthError(e)) {
+            if (authErrorUtils.isAuthError(e)) {
                 executionService.addAlert(ExecutionAlert.Severity.ERROR, "Market Status", AlertMessages.AUTH_FAILED);
             } else {
                 executionService.addAlert(ExecutionAlert.Severity.WARNING, "Market Status", String.format(AlertMessages.UNEXPECTED_FAILURE_FMT, e.getMessage()));
