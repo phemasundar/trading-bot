@@ -2051,6 +2051,9 @@ async function fetchAndRenderMarketStatus() {
     } catch (e) {
         statusContainer.innerHTML = `<span class="status-badge" style="color: var(--text-muted); border: 1px solid rgba(255, 255, 255, 0.1)">Market Status Offline</span>`;
         console.error("Could not fetch market status", e);
+        if (typeof checkExecutionStatus === 'function') {
+            checkExecutionStatus();
+        }
     }
 }
 
