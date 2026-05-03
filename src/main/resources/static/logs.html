@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Execution Logs — Trading Bot</title>
+  <meta name="description" content="Real-time per-filter trade count logs grouped by strategy and symbol."/>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Mobile menu toggle -->
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            Trading Bot
+            <small>Automated Systems</small>
+        </div>
+        <a href="/" class="nav-link">
+            <span class="nav-icon">📊</span>
+            <span>Dashboard</span>
+        </a>
+        <a href="/execute.html" class="nav-link">
+            <span class="nav-icon">▶️</span>
+            <span>Execute Strategy</span>
+        </a>
+        <a href="/config.html" class="nav-link">
+            <span class="nav-icon">⚙️</span>
+            <span>Config</span>
+        </a>
+        <a href="/logs.html" class="nav-link active">
+            <span class="nav-icon">📋</span>
+            <span>Execution Logs</span>
+        </a>
+        <div id="userSection" class="user-profile" style="display:none; margin-top: auto; padding: 16px; border-top: 1px solid rgba(255,255,255,0.1);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <img id="userAvatar" src="" alt="avatar" style="width: 32px; height: 32px; border-radius: 50%;">
+                <div style="display: flex; flex-direction: column;">
+                    <span id="userName" style="font-size: 0.85rem; font-weight: 500;"></span>
+                    <a href="#" onclick="handleLogout()" style="font-size: 0.75rem; color: var(--danger); text-decoration: none;">Sign Out</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- ── Auth Loading Overlay ── -->
+      <div id="authLoading" class="auth-loading-overlay">
+        <div class="auth-spinner"></div>
+        <p>Authenticating…</p>
+      </div>
+
+      <!-- ── Error Panel (shared) ── -->
+      <div id="errorPanel" class="error-panel" style="display:none;">
+        <div class="error-panel-header">
+          <span class="error-panel-title">⚠ Alerts</span>
+          <button class="btn btn-secondary btn-sm" onclick="dismissAllAlerts()">Dismiss All</button>
+        </div>
+        <div id="errorPanelBody" class="error-panel-body"></div>
+      </div>
+
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Execution Logs</h1>
+          <p class="page-subtitle">Real-time filter-stage trade counts, grouped by strategy and symbol.</p>
+        </div>
+        <div class="page-header-actions" style="display: flex; align-items: center; gap: 8px;">
+          <div id="executionBadge" class="execution-badge hidden">
+            <span class="pulse-dot"></span>
+            <span id="badgeLabel">Running…</span>
+          </div>
+          <button class="btn btn-secondary" onclick="loadLogs()">↺ Refresh</button>
+          <button class="btn btn-secondary" onclick="clearLogs()">🗑 Clear</button>
+        </div>
+      </div>
+
+    <!-- Empty State -->
+    <div id="logsEmpty" class="empty-state" style="display:none;">
+      <div class="empty-state-icon">📋</div>
+      <h3>No log entries yet</h3>
+      <p>Start an execution to see per-filter trade counts here.</p>
+    </div>
+
+    <!-- Log Groups Container -->
+    <div id="logsContainer"></div>
+  </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/app.js?v=3"></script>
+  <script>
+    // ── Init ──
+    document.addEventListener('DOMContentLoaded', async () => {
+      await initAuth();
+      initLogsPage();
+    });
+  </script>
+</body>
+</html>

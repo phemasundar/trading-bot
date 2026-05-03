@@ -28,6 +28,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import com.hemasundar.dto.ExecutionLogEntry;
 
 /**
  * Service layer for executing trading strategies.
@@ -79,6 +80,7 @@ public class StrategyExecutionService {
         cancellationRequested.set(false);
         synchronized (alertGroups) { alertGroups.clear(); } // Clear prior alerts on new execution
         authFailed.set(false);
+        FilterLogStore.getInstance().clear(); // Reset filter logs for fresh execution
         executionStartTimeMs = System.currentTimeMillis();
         currentExecutionTask.set(initialTask);
     }
@@ -518,5 +520,29 @@ public class StrategyExecutionService {
         }
     }
 
-}
+    // ── Custom Execution CRUD ──
 
+    /**
+     * Deletes a custom execution result by its database ID.
+     */
+    public void deleteCustomExecution(String id) throws IOException {
+        supabaseService.deleteCustomExecution(id);
+    }
+
+    // ── Filter Log Access ──
+
+    /**
+     * Returns a snapshot of all filter-stage log entries captured during the current/last execution.
+     */
+    public List<ExecutionLogEntry> getFilterLogs() {
+        return FilterLogStore.getInstance().getEntries();
+    }
+
+    /**
+     * Clears the in-memory filter log store (manual reset from the Logs UI page).
+     */
+    public void clearFilterLogs() {
+        FilterLogStore.getInstance().clear();
+    }
+
+}

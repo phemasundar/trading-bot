@@ -8,6 +8,7 @@ import com.hemasundar.options.models.OptionsStrategyFilter;
 import com.hemasundar.options.models.TradeSetup;
 import com.hemasundar.pojos.EarningsCalendarResponse;
 import com.hemasundar.pojos.PriceHistoryResponse;
+import com.hemasundar.services.FilterLogStore;
 import com.hemasundar.utils.VolatilityCalculator;
 import org.apache.commons.collections4.CollectionUtils;
 import lombok.Getter;
@@ -32,22 +33,35 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
 
     @Override
     public List<TradeSetup> findTrades(OptionChainResponse chain, OptionsStrategyFilter filter) {
-        if (!checkHistoricalVolatility(chain.getSymbol(), filter)) {
+        String strategyName = getStrategyName();
+        String symbol = chain.getSymbol();
+
+        // ── Volatility Filter ──
+        if (!checkHistoricalVolatility(symbol, filter)) {
+            FilterLogStore.getInstance().logFilter(strategyName, symbol, "Historical Volatility", 1, 0);
             return Collections.emptyList();
         }
+        FilterLogStore.getInstance().logFilter(strategyName, symbol, "Historical Volatility", 1, 1);
 
         int targetDTE = filter.getTargetDTE() != null ? filter.getTargetDTE() : 0;
         int minDTE = filter.getMinDTE() != null ? filter.getMinDTE() : 0;
         int maxDTE = filter.getMaxDTE() != null ? filter.getMaxDTE() : Integer.MAX_VALUE;
 
         List<String> expiryDates = chain.getExpiryDatesInRange(targetDTE, minDTE, maxDTE);
+
+        // ── DTE Filter ──
+        int totalExpiries = 0;
+        if (chain.getCallExpDateMap() != null) totalExpiries = chain.getCallExpDateMap().size();
+        else if (chain.getPutExpDateMap() != null) totalExpiries = chain.getPutExpDateMap().size();
+        FilterLogStore.getInstance().logFilter(strategyName, symbol, "DTE Filter", totalExpiries, expiryDates.size());
+
         if (expiryDates.isEmpty()) {
             log.debug("[{}] No expiry dates found in range [{}-{}]",
-                    chain.getSymbol(), minDTE, maxDTE);
+                    symbol, minDTE, maxDTE);
             return new ArrayList<>();
         }
 
-        log.info("[{}] Processing {} expiry dates: {}", chain.getSymbol(), expiryDates.size(), expiryDates);
+        log.info("[{}] Processing {} expiry dates: {}", symbol, expiryDates.size(), expiryDates);
 
         List<TradeSetup> allTrades = new ArrayList<>();
 
@@ -56,26 +70,26 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             if (!filter.isIgnoreEarnings()) {
                 try {
                     EarningsCalendarResponse earningsResponse = finnHubAPIs.getEarningsByTicker(
-                            chain.getSymbol(), LocalDate.parse(expiryDate));
+                            symbol, LocalDate.parse(expiryDate));
                     if (CollectionUtils.isNotEmpty(earningsResponse.getEarningsCalendar())) {
                         log.info("[{}] Skipping expiry {} due to upcoming earnings on {}",
-                                chain.getSymbol(), expiryDate,
+                                symbol, expiryDate,
                                 earningsResponse.getEarningsCalendar().get(0).getDate());
                         continue; // Skip this expiry, try next
                     }
                 } catch (Exception e) {
                     log.error("[{}] Error checking earnings for {}: {}",
-                            chain.getSymbol(), expiryDate, e.getMessage());
+                            symbol, expiryDate, e.getMessage());
                 }
             }
 
             // Find trades for this expiry
             List<TradeSetup> trades = findValidTrades(chain, expiryDate, filter);
-            log.info("[{}] Found {} trades for expiry {}", chain.getSymbol(), trades.size(), expiryDate);
+            log.info("[{}] Found {} trades for expiry {}", symbol, trades.size(), expiryDate);
             allTrades.addAll(trades);
         }
 
-        log.info("[{}] Total trades found: {}", chain.getSymbol(), allTrades.size());
+        log.info("[{}] Total trades found: {}", symbol, allTrades.size());
         return allTrades;
     }
 

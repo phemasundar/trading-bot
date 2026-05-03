@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 
 import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.services.FilterLogStore;
 import com.hemasundar.utils.VolatilityCalculator;
 
 /**
@@ -107,25 +108,54 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                 ? ((LongCallLeapFilter) filter).getLongCall()
                 : null;
 
-        return calls.stream()
-                // 1. Initial Candidate Generation (Map to Candidate)
+        String strategyName = getStrategyName();
+        String symbol = chain.getSymbol();
+        FilterLogStore filterLog = FilterLogStore.getInstance();
+
+        // Build all candidates
+        List<LeapCandidate> allCandidates = calls.stream()
                 .map(call -> createCandidate(call, chain.getUnderlyingPrice(), chain.getDividendYield(), filter))
                 .filter(Optional::isPresent)
                 .map(Optional::get)
-                // 2. Apply Filters
-                .filter(deltaFilter(finalLongCallFilter))
-                .filter(premiumLimitFilter(filter))
-                .filter(maxLossFilter(filter))
-                .filter(costEfficiencyFilter(filter))
-                .filter(cagrFilter(filter))
-                .filter(costSavingsFilter(filter))
-                .filter(candidate -> filter.passesDebitLimit(candidate.callPremium() * 100))
-                // 3. Build Trade Setup
-                .map(this::buildTradeSetup)
-                .filter(commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
-                .filter(commonMinNetExtrinsicValueToPricePercentageFilter(filter))
+                .toList();
+        filterLog.logFilter(strategyName, symbol, "Generated Candidates (expiry " + expiryDate + ")", calls.size(), allCandidates.size());
+
+        List<LeapCandidate> afterDelta = allCandidates.stream().filter(deltaFilter(finalLongCallFilter)).toList();
+        filterLog.logFilter(strategyName, symbol, "Delta Filter", allCandidates.size(), afterDelta.size());
+
+        List<LeapCandidate> afterPremium = afterDelta.stream().filter(premiumLimitFilter(filter)).toList();
+        filterLog.logFilter(strategyName, symbol, "Premium Limit Filter", afterDelta.size(), afterPremium.size());
+
+        List<LeapCandidate> afterMaxLoss = afterPremium.stream().filter(maxLossFilter(filter)).toList();
+        filterLog.logFilter(strategyName, symbol, "Max Loss Filter", afterPremium.size(), afterMaxLoss.size());
+
+        List<LeapCandidate> afterEfficiency = afterMaxLoss.stream().filter(costEfficiencyFilter(filter)).toList();
+        filterLog.logFilter(strategyName, symbol, "Cost Efficiency Filter", afterMaxLoss.size(), afterEfficiency.size());
+
+        List<LeapCandidate> afterCagr = afterEfficiency.stream().filter(cagrFilter(filter)).toList();
+        filterLog.logFilter(strategyName, symbol, "CAGR Filter", afterEfficiency.size(), afterCagr.size());
+
+        List<LeapCandidate> afterSavings = afterCagr.stream().filter(costSavingsFilter(filter)).toList();
+        filterLog.logFilter(strategyName, symbol, "Cost Savings Filter", afterCagr.size(), afterSavings.size());
+
+        List<LeapCandidate> afterDebitLimit = afterSavings.stream()
+                .filter(candidate -> filter.passesDebitLimit(candidate.callPremium() * 100)).toList();
+        filterLog.logFilter(strategyName, symbol, "Debit Limit Filter", afterSavings.size(), afterDebitLimit.size());
+
+        List<TradeSetup> mapped = afterDebitLimit.stream().map(this::buildTradeSetup).toList();
+
+        List<TradeSetup> afterMaxExtrinsic = mapped.stream().filter(commonMaxNetExtrinsicValueToPricePercentageFilter(filter)).toList();
+        filterLog.logFilter(strategyName, symbol, "Max Extrinsic Value Filter", mapped.size(), afterMaxExtrinsic.size());
+
+        List<TradeSetup> afterMinExtrinsic = afterMaxExtrinsic.stream().filter(commonMinNetExtrinsicValueToPricePercentageFilter(filter)).toList();
+        filterLog.logFilter(strategyName, symbol, "Min Extrinsic Value Filter", afterMaxExtrinsic.size(), afterMinExtrinsic.size());
+
+        List<TradeSetup> result = afterMinExtrinsic.stream()
                 .filter(trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()))
                 .collect(Collectors.toList());
+        filterLog.logFilter(strategyName, symbol, "Break-Even Filter", afterMinExtrinsic.size(), result.size());
+
+        return result;
     }
 
     private Optional<LeapCandidate> createCandidate(OptionChainResponse.OptionData call,

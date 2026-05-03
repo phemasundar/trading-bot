@@ -1454,3 +1454,284 @@ a:hover {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+/* ═══════════════════════════════════════════════
+   EXECUTION LOGS PAGE (logs.html)
+   ═══════════════════════════════════════════════ */
+
+/* Page header row */
+.page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.page-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Execution running badge */
+.execution-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(99, 102, 241, 0.12);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 20px;
+    font-size: 0.78rem;
+    color: var(--primary);
+    font-weight: 500;
+}
+
+.execution-badge.hidden {
+    display: none;
+}
+
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary);
+    animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* Empty state */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 48px 24px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.empty-state-icon {
+    font-size: 2.5rem;
+    margin-bottom: 4px;
+}
+
+/* ── Log Group (Strategy level) ── */
+
+.log-group {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.log-group-header {
+    padding: 14px 16px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+}
+
+.log-group-header:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.log-group-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.log-group-body {
+    display: none;
+    border-top: 1px solid var(--border);
+    padding: 0;
+}
+
+.log-group-body.open {
+    display: block;
+}
+
+/* ── Log Symbol List ── */
+
+.log-symbol-list {
+    padding: 8px 12px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.log-symbol-block {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) - 2px);
+    overflow: hidden;
+}
+
+.log-symbol-header {
+    padding: 10px 14px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+}
+
+.log-symbol-header:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.log-symbol-name {
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+.log-final-count {
+    font-size: 0.78rem;
+    color: var(--success);
+    font-weight: 500;
+}
+
+.log-reduction {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: rgba(239, 68, 68, 0.1);
+    border-radius: 12px;
+    padding: 1px 7px;
+}
+
+.log-symbol-body {
+    display: none;
+    border-top: 1px solid var(--border);
+}
+
+.log-symbol-body.open {
+    display: block;
+}
+
+/* ── Filter Table inside symbol block ── */
+
+.log-filter-table {
+    width: 100%;
+    margin: 0;
+    font-size: 0.82rem;
+    border-radius: 0;
+}
+
+.log-filter-table thead th {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.log-filter-table tbody td {
+    padding: 7px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    vertical-align: middle;
+}
+
+.log-filter-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* ── Pass Rate Progress Bar ── */
+
+.log-flow-bar {
+    display: inline-block;
+    width: 60px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+    vertical-align: middle;
+    margin-right: 4px;
+}
+
+.log-flow-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.log-flow-pct {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    vertical-align: middle;
+}
+
+/* ═══════════════════════════════════════════════
+   FILTER DETAILS SECTION (execute.html result cards)
+   ═══════════════════════════════════════════════ */
+
+.filter-details-section {
+    border-top: 1px solid var(--border);
+    margin-top: 0;
+}
+
+.filter-details-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    user-select: none;
+    transition: background 0.15s;
+}
+
+.filter-details-toggle:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.filter-details-body {
+    display: none;
+    padding: 12px 16px 16px;
+    border-top: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.01);
+}
+
+.filter-details-body.open {
+    display: block;
+}
+
+/* ═══════════════════════════════════════════════
+   DELETE CONFIRMATION MODAL
+   ═══════════════════════════════════════════════ */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.2s ease;
+}
+
+.modal {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px 28px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.2s ease;
+}
+
+@keyframes fadeIn  { from { opacity: 0 } to { opacity: 1 } }
+@keyframes slideUp { from { transform: translateY(24px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }

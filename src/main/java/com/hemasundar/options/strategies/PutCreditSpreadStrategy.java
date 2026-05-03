@@ -23,6 +23,7 @@ import java.util.stream.Stream;
 
 import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.services.FilterLogStore;
 import com.hemasundar.utils.VolatilityCalculator;
 
 @Log4j2
@@ -56,18 +57,45 @@ public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
                 .sorted()
                 .toList();
 
-        return generateCandidates(putMap, sortedStrikes, chain.getUnderlyingPrice())
-                .filter(deltaFilter(shortLegFilter, longLegFilter))
-                .filter(creditFilter())
-                .filter(commonMaxTotalCreditFilter(filter, PutSpreadCandidate::netCredit))
-                .filter(commonMinTotalCreditFilter(filter, PutSpreadCandidate::netCredit))
-                .filter(commonMaxLossFilter(filter, PutSpreadCandidate::maxLoss))
-                .filter(commonMinReturnOnRiskFilter(filter, PutSpreadCandidate::netCredit, PutSpreadCandidate::maxLoss))
-                .map(this::buildTradeSetup)
-                .filter(commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
-                .filter(commonMinNetExtrinsicValueToPricePercentageFilter(filter))
+        String strategyName = getStrategyName();
+        String symbol = chain.getSymbol();
+        FilterLogStore filterLog = FilterLogStore.getInstance();
+
+        List<PutSpreadCandidate> candidates = generateCandidates(putMap, sortedStrikes, chain.getUnderlyingPrice()).toList();
+        filterLog.logFilter(strategyName, symbol, "Generated Candidates (expiry " + expiryDate + ")", candidates.size(), candidates.size());
+
+        List<PutSpreadCandidate> afterDelta = candidates.stream().filter(deltaFilter(shortLegFilter, longLegFilter)).toList();
+        filterLog.logFilter(strategyName, symbol, "Delta Filter", candidates.size(), afterDelta.size());
+
+        List<PutSpreadCandidate> afterCredit = afterDelta.stream().filter(creditFilter()).toList();
+        filterLog.logFilter(strategyName, symbol, "Positive Credit Filter", afterDelta.size(), afterCredit.size());
+
+        List<PutSpreadCandidate> afterMaxCredit = afterCredit.stream().filter(commonMaxTotalCreditFilter(filter, PutSpreadCandidate::netCredit)).toList();
+        filterLog.logFilter(strategyName, symbol, "Max Credit Filter", afterCredit.size(), afterMaxCredit.size());
+
+        List<PutSpreadCandidate> afterMinCredit = afterMaxCredit.stream().filter(commonMinTotalCreditFilter(filter, PutSpreadCandidate::netCredit)).toList();
+        filterLog.logFilter(strategyName, symbol, "Min Credit Filter", afterMaxCredit.size(), afterMinCredit.size());
+
+        List<PutSpreadCandidate> afterMaxLoss = afterMinCredit.stream().filter(commonMaxLossFilter(filter, PutSpreadCandidate::maxLoss)).toList();
+        filterLog.logFilter(strategyName, symbol, "Max Loss Filter", afterMinCredit.size(), afterMaxLoss.size());
+
+        List<PutSpreadCandidate> afterRor = afterMaxLoss.stream().filter(commonMinReturnOnRiskFilter(filter, PutSpreadCandidate::netCredit, PutSpreadCandidate::maxLoss)).toList();
+        filterLog.logFilter(strategyName, symbol, "Min Return on Risk Filter", afterMaxLoss.size(), afterRor.size());
+
+        List<TradeSetup> mapped = afterRor.stream().map(this::buildTradeSetup).toList();
+
+        List<TradeSetup> afterMaxExtrinsic = mapped.stream().filter(commonMaxNetExtrinsicValueToPricePercentageFilter(filter)).toList();
+        filterLog.logFilter(strategyName, symbol, "Max Extrinsic Value Filter", mapped.size(), afterMaxExtrinsic.size());
+
+        List<TradeSetup> afterMinExtrinsic = afterMaxExtrinsic.stream().filter(commonMinNetExtrinsicValueToPricePercentageFilter(filter)).toList();
+        filterLog.logFilter(strategyName, symbol, "Min Extrinsic Value Filter", afterMaxExtrinsic.size(), afterMinExtrinsic.size());
+
+        List<TradeSetup> result = afterMinExtrinsic.stream()
                 .filter(trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()))
                 .toList();
+        filterLog.logFilter(strategyName, symbol, "Break-Even Filter", afterMinExtrinsic.size(), result.size());
+
+        return result;
     }
 
     /**
