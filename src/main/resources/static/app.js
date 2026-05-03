@@ -1767,7 +1767,7 @@ function loadFiltersFromResult(btn) {
 }
 
 function renderSpecificFilters(strategyValue) {
-    const container = document.getElementById('specific-filters-container');
+    const container = document.getElementById('specific-filters');
     if (!container) return;
 
     const type = STRATEGY_TYPES.find(s => s.value === strategyValue);
@@ -1776,18 +1776,8 @@ function renderSpecificFilters(strategyValue) {
     const filters = STRATEGY_SPECIFIC_FILTERS[type.group] || [];
     if (filters.length === 0) { container.innerHTML = ''; return; }
 
-    let html = `
-        <div class="config-card">
-            <div class="config-card-header" onclick="this.querySelector('.card-arrow').classList.toggle('open'); this.nextElementSibling.classList.toggle('open');">
-                <div class="flex items-center gap-sm">
-                    <span class="card-arrow open">▶</span>
-                    <h3 style="font-size:0.9rem; margin:0; color:var(--text-secondary)">${type.label} Specific Filters</h3>
-                </div>
-            </div>
-            <div class="config-card-body open">
-                <div class="form-grid">
-    `;
-
+    let html = '<h4 style="font-size:0.8rem; color:var(--text-secondary); margin: 16px 0 8px; grid-column: 1 / -1">' +
+        `${type.label} Specific Leg Filters & Options</h4>`;
     for (const f of filters) {
         const infoBtn = `<button type="button" class="info-btn" onclick="showFilterHelp(event, '${f.key}', '${escapeAttr(f.label)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>`;
         if (f.type === 'text') {
@@ -1804,11 +1794,6 @@ function renderSpecificFilters(strategyValue) {
             </div>`;
         }
     }
-    html += `
-                </div>
-            </div>
-        </div>
-    `;
     container.innerHTML = html;
 }
 
