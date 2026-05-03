@@ -45,6 +45,10 @@ async function initAuth() {
         // Inject user info + logout into the sidebar
         injectUserInfo(session.user);
 
+        // Hide the auth loading overlay if present (e.g. logs.html)
+        const authOverlay = document.getElementById('authLoading');
+        if (authOverlay) authOverlay.style.display = 'none';
+
         return true;
     } catch (e) {
         console.error('Auth initialization failed:', e);
@@ -142,7 +146,8 @@ const API = {
     },
 
     get(path) { return this.request('GET', path); },
-    post(path, body) { return this.request('POST', path, body); }
+    post(path, body) { return this.request('POST', path, body); },
+    delete(path) { return this.request('DELETE', path); }
 };
 
 // ── Mobile Sidebar Toggle ──
@@ -252,6 +257,11 @@ function buildResultCard(result, badgeText = 'Standard') {
         } catch (e) { /* ignore parse errors */ }
     }
 
+    // Build the delete button (only on execute page, only for Custom results)
+    const deleteBtn = (isExecutePage && badgeText === 'Custom' && result.strategyId && !isNaN(result.strategyId))
+        ? `<button type="button" class="btn btn-danger btn-sm" style="margin-left: 4px;" onclick="event.stopPropagation(); confirmDeleteCustomResult('${escapeAttr(result.strategyId)}', this.closest('.card'))">🗑 Delete</button>`
+        : '';
+
     card.innerHTML = `
         <div class="card-header" data-target="${cardId}">
             <div class="flex items-center gap-sm flex-wrap" style="width: 100%;">
@@ -260,6 +270,7 @@ function buildResultCard(result, badgeText = 'Standard') {
                 ${result.descriptionFile ? `<button type="button" class="info-btn" onclick="showInfo(event, '${result.descriptionFile}', '${escapeAttr(result.strategyName)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>` : ''}
                 <span class="card-badge">${badgeText}</span>
                 ${loadFiltersBtn}
+                ${deleteBtn}
             </div>
             <span class="card-stats">Last run: ${timeAgo(result.updatedAt)} · Trades: ${result.tradesFound || 0}</span>
         </div>
@@ -306,6 +317,58 @@ function toggleCard(id) {
     if (!content) return;
     content.classList.toggle('open');
     if (arrow) arrow.classList.toggle('open');
+}
+
+// ── Delete Custom Result ──
+
+/**
+ * Shows a confirmation modal before deleting a custom execution result.
+ * @param {string} resultId  - The UUID of the custom execution to delete.
+ * @param {HTMLElement} card - The card DOM element to remove on success.
+ */
+function confirmDeleteCustomResult(resultId, card) {
+    if (document.querySelector('.delete-confirm-overlay')) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay delete-confirm-overlay';
+    overlay.innerHTML = `
+        <div class="modal" style="max-width: 420px; text-align: center;">
+            <div style="font-size: 2.5rem; margin-bottom: 12px;">🗑</div>
+            <h2 style="margin: 0 0 8px;">Delete Execution Result?</h2>
+            <p style="color: var(--text-secondary); margin: 0 0 24px; font-size: 0.9rem;">
+                This action cannot be undone. The record will be permanently removed from the database.
+            </p>
+            <div class="flex gap-sm" style="justify-content: center;">
+                <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+                <button class="btn btn-danger" id="confirm-delete-btn">🗑 Delete</button>
+            </div>
+        </div>`;
+
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#confirm-delete-btn').addEventListener('click', async () => {
+        overlay.remove();
+        await deleteCustomResult(resultId, card);
+    });
+}
+
+/**
+ * Calls the backend DELETE endpoint and removes the card from the DOM on success.
+ */
+async function deleteCustomResult(resultId, card) {
+    try {
+        await API.delete(`/api/results/custom/${resultId}`);
+        if (card) {
+            card.style.transition = 'opacity 0.3s, transform 0.3s';
+            card.style.opacity = '0';
+            card.style.transform = 'translateX(20px)';
+            setTimeout(() => card.remove(), 320);
+        }
+        showToast('Execution result deleted.');
+    } catch (e) {
+        showToast(`Failed to delete: ${e.message}`, 'error');
+    }
 }
 
 // ── Screener Card Builder ──
@@ -2063,3 +2126,240 @@ async function fetchAndRenderMarketStatus() {
     }
 }
 
+
+// -- Shared: dismissAllAlerts (alias for logs.html error panel) --
+function dismissAllAlerts() {
+    dismissErrorPanel();
+}
+
+// ======================================
+//  PAGE: Execution Logs (logs.html)
+// ======================================
+
+let _logsPollInterval = null;
+let currentLogsData = [];
+window.logSortColumn = null;
+window.logSortAsc = true;
+
+window.handleLogSort = function(column, event) {
+    if (event) event.stopPropagation();
+    if (window.logSortColumn === column) {
+        if (window.logSortAsc) {
+            // asc → desc
+            window.logSortAsc = false;
+        } else {
+            // desc → reset (no sort)
+            window.logSortColumn = null;
+            window.logSortAsc = true;
+        }
+    } else {
+        window.logSortColumn = column;
+        window.logSortAsc = true;
+    }
+    const container = document.getElementById('logsContainer');
+    if (container && currentLogsData.length > 0) {
+        renderLogGroups(currentLogsData, container);
+    }
+};
+
+async function initLogsPage() {
+    await loadLogs();
+    startLogPolling();
+}
+
+function startLogPolling() {
+    clearInterval(_logsPollInterval);
+    _logsPollInterval = setInterval(async () => {
+        try {
+            const status = await API.get('/api/status');
+            const badge = document.getElementById('executionBadge');
+            const label = document.getElementById('badgeLabel');
+            if (status.running) {
+                if (badge) badge.classList.remove('hidden');
+                if (label) label.textContent = status.currentTask || 'Running...';
+                await loadLogs();
+            } else {
+                if (badge) badge.classList.add('hidden');
+            }
+            if (status.alerts && status.alerts.length > 0) showErrorPanel(status.alerts);
+        } catch (e) { /* ignore */ }
+    }, 3000);
+}
+
+async function loadLogs() {
+    const container = document.getElementById('logsContainer');
+    const empty = document.getElementById('logsEmpty');
+    if (!container) return;
+    try {
+        const logs = await API.get('/api/filter-logs');
+        currentLogsData = logs || [];
+        if (currentLogsData.length === 0) {
+            container.innerHTML = '';
+            if (empty) empty.style.display = 'flex';
+            return;
+        }
+        if (empty) empty.style.display = 'none';
+        renderLogGroups(currentLogsData, container);
+    } catch (e) {
+        container.innerHTML = '<div class="empty-state text-danger">Failed to load logs: ' + e.message + '</div>';
+    }
+}
+
+async function clearLogs() {
+    try {
+        await API.post('/api/filter-logs/clear');
+        await loadLogs();
+        showToast('Logs cleared.');
+    } catch (e) {
+        showToast('Failed to clear logs: ' + e.message, 'error');
+    }
+}
+
+/**
+ * Groups log entries by strategyName and renders collapsible blocks.
+ * Entry shape: { strategyName, symbol, filterName, inputCount, outputCount }
+ */
+function renderLogGroups(entries, container) {
+    const groups = {};
+    for (const e of entries) {
+        const key = e.strategyName || 'Unknown Strategy';
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(e);
+    }
+    // Preserve open/closed state of both strategy groups and symbol blocks
+    const openGroups = new Set();
+    container.querySelectorAll('.log-group-body.open').forEach(function(el) { openGroups.add(el.id); });
+    const openSymbols = new Set();
+    container.querySelectorAll('.log-symbol-body.open').forEach(function(el) { openSymbols.add(el.id); });
+
+    container.innerHTML = '';
+    for (const [strategyName, stratEntries] of Object.entries(groups)) {
+        const groupId = 'log-group-' + strategyName.replace(/\W+/g, '-');
+        const isOpen = openGroups.has(groupId);
+        const block = document.createElement('div');
+        block.className = 'log-group';
+        const symbols = Array.from(new Set(stratEntries.map(function(e) { return e.symbol; }))).filter(Boolean);
+        const symbolCount = symbols.length;
+        const stepCount = stratEntries.length;
+        block.innerHTML =
+            '<div class="log-group-header" onclick="toggleLogGroup(\'' + groupId + '\')">' +
+                '<div class="flex items-center gap-sm">' +
+                    '<span class="card-arrow' + (isOpen ? ' open' : '') + '" id="arrow-' + groupId + '">&#9658;</span>' +
+                    '<span class="log-group-name">' + strategyName + '</span>' +
+                    '<span class="card-badge">' + symbolCount + ' symbol' + (symbolCount !== 1 ? 's' : '') + '</span>' +
+                    '<span class="card-badge" style="background:rgba(99,102,241,0.15);color:var(--primary)">' + stepCount + ' filter steps</span>' +
+                '</div>' +
+            '</div>' +
+            '<div class="log-group-body' + (isOpen ? ' open' : '') + '" id="' + groupId + '">' +
+                renderLogSymbolGroups(stratEntries, strategyName, openSymbols) +
+            '</div>';
+        container.appendChild(block);
+    }
+}
+
+function renderLogSymbolGroups(entries, strategyName, openSymbols) {
+    const bySymbol = {};
+    for (const e of entries) {
+        const sym = e.symbol || '(global)';
+        if (!bySymbol[sym]) bySymbol[sym] = [];
+        bySymbol[sym].push(e);
+    }
+    let html = '<div class="log-symbol-list">';
+    for (const [symbol, symEntries] of Object.entries(bySymbol)) {
+        // Use a deterministic ID so open/closed state survives re-renders (e.g. on sort)
+        const stratSlug = (strategyName || 'unknown').replace(/\W+/g, '-');
+        const symSlug = symbol.replace(/\W+/g, '-');
+        const symId = 'sym-' + stratSlug + '-' + symSlug;
+        const isSymOpen = openSymbols ? openSymbols.has(symId) : false;
+
+        const finalCount = symEntries.length > 0 ? symEntries[symEntries.length - 1].tradesOut : 0;
+        const firstCount = symEntries.length > 0 ? symEntries[0].tradesIn : 0;
+        const reductionPct = firstCount > 0 ? Math.round((1 - finalCount / firstCount) * 100) : 0;
+        
+        let sortedEntries = [...symEntries];
+        if (window.logSortColumn) {
+            sortedEntries.sort((a, b) => {
+                let valA, valB;
+                if (window.logSortColumn === 'filterStage') {
+                    valA = a.filterStage || '';
+                    valB = b.filterStage || '';
+                } else if (window.logSortColumn === 'tradesIn') {
+                    valA = a.tradesIn || 0;
+                    valB = b.tradesIn || 0;
+                } else if (window.logSortColumn === 'tradesOut') {
+                    valA = a.tradesOut || 0;
+                    valB = b.tradesOut || 0;
+                } else if (window.logSortColumn === 'filtered') {
+                    valA = (a.tradesIn || 0) - (a.tradesOut || 0);
+                    valB = (b.tradesIn || 0) - (b.tradesOut || 0);
+                } else if (window.logSortColumn === 'passRate') {
+                    valA = a.tradesIn > 0 ? (a.tradesOut / a.tradesIn) : 1;
+                    valB = b.tradesIn > 0 ? (b.tradesOut / b.tradesIn) : 1;
+                }
+                if (valA < valB) return window.logSortAsc ? -1 : 1;
+                if (valA > valB) return window.logSortAsc ? 1 : -1;
+                return 0;
+            });
+        }
+
+        const getSortIndicator = (col) => {
+            if (window.logSortColumn === col) {
+                return window.logSortAsc ? ' ↑' : ' ↓';
+            }
+            return '';
+        };
+
+        const sortCls = (col) => window.logSortColumn === col ? 'sort-header active' : 'sort-header';
+
+        html +=
+            '<div class="log-symbol-block">' +
+                '<div class="log-symbol-header" onclick="toggleLogGroup(\'' + symId + '\')">' +
+                    '<div class="flex items-center gap-sm">' +
+                        '<span class="card-arrow' + (isSymOpen ? ' open' : '') + '" id="arrow-' + symId + '">&#9658;</span>' +
+                        '<span class="log-symbol-name">' + symbol + '</span>' +
+                        '<span class="card-badge" style="font-size:0.7rem">' + symEntries.length + ' filters</span>' +
+                        '<span class="log-final-count">' + finalCount + ' trade' + (finalCount !== 1 ? 's' : '') + ' remaining</span>' +
+                        (reductionPct > 0 ? '<span class="log-reduction">' + reductionPct + '% filtered</span>' : '') +
+                    '</div>' +
+                '</div>' +
+                '<div class="log-symbol-body' + (isSymOpen ? ' open' : '') + '" id="' + symId + '">' +
+                    '<table class="data-table log-filter-table">' +
+                        '<thead><tr>' +
+                            '<th class="' + sortCls('filterStage') + '" onclick="handleLogSort(\'filterStage\', event)" style="cursor:pointer; user-select:none;">FILTER STAGE' + getSortIndicator('filterStage') + '</th>' +
+                            '<th class="' + sortCls('tradesIn') + '" onclick="handleLogSort(\'tradesIn\', event)" style="text-align:right;cursor:pointer; user-select:none;">IN' + getSortIndicator('tradesIn') + '</th>' +
+                            '<th class="' + sortCls('tradesOut') + '" onclick="handleLogSort(\'tradesOut\', event)" style="text-align:right;cursor:pointer; user-select:none;">OUT' + getSortIndicator('tradesOut') + '</th>' +
+                            '<th class="' + sortCls('filtered') + '" onclick="handleLogSort(\'filtered\', event)" style="text-align:right;cursor:pointer; user-select:none;">FILTERED' + getSortIndicator('filtered') + '</th>' +
+                            '<th class="' + sortCls('passRate') + '" onclick="handleLogSort(\'passRate\', event)" style="text-align:right;width:120px;cursor:pointer; user-select:none;">PASS RATE' + getSortIndicator('passRate') + '</th>' +
+                        '</tr></thead>' +
+                        '<tbody>' + sortedEntries.map(function(e) { return renderLogFilterRow(e); }).join('') + '</tbody>' +
+                    '</table>' +
+                '</div>' +
+            '</div>';
+    }
+    html += '</div>';
+    return html;
+}
+
+function renderLogFilterRow(entry) {
+    const filtered = (entry.tradesIn || 0) - (entry.tradesOut || 0);
+    const pct = entry.tradesIn > 0 ? Math.round((entry.tradesOut / entry.tradesIn) * 100) : 100;
+    const barColor = pct >= 80 ? 'var(--success)' : (pct >= 40 ? '#f5a623' : '#ef4444');
+    const filteredClass = filtered > 0 ? 'text-danger' : 'text-muted';
+    return '<tr>' +
+        '<td>' + (entry.filterStage || '&mdash;') + '</td>' +
+        '<td style="text-align:right">' + (entry.tradesIn != null ? entry.tradesIn : '&mdash;') + '</td>' +
+        '<td style="text-align:right"><strong>' + (entry.tradesOut != null ? entry.tradesOut : '&mdash;') + '</strong></td>' +
+        '<td style="text-align:right" class="' + filteredClass + '">' + (filtered > 0 ? ('-' + filtered) : '&mdash;') + '</td>' +
+        '<td style="text-align:right">' +
+            '<div class="log-flow-bar"><div class="log-flow-fill" style="width:' + pct + '%;background:' + barColor + '"></div></div>' +
+            '<span class="log-flow-pct">' + pct + '%</span>' +
+        '</td>' +
+    '</tr>';
+}
+
+function toggleLogGroup(id) {
+    const body = document.getElementById(id);
+    const arrow = document.getElementById('arrow-' + id);
+    if (body) body.classList.toggle('open');
+    if (arrow) arrow.classList.toggle('open');
+}

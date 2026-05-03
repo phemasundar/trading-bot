@@ -217,6 +217,31 @@ public class CustomExecutionRepository {
         }
     }
 
+    /**
+     * Deletes a custom execution result by its database ID.
+     *
+     * @param id the record ID (primary key) to delete
+     * @throws IOException if the delete request fails
+     */
+    public void deleteCustomExecution(String id) throws IOException {
+        try {
+            String url = client.getUrl(CUSTOM_EXECUTION_RESULTS_PATH + "?id=eq." + id);
+            Response response = client.request().delete(url);
+            int statusCode = response.getStatusCode();
+            if (statusCode == 200 || statusCode == 204) {
+                log.info("Deleted custom execution result with id={}", id);
+            } else {
+                String errorBody = response.getBody().asString();
+                throw new IOException(String.format(
+                        "Failed to delete custom execution result id=%s: %d - %s. Body: %s",
+                        id, statusCode, response.getStatusLine(), errorBody));
+            }
+        } catch (Exception e) {
+            if (e instanceof IOException) throw (IOException) e;
+            throw new IOException("Failed to delete custom execution result: " + e.getMessage(), e);
+        }
+    }
+
     private StrategyResult parseCustomExecutionResult(JsonNode node) throws IOException {
         try {
             String strategyName = node.get("strategy_name").asText();

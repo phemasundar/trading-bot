@@ -471,4 +471,44 @@ public class StrategyController {
         return false;
     }
 
+    // ────────────────────────────────────────────
+    // CUSTOM EXECUTION CRUD endpoints
+    // ────────────────────────────────────────────
+
+    /**
+     * Deletes a custom execution result by its database primary key.
+     */
+    @DeleteMapping("/results/custom/{id}")
+    public ResponseEntity<?> deleteCustomResult(@PathVariable String id) {
+        try {
+            executionService.deleteCustomExecution(id);
+            return ResponseEntity.ok(Map.of("deleted", true, "id", id));
+        } catch (IOException e) {
+            log.error("Failed to delete custom execution result id={}", id, e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Failed to delete result: " + e.getMessage()));
+        }
+    }
+
+    // ────────────────────────────────────────────
+    // FILTER LOGS endpoint
+    // ────────────────────────────────────────────
+
+    /**
+     * Returns all filter-stage log entries captured during the current or most recent execution.
+     * Used by the /logs.html page to display per-filter trade counts in real-time.
+     */
+    @GetMapping("/filter-logs")
+    public ResponseEntity<?> getFilterLogs() {
+        return ResponseEntity.ok(executionService.getFilterLogs());
+    }
+    /**
+     * Clears the in-memory filter log store on demand (e.g., from the Logs UI page).
+     */
+    @PostMapping("/filter-logs/clear")
+    public ResponseEntity<?> clearFilterLogs() {
+        executionService.clearFilterLogs();
+        return ResponseEntity.ok(Map.of("cleared", true));
+    }
+
 }

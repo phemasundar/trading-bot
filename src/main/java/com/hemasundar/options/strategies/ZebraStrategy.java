@@ -23,6 +23,7 @@ import java.util.stream.Stream;
 
 import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.services.FilterLogStore;
 import com.hemasundar.utils.VolatilityCalculator;
 
 @Log4j2
@@ -57,18 +58,40 @@ public class ZebraStrategy extends AbstractTradingStrategy {
                 .sorted()
                 .toList();
 
-        return generateCandidates(callMap, sortedStrikes, chain.getUnderlyingPrice())
-                .filter(deltaFilter(shortLegFilter, longLegFilter))
-                .filter(commonMaxLossFilter(filter, ZebraCandidate::maxLoss))
-                .filter(commonMaxTotalDebitFilter(filter, ZebraCandidate::netDebit))
-                // For ZEBRA, return on risk might be less standard, but we apply if defined
-                .filter(commonMinReturnOnRiskFilter(filter, candidate -> candidate.maxLoss() > 0 ? 0.0 : 100.0,
-                        ZebraCandidate::maxLoss))
-                .map(this::buildTradeSetup)
-                .filter(commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
-                .filter(commonMinNetExtrinsicValueToPricePercentageFilter(filter))
+        String strategyName = getStrategyName();
+        String symbol = chain.getSymbol();
+        FilterLogStore filterLog = FilterLogStore.getInstance();
+
+        List<ZebraCandidate> candidates = generateCandidates(callMap, sortedStrikes, chain.getUnderlyingPrice()).toList();
+        filterLog.logFilter(strategyName, symbol, "Generated Candidates (expiry " + expiryDate + ")", candidates.size(), candidates.size());
+
+        List<ZebraCandidate> afterDelta = candidates.stream().filter(deltaFilter(shortLegFilter, longLegFilter)).toList();
+        filterLog.logFilter(strategyName, symbol, "Delta Filter", candidates.size(), afterDelta.size());
+
+        List<ZebraCandidate> afterMaxLoss = afterDelta.stream().filter(commonMaxLossFilter(filter, ZebraCandidate::maxLoss)).toList();
+        filterLog.logFilter(strategyName, symbol, "Max Loss Filter", afterDelta.size(), afterMaxLoss.size());
+
+        List<ZebraCandidate> afterMaxDebit = afterMaxLoss.stream().filter(commonMaxTotalDebitFilter(filter, ZebraCandidate::netDebit)).toList();
+        filterLog.logFilter(strategyName, symbol, "Max Debit Filter", afterMaxLoss.size(), afterMaxDebit.size());
+
+        List<ZebraCandidate> afterRor = afterMaxDebit.stream()
+                .filter(commonMinReturnOnRiskFilter(filter, candidate -> candidate.maxLoss() > 0 ? 0.0 : 100.0, ZebraCandidate::maxLoss)).toList();
+        filterLog.logFilter(strategyName, symbol, "Min Return on Risk Filter", afterMaxDebit.size(), afterRor.size());
+
+        List<TradeSetup> mapped = afterRor.stream().map(this::buildTradeSetup).toList();
+
+        List<TradeSetup> afterMaxExtrinsic = mapped.stream().filter(commonMaxNetExtrinsicValueToPricePercentageFilter(filter)).toList();
+        filterLog.logFilter(strategyName, symbol, "Max Extrinsic Value Filter", mapped.size(), afterMaxExtrinsic.size());
+
+        List<TradeSetup> afterMinExtrinsic = afterMaxExtrinsic.stream().filter(commonMinNetExtrinsicValueToPricePercentageFilter(filter)).toList();
+        filterLog.logFilter(strategyName, symbol, "Min Extrinsic Value Filter", afterMaxExtrinsic.size(), afterMinExtrinsic.size());
+
+        List<TradeSetup> result = afterMinExtrinsic.stream()
                 .filter(trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()))
                 .toList();
+        filterLog.logFilter(strategyName, symbol, "Break-Even Filter", afterMinExtrinsic.size(), result.size());
+
+        return result;
     }
 
     /**

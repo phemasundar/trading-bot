@@ -1,5 +1,30 @@
 # Project Updates
 
+## Trading Bot Execution Visibility (2026-05-03)
+
+Improved the debuggability and observability of the trading bot by implementing a delete function for execution results, adding granular per-filter trade count logging, and creating a new UI screen to visualize these logs in a collapsible, strategy-grouped format.
+
+### Features
+
+- **Custom Execution Deletion**: Users can now delete custom execution results directly from the Execute Strategy dashboard via a new 🗑️ Delete button.
+  - Implements a safety confirmation modal before permanent removal from the Supabase database.
+- **Granular Filter Logging**: Implemented a thread-safe `FilterLogStore` to track and record the exact number of trades passing through each stage of a strategy's filter pipeline (e.g., Volatility, Delta, Break-Even).
+  - Logs are collected dynamically during both Global and Custom executions, giving developers/users full transparency into which filter condition is aggressively removing trades.
+- **Execution Logs Dashboard (`/logs.html`)**: Added a dedicated real-time log viewer to the UI sidebar.
+  - Groups filter logs hierarchically by Strategy → Symbol.
+  - Features collapsible sections, color-coded pass-rate progress bars, and percentage drop-offs to visually identify bottlenecks.
+  - Includes a manual "Clear Logs" functionality and auto-clears on new execution starts.
+- **Backend Infrastructure Optimization**: Refactored Stream pipelines in all major option strategies (`PutCreditSpread`, `CallCreditSpread`, `Zebra`, `LongCallLeap`, `BrokenWingButterfly`) to support intermediate logging hooks without breaking functionality.
+
+### Architecture
+
+- **`FilterLogStore.java`** [NEW]: Thread-safe singleton for caching `ExecutionLogEntry` DTOs during the active run cycle.
+- **`ExecutionLogEntry.java`** [NEW]: Immutable record mapping strategy, symbol, filter name, and input/output counts.
+- **`StrategyController.java`** [MODIFIED]: Introduced `DELETE /api/results/custom/{id}`, `GET /api/filter-logs`, and `POST /api/filter-logs/clear` endpoints.
+- **`CustomExecutionRepository.java` & `SupabaseService.java`** [MODIFIED]: Added Supabase delegate mapping for the `DELETE` API.
+- **`app.js` & `style.css`** [MODIFIED]: Added `deleteCustomResult()`, confirmation modal, and the comprehensive `initLogsPage()` UI rendering logic.
+- **`AbstractTradingStrategy.java`** [MODIFIED]: Base strategy instrumented to log common filters (e.g., DTE, Volatility).
+
 ## Robust Error Handling: Phase 2 (2026-04-19)
 
 Completed the second phase of the robust error handling redesign, focusing on performance, usability, and fail-safe execution.

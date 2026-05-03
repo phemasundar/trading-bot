@@ -23,6 +23,7 @@ import java.util.stream.Stream;
 
 import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.services.FilterLogStore;
 import com.hemasundar.utils.VolatilityCalculator;
 
 @Log4j2
@@ -67,25 +68,57 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
 
         log.trace("[BWB] Current price: {}, Available strikes: {}", chain.getUnderlyingPrice(), sortedStrikes);
 
-        // Use streams to generate candidates and filter
-        List<TradeSetup> trades = generateCandidates(callMap, sortedStrikes, chain.getUnderlyingPrice())
-                .filter(deltaFilter(leg1Filter, leg2Filter, leg3Filter))
-                .filter(defaultDebitFilter())
-                .filter(wingWidthRatioFilter())
-                .filter(debitVsPriceFilter(filter))
-                .filter(debitFilter(filter))
-                .filter(creditFilter(filter))
-                .filter(maxLossFilter(filter))
-                .filter(commonMinReturnOnRiskFilter(filter, BWBCandidate::maxProfit, BWBCandidate::maxLoss))
-                .filter(upperBreakevenFilter(filter, callMap, sortedStrikes))
-                .map(this::buildTradeSetup)
-                .filter(commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
-                .filter(commonMinNetExtrinsicValueToPricePercentageFilter(filter))
+        String strategyName = getStrategyName();
+        String symbol = chain.getSymbol();
+        FilterLogStore filterLog = FilterLogStore.getInstance();
+
+        List<BWBCandidate> candidates = generateCandidates(callMap, sortedStrikes, chain.getUnderlyingPrice()).toList();
+        filterLog.logFilter(strategyName, symbol, "Generated Candidates (expiry " + expiryDate + ")", candidates.size(), candidates.size());
+
+        List<BWBCandidate> afterDelta = candidates.stream().filter(deltaFilter(leg1Filter, leg2Filter, leg3Filter)).toList();
+        filterLog.logFilter(strategyName, symbol, "Delta Filter", candidates.size(), afterDelta.size());
+
+        List<BWBCandidate> afterDefaultDebit = afterDelta.stream().filter(defaultDebitFilter()).toList();
+        filterLog.logFilter(strategyName, symbol, "Default Debit Filter", afterDelta.size(), afterDefaultDebit.size());
+
+        List<BWBCandidate> afterWingWidth = afterDefaultDebit.stream().filter(wingWidthRatioFilter()).toList();
+        filterLog.logFilter(strategyName, symbol, "Wing Width Ratio Filter", afterDefaultDebit.size(), afterWingWidth.size());
+
+        List<BWBCandidate> afterDebitVsPrice = afterWingWidth.stream().filter(debitVsPriceFilter(filter)).toList();
+        filterLog.logFilter(strategyName, symbol, "Debit vs Price Filter", afterWingWidth.size(), afterDebitVsPrice.size());
+
+        List<BWBCandidate> afterDebit = afterDebitVsPrice.stream().filter(debitFilter(filter)).toList();
+        filterLog.logFilter(strategyName, symbol, "Debit Limit Filter", afterDebitVsPrice.size(), afterDebit.size());
+
+        List<BWBCandidate> afterCredit = afterDebit.stream().filter(creditFilter(filter)).toList();
+        filterLog.logFilter(strategyName, symbol, "Credit Filter", afterDebit.size(), afterCredit.size());
+
+        List<BWBCandidate> afterMaxLoss = afterCredit.stream().filter(maxLossFilter(filter)).toList();
+        filterLog.logFilter(strategyName, symbol, "Max Loss Filter", afterCredit.size(), afterMaxLoss.size());
+
+        List<BWBCandidate> afterRor = afterMaxLoss.stream()
+                .filter(commonMinReturnOnRiskFilter(filter, BWBCandidate::maxProfit, BWBCandidate::maxLoss)).toList();
+        filterLog.logFilter(strategyName, symbol, "Min Return on Risk Filter", afterMaxLoss.size(), afterRor.size());
+
+        List<BWBCandidate> afterUpperBE = afterRor.stream()
+                .filter(upperBreakevenFilter(filter, callMap, sortedStrikes)).toList();
+        filterLog.logFilter(strategyName, symbol, "Upper Breakeven Filter", afterRor.size(), afterUpperBE.size());
+
+        List<TradeSetup> mapped = afterUpperBE.stream().map(this::buildTradeSetup).toList();
+
+        List<TradeSetup> afterMaxExtrinsic = mapped.stream().filter(commonMaxNetExtrinsicValueToPricePercentageFilter(filter)).toList();
+        filterLog.logFilter(strategyName, symbol, "Max Extrinsic Value Filter", mapped.size(), afterMaxExtrinsic.size());
+
+        List<TradeSetup> afterMinExtrinsic = afterMaxExtrinsic.stream().filter(commonMinNetExtrinsicValueToPricePercentageFilter(filter)).toList();
+        filterLog.logFilter(strategyName, symbol, "Min Extrinsic Value Filter", afterMaxExtrinsic.size(), afterMinExtrinsic.size());
+
+        List<TradeSetup> result = afterMinExtrinsic.stream()
                 .filter(trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()))
                 .toList();
+        filterLog.logFilter(strategyName, symbol, "Break-Even Filter", afterMinExtrinsic.size(), result.size());
 
-        log.debug("[BWB] Found {} valid trades", trades.size());
-        return trades;
+        log.debug("[BWB] Found {} valid trades", result.size());
+        return result;
     }
 
     /**

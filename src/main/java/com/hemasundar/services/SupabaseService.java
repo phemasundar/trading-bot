@@ -108,4 +108,11 @@ public class SupabaseService {
     public java.util.List<com.hemasundar.dto.StrategyResult> getRecentCustomExecutions(int limit) throws IOException {
         return customExecutionRepository.getRecentCustomExecutions(limit);
     }
+
+    /**
+     * Deletes a custom execution result by its database ID.
+     */
+    public void deleteCustomExecution(String id) throws IOException {
+        customExecutionRepository.deleteCustomExecution(id);
+    }
 }
