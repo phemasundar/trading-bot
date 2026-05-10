@@ -50,6 +50,39 @@ public class LegFilter {
         return passesMinDelta(absDelta) && passesMaxDelta(absDelta);
     }
 
+    public boolean passesDelta(OptionChainResponse.OptionData leg) {
+        if (leg == null) return false;
+        if (minDelta != null && leg.getAbsDelta() < minDelta) return false;
+        if (maxDelta != null && leg.getAbsDelta() > maxDelta) return false;
+        return true;
+    }
+
+    public boolean passesPremium(OptionChainResponse.OptionData leg) {
+        if (leg == null) return false;
+        if (minPremium != null && leg.getMark() < minPremium) return false;
+        if (maxPremium != null && leg.getMark() > maxPremium) return false;
+        return true;
+    }
+
+    public boolean passesVolume(OptionChainResponse.OptionData leg) {
+        if (leg == null) return false;
+        if (minVolume != null && leg.getTotalVolume() < minVolume) return false;
+        return true;
+    }
+
+    public boolean passesOpenInterest(OptionChainResponse.OptionData leg) {
+        if (leg == null) return false;
+        if (minOpenInterest != null && leg.getOpenInterest() < minOpenInterest) return false;
+        return true;
+    }
+
+    public boolean passesVolatility(OptionChainResponse.OptionData leg) {
+        if (leg == null) return false;
+        if (minVolatility != null && leg.getVolatility() < minVolatility) return false;
+        if (maxVolatility != null && leg.getVolatility() > maxVolatility) return false;
+        return true;
+    }
+
     /**
      * Comprehensive filter check - validates ALL fields in this filter.
      * Returns true if the option leg passes all defined filter criteria.
@@ -58,39 +91,34 @@ public class LegFilter {
      * @return true if leg passes all filters (or if all filters are null)
      */
     public boolean passes(OptionChainResponse.OptionData leg) {
-        if (leg == null)
-            return false;
-
-        // Delta filters
-        if (minDelta != null && leg.getAbsDelta() < minDelta)
-            return false;
-        if (maxDelta != null && leg.getAbsDelta() > maxDelta)
-            return false;
-
-        // Premium filters
-        if (minPremium != null && leg.getMark() < minPremium)
-            return false;
-        if (maxPremium != null && leg.getMark() > maxPremium)
-            return false;
-
-        // Volume filter
-        if (minVolume != null && leg.getTotalVolume() < minVolume)
-            return false;
-
-        // Open Interest filter
-        if (minOpenInterest != null && leg.getOpenInterest() < minOpenInterest)
-            return false;
-
-        // Volatility filters
-        if (minVolatility != null && leg.getVolatility() < minVolatility)
-            return false;
-        if (maxVolatility != null && leg.getVolatility() > maxVolatility)
-            return false;
-
-        return true;
+        return passesDelta(leg) &&
+               passesPremium(leg) &&
+               passesVolume(leg) &&
+               passesOpenInterest(leg) &&
+               passesVolatility(leg);
     }
 
     // ========== NULL-SAFE STATIC HELPERS ==========
+
+    public static boolean passesDelta(LegFilter filter, OptionChainResponse.OptionData leg) {
+        return filter == null || filter.passesDelta(leg);
+    }
+
+    public static boolean passesPremium(LegFilter filter, OptionChainResponse.OptionData leg) {
+        return filter == null || filter.passesPremium(leg);
+    }
+
+    public static boolean passesVolume(LegFilter filter, OptionChainResponse.OptionData leg) {
+        return filter == null || filter.passesVolume(leg);
+    }
+
+    public static boolean passesOpenInterest(LegFilter filter, OptionChainResponse.OptionData leg) {
+        return filter == null || filter.passesOpenInterest(leg);
+    }
+
+    public static boolean passesVolatility(LegFilter filter, OptionChainResponse.OptionData leg) {
+        return filter == null || filter.passesVolatility(leg);
+    }
 
     /**
      * Comprehensive null-safe filter - checks ALL filter fields.

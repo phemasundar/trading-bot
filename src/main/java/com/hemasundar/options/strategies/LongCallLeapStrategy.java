@@ -110,7 +110,6 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
 
         String strategyName = getStrategyName();
         String symbol = chain.getSymbol();
-        FilterLogStore filterLog = FilterLogStore.getInstance();
 
         // Build all candidates
         List<LeapCandidate> allCandidates = calls.stream()
@@ -118,44 +117,31 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .toList();
-        filterLog.logFilter(strategyName, symbol, "Generated Candidates (expiry " + expiryDate + ")", calls.size(), allCandidates.size());
+        FilterLogStore.getInstance().logFilter(strategyName, symbol, expiryDate, FilterStage.GENERATED_CANDIDATES.displayName(), calls.size(), allCandidates.size());
 
-        List<LeapCandidate> afterDelta = allCandidates.stream().filter(deltaFilter(finalLongCallFilter)).toList();
-        filterLog.logFilter(strategyName, symbol, "Delta Filter", allCandidates.size(), afterDelta.size());
+        List<LeapCandidate> survived = FilterPipeline
+                .<LeapCandidate>forContext(strategyName, symbol, expiryDate)
+                .step(FilterStage.DELTA_FILTER,           deltaFilter(finalLongCallFilter))
+                .step(FilterStage.LEG_PREMIUM_FILTER,     legPremiumFilter(finalLongCallFilter))
+                .step(FilterStage.VOLUME_FILTER,          volumeFilter(finalLongCallFilter))
+                .step(FilterStage.OPEN_INTEREST_FILTER,   openInterestFilter(finalLongCallFilter))
+                .step(FilterStage.LEG_VOLATILITY_FILTER,  volatilityFilter(finalLongCallFilter))
+                .step(FilterStage.PREMIUM_LIMIT_FILTER,   premiumLimitFilter(filter))
+                .step(FilterStage.MAX_LOSS_FILTER,         maxLossFilter(filter))
+                .step(FilterStage.COST_EFFICIENCY_FILTER,  costEfficiencyFilter(filter))
+                .step(FilterStage.CAGR_FILTER,             cagrFilter(filter))
+                .step(FilterStage.COST_SAVINGS_FILTER,     costSavingsFilter(filter))
+                .step(FilterStage.DEBIT_LIMIT_FILTER,      candidate -> filter.passesDebitLimit(candidate.callPremium() * 100))
+                .run(allCandidates);
 
-        List<LeapCandidate> afterPremium = afterDelta.stream().filter(premiumLimitFilter(filter)).toList();
-        filterLog.logFilter(strategyName, symbol, "Premium Limit Filter", afterDelta.size(), afterPremium.size());
+        List<TradeSetup> mapped = survived.stream().map(this::buildTradeSetup).toList();
 
-        List<LeapCandidate> afterMaxLoss = afterPremium.stream().filter(maxLossFilter(filter)).toList();
-        filterLog.logFilter(strategyName, symbol, "Max Loss Filter", afterPremium.size(), afterMaxLoss.size());
-
-        List<LeapCandidate> afterEfficiency = afterMaxLoss.stream().filter(costEfficiencyFilter(filter)).toList();
-        filterLog.logFilter(strategyName, symbol, "Cost Efficiency Filter", afterMaxLoss.size(), afterEfficiency.size());
-
-        List<LeapCandidate> afterCagr = afterEfficiency.stream().filter(cagrFilter(filter)).toList();
-        filterLog.logFilter(strategyName, symbol, "CAGR Filter", afterEfficiency.size(), afterCagr.size());
-
-        List<LeapCandidate> afterSavings = afterCagr.stream().filter(costSavingsFilter(filter)).toList();
-        filterLog.logFilter(strategyName, symbol, "Cost Savings Filter", afterCagr.size(), afterSavings.size());
-
-        List<LeapCandidate> afterDebitLimit = afterSavings.stream()
-                .filter(candidate -> filter.passesDebitLimit(candidate.callPremium() * 100)).toList();
-        filterLog.logFilter(strategyName, symbol, "Debit Limit Filter", afterSavings.size(), afterDebitLimit.size());
-
-        List<TradeSetup> mapped = afterDebitLimit.stream().map(this::buildTradeSetup).toList();
-
-        List<TradeSetup> afterMaxExtrinsic = mapped.stream().filter(commonMaxNetExtrinsicValueToPricePercentageFilter(filter)).toList();
-        filterLog.logFilter(strategyName, symbol, "Max Extrinsic Value Filter", mapped.size(), afterMaxExtrinsic.size());
-
-        List<TradeSetup> afterMinExtrinsic = afterMaxExtrinsic.stream().filter(commonMinNetExtrinsicValueToPricePercentageFilter(filter)).toList();
-        filterLog.logFilter(strategyName, symbol, "Min Extrinsic Value Filter", afterMaxExtrinsic.size(), afterMinExtrinsic.size());
-
-        List<TradeSetup> result = afterMinExtrinsic.stream()
-                .filter(trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()))
-                .collect(Collectors.toList());
-        filterLog.logFilter(strategyName, symbol, "Break-Even Filter", afterMinExtrinsic.size(), result.size());
-
-        return result;
+        return FilterPipeline
+                .<TradeSetup>forContext(strategyName, symbol, expiryDate)
+                .step(FilterStage.MAX_EXTRINSIC_VALUE_FILTER, commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
+                .step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter))
+                .step(FilterStage.BREAK_EVEN_FILTER,          trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()))
+                .run(mapped);
     }
 
     private Optional<LeapCandidate> createCandidate(OptionChainResponse.OptionData call,
@@ -361,7 +347,23 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
     // ========== FILTER PREDICATES ==========
 
     private java.util.function.Predicate<LeapCandidate> deltaFilter(LegFilter filter) {
-        return c -> LegFilter.passes(filter, c.call());
+        return c -> LegFilter.passesDelta(filter, c.call());
+    }
+
+    private java.util.function.Predicate<LeapCandidate> legPremiumFilter(LegFilter filter) {
+        return c -> LegFilter.passesPremium(filter, c.call());
+    }
+
+    private java.util.function.Predicate<LeapCandidate> volumeFilter(LegFilter filter) {
+        return c -> LegFilter.passesVolume(filter, c.call());
+    }
+
+    private java.util.function.Predicate<LeapCandidate> openInterestFilter(LegFilter filter) {
+        return c -> LegFilter.passesOpenInterest(filter, c.call());
+    }
+
+    private java.util.function.Predicate<LeapCandidate> volatilityFilter(LegFilter filter) {
+        return c -> LegFilter.passesVolatility(filter, c.call());
     }
 
     private java.util.function.Predicate<LeapCandidate> premiumLimitFilter(OptionsStrategyFilter filter) {

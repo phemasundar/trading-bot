@@ -2226,11 +2226,13 @@ function renderLogGroups(entries, container) {
         if (!groups[key]) groups[key] = [];
         groups[key].push(e);
     }
-    // Preserve open/closed state of both strategy groups and symbol blocks
+    // Preserve open/closed state of strategy groups, symbol blocks, and expiry blocks
     const openGroups = new Set();
     container.querySelectorAll('.log-group-body.open').forEach(function(el) { openGroups.add(el.id); });
     const openSymbols = new Set();
     container.querySelectorAll('.log-symbol-body.open').forEach(function(el) { openSymbols.add(el.id); });
+    const openExpiries = new Set();
+    container.querySelectorAll('.log-expiry-body.open').forEach(function(el) { openExpiries.add(el.id); });
 
     container.innerHTML = '';
     for (const [strategyName, stratEntries] of Object.entries(groups)) {
@@ -2251,13 +2253,13 @@ function renderLogGroups(entries, container) {
                 '</div>' +
             '</div>' +
             '<div class="log-group-body' + (isOpen ? ' open' : '') + '" id="' + groupId + '">' +
-                renderLogSymbolGroups(stratEntries, strategyName, openSymbols) +
+                renderLogSymbolGroups(stratEntries, strategyName, openSymbols, openExpiries) +
             '</div>';
         container.appendChild(block);
     }
 }
 
-function renderLogSymbolGroups(entries, strategyName, openSymbols) {
+function renderLogSymbolGroups(entries, strategyName, openSymbols, openExpiries) {
     const bySymbol = {};
     for (const e of entries) {
         const sym = e.symbol || '(global)';
@@ -2266,50 +2268,29 @@ function renderLogSymbolGroups(entries, strategyName, openSymbols) {
     }
     let html = '<div class="log-symbol-list">';
     for (const [symbol, symEntries] of Object.entries(bySymbol)) {
-        // Use a deterministic ID so open/closed state survives re-renders (e.g. on sort)
         const stratSlug = (strategyName || 'unknown').replace(/\W+/g, '-');
         const symSlug = symbol.replace(/\W+/g, '-');
         const symId = 'sym-' + stratSlug + '-' + symSlug;
         const isSymOpen = openSymbols ? openSymbols.has(symId) : false;
 
-        const finalCount = symEntries.length > 0 ? symEntries[symEntries.length - 1].tradesOut : 0;
-        const firstCount = symEntries.length > 0 ? symEntries[0].tradesIn : 0;
-        const reductionPct = firstCount > 0 ? Math.round((1 - finalCount / firstCount) * 100) : 0;
-        
-        let sortedEntries = [...symEntries];
-        if (window.logSortColumn) {
-            sortedEntries.sort((a, b) => {
-                let valA, valB;
-                if (window.logSortColumn === 'filterStage') {
-                    valA = a.filterStage || '';
-                    valB = b.filterStage || '';
-                } else if (window.logSortColumn === 'tradesIn') {
-                    valA = a.tradesIn || 0;
-                    valB = b.tradesIn || 0;
-                } else if (window.logSortColumn === 'tradesOut') {
-                    valA = a.tradesOut || 0;
-                    valB = b.tradesOut || 0;
-                } else if (window.logSortColumn === 'filtered') {
-                    valA = (a.tradesIn || 0) - (a.tradesOut || 0);
-                    valB = (b.tradesIn || 0) - (b.tradesOut || 0);
-                } else if (window.logSortColumn === 'passRate') {
-                    valA = a.tradesIn > 0 ? (a.tradesOut / a.tradesIn) : 1;
-                    valB = b.tradesIn > 0 ? (b.tradesOut / b.tradesIn) : 1;
-                }
-                if (valA < valB) return window.logSortAsc ? -1 : 1;
-                if (valA > valB) return window.logSortAsc ? 1 : -1;
-                return 0;
-            });
+        // Split entries: null expiry = symbol-level ("Other"), non-null = per-expiry blocks
+        const otherEntries = [];
+        const byExpiry = {};
+        for (const e of symEntries) {
+            if (e.expiry) {
+                if (!byExpiry[e.expiry]) byExpiry[e.expiry] = [];
+                byExpiry[e.expiry].push(e);
+            } else {
+                otherEntries.push(e);
+            }
         }
 
-        const getSortIndicator = (col) => {
-            if (window.logSortColumn === col) {
-                return window.logSortAsc ? ' ↑' : ' ↓';
-            }
-            return '';
-        };
-
-        const sortCls = (col) => window.logSortColumn === col ? 'sort-header active' : 'sort-header';
+        // For summary counts: exclude the "Generated Candidates" informational entry
+        const filterableEntries = symEntries.filter(e => e.filterStage !== 'Generated Candidates');
+        const finalCount = filterableEntries.length > 0 ? filterableEntries[filterableEntries.length - 1].tradesOut : 0;
+        const firstCount = filterableEntries.length > 0 ? filterableEntries[0].tradesIn : 0;
+        const reductionPct = firstCount > 0 ? Math.round((1 - finalCount / firstCount) * 100) : 0;
+        const expiryCount = Object.keys(byExpiry).length;
 
         html +=
             '<div class="log-symbol-block">' +
@@ -2317,25 +2298,119 @@ function renderLogSymbolGroups(entries, strategyName, openSymbols) {
                     '<div class="flex items-center gap-sm">' +
                         '<span class="card-arrow' + (isSymOpen ? ' open' : '') + '" id="arrow-' + symId + '">&#9658;</span>' +
                         '<span class="log-symbol-name">' + symbol + '</span>' +
-                        '<span class="card-badge" style="font-size:0.7rem">' + symEntries.length + ' filters</span>' +
+                        (expiryCount > 0
+                            ? '<span class="card-badge" style="font-size:0.7rem">' + expiryCount + ' expir' + (expiryCount !== 1 ? 'ies' : 'y') + '</span>'
+                            : '<span class="card-badge" style="font-size:0.7rem">' + filterableEntries.length + ' filters</span>') +
                         '<span class="log-final-count">' + finalCount + ' trade' + (finalCount !== 1 ? 's' : '') + ' remaining</span>' +
                         (reductionPct > 0 ? '<span class="log-reduction">' + reductionPct + '% filtered</span>' : '') +
                     '</div>' +
                 '</div>' +
                 '<div class="log-symbol-body' + (isSymOpen ? ' open' : '') + '" id="' + symId + '">' +
-                    '<table class="data-table log-filter-table">' +
-                        '<thead><tr>' +
-                            '<th class="' + sortCls('filterStage') + '" onclick="handleLogSort(\'filterStage\', event)" style="cursor:pointer; user-select:none;">FILTER STAGE' + getSortIndicator('filterStage') + '</th>' +
-                            '<th class="' + sortCls('tradesIn') + '" onclick="handleLogSort(\'tradesIn\', event)" style="text-align:right;cursor:pointer; user-select:none;">IN' + getSortIndicator('tradesIn') + '</th>' +
-                            '<th class="' + sortCls('tradesOut') + '" onclick="handleLogSort(\'tradesOut\', event)" style="text-align:right;cursor:pointer; user-select:none;">OUT' + getSortIndicator('tradesOut') + '</th>' +
-                            '<th class="' + sortCls('filtered') + '" onclick="handleLogSort(\'filtered\', event)" style="text-align:right;cursor:pointer; user-select:none;">FILTERED' + getSortIndicator('filtered') + '</th>' +
-                            '<th class="' + sortCls('passRate') + '" onclick="handleLogSort(\'passRate\', event)" style="text-align:right;width:120px;cursor:pointer; user-select:none;">PASS RATE' + getSortIndicator('passRate') + '</th>' +
-                        '</tr></thead>' +
-                        '<tbody>' + sortedEntries.map(function(e) { return renderLogFilterRow(e); }).join('') + '</tbody>' +
-                    '</table>' +
+                    renderLogSymbolContent(otherEntries, byExpiry, stratSlug, symSlug, openExpiries) +
                 '</div>' +
             '</div>';
     }
+    html += '</div>';
+    return html;
+}
+
+
+
+/**
+ * Renders the content inside an open symbol body:
+ * - Per-expiry collapsible sub-blocks (sorted by date)
+ * - "Other" collapsible sub-block for null-expiry entries (symbol-level: volatility, DTE)
+ */
+function renderLogSymbolContent(otherEntries, byExpiry, stratSlug, symSlug, openExpiries) {
+    const getSortIndicator = (col) => {
+        if (window.logSortColumn === col) { return window.logSortAsc ? ' ↑' : ' ↓'; }
+        return '';
+    };
+    const sortCls = (col) => window.logSortColumn === col ? 'sort-header active' : 'sort-header';
+
+    function sortEntries(arr) {
+        if (!window.logSortColumn) return arr;
+        return [...arr].sort((a, b) => {
+            let valA, valB;
+            if (window.logSortColumn === 'filterStage') { valA = a.filterStage || ''; valB = b.filterStage || ''; }
+            else if (window.logSortColumn === 'tradesIn') { valA = a.tradesIn || 0; valB = b.tradesIn || 0; }
+            else if (window.logSortColumn === 'tradesOut') { valA = a.tradesOut || 0; valB = b.tradesOut || 0; }
+            else if (window.logSortColumn === 'filtered') { valA = (a.tradesIn||0)-(a.tradesOut||0); valB = (b.tradesIn||0)-(b.tradesOut||0); }
+            else if (window.logSortColumn === 'passRate') { valA = a.tradesIn > 0 ? (a.tradesOut/a.tradesIn) : 1; valB = b.tradesIn > 0 ? (b.tradesOut/b.tradesIn) : 1; }
+            if (valA < valB) return window.logSortAsc ? -1 : 1;
+            if (valA > valB) return window.logSortAsc ? 1 : -1;
+            return 0;
+        });
+    }
+
+    const buildTable = (rowsArr) =>
+        '<table class="data-table log-filter-table">' +
+            '<thead><tr>' +
+                '<th class="' + sortCls('filterStage') + '" onclick="handleLogSort(\'filterStage\', event)" style="cursor:pointer;user-select:none;">FILTER STAGE' + getSortIndicator('filterStage') + '</th>' +
+                '<th class="' + sortCls('tradesIn') + '" onclick="handleLogSort(\'tradesIn\', event)" style="text-align:right;cursor:pointer;user-select:none;">IN' + getSortIndicator('tradesIn') + '</th>' +
+                '<th class="' + sortCls('tradesOut') + '" onclick="handleLogSort(\'tradesOut\', event)" style="text-align:right;cursor:pointer;user-select:none;">OUT' + getSortIndicator('tradesOut') + '</th>' +
+                '<th class="' + sortCls('filtered') + '" onclick="handleLogSort(\'filtered\', event)" style="text-align:right;cursor:pointer;user-select:none;">FILTERED' + getSortIndicator('filtered') + '</th>' +
+                '<th class="' + sortCls('passRate') + '" onclick="handleLogSort(\'passRate\', event)" style="text-align:right;width:120px;cursor:pointer;user-select:none;">PASS RATE' + getSortIndicator('passRate') + '</th>' +
+            '</tr></thead>' +
+            '<tbody>' + sortEntries(rowsArr).map(renderLogFilterRow).join('') + '</tbody>' +
+        '</table>';
+
+    let html = '<div class="log-symbol-content">';
+
+    // Per-expiry collapsible blocks (sorted chronologically)
+    const expiryDates = Object.keys(byExpiry).sort();
+    if (expiryDates.length > 0) {
+        html += '<div class="log-expiry-list">';
+        for (const expDate of expiryDates) {
+            // Exclude the "Generated Candidates" informational row from the table (tradesIn === tradesOut)
+            const expEntries = byExpiry[expDate].filter(e => e.filterStage !== 'Generated Candidates');
+            const rawEntries = byExpiry[expDate];
+            const expId = 'exp-' + stratSlug + '-' + symSlug + '-' + expDate.replace(/-/g, '');
+            const isExpOpen = openExpiries ? openExpiries.has(expId) : false;
+            // Use first candidate count as "in" for the block summary
+            const expCandidates = rawEntries.find(e => e.filterStage === 'Generated Candidates');
+            const expFirst = expCandidates ? expCandidates.tradesIn : (expEntries.length > 0 ? expEntries[0].tradesIn : 0);
+            const expFinal = expEntries.length > 0 ? expEntries[expEntries.length - 1].tradesOut : 0;
+            const expReduction = expFirst > 0 ? Math.round((1 - expFinal / expFirst) * 100) : 0;
+
+            html +=
+                '<div class="log-expiry-block">' +
+                    '<div class="log-expiry-header" onclick="toggleLogGroup(\'' + expId + '\')">' +
+                        '<div class="flex items-center gap-sm">' +
+                            '<span class="card-arrow' + (isExpOpen ? ' open' : '') + '" id="arrow-' + expId + '">&#9658;</span>' +
+                            '<span class="log-expiry-date">Expiry: ' + expDate + '</span>' +
+                            '<span class="card-badge" style="font-size:0.68rem;background:rgba(99,102,241,0.12);color:var(--primary)">' + expFirst + ' candidates &rarr; ' + expFinal + ' trades</span>' +
+                            '<span class="card-badge" style="font-size:0.68rem">' + expEntries.length + ' filter' + (expEntries.length !== 1 ? 's' : '') + '</span>' +
+                            (expReduction > 0 ? '<span class="log-reduction">' + expReduction + '% filtered</span>' : '') +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="log-expiry-body' + (isExpOpen ? ' open' : '') + '" id="' + expId + '">' +
+                        (expEntries.length > 0 ? buildTable(expEntries) : '<p class="text-muted" style="padding:0.5rem 1rem;">No filter stages recorded.</p>') +
+                    '</div>' +
+                '</div>';
+        }
+        html += '</div>';
+    }
+
+    // "Other" block — symbol-level filters without an expiry (Historical Volatility, DTE)
+    if (otherEntries.length > 0) {
+        const otherId = 'other-' + stratSlug + '-' + symSlug;
+        const isOtherOpen = openExpiries ? openExpiries.has(otherId) : false;
+        html +=
+            '<div class="log-expiry-block log-expiry-other">' +
+                '<div class="log-expiry-header" onclick="toggleLogGroup(\'' + otherId + '\')">' +
+                    '<div class="flex items-center gap-sm">' +
+                        '<span class="card-arrow' + (isOtherOpen ? ' open' : '') + '" id="arrow-' + otherId + '">&#9658;</span>' +
+                        '<span class="log-expiry-date" style="color:var(--text-muted)">Other (symbol-level)</span>' +
+                        '<span class="card-badge" style="font-size:0.68rem">' + otherEntries.length + ' filter' + (otherEntries.length !== 1 ? 's' : '') + '</span>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="log-expiry-body' + (isOtherOpen ? ' open' : '') + '" id="' + otherId + '">' +
+                    buildTable(otherEntries) +
+                '</div>' +
+            '</div>';
+    }
+
     html += '</div>';
     return html;
 }

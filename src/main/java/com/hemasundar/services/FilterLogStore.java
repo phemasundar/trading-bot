@@ -10,7 +10,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 /**
  * Thread-safe singleton store for filter-stage execution log entries.
  * Strategy classes write entries directly here during execution.
- * The store is cleared at the start of each new execution.
+ * The store is cleared at the start of each execution.
  * The UI polls /api/filter-logs to display these entries in real-time.
  */
 @Log4j2
@@ -27,16 +27,29 @@ public class FilterLogStore {
     }
 
     /**
-     * Adds a filter-stage log entry and emits a corresponding INFO log line.
+     * Logs a symbol-level filter stage (no expiry context, e.g. Historical Volatility, DTE Filter).
+     * These entries appear in the "Other" block in the UI.
      */
     public void logFilter(String strategyName, String symbol, String filterStage, int tradesIn, int tradesOut) {
+        logFilter(strategyName, symbol, null, filterStage, tradesIn, tradesOut);
+    }
+
+    /**
+     * Logs a per-expiry filter stage. Pass the expiry date string (e.g. "2025-01-17") so the UI
+     * can group filters under the correct expiry sub-block.
+     *
+     * @param expiry null for symbol-level filters; a date string for per-expiry filters
+     */
+    public void logFilter(String strategyName, String symbol, String expiry, String filterStage, int tradesIn, int tradesOut) {
         int filtered = tradesIn - tradesOut;
-        log.info("[FILTER][{}][{}] {} — in: {}, passed: {}, filtered: {}",
-                strategyName, symbol, filterStage, tradesIn, tradesOut, filtered);
+        log.info("[FILTER][{}][{}][{}] {} — in: {}, passed: {}, filtered: {}",
+                strategyName, symbol, expiry != null ? expiry : "symbol-level",
+                filterStage, tradesIn, tradesOut, filtered);
 
         entries.add(ExecutionLogEntry.builder()
                 .strategyName(strategyName)
                 .symbol(symbol)
+                .expiry(expiry)
                 .filterStage(filterStage)
                 .tradesIn(tradesIn)
                 .tradesOut(tradesOut)

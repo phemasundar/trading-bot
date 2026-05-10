@@ -1670,6 +1670,68 @@ a:hover {
     vertical-align: middle;
 }
 
+/* ── Log Symbol Content wrapper ── */
+.log-symbol-content {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── Log Expiry Sub-blocks (third level) ── */
+.log-expiry-list {
+    padding: 8px 10px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.log-expiry-block {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: calc(var(--radius) - 4px);
+    overflow: hidden;
+}
+
+.log-expiry-header {
+    padding: 8px 12px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+}
+
+.log-expiry-header:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.log-expiry-date {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    letter-spacing: 0.02em;
+}
+
+.log-expiry-body {
+    display: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.log-expiry-body.open {
+    display: block;
+}
+
+/* "Other (symbol-level)" block — visually de-emphasised */
+.log-expiry-other {
+    background: rgba(255, 255, 255, 0.008);
+    border-color: rgba(255, 255, 255, 0.04);
+    opacity: 0.85;
+}
+
+.log-expiry-other .log-expiry-date {
+    font-style: italic;
+    color: var(--text-muted);
+}
+
 /* ═══════════════════════════════════════════════
    FILTER DETAILS SECTION (execute.html result cards)
    ═══════════════════════════════════════════════ */

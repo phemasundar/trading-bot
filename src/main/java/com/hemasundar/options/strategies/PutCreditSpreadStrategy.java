@@ -59,43 +59,32 @@ public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
 
         String strategyName = getStrategyName();
         String symbol = chain.getSymbol();
-        FilterLogStore filterLog = FilterLogStore.getInstance();
 
         List<PutSpreadCandidate> candidates = generateCandidates(putMap, sortedStrikes, chain.getUnderlyingPrice()).toList();
-        filterLog.logFilter(strategyName, symbol, "Generated Candidates (expiry " + expiryDate + ")", candidates.size(), candidates.size());
+        FilterLogStore.getInstance().logFilter(strategyName, symbol, expiryDate, FilterStage.GENERATED_CANDIDATES.displayName(), candidates.size(), candidates.size());
 
-        List<PutSpreadCandidate> afterDelta = candidates.stream().filter(deltaFilter(shortLegFilter, longLegFilter)).toList();
-        filterLog.logFilter(strategyName, symbol, "Delta Filter", candidates.size(), afterDelta.size());
+        List<PutSpreadCandidate> survived = FilterPipeline
+                .<PutSpreadCandidate>forContext(strategyName, symbol, expiryDate)
+                .step(FilterStage.DELTA_FILTER,              deltaFilter(shortLegFilter, longLegFilter))
+                .step(FilterStage.LEG_PREMIUM_FILTER,        legPremiumFilter(shortLegFilter, longLegFilter))
+                .step(FilterStage.VOLUME_FILTER,             volumeFilter(shortLegFilter, longLegFilter))
+                .step(FilterStage.OPEN_INTEREST_FILTER,      openInterestFilter(shortLegFilter, longLegFilter))
+                .step(FilterStage.LEG_VOLATILITY_FILTER,     volatilityFilter(shortLegFilter, longLegFilter))
+                .step(FilterStage.POSITIVE_CREDIT_FILTER,   creditFilter())
+                .step(FilterStage.MAX_CREDIT_FILTER,        commonMaxTotalCreditFilter(filter, PutSpreadCandidate::netCredit))
+                .step(FilterStage.MIN_CREDIT_FILTER,        commonMinTotalCreditFilter(filter, PutSpreadCandidate::netCredit))
+                .step(FilterStage.MAX_LOSS_FILTER,          commonMaxLossFilter(filter, PutSpreadCandidate::maxLoss))
+                .step(FilterStage.MIN_RETURN_ON_RISK_FILTER, commonMinReturnOnRiskFilter(filter, PutSpreadCandidate::netCredit, PutSpreadCandidate::maxLoss))
+                .run(candidates);
 
-        List<PutSpreadCandidate> afterCredit = afterDelta.stream().filter(creditFilter()).toList();
-        filterLog.logFilter(strategyName, symbol, "Positive Credit Filter", afterDelta.size(), afterCredit.size());
+        List<TradeSetup> mapped = survived.stream().map(this::buildTradeSetup).toList();
 
-        List<PutSpreadCandidate> afterMaxCredit = afterCredit.stream().filter(commonMaxTotalCreditFilter(filter, PutSpreadCandidate::netCredit)).toList();
-        filterLog.logFilter(strategyName, symbol, "Max Credit Filter", afterCredit.size(), afterMaxCredit.size());
-
-        List<PutSpreadCandidate> afterMinCredit = afterMaxCredit.stream().filter(commonMinTotalCreditFilter(filter, PutSpreadCandidate::netCredit)).toList();
-        filterLog.logFilter(strategyName, symbol, "Min Credit Filter", afterMaxCredit.size(), afterMinCredit.size());
-
-        List<PutSpreadCandidate> afterMaxLoss = afterMinCredit.stream().filter(commonMaxLossFilter(filter, PutSpreadCandidate::maxLoss)).toList();
-        filterLog.logFilter(strategyName, symbol, "Max Loss Filter", afterMinCredit.size(), afterMaxLoss.size());
-
-        List<PutSpreadCandidate> afterRor = afterMaxLoss.stream().filter(commonMinReturnOnRiskFilter(filter, PutSpreadCandidate::netCredit, PutSpreadCandidate::maxLoss)).toList();
-        filterLog.logFilter(strategyName, symbol, "Min Return on Risk Filter", afterMaxLoss.size(), afterRor.size());
-
-        List<TradeSetup> mapped = afterRor.stream().map(this::buildTradeSetup).toList();
-
-        List<TradeSetup> afterMaxExtrinsic = mapped.stream().filter(commonMaxNetExtrinsicValueToPricePercentageFilter(filter)).toList();
-        filterLog.logFilter(strategyName, symbol, "Max Extrinsic Value Filter", mapped.size(), afterMaxExtrinsic.size());
-
-        List<TradeSetup> afterMinExtrinsic = afterMaxExtrinsic.stream().filter(commonMinNetExtrinsicValueToPricePercentageFilter(filter)).toList();
-        filterLog.logFilter(strategyName, symbol, "Min Extrinsic Value Filter", afterMaxExtrinsic.size(), afterMinExtrinsic.size());
-
-        List<TradeSetup> result = afterMinExtrinsic.stream()
-                .filter(trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()))
-                .toList();
-        filterLog.logFilter(strategyName, symbol, "Break-Even Filter", afterMinExtrinsic.size(), result.size());
-
-        return result;
+        return FilterPipeline
+                .<TradeSetup>forContext(strategyName, symbol, expiryDate)
+                .step(FilterStage.MAX_EXTRINSIC_VALUE_FILTER, commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
+                .step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter))
+                .step(FilterStage.BREAK_EVEN_FILTER,          trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()))
+                .run(mapped);
     }
 
     /**
@@ -134,8 +123,24 @@ public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
     // ========== FILTER PREDICATES ==========
 
     private Predicate<PutSpreadCandidate> deltaFilter(LegFilter shortLegFilter, LegFilter longLegFilter) {
-        return candidate -> LegFilter.passes(shortLegFilter, candidate.shortLeg())
-                && LegFilter.passes(longLegFilter, candidate.longLeg());
+        return candidate -> LegFilter.passesDelta(shortLegFilter, candidate.shortLeg())
+                && LegFilter.passesDelta(longLegFilter, candidate.longLeg());
+    }
+
+    private Predicate<PutSpreadCandidate> legPremiumFilter(LegFilter shortFilter, LegFilter longFilter) {
+        return c -> LegFilter.passesPremium(shortFilter, c.shortLeg()) && LegFilter.passesPremium(longFilter, c.longLeg());
+    }
+
+    private Predicate<PutSpreadCandidate> volumeFilter(LegFilter shortFilter, LegFilter longFilter) {
+        return c -> LegFilter.passesVolume(shortFilter, c.shortLeg()) && LegFilter.passesVolume(longFilter, c.longLeg());
+    }
+
+    private Predicate<PutSpreadCandidate> openInterestFilter(LegFilter shortFilter, LegFilter longFilter) {
+        return c -> LegFilter.passesOpenInterest(shortFilter, c.shortLeg()) && LegFilter.passesOpenInterest(longFilter, c.longLeg());
+    }
+
+    private Predicate<PutSpreadCandidate> volatilityFilter(LegFilter shortFilter, LegFilter longFilter) {
+        return c -> LegFilter.passesVolatility(shortFilter, c.shortLeg()) && LegFilter.passesVolatility(longFilter, c.longLeg());
     }
 
     private Predicate<PutSpreadCandidate> creditFilter() {

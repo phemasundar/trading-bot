@@ -70,52 +70,35 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
 
         String strategyName = getStrategyName();
         String symbol = chain.getSymbol();
-        FilterLogStore filterLog = FilterLogStore.getInstance();
 
         List<BWBCandidate> candidates = generateCandidates(callMap, sortedStrikes, chain.getUnderlyingPrice()).toList();
-        filterLog.logFilter(strategyName, symbol, "Generated Candidates (expiry " + expiryDate + ")", candidates.size(), candidates.size());
+        FilterLogStore.getInstance().logFilter(strategyName, symbol, expiryDate, FilterStage.GENERATED_CANDIDATES.displayName(), candidates.size(), candidates.size());
 
-        List<BWBCandidate> afterDelta = candidates.stream().filter(deltaFilter(leg1Filter, leg2Filter, leg3Filter)).toList();
-        filterLog.logFilter(strategyName, symbol, "Delta Filter", candidates.size(), afterDelta.size());
+        List<BWBCandidate> survived = FilterPipeline
+                .<BWBCandidate>forContext(strategyName, symbol, expiryDate)
+                .step(FilterStage.DELTA_FILTER,           deltaFilter(leg1Filter, leg2Filter, leg3Filter))
+                .step(FilterStage.LEG_PREMIUM_FILTER,     legPremiumFilter(leg1Filter, leg2Filter, leg3Filter))
+                .step(FilterStage.VOLUME_FILTER,          volumeFilter(leg1Filter, leg2Filter, leg3Filter))
+                .step(FilterStage.OPEN_INTEREST_FILTER,   openInterestFilter(leg1Filter, leg2Filter, leg3Filter))
+                .step(FilterStage.LEG_VOLATILITY_FILTER,  volatilityFilter(leg1Filter, leg2Filter, leg3Filter))
+                .step(FilterStage.DEFAULT_DEBIT_FILTER,      defaultDebitFilter())
+                .step(FilterStage.WING_WIDTH_RATIO_FILTER,   wingWidthRatioFilter())
+                .step(FilterStage.DEBIT_VS_PRICE_FILTER,     debitVsPriceFilter(filter))
+                .step(FilterStage.DEBIT_LIMIT_FILTER,        debitFilter(filter))
+                .step(FilterStage.CREDIT_FILTER,             creditFilter(filter))
+                .step(FilterStage.MAX_LOSS_FILTER,           maxLossFilter(filter))
+                .step(FilterStage.MIN_RETURN_ON_RISK_FILTER, commonMinReturnOnRiskFilter(filter, BWBCandidate::maxProfit, BWBCandidate::maxLoss))
+                .step(FilterStage.UPPER_BREAKEVEN_FILTER,    upperBreakevenFilter(filter, callMap, sortedStrikes))
+                .run(candidates);
 
-        List<BWBCandidate> afterDefaultDebit = afterDelta.stream().filter(defaultDebitFilter()).toList();
-        filterLog.logFilter(strategyName, symbol, "Default Debit Filter", afterDelta.size(), afterDefaultDebit.size());
+        List<TradeSetup> mapped = survived.stream().map(this::buildTradeSetup).toList();
 
-        List<BWBCandidate> afterWingWidth = afterDefaultDebit.stream().filter(wingWidthRatioFilter()).toList();
-        filterLog.logFilter(strategyName, symbol, "Wing Width Ratio Filter", afterDefaultDebit.size(), afterWingWidth.size());
-
-        List<BWBCandidate> afterDebitVsPrice = afterWingWidth.stream().filter(debitVsPriceFilter(filter)).toList();
-        filterLog.logFilter(strategyName, symbol, "Debit vs Price Filter", afterWingWidth.size(), afterDebitVsPrice.size());
-
-        List<BWBCandidate> afterDebit = afterDebitVsPrice.stream().filter(debitFilter(filter)).toList();
-        filterLog.logFilter(strategyName, symbol, "Debit Limit Filter", afterDebitVsPrice.size(), afterDebit.size());
-
-        List<BWBCandidate> afterCredit = afterDebit.stream().filter(creditFilter(filter)).toList();
-        filterLog.logFilter(strategyName, symbol, "Credit Filter", afterDebit.size(), afterCredit.size());
-
-        List<BWBCandidate> afterMaxLoss = afterCredit.stream().filter(maxLossFilter(filter)).toList();
-        filterLog.logFilter(strategyName, symbol, "Max Loss Filter", afterCredit.size(), afterMaxLoss.size());
-
-        List<BWBCandidate> afterRor = afterMaxLoss.stream()
-                .filter(commonMinReturnOnRiskFilter(filter, BWBCandidate::maxProfit, BWBCandidate::maxLoss)).toList();
-        filterLog.logFilter(strategyName, symbol, "Min Return on Risk Filter", afterMaxLoss.size(), afterRor.size());
-
-        List<BWBCandidate> afterUpperBE = afterRor.stream()
-                .filter(upperBreakevenFilter(filter, callMap, sortedStrikes)).toList();
-        filterLog.logFilter(strategyName, symbol, "Upper Breakeven Filter", afterRor.size(), afterUpperBE.size());
-
-        List<TradeSetup> mapped = afterUpperBE.stream().map(this::buildTradeSetup).toList();
-
-        List<TradeSetup> afterMaxExtrinsic = mapped.stream().filter(commonMaxNetExtrinsicValueToPricePercentageFilter(filter)).toList();
-        filterLog.logFilter(strategyName, symbol, "Max Extrinsic Value Filter", mapped.size(), afterMaxExtrinsic.size());
-
-        List<TradeSetup> afterMinExtrinsic = afterMaxExtrinsic.stream().filter(commonMinNetExtrinsicValueToPricePercentageFilter(filter)).toList();
-        filterLog.logFilter(strategyName, symbol, "Min Extrinsic Value Filter", afterMaxExtrinsic.size(), afterMinExtrinsic.size());
-
-        List<TradeSetup> result = afterMinExtrinsic.stream()
-                .filter(trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()))
-                .toList();
-        filterLog.logFilter(strategyName, symbol, "Break-Even Filter", afterMinExtrinsic.size(), result.size());
+        List<TradeSetup> result = FilterPipeline
+                .<TradeSetup>forContext(strategyName, symbol, expiryDate)
+                .step(FilterStage.MAX_EXTRINSIC_VALUE_FILTER, commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
+                .step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter))
+                .step(FilterStage.BREAK_EVEN_FILTER,          trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()))
+                .run(mapped);
 
         log.debug("[BWB] Found {} valid trades", result.size());
         return result;
@@ -156,24 +139,24 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
 
     // ========== FILTER PREDICATES ==========
 
-    /**
-     * Combined filter for all three legs using comprehensive LegFilter validation.
-     * Now validates ALL filter fields: delta, premium, volume, open interest.
-     */
-    private Predicate<BWBCandidate> deltaFilter(LegFilter leg1Filter, LegFilter leg2Filter, LegFilter leg3Filter) {
-        return candidate -> {
-            // Comprehensive validation - checks ALL filter fields
-            if (!LegFilter.passes(leg1Filter, candidate.leg1())) {
-                return false;
-            }
-            if (!LegFilter.passes(leg2Filter, candidate.leg2())) {
-                return false;
-            }
-            if (!LegFilter.passes(leg3Filter, candidate.leg3())) {
-                return false;
-            }
-            return true;
-        };
+    private Predicate<BWBCandidate> deltaFilter(LegFilter l1, LegFilter l2, LegFilter l3) {
+        return c -> LegFilter.passesDelta(l1, c.leg1()) && LegFilter.passesDelta(l2, c.leg2()) && LegFilter.passesDelta(l3, c.leg3());
+    }
+
+    private Predicate<BWBCandidate> legPremiumFilter(LegFilter l1, LegFilter l2, LegFilter l3) {
+        return c -> LegFilter.passesPremium(l1, c.leg1()) && LegFilter.passesPremium(l2, c.leg2()) && LegFilter.passesPremium(l3, c.leg3());
+    }
+
+    private Predicate<BWBCandidate> volumeFilter(LegFilter l1, LegFilter l2, LegFilter l3) {
+        return c -> LegFilter.passesVolume(l1, c.leg1()) && LegFilter.passesVolume(l2, c.leg2()) && LegFilter.passesVolume(l3, c.leg3());
+    }
+
+    private Predicate<BWBCandidate> openInterestFilter(LegFilter l1, LegFilter l2, LegFilter l3) {
+        return c -> LegFilter.passesOpenInterest(l1, c.leg1()) && LegFilter.passesOpenInterest(l2, c.leg2()) && LegFilter.passesOpenInterest(l3, c.leg3());
+    }
+
+    private Predicate<BWBCandidate> volatilityFilter(LegFilter l1, LegFilter l2, LegFilter l3) {
+        return c -> LegFilter.passesVolatility(l1, c.leg1()) && LegFilter.passesVolatility(l2, c.leg2()) && LegFilter.passesVolatility(l3, c.leg3());
     }
 
     /**
