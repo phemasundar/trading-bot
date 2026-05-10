@@ -1,6 +1,83 @@
 # Project Updates
 
-## Trading Bot Execution Visibility (2026-05-03)
+## Granular Leg Filter Pipeline (2026-05-10)
+
+Fixed a misleading logging issue where the UI reported hundreds of trades filtered by the "Delta Filter", even when Delta constraints were not configured by the user.
+
+### Features
+- **Granular Filter Evaluation**: The monolithic `LegFilter.passes()` method was split into 5 distinct evaluation methods: `passesDelta`, `passesPremium`, `passesVolume`, `passesOpenInterest`, and `passesVolatility`.
+- **New Pipeline Stages**: Expanded `FilterStage` enum to include `LEG_PREMIUM_FILTER`, `VOLUME_FILTER`, `OPEN_INTEREST_FILTER`, and `LEG_VOLATILITY_FILTER` alongside `DELTA_FILTER`.
+- **Strategy Instrumentation**: Refactored the `findValidTrades` pipelines in all 5 trading strategies (`PutCreditSpread`, `CallCreditSpread`, `Zebra`, `BrokenWingButterfly`, `LongCallLeap`). A single `.step("Delta Filter", ...)` call was replaced with five sequential, highly specific `.step()` calls.
+- **Accurate Observability**: The UI log table will now correctly bucket rejected trades into "Volume Filter" or "Open Interest Filter" rather than incorrectly attributing them to "Delta Filter".
+
+## Named Filter Pipeline Refactor (2026-05-10)
+
+Eliminated hardcoded filter stage name strings scattered across all 5 strategy classes by introducing a `NamedFilter<T>` record and a `FilterPipeline<T>` log-aware runner.
+
+### Design Rationale
+
+The old pattern repeated this boilerplate for every filter step in every `findValidTrades` method:
+```java
+List<T> afterX = prev.stream().filter(someFilter()).toList();
+filterLog.logFilter(strategy, symbol, expiry, "Filter Name", prev.size(), afterX.size());
+```
+Filter names were hardcoded strings at the call site, disconnected from the predicate logic and duplicated across strategies.
+
+Two concerns were deliberately separated:
+- **`NamedFilter<T>`** — pure data record `(name, predicate)`. No logging, no framework coupling.
+- **`FilterPipeline<T>`** — the explicitly log-aware runner. Its sole responsibility is running a named filter chain and recording each step's result to `FilterLogStore`. Logging context (strategy, symbol, expiry) is set **once** at construction via `forContext(...)`.
+
+`AbstractTradingStrategy` was **not modified** — strategies construct pipelines directly.
+
+### Features
+
+- **`NamedFilter<T>.java`** [NEW]: Generic record pairing a display name with a `Predicate<T>`.
+- **`FilterStage.java`** [NEW]: Enum that is the single source of truth for all 19 filter display names. Shared filters are at the top; strategy-specific filters are grouped by strategy. Renaming a filter in the UI requires changing exactly one enum constant.
+- **`FilterPipeline<T>.java`** [NEW]: Fluent, log-aware filter runner.
+  - `forContext(strategy, symbol, expiry)` — static factory, sets logging context once
+  - `.step(FilterStage, predicate)` — primary overload; uses `FilterStage.displayName()` as the log label
+  - `.step(String, predicate)` — raw-string overload retained for flexibility
+  - `.run(input)` — applies all steps sequentially, calls `filterLog.logFilter()` after each, returns the surviving list
+- **All 5 strategy `findValidTrades` methods refactored**: Intermediate `afterX` variables and all manual `filterLog.logFilter()` calls are gone. Each strategy now declares two pipelines — one for candidate-type filters, one for `TradeSetup`-level filters (extrinsic value, break-even).
+- **"Generated Candidates" log emitted explicitly** before the pipeline runs — it is informational (no filtering occurs), so it is not a pipeline step.
+
+### Architecture
+
+- **`NamedFilter.java`** [NEW]: `com.hemasundar.options.strategies`
+- **`FilterStage.java`** [NEW]: `com.hemasundar.options.strategies`
+- **`FilterPipeline.java`** [NEW]: `com.hemasundar.options.strategies`
+- **`PutCreditSpreadStrategy`, `CallCreditSpreadStrategy`, `ZebraStrategy`, `BrokenWingButterflyStrategy`, `LongCallLeapStrategy`** [MODIFIED]: Replaced boilerplate with `FilterPipeline` chains using `FilterStage` enum constants.
+- **261 tests — 0 failures** after refactor.
+
+## Execution Log Expiry Grouping: Backend-Driven Hierarchy (2026-05-10)
+
+Corrected the three-level log hierarchy to be driven by real backend data rather than fragile string parsing. Added an `expiry` field to `ExecutionLogEntry` so filters inside the per-expiry loop carry their date, and symbol-level filters (volatility, DTE) appear in a dedicated "Other" block.
+
+### Features
+
+- **`expiry` field on `ExecutionLogEntry`**: Nullable `String`. Set to the expiry date (e.g. `"2025-01-17"`) for all filters run inside `findValidTrades`. Left `null` for symbol-level filters (`Historical Volatility`, `DTE Filter`) that run in `AbstractTradingStrategy.findTrades` before the per-expiry loop.
+- **`FilterLogStore.logFilter()` overloaded**: A new 6-arg overload `logFilter(strategy, symbol, expiry, stage, in, out)` is the primary method. The original 5-arg signature delegates to it with `expiry = null`, so `AbstractTradingStrategy` call sites are unchanged.
+- **All 5 strategies updated**: `PutCreditSpreadStrategy`, `CallCreditSpreadStrategy`, `ZebraStrategy`, `BrokenWingButterflyStrategy`, `LongCallLeapStrategy` — every `logFilter` call inside `findValidTrades` now passes `expiryDate` as the 3rd argument. The old `"Generated Candidates (expiry YYYY-MM-DD)"` stage name is simplified to `"Generated Candidates"`.
+- **UI grouping via `entry.expiry`**: `renderLogSymbolGroups` splits entries by `e.expiry != null` directly — no regex needed.
+  - Expiry-date blocks render in chronological order; each badge shows `N candidates → M trades` sourced from the "Generated Candidates" entry.
+  - Symbol-level (null-expiry) entries appear in a collapsible **"Other (symbol-level)"** block, styled with `.log-expiry-other` (de-emphasised, italic label).
+  - `"Generated Candidates"` rows are excluded from the filter table (tradesIn === tradesOut, no filtering occurs).
+- **Collapsible Filters Section (Execute Screen)**: The "Filters" section on `/execute.html` is collapsible, collapsed by default on page load.
+
+### Architecture
+
+- **`ExecutionLogEntry.java`** [MODIFIED]: Added `private String expiry` field with Javadoc explaining null vs non-null semantics.
+- **`FilterLogStore.java`** [MODIFIED]: Added 6-arg `logFilter(..., String expiry, ...)` primary method; 5-arg overload delegates with `null`.
+- **`PutCreditSpreadStrategy`, `CallCreditSpreadStrategy`, `ZebraStrategy`, `BrokenWingButterflyStrategy`, `LongCallLeapStrategy`** [MODIFIED]: All `logFilter` calls pass `expiryDate` as 3rd arg.
+- **`app.js`** [MODIFIED]:
+  - `renderLogSymbolGroups()`: Groups by `e.expiry` directly. Computes summary counts excluding "Generated Candidates" entries.
+  - `renderLogSymbolContent()`: Expiry blocks listed first (sorted); "Other" block appended last using `otherId = 'other-' + stratSlug + '-' + symSlug` for state tracking.
+- **`style.css`** [MODIFIED]: Added `.log-expiry-other` and `.log-expiry-other .log-expiry-date` for de-emphasised styling of the Other block.
+- **`execute.html`** [MODIFIED]: Filters section wrapped in a collapsible card.
+
+
+
+
 
 Improved the debuggability and observability of the trading bot by implementing a delete function for execution results, adding granular per-filter trade count logging, and creating a new UI screen to visualize these logs in a collapsible, strategy-grouped format.
 
