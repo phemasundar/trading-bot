@@ -859,9 +859,9 @@ function initTradeRowClicks() {
                             <div style="font-weight: 600; margin-bottom: 4px; color: var(--text-primary);">Volatility Context (1Y)</div>
                             <div class="flex gap-md flex-wrap">
                                 <div><span class="text-muted">IV Rank:</span> <strong>${data.ivRank.toFixed(1)}</strong></div>
-                                <div><span class="text-muted">Current IV:</span> <strong>${(data.currentIV * 100).toFixed(1)}%</strong></div>
-                                <div><span class="text-muted">52W Low:</span> ${(data.minIV * 100).toFixed(1)}%</div>
-                                <div><span class="text-muted">52W High:</span> ${(data.maxIV * 100).toFixed(1)}%</div>
+                                <div><span class="text-muted">Current IV:</span> <strong>${data.currentIV.toFixed(1)}%</strong></div>
+                                <div><span class="text-muted">52W Low:</span> ${data.minIV.toFixed(1)}%</div>
+                                <div><span class="text-muted">52W High:</span> ${data.maxIV.toFixed(1)}%</div>
                             </div>
                         `;
                     } else {

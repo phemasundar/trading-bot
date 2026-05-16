@@ -107,7 +107,7 @@ public class Trade {
 
     /**
      * Converts a TradeSetup (strategy output) to a Trade DTO.
-     * Shared by StrategyExecutionService (Vaadin) and SampleTestNG (TestNG).
+     * Shared by StrategyExecutionService and SampleTestNG (TestNG).
      *
      * @param setup  the TradeSetup from strategy execution
      * @param symbol stock symbol to assign

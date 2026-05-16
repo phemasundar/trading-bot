@@ -6,8 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 /**
  * Main Spring Boot application class for Trading Bot Web UI.
- * Integrates Vaadin Flow for web interface while maintaining existing TestNG
- * functionality.
+ * Integrates a static HTML/JS frontend with Spring Boot REST APIs.
  */
 @SpringBootApplication
 @ConfigurationPropertiesScan
