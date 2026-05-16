@@ -24,6 +24,7 @@ import java.util.stream.Stream;
 import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.services.FilterLogStore;
+import com.hemasundar.services.SupabaseService;
 import com.hemasundar.utils.VolatilityCalculator;
 
 @Log4j2
@@ -32,8 +33,9 @@ public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
     public PutCreditSpreadStrategy(StrategyType strategyType,
                                   FinnHubAPIs finnHubAPIs,
                                   ThinkOrSwinAPIs thinkOrSwinAPIs,
-                                  VolatilityCalculator volatilityCalculator) {
-        super(strategyType, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
+                                  VolatilityCalculator volatilityCalculator,
+                                  java.util.Optional<SupabaseService> supabaseService) {
+        super(strategyType, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator, supabaseService);
     }
 
     @Override

@@ -45,8 +45,8 @@ public class AbstractTradingStrategyTest {
     // A concrete subclass strictly for testing AbstractTradingStrategy logic
     private static class DummyStrategy extends AbstractTradingStrategy {
 
-            public DummyStrategy(FinnHubAPIs finnHubAPIs, ThinkOrSwinAPIs thinkOrSwinAPIs, VolatilityCalculator volatilityCalculator) {
-            super(StrategyType.PUT_CREDIT_SPREAD, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
+        public DummyStrategy(FinnHubAPIs finnHubAPIs, ThinkOrSwinAPIs thinkOrSwinAPIs, VolatilityCalculator volatilityCalculator) {
+            super(StrategyType.PUT_CREDIT_SPREAD, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator, java.util.Optional.empty());
         }
 
         @Override

@@ -829,6 +829,8 @@ function initTradeRowClicks() {
 
         row.classList.add('selected');
 
+        const symbol = row.querySelector('td strong')?.textContent || '';
+        
         // Create detail panel right after the row
         const panel = document.createElement('tr');
         panel.className = 'trade-detail-panel';
@@ -837,12 +839,39 @@ function initTradeRowClicks() {
             <td colspan="9">
                 <div class="trade-detail">
                     <div class="trade-detail-header">
-                        ▶ ${row.querySelector('td strong')?.textContent || ''} — Trade Details
+                        ▶ ${symbol} — Trade Details
                     </div>
                     <pre class="trade-detail-body">${decodeAttr(details)}</pre>
+                    <div class="iv-data-panel" style="margin-top: 10px; font-family: var(--font-mono); font-size: 0.85rem; padding: 8px; background: var(--bg-alt); border-radius: 4px; border: 1px solid var(--border);">
+                        <span class="text-muted">Loading Volatility Data...</span>
+                    </div>
                 </div>
             </td>`;
         row.after(panel);
+
+        // Fetch IV Data
+        if (symbol) {
+            const ivPanel = panel.querySelector('.iv-data-panel');
+            API.get(`/api/iv-rank?symbol=${symbol}`)
+                .then(data => {
+                    if (data && data.currentIV !== undefined) {
+                        ivPanel.innerHTML = `
+                            <div style="font-weight: 600; margin-bottom: 4px; color: var(--text-primary);">Volatility Context (1Y)</div>
+                            <div class="flex gap-md flex-wrap">
+                                <div><span class="text-muted">IV Rank:</span> <strong>${data.ivRank.toFixed(1)}</strong></div>
+                                <div><span class="text-muted">Current IV:</span> <strong>${(data.currentIV * 100).toFixed(1)}%</strong></div>
+                                <div><span class="text-muted">52W Low:</span> ${(data.minIV * 100).toFixed(1)}%</div>
+                                <div><span class="text-muted">52W High:</span> ${(data.maxIV * 100).toFixed(1)}%</div>
+                            </div>
+                        `;
+                    } else {
+                        ivPanel.innerHTML = `<span class="text-muted">No IV data available</span>`;
+                    }
+                })
+                .catch(e => {
+                    ivPanel.innerHTML = `<span class="text-muted">IV Data not available</span>`;
+                });
+        }
     });
 }
 

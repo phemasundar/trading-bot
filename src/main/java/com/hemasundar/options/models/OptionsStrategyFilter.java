@@ -75,6 +75,23 @@ public class OptionsStrategyFilter {
      */
     private Double minHistoricalVolatility;
 
+    /**
+     * Minimum IV Rank threshold (0–100) for the symbol.
+     * Symbol is skipped if its current IV Rank is below this value.
+     * Example: 30.0 means only trade symbols whose current IV is in the top 70% of
+     * their 52-week (or available) range.
+     * If null, the IV Rank filter is not applied.
+     */
+    private Double minIVRank;
+
+    /**
+     * Maximum IV Rank threshold (0–100) for the symbol.
+     * Symbol is skipped if its current IV Rank is above this value.
+     * Example: 80.0 means avoid symbols with extremely elevated IV.
+     * If null, no upper bound is enforced.
+     */
+    private Double maxIVRank;
+
     // ========== VALIDATION METHODS ==========
 
     /**
@@ -158,5 +175,22 @@ public class OptionsStrategyFilter {
     public boolean passesMinNetExtrinsicValueToPricePercentage(double netExtrinsicValueToPricePercentage) {
         return this.minNetExtrinsicValueToPricePercentage == null ||
                 netExtrinsicValueToPricePercentage >= this.minNetExtrinsicValueToPricePercentage;
+    }
+
+    /**
+     * Checks if the symbol's IV Rank passes the configured min/max thresholds.
+     *
+     * <p>Fail-open: if {@code ivRank} is {@code null} (insufficient historical data),
+     * the filter is skipped and the symbol is allowed through.
+     *
+     * @param ivRank computed IV Rank (0–100), or {@code null} if unavailable
+     * @return true if IV Rank is within bounds, or if no bounds are set, or if ivRank is null
+     */
+    public boolean passesIVRank(Double ivRank) {
+        if (this.minIVRank == null && this.maxIVRank == null) return true;
+        if (ivRank == null) return true; // fail-open: no data → allow trade
+        if (this.minIVRank != null && ivRank < this.minIVRank) return false;
+        if (this.maxIVRank != null && ivRank > this.maxIVRank) return false;
+        return true;
     }
 }

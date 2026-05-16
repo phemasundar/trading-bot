@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.services.FilterLogStore;
+import com.hemasundar.services.SupabaseService;
 import com.hemasundar.utils.VolatilityCalculator;
 
 /**
@@ -28,8 +29,9 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
     public LongCallLeapStrategy(StrategyType strategyType,
                                FinnHubAPIs finnHubAPIs,
                                ThinkOrSwinAPIs thinkOrSwinAPIs,
-                               VolatilityCalculator volatilityCalculator) {
-        super(strategyType, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
+                               VolatilityCalculator volatilityCalculator,
+                               java.util.Optional<SupabaseService> supabaseService) {
+        super(strategyType, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator, supabaseService);
     }
 
     @Override
