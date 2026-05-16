@@ -47,6 +47,18 @@ public class SupabaseService {
     }
 
     /**
+     * Computes the IV Rank for a symbol using up to 1 year of historical iv_data.
+     * Returns null when data is insufficient (fail-open semantics).
+     *
+     * @param symbol stock ticker
+     * @return IV Rank in [0, 100], or null if fewer than 2 data points are available
+     * @throws IOException if the Supabase API call fails
+     */
+    public Double getIVRank(String symbol) throws IOException {
+        return ivDataRepository.getIVRank(symbol);
+    }
+
+    /**
      * Saves a strategy execution result to Supabase.
      */
     public void saveExecutionResult(ExecutionResult result) throws IOException {

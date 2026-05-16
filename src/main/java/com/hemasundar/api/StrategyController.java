@@ -8,6 +8,8 @@ import com.hemasundar.dto.ExecuteRequest;
 import com.hemasundar.dto.StrategyResult;
 import com.hemasundar.options.models.*;
 import com.hemasundar.options.strategies.StrategyType;
+import com.hemasundar.services.SupabaseService;
+import com.hemasundar.services.supabase.IVDataRepository;
 import com.hemasundar.technical.ScreenerConfig;
 import com.hemasundar.utils.FilterParser;
 import com.hemasundar.services.StrategyExecutionService;
@@ -44,6 +46,7 @@ public class StrategyController {
     private final com.hemasundar.config.StrategiesConfigLoader strategiesConfigLoader;
     private final SupabaseConfig supabaseConfig;
     private final com.hemasundar.utils.AuthErrorUtils authErrorUtils;
+    private final Optional<IVDataRepository> ivDataRepository;
 
     // ────────────────────────────────────────────
     // AUTH CONFIG (public — excluded from filter)
@@ -509,6 +512,46 @@ public class StrategyController {
     public ResponseEntity<?> clearFilterLogs() {
         executionService.clearFilterLogs();
         return ResponseEntity.ok(Map.of("cleared", true));
+    }
+
+    // ────────────────────────────────────────────
+    // IV RANK
+    // ────────────────────────────────────────────
+
+    /**
+     * Returns the current IV Rank for a given symbol, calculated from up to 1 year
+     * of historical iv_data stored in Supabase.
+     *
+     * <p>Response JSON:
+     * <pre>{"symbol": "AAPL", "ivRank": 62.3, "minIV": 18.4, "maxIV": 45.6, "currentIV": 34.1}</pre>
+     *
+     * <p>Returns 503 when Supabase is disabled, and 204 (no content) when insufficient data exists.
+     *
+     * @param symbol stock ticker, e.g. {@code AAPL}
+     */
+    @GetMapping("/iv-rank")
+    public ResponseEntity<?> getIVRank(@RequestParam String symbol) {
+        if (ivDataRepository.isEmpty()) {
+            return ResponseEntity.status(503).body(Map.of("error", "Supabase is not configured"));
+        }
+        try {
+            IVDataRepository repo = ivDataRepository.get();
+            Double ivRank = repo.getIVRank(symbol);
+            if (ivRank == null) {
+                return ResponseEntity.noContent().build();
+            }
+            Map<String, Object> ivStats = repo.getIVStats(symbol);
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("symbol", symbol);
+            response.put("ivRank", Math.round(ivRank * 10.0) / 10.0);
+            if (ivStats != null) {
+                response.putAll(ivStats);
+            }
+            return ResponseEntity.ok(response);
+        } catch (IOException e) {
+            log.error("Error fetching IV Rank for {}: {}", symbol, e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
     }
 
 }

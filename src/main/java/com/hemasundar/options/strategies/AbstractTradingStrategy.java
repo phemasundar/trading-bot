@@ -2,6 +2,7 @@ package com.hemasundar.options.strategies;
 
 import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.cache.IVRankCache;
 import com.hemasundar.cache.PriceHistoryCache;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionsStrategyFilter;
@@ -9,6 +10,7 @@ import com.hemasundar.options.models.TradeSetup;
 import com.hemasundar.pojos.EarningsCalendarResponse;
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.services.FilterLogStore;
+import com.hemasundar.services.SupabaseService;
 import com.hemasundar.utils.VolatilityCalculator;
 import org.apache.commons.collections4.CollectionUtils;
 import lombok.Getter;
@@ -19,6 +21,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 @Log4j2
 @RequiredArgsConstructor
@@ -31,6 +34,12 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
     protected final ThinkOrSwinAPIs thinkOrSwinAPIs;
     protected final VolatilityCalculator volatilityCalculator;
 
+    /**
+     * Optional Supabase service for IV Rank lookups.
+     * Absent when Supabase is disabled — IV Rank filter is skipped (fail-open).
+     */
+    protected final Optional<SupabaseService> supabaseService;
+
     @Override
     public List<TradeSetup> findTrades(OptionChainResponse chain, OptionsStrategyFilter filter) {
         String strategyName = getStrategyName();
@@ -42,6 +51,18 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             return Collections.emptyList();
         }
         FilterLogStore.getInstance().logFilter(strategyName, symbol, "Historical Volatility", 1, 1);
+
+        // ── IV Rank Filter ──
+        Double ivRank = resolveIVRank(symbol);
+        if (!filter.passesIVRank(ivRank)) {
+            log.info("[{}] IV Rank {:.1f}% outside configured bounds [min={}, max={}], skipping symbol",
+                    symbol, ivRank, filter.getMinIVRank(), filter.getMaxIVRank());
+            FilterLogStore.getInstance().logFilter(strategyName, symbol, FilterStage.IV_RANK_FILTER.displayName(), 1, 0);
+            return Collections.emptyList();
+        }
+        if (filter.getMinIVRank() != null || filter.getMaxIVRank() != null) {
+            FilterLogStore.getInstance().logFilter(strategyName, symbol, FilterStage.IV_RANK_FILTER.displayName(), 1, 1);
+        }
 
         int targetDTE = filter.getTargetDTE() != null ? filter.getTargetDTE() : 0;
         int minDTE = filter.getMinDTE() != null ? filter.getMinDTE() : 0;
@@ -248,6 +269,40 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
         } catch (Exception e) {
             log.error("[{}] Error checking historical volatility: {}, allowing trade", symbol, e.getMessage());
             return true; // Fail-open: allow trade on error
+        }
+    }
+
+    /**
+     * Resolves the IV Rank for a symbol, using the per-execution {@link IVRankCache}.
+     *
+     * <p>If the value has already been fetched this run it is returned from cache.
+     * If Supabase is disabled, or if an error occurs, {@code null} is returned (fail-open).
+     *
+     * @param symbol stock ticker
+     * @return IV Rank in [0, 100], or {@code null} if unavailable
+     */
+    protected Double resolveIVRank(String symbol) {
+        IVRankCache cache = IVRankCache.getInstance();
+        if (cache.isCached(symbol)) {
+            return cache.get(symbol).orElse(null);
+        }
+        if (supabaseService.isEmpty()) {
+            cache.put(symbol, null);
+            return null;
+        }
+        try {
+            Double rank = supabaseService.get().getIVRank(symbol);
+            cache.put(symbol, rank);
+            if (rank != null) {
+                log.debug("[{}] Fetched IV Rank: {:.1f}%", symbol, rank);
+            } else {
+                log.debug("[{}] IV Rank unavailable (insufficient data)", symbol);
+            }
+            return rank;
+        } catch (Exception e) {
+            log.error("[{}] Error fetching IV Rank: {}, allowing trade (fail-open)", symbol, e.getMessage());
+            cache.put(symbol, null);
+            return null;
         }
     }
 }

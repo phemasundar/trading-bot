@@ -18,6 +18,7 @@ public enum FilterStage {
     OPEN_INTEREST_FILTER("Open Interest Filter"),
     LEG_PREMIUM_FILTER("Leg Premium Filter"),
     LEG_VOLATILITY_FILTER("Leg Volatility Filter"),
+    IV_RANK_FILTER("IV Rank Filter"),
     MAX_LOSS_FILTER("Max Loss Filter"),
     MIN_RETURN_ON_RISK_FILTER("Min Return on Risk Filter"),
     MAX_EXTRINSIC_VALUE_FILTER("Max Extrinsic Value Filter"),

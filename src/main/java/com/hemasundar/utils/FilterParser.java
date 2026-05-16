@@ -71,6 +71,8 @@ public class FilterParser {
         applyIfPresent(filterMap, "includeOnly", v -> filter.setIncludeOnly(toStringList(v)));
         applyIfPresent(filterMap, "excludeIf", v -> filter.setExcludeIf(toStringList(v)));
         applyIfPresent(filterMap, "topTradesCount", v -> filter.setTopTradesCount(toInt(v)));
+        applyIfPresent(filterMap, "minIVRank", v -> filter.setMinIVRank(toDouble(v)));
+        applyIfPresent(filterMap, "maxIVRank", v -> filter.setMaxIVRank(toDouble(v)));
 
         // ── Strategy-specific fields ──
         if (filter instanceof CreditSpreadFilter csFilter) {

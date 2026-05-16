@@ -1,6 +1,17 @@
 # Project Updates
 
+## IV Rank Frontend Integration & Test Stabilization (2026-05-16)
+
+Finalized the IV Rank strategy implementation by integrating frontend visualization and resolving constructor-based compilation failures in the test suite.
+
+### Features
+
+- **Dynamic IV Data Display**: Updated `initTradeRowClicks` in `app.js` to fetch IV Rank metrics from the `/api/iv-rank` endpoint upon clicking a trade row in the execute results table.
+- **Volatility Context Panel**: Added a dedicated "Volatility Context (1Y)" panel to the trade detail flyout, dynamically displaying Current IV, IV Rank, and 52-week High/Low values. Includes graceful error handling for missing IV data.
+- **Test Suite Stabilization**: Resolved all test compilation failures introduced by the `Optional<SupabaseService>` dependency injection refactoring across 6 different strategy test classes and controller tests.
+
 ## Granular Leg Filter Pipeline (2026-05-10)
+
 
 Fixed a misleading logging issue where the UI reported hundreds of trades filtered by the "Delta Filter", even when Delta constraints were not configured by the user.
 

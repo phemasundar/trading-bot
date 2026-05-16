@@ -68,9 +68,9 @@ telegram_bot_token=YOUR_BOT_TOKEN_HERE
 telegram_chat_id=YOUR_CHAT_ID_HERE
 ```
 
-### IV Data Tracking
+### IV Data Tracking & Filtering
 
-The bot can automatically collect and store daily Implied Volatility (IV) data for your securities. This data is used for calculating IV rank and percentile for better trade timing.
+The bot can automatically collect and store daily Implied Volatility (IV) data for your securities. This data is used for calculating **IV rank and percentile** for better trade timing. Users can filter trades based on IV Rank constraints, and the UI provides a detailed "Volatility Context (1Y)" panel when clicking on individual trades.
 
 **Supported Databases:**
 - **Google Sheets**: Store data in a Google Spreadsheet (see `SETUP_GUIDE.md`)
