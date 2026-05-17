@@ -23,13 +23,13 @@
             <!-- Error message area -->
             <div id="login-error" class="login-error" style="display: none;"></div>
             <!-- Loading spinner -->
-            <div id="login-loading" class="login-loading" style="display: none;">
+            <div id="login-loading" class="login-loading" style="display: flex;">
                 <div class="login-spinner"></div>
-                <span>Signing in...</span>
+                <span id="login-loading-text">Initializing...</span>
             </div>
 
             <!-- OAuth Buttons -->
-            <div class="login-buttons" id="login-buttons">
+            <div class="login-buttons" id="login-buttons" style="display: none;">
                 <button class="btn-oauth btn-google" id="btn-google" onclick="signInWithGoogle()">
                     <svg viewBox="0 0 24 24" width="20" height="20">
                         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
@@ -67,6 +67,7 @@
             try {
                 // Fetch Supabase config from backend
                 const res = await fetch('/api/auth/config');
+                if (!res.ok) throw new Error('Failed to fetch auth config');
                 const config = await res.json();
                 supabaseClient = supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
 
@@ -84,9 +85,12 @@
                         verifyAccess(session.access_token);
                     }
                 });
+
+                showLoading(false);
             } catch (e) {
                 showError('Failed to initialize authentication. Try refreshing.');
                 console.error('Auth init failed:', e);
+                showLoading(false);
             }
         }
 
@@ -158,9 +162,13 @@
             el.style.display = 'block';
         }
 
-        function showLoading(show) {
+        function showLoading(show, text = 'Signing in...') {
             document.getElementById('login-loading').style.display = show ? 'flex' : 'none';
             document.getElementById('login-buttons').style.display = show ? 'none' : 'flex';
+            if (show) {
+                const textEl = document.getElementById('login-loading-text');
+                if (textEl) textEl.textContent = text;
+            }
         }
 
         document.addEventListener('DOMContentLoaded', initLogin);
