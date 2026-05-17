@@ -132,7 +132,7 @@
   <name>trading-bot</name>
   <url>http://maven.apache.org</url>
   <dependencies>
-    <!-- Spring Boot Web (replaces vaadin-spring-boot-starter) -->
+    <!-- Spring Boot Web -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>

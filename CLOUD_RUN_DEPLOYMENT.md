@@ -1,6 +1,6 @@
 # Google Cloud Run Deployment Guide
 
-A step-by-step guide to deploy the Trading Bot Vaadin web app to **Google Cloud Run** — fully automated via GitHub Actions after this one-time GCP setup.
+A step-by-step guide to deploy the Trading Bot web app to **Google Cloud Run** — fully automated via GitHub Actions after this one-time GCP setup.
 
 ---
 
@@ -125,7 +125,7 @@ With everything set up, trigger your first deployment:
 1. Push any commit to the `main` branch **OR**
 2. Go to **GitHub → Actions → "Deploy to Google Cloud Run" → "Run workflow"** → click **"Run workflow"**
 
-The workflow will take about **5–8 minutes** on the first run (Maven downloads dependencies, Vaadin builds production bundle, Docker builds image).
+The workflow will take about **3–5 minutes** (Maven downloads dependencies, Docker builds image).
 
 ### Watch the progress:
 

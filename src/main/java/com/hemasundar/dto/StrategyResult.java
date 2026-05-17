@@ -69,7 +69,7 @@ public class StrategyResult {
 
     /**
      * Builds a StrategyResult from a trades map (symbol_expiry → TradeSetup list).
-     * Shared by StrategyExecutionService (Vaadin) and SampleTestNG (TestNG).
+     * Shared by StrategyExecutionService and SampleTestNG (TestNG).
      *
      * @param strategyName    display name of the strategy
      * @param allTrades       map of "SYMBOL_expiryDate" → List of TradeSetup
