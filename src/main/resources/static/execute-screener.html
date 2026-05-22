@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bot — Execute Screener</title>
+    <meta name="description" content="Run custom technical screeners with configurable conditions">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+    <div class="app-layout">
+        <!-- Mobile menu toggle -->
+        <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-brand">
+                Trading Bot
+                <small>Automated Systems</small>
+            </div>
+            <a href="/" class="nav-link">
+                <span class="nav-icon">📊</span>
+                <span>Options</span>
+            </a>
+            <a href="/screeners.html" class="nav-link">
+                <span class="nav-icon">🔎</span>
+                <span>Screeners</span>
+            </a>
+            <a href="/execute.html" class="nav-link">
+                <span class="nav-icon">▶️</span>
+                <span>Execute Strategy</span>
+            </a>
+            <a href="/execute-screener.html" class="nav-link active">
+                <span class="nav-icon">🧪</span>
+                <span>Execute Screener</span>
+            </a>
+            <a href="/config.html" class="nav-link">
+                <span class="nav-icon">⚙️</span>
+                <span>Config</span>
+            </a>
+            <a href="/logs.html" class="nav-link">
+                <span class="nav-icon">📋</span>
+                <span>Execution Logs</span>
+            </a>
+        </nav>
+        <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <h1 class="page-title">Execute Screener</h1>
+            <p class="page-subtitle">Run custom technical screeners with configurable conditions</p>
+
+            <!-- Config Panel -->
+            <div class="card">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Screener Type *</label>
+                        <select id="screener-type" class="form-select" onchange="onScreenerTypeChange()">
+                            <option value="">Select a screener...</option>
+                            <option value="RSI_BB_BULLISH_CROSSOVER">RSI BB Bullish Crossover</option>
+                            <option value="RSI_BB_BEARISH_CROSSOVER">RSI BB Bearish Crossover</option>
+                            <option value="RSI_OVERSOLD">RSI Oversold</option>
+                            <option value="BB_LOWER">Bollinger Band Lower</option>
+                            <option value="BELOW_200_DAY_MA">Below 200 Day MA</option>
+                            <option value="PRICE_DROP">Price Drop</option>
+                            <option value="HIGH_52W_DROP">52-Week High Drop</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Alias (optional)</label>
+                        <input type="text" id="screener-alias-input" class="form-input" placeholder="e.g., My RSI Scan">
+                    </div>
+                </div>
+
+                <div id="screener-templates" style="margin-top: 16px;"></div>
+
+                <div class="form-grid" style="margin-top: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">Securities File (comma-separated file names)</label>
+                        <input type="text" id="screener-securities-file-input" class="form-input"
+                            placeholder="portfolio, top100, tracking">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Securities (comma-separated tickers)</label>
+                        <input type="text" id="screener-securities-input" class="form-input"
+                            placeholder="AAPL, MSFT, GOOG, AMZN, META">
+                    </div>
+                </div>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                    Provide a securities file, inline tickers, or both. File symbols and inline tickers are merged.
+                </p>
+            </div>
+
+            <!-- Technical Conditions -->
+            <div class="card">
+                <div class="card-header" onclick="this.nextElementSibling.classList.toggle('open'); this.querySelector('.card-arrow').classList.toggle('open')">
+                    <h3 style="font-size:0.9rem; margin-bottom:0; color:var(--text-secondary)"><span class="card-arrow open">▶</span> Filter Conditions</h3>
+                </div>
+                <div class="card-content open" style="overflow-x: visible;">
+                    <div class="form-grid">
+
+                        <!-- RSI Condition -->
+                        <div class="form-group">
+                            <label class="form-label">RSI Condition</label>
+                            <select id="sc-rsiCondition" class="form-select">
+                                <option value="">(none)</option>
+                                <option value="OVERSOLD">Oversold (&lt;30)</option>
+                                <option value="OVERBOUGHT">Overbought (&gt;70)</option>
+                                <option value="BULLISH_CROSSOVER">Bullish Crossover (↑30)</option>
+                                <option value="BEARISH_CROSSOVER">Bearish Crossover (↓70)</option>
+                            </select>
+                        </div>
+
+                        <!-- Bollinger Condition -->
+                        <div class="form-group">
+                            <label class="form-label">Bollinger Band Condition</label>
+                            <select id="sc-bollingerCondition" class="form-select">
+                                <option value="">(none)</option>
+                                <option value="LOWER_BAND">Lower Band (oversold zone)</option>
+                                <option value="UPPER_BAND">Upper Band (overbought zone)</option>
+                            </select>
+                        </div>
+
+                        <!-- Min Volume -->
+                        <div class="form-group">
+                            <label class="form-label">Min Volume (shares)</label>
+                            <input type="number" id="sc-minVolume" class="form-input" placeholder="500000" min="0">
+                        </div>
+
+                        <!-- Price Drop fields (shown only for PRICE_DROP / HIGH_52W_DROP) -->
+                        <div class="form-group" id="sc-minDropPercent-group" style="display:none;">
+                            <label class="form-label">Min Drop % *</label>
+                            <input type="number" id="sc-minDropPercent" class="form-input" placeholder="5.0" step="0.1" min="0">
+                        </div>
+                        <div class="form-group" id="sc-lookbackDays-group" style="display:none;">
+                            <label class="form-label">Lookback Days (0 = intraday)</label>
+                            <input type="number" id="sc-lookbackDays" class="form-input" placeholder="0" min="0">
+                        </div>
+                    </div>
+
+                    <!-- Moving Average checkboxes -->
+                    <div style="margin-top: 16px;">
+                        <p style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:10px;">Moving Average Conditions</p>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="sc-priceBelowMA20"> Price &lt; MA(20)
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="sc-priceAboveMA20"> Price &gt; MA(20)
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="sc-priceBelowMA50"> Price &lt; MA(50)
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="sc-priceAboveMA50"> Price &gt; MA(50)
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="sc-priceBelowMA100"> Price &lt; MA(100)
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="sc-priceAboveMA100"> Price &gt; MA(100)
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="sc-priceBelowMA200"> Price &lt; MA(200)
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="sc-priceAboveMA200"> Price &gt; MA(200)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Execute Button -->
+            <div class="flex gap-sm items-center mb-md">
+                <button class="btn btn-primary" onclick="executeCustomScreener()">
+                    🔎 Execute Custom Screener
+                </button>
+            </div>
+
+            <!-- Progress -->
+            <div class="progress-container" id="screener-custom-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width:30%"></div>
+                </div>
+                <p class="progress-text" id="elapsed-text">Executing screener...</p>
+            </div>
+
+            <!-- Recent Screener Results -->
+            <h3 style="font-size:1rem; margin:24px 0 12px; color:var(--text-secondary)">Recent Custom Screener Results</h3>
+            <div id="screener-custom-results">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🔬</div>
+                    Loading...
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="/app.js?v=3"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', initExecuteScreenerPage);
+    </script>
+
+</body>
+
+</html>

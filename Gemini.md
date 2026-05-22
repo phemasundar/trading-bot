@@ -1,5 +1,76 @@
 # Project Updates
 
+## Custom Screener Persistence (2026-05-22)
+
+Finalized the isolation of manual technical screener results from the global automated dashboard by implementing a dedicated persistence layer and updating UI interactions.
+
+### Features
+- **Dedicated Persistence**: Created `CustomScreenerRepository` and the `custom_screener_results` table in Supabase to permanently store manual executions separately from scheduled automated executions.
+- **Service Isolation**: Updated `ScreenerExecutionService` to toggle between saving to the global dashboard vs the new custom persistence layer.
+- **Custom Endpoints**: Added `GET /api/results/custom/screeners` and `DELETE /api/results/custom/screeners/{id}` endpoints in `StrategyController` to manage isolated history.
+- **Frontend Integration**: Updated `app.js` to fetch recent executions from the custom endpoint for the Execute Screener page and integrated a UI delete button to allow manual history management.
+
+### Architecture
+- **`CustomScreenerRepository.java`** [NEW]: Dedicated Supabase DB access layer for manual screener runs.
+- **`SupabaseService.java`** [MODIFIED]: Added service wrapper methods (`saveCustomScreenerResult`, `getRecentCustomScreenerExecutions`, `deleteCustomScreenerExecution`).
+- **`ScreenerExecutionService.java`** [MODIFIED]: Added `executeCustomScreener` to enforce decoupled persistence paths.
+- **`StrategyController.java`** [MODIFIED]: Created history and deletion endpoints.
+- **`app.js`** [MODIFIED]: Adapted `loadCustomScreenerResults()` and added `deleteCustomScreenerResult()` methods with corresponding UI prompts.
+
+## Execute Screener Page (2026-05-22)
+
+Added a dedicated **Execute Screener** page (`/execute-screener.html`) that mirrors the existing Execute Strategy page, allowing users to run a one-off technical screener with fully configurable conditions — without touching `strategies-config.json`.
+
+### Features
+
+- **Screener Type Selector**: Dropdown populated with all 7 `ScreenerType` enum values.
+- **Smart Defaults**: Selecting a screener type auto-populates RSI / Bollinger condition fields with sensible defaults (e.g., PRICE_DROP reveals Min Drop % and Lookback Days fields).
+- **Full Condition Controls**:
+  - RSI Condition (Oversold / Overbought / Bullish Crossover / Bearish Crossover)
+  - Bollinger Band Condition (Lower / Upper Band)
+  - Min Volume threshold
+  - Moving Average checkboxes: Price Above/Below MA(20/50/100/200)
+  - Min Drop % and Lookback Days (visible only for PRICE_DROP / HIGH_52W_DROP)
+- **Pre-defined Templates**: Dynamically lists configured screeners from `strategies-config.json` that match the selected type, with a "Load Filters" button to pre-fill the form.
+- **Securities Input**: Same file + inline ticker pattern as Execute Strategy.
+- **Execution + Polling**: Posts to `/api/execute/custom-screener`, polls `/api/status`, and shows result cards on completion.
+- **Navigation**: 🧪 Execute Screener link added to all 6 HTML sidebars.
+
+### Architecture
+
+- **`CustomScreenerRequest.java`** [NEW]: Lombok `@Value` DTO carrying screener type, securities, alias, and all `TechFilterConditions` fields.
+- **`StrategyController.java`** [MODIFIED]: Added `POST /api/execute/custom-screener` — resolves securities, builds `TechFilterConditions` + `ScreenerConfig`, and delegates to `screenerExecutionService.executeScreeners()` asynchronously.
+- **`execute-screener.html`** [NEW]: Full UI page with type selector, securities inputs, conditions card (RSI, Bollinger, MAs, volume, drop fields), execute button, progress bar, and results section.
+- **`app.js`** [MODIFIED]: Added `initExecuteScreenerPage`, `onScreenerTypeChange`, `executeCustomScreener`, `loadCustomScreenerResults`, `checkCustomScreenerExecutionStatus`, `setCustomScreenerBusy`.
+- **`SCREENER_TYPE_META`** constant in `app.js`: Drives smart default selection and conditional field visibility per screener type.
+
+## Dashboard Split: Options & Screeners Pages (2026-05-22)
+
+Divided the single monolithic dashboard into two focused pages, eliminating the vertical length problem caused by mixing options strategies and technical screeners on one screen.
+
+### Features
+
+- **Options Dashboard (`/index.html`)**: Now exclusively displays options strategy checkboxes and result cards. Removed the screener selector and screener results container from this page.
+- **Screeners Dashboard (`/screeners.html`)** [NEW]: Dedicated page for technical screeners. Mirrors the options dashboard layout (selector panel, execute/cancel controls, result cards, market status badge). Initialised via `initScreenerDashboard()`.
+- **Global Navigation**: Added a **Screeners Dashboard** link (🔎) to the sidebar of all pages (`index.html`, `screeners.html`, `execute.html`, `config.html`, `logs.html`). Renamed the existing root link from "Dashboard" to "Options Dashboard" for clarity.
+
+### Architecture
+
+- **`screeners.html`** [NEW]: Mirrors `index.html` layout with screener-specific DOM IDs (`screener-checkboxes`, `screener-results-container`). Calls `initScreenerDashboard()` on `DOMContentLoaded`.
+- **`app.js`** [MODIFIED]:
+  - `initDashboard()` now calls `loadOptionsStrategies()` + `loadOptionsResults()` instead of the combined `loadStrategies()` / `loadResults()`.
+  - `loadOptionsStrategies()` [NEW]: Fetches only `/api/strategies` into `#strategy-checkboxes`.
+  - `loadOptionsResults()` [NEW]: Fetches only `/api/results` into `#results-container`.
+  - `loadStrategies()` kept as a legacy alias used by the Execute page init path; loads both groups defensively.
+  - `loadResults()` refactored: now guards with `if (!optionsContainer && !screenerContainer) return` instead of requiring both; each branch is independently optional.
+  - `selectAll()` narrowed to only touch `#strategy-checkboxes` (Options Dashboard).
+  - `selectAllScreeners()` [NEW]: Selects/deselects `#screener-checkboxes` and auto-expands the screener section.
+  - `initScreenerDashboard()` [NEW]: Full page init — auth → `loadScreenerStrategies()` → `loadScreenerResults()` → `checkScreenerExecutionStatus()` → `fetchAndRenderMarketStatus()`.
+  - `loadScreenerStrategies()` [NEW]: Fetches `/api/screeners` into `#screener-checkboxes`.
+  - `loadScreenerResults()` [NEW]: Fetches `/api/results/screeners` into `#screener-results-container`.
+  - `checkScreenerExecutionStatus()` [NEW]: Syncs with `/api/status` on page load; re-attaches polling if an execution is already running so the Screeners page tracks live progress correctly.
+  - `executeScreenersSelected()` [NEW]: Posts only screener indices (`strategyIndices: []`) to `/api/execute`; polls → `loadScreenerResults()` on completion.
+
 ## Final Legacy Vaadin Cleanup (2026-05-16)
 
 Conducted a final codebase audit to remove all remaining traces of the legacy Vaadin framework, ensuring a clean and modern architecture.

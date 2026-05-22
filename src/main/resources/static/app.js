@@ -371,9 +371,49 @@ async function deleteCustomResult(resultId, card) {
     }
 }
 
+function promptDeleteCustomScreenerResult(resultId, event) {
+    event.stopPropagation();
+    const card = document.querySelector(`.card-header[data-target="${resultId}"]`)?.closest('.card');
+    
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+        <div class="modal" style="text-align:center; max-width:400px">
+            <h3 style="margin-bottom:12px; color:var(--text-primary)">Delete Screener Result</h3>
+            <p style="margin-bottom:24px; color:var(--text-secondary)">Are you sure you want to permanently delete this custom screener execution? This action cannot be undone.</p>
+            <div class="flex gap-sm justify-center">
+                <button class="btn btn-secondary" id="cancel-delete-btn">Cancel</button>
+                <button class="btn btn-danger" id="confirm-delete-btn">Delete</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#cancel-delete-btn').addEventListener('click', () => overlay.remove());
+    overlay.querySelector('#confirm-delete-btn').addEventListener('click', async () => {
+        overlay.remove();
+        await deleteCustomScreenerResult(resultId, card);
+    });
+}
+
+async function deleteCustomScreenerResult(resultId, card) {
+    try {
+        await API.delete(`/api/results/custom/screeners/${resultId}`);
+        if (card) {
+            card.style.transition = 'opacity 0.3s, transform 0.3s';
+            card.style.opacity = '0';
+            card.style.transform = 'translateX(20px)';
+            setTimeout(() => card.remove(), 320);
+        }
+        showToast('Screener execution result deleted.');
+    } catch (e) {
+        showToast(`Failed to delete: ${e.message}`, 'error');
+    }
+}
+
 // ── Screener Card Builder ──
 
-function buildScreenerCard(result) {
+function buildScreenerCard(result, isCustom = false) {
     const card = document.createElement('div');
     const hasResults = result.results && result.results.length > 0;
     card.className = hasResults ? 'card' : 'card disabled';
@@ -385,13 +425,19 @@ function buildScreenerCard(result) {
     const isDropScreener = hasResults && result.results[0].dropType && result.results[0].dropType.length > 0;
     window.tradeDataMap[cardId] = result.results || [];
     window.tradeDataMap[cardId]._type = isDropScreener ? 'drop' : 'screener';
+    
+    let deleteBtn = '';
+    if (isCustom && result.screenerId) {
+        deleteBtn = `<button class="btn btn-danger" style="padding: 2px 8px; font-size: 0.75rem; margin-left: auto;" onclick="promptDeleteCustomScreenerResult('${result.screenerId}', event)">🗑️ Delete</button>`;
+    }
 
     card.innerHTML = `
         <div class="card-header" data-target="${cardId}">
-            <div class="flex items-center gap-sm flex-wrap">
+            <div class="flex items-center gap-sm flex-wrap" style="width: 100%;">
                 ${arrow}
                 <span class="card-name">${result.screenerName || 'Screener'}</span>
                 <span class="card-badge" style="background-color: var(--primary); color: #fff;">Screener</span>
+                ${deleteBtn}
             </div>
             <span class="card-stats">Last run: ${timeAgo(result.updatedAt)} · Found: ${result.resultsFound || 0}</span>
         </div>
@@ -1116,12 +1162,36 @@ async function initDashboard() {
     const authed = await initAuth();
     if (!authed) return;
     await loadFilterDescriptions();
-    await loadStrategies();
-    await loadResults();
+    await loadOptionsStrategies();
+    await loadOptionsResults();
     await checkExecutionStatus();
     fetchAndRenderMarketStatus();
 }
 
+// Loads only options strategies into #strategy-checkboxes (index.html)
+async function loadOptionsStrategies() {
+    const strategyContainer = document.getElementById('strategy-checkboxes');
+
+    if (strategyContainer) {
+        try {
+            const strategies = await API.get('/api/strategies');
+            strategyContainer.innerHTML = strategies.map(s => `
+                <div class="flex items-center gap-sm" style="margin-bottom: 8px;">
+                    <label class="checkbox-label" style="margin: 0;">
+                        <input type="checkbox" value="${s.index}" data-type="strategy">
+                        <span>${s.name}</span>
+                    </label>
+                    ${s.descriptionFile ? `<button type="button" class="info-btn" onclick="showInfo(event, '${s.descriptionFile}', '${escapeAttr(s.name)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>` : ''}
+                </div>`).join('');
+            const badge = document.getElementById('strategy-count-badge');
+            if (badge) badge.textContent = `(${strategies.length})`;
+        } catch (e) {
+            strategyContainer.innerHTML = `<span class="text-muted">Failed to load strategies</span>`;
+        }
+    }
+}
+
+// Legacy alias — kept for backward compat (execute page uses loadStrategies via initExecutePage)
 async function loadStrategies() {
     const strategyContainer = document.getElementById('strategy-checkboxes');
     const screenerContainer = document.getElementById('screener-checkboxes');
@@ -1168,19 +1238,14 @@ async function loadStrategies() {
     }
 }
 
-async function loadResults() {
+// Loads only options results into #results-container (index.html)
+async function loadOptionsResults() {
     const optionsContainer = document.getElementById('results-container');
-    const screenerContainer = document.getElementById('screener-results-container');
-    
-    if (!optionsContainer || !screenerContainer) return;
+    if (!optionsContainer) return;
 
     try {
-        const [optionResults, screenerResults] = await Promise.all([
-            API.get('/api/results'),
-            API.get('/api/results/screeners').catch(() => []) // Graceful fail for screeners
-        ]);
+        const optionResults = await API.get('/api/results');
 
-        // Render Option Results
         optionsContainer.innerHTML = '';
         if (!optionResults || optionResults.length === 0) {
             optionsContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div>No option strategy results yet. Execute a strategy to see results.</div>';
@@ -1189,19 +1254,53 @@ async function loadResults() {
                 optionsContainer.appendChild(buildResultCard(r));
             }
         }
+    } catch (e) {
+        optionsContainer.innerHTML = `<div class="empty-state text-danger">Failed to load results: ${e.message}</div>`;
+        if (typeof checkExecutionStatus === 'function') {
+            checkExecutionStatus();
+        }
+    }
+}
+
+// Legacy full loadResults (loads both options + screeners) — used by execute page polling callback
+async function loadResults() {
+    const optionsContainer = document.getElementById('results-container');
+    const screenerContainer = document.getElementById('screener-results-container');
+    
+    if (!optionsContainer && !screenerContainer) return;
+
+    try {
+        const [optionResults, screenerResults] = await Promise.all([
+            optionsContainer ? API.get('/api/results') : Promise.resolve([]),
+            screenerContainer ? API.get('/api/results/screeners').catch(() => []) : Promise.resolve([])
+        ]);
+
+        // Render Option Results
+        if (optionsContainer) {
+            optionsContainer.innerHTML = '';
+            if (!optionResults || optionResults.length === 0) {
+                optionsContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div>No option strategy results yet. Execute a strategy to see results.</div>';
+            } else {
+                for (const r of optionResults) {
+                    optionsContainer.appendChild(buildResultCard(r));
+                }
+            }
+        }
 
         // Render Screener Results
-        screenerContainer.innerHTML = '';
-        if (!screenerResults || screenerResults.length === 0) {
-            screenerContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔎</div>No technical screener results yet.</div>';
-        } else {
-            for (const r of screenerResults) {
-                screenerContainer.appendChild(buildScreenerCard(r));
+        if (screenerContainer) {
+            screenerContainer.innerHTML = '';
+            if (!screenerResults || screenerResults.length === 0) {
+                screenerContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔎</div>No technical screener results yet.</div>';
+            } else {
+                for (const r of screenerResults) {
+                    screenerContainer.appendChild(buildScreenerCard(r));
+                }
             }
         }
     } catch (e) {
-        optionsContainer.innerHTML = `<div class="empty-state text-danger">Failed to load results: ${e.message}</div>`;
-        screenerContainer.innerHTML = '';
+        if (optionsContainer) optionsContainer.innerHTML = `<div class="empty-state text-danger">Failed to load results: ${e.message}</div>`;
+        if (screenerContainer) screenerContainer.innerHTML = '';
         if (typeof checkExecutionStatus === 'function') {
             checkExecutionStatus();
         }
@@ -1429,20 +1528,130 @@ function toggleSection(sectionId) {
 function selectAll(check) {
     document.querySelectorAll('#strategy-checkboxes input[type="checkbox"]')
         .forEach(cb => cb.checked = check);
-    document.querySelectorAll('#screener-checkboxes input[type="checkbox"]')
-        .forEach(cb => cb.checked = check);
     // Auto-expand sections when selecting all so user can see the selections
     if (check) {
-        ['strategy-section', 'screener-section'].forEach(id => {
-            const body = document.getElementById(id);
-            const arrow = document.getElementById('arrow-' + id);
-            if (body && !body.classList.contains('open')) {
-                body.classList.add('open');
-                if (arrow) arrow.classList.add('open');
-            }
-        });
+        const body = document.getElementById('strategy-section');
+        const arrow = document.getElementById('arrow-strategy-section');
+        if (body && !body.classList.contains('open')) {
+            body.classList.add('open');
+            if (arrow) arrow.classList.add('open');
+        }
     }
 }
+
+// ── Screener Dashboard page helpers ──
+
+function selectAllScreeners(check) {
+    document.querySelectorAll('#screener-checkboxes input[type="checkbox"]')
+        .forEach(cb => cb.checked = check);
+    if (check) {
+        const body = document.getElementById('screener-section');
+        const arrow = document.getElementById('arrow-screener-section');
+        if (body && !body.classList.contains('open')) {
+            body.classList.add('open');
+            if (arrow) arrow.classList.add('open');
+        }
+    }
+}
+
+// ══════════════════════════════════════
+//  PAGE: Screeners Dashboard (screeners.html)
+// ══════════════════════════════════════
+
+async function initScreenerDashboard() {
+    const authed = await initAuth();
+    if (!authed) return;
+    await loadScreenerStrategies();
+    await loadScreenerResults();
+    await checkScreenerExecutionStatus();
+    fetchAndRenderMarketStatus();
+}
+
+async function loadScreenerStrategies() {
+    const screenerContainer = document.getElementById('screener-checkboxes');
+    if (!screenerContainer) return;
+
+    try {
+        const screeners = await API.get('/api/screeners');
+        if (screeners.length === 0) {
+            screenerContainer.innerHTML = `<span class="text-muted">No screeners configured</span>`;
+        } else {
+            screenerContainer.innerHTML = screeners.map(s => `
+                <div class="flex items-center gap-sm" style="margin-bottom: 8px;">
+                    <label class="checkbox-label" style="margin: 0;">
+                        <input type="checkbox" value="${s.index}" data-type="screener">
+                        <span>${s.name}</span>
+                    </label>
+                </div>`).join('');
+        }
+        const badge = document.getElementById('screener-count-badge');
+        if (badge) badge.textContent = `(${screeners.length})`;
+    } catch (e) {
+        screenerContainer.innerHTML = `<span class="text-muted">Failed to load screeners</span>`;
+    }
+}
+
+async function loadScreenerResults() {
+    const screenerContainer = document.getElementById('screener-results-container');
+    if (!screenerContainer) return;
+
+    try {
+        const screenerResults = await API.get('/api/results/screeners').catch(() => []);
+        screenerContainer.innerHTML = '';
+        if (!screenerResults || screenerResults.length === 0) {
+            screenerContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔎</div>No technical screener results yet. Execute a screener to see results.</div>';
+        } else {
+            for (const r of screenerResults) {
+                screenerContainer.appendChild(buildScreenerCard(r));
+            }
+        }
+    } catch (e) {
+        screenerContainer.innerHTML = `<div class="empty-state text-danger">Failed to load screener results: ${e.message}</div>`;
+    }
+}
+
+async function checkScreenerExecutionStatus() {
+    try {
+        const status = await API.get('/api/status');
+        if (status.alerts && status.alerts.length > 0) {
+            showErrorPanel(status.alerts);
+        }
+        if (status.running) {
+            window.currentExecutionTaskName = status.currentTask || "";
+            setDashboardBusy(true);
+            startTimer(status.startTimeMs);
+            startPolling(() => {
+                setDashboardBusy(false);
+                loadScreenerResults();
+                showToast('Execution completed!');
+            });
+        }
+    } catch (e) { /* ignore */ }
+}
+
+async function executeScreenersSelected() {
+    const checkedScreeners = document.querySelectorAll('#screener-checkboxes input[type="checkbox"]:checked');
+    const screenerIndices = Array.from(checkedScreeners).map(c => parseInt(c.value));
+    if (screenerIndices.length === 0) {
+        showToast('Select at least one screener', 'error');
+        return;
+    }
+    try {
+        setDashboardBusy(true);
+        const res = await API.post('/api/execute', { strategyIndices: [], screenerIndices });
+        showToast(res.message);
+        startTimer(Date.now());
+        startPolling(() => {
+            setDashboardBusy(false);
+            loadScreenerResults();
+            showToast('Screener execution completed!');
+        });
+    } catch (e) {
+        setDashboardBusy(false);
+        showToast(e.message, 'error');
+    }
+}
+
 
 // ══════════════════════════════════════
 //  PAGE: Execute Strategy (execute.html)
@@ -2466,4 +2675,267 @@ function toggleLogGroup(id) {
     const arrow = document.getElementById('arrow-' + id);
     if (body) body.classList.toggle('open');
     if (arrow) arrow.classList.toggle('open');
+}
+
+// ══════════════════════════════════════
+//  PAGE: Execute Screener (execute-screener.html)
+// ══════════════════════════════════════
+
+const SCREENER_TYPE_META = {
+    RSI_BB_BULLISH_CROSSOVER: { rsi: 'BULLISH_CROSSOVER', bollinger: 'LOWER_BAND', hasDrop: false },
+    RSI_BB_BEARISH_CROSSOVER: { rsi: 'BEARISH_CROSSOVER', bollinger: 'UPPER_BAND', hasDrop: false },
+    RSI_OVERSOLD:             { rsi: 'OVERSOLD',          bollinger: '',            hasDrop: false },
+    BB_LOWER:                 { rsi: '',                  bollinger: 'LOWER_BAND',  hasDrop: false },
+    BELOW_200_DAY_MA:         { rsi: '',                  bollinger: '',            hasDrop: false },
+    PRICE_DROP:               { rsi: '',                  bollinger: '',            hasDrop: true,  hasLookback: true  },
+    HIGH_52W_DROP:            { rsi: '',                  bollinger: '',            hasDrop: true,  hasLookback: false },
+};
+
+async function initExecuteScreenerPage() {
+    const authed = await initAuth();
+    if (!authed) return;
+    await loadCustomScreenerResults();
+    await checkCustomScreenerExecutionStatus();
+    
+    // Initial render in case there's a default selected
+    const select = document.getElementById('screener-type');
+    if (select && select.value) {
+        onScreenerTypeChange();
+    }
+}
+
+/** Auto-populate default conditions when the screener type is selected. */
+function onScreenerTypeChange() {
+    const type = document.getElementById('screener-type').value;
+    const meta = SCREENER_TYPE_META[type];
+
+    // Toggle drop-specific fields
+    const dropGroup = document.getElementById('sc-minDropPercent-group');
+    const lookbackGroup = document.getElementById('sc-lookbackDays-group');
+    if (dropGroup) dropGroup.style.display = (meta && meta.hasDrop) ? '' : 'none';
+    if (lookbackGroup) lookbackGroup.style.display = (meta && meta.hasLookback) ? '' : 'none';
+
+    if (!meta) {
+        renderScreenerTemplates('');
+        return;
+    }
+
+    // Pre-fill RSI / Bollinger selects with sensible defaults
+    const rsiSel = document.getElementById('sc-rsiCondition');
+    const bbSel  = document.getElementById('sc-bollingerCondition');
+    if (rsiSel && meta.rsi !== undefined) rsiSel.value = meta.rsi;
+    if (bbSel  && meta.bollinger !== undefined) bbSel.value = meta.bollinger;
+
+    // Load matching templates
+    renderScreenerTemplates(type);
+}
+
+async function renderScreenerTemplates(screenerType) {
+    const container = document.getElementById('screener-templates');
+    if (!container) return;
+
+    if (!window.appConfig) {
+        try {
+            window.appConfig = await API.get('/api/config');
+        } catch (e) {
+            container.innerHTML = '';
+            return;
+        }
+    }
+
+    const screeners = window.appConfig.technicalScreeners || [];
+    const matching = screeners.filter(s => s.screenerType === screenerType);
+
+    if (matching.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const heading = document.createElement('h4');
+    heading.style.fontSize = '0.8rem';
+    heading.style.color = 'var(--text-secondary)';
+    heading.style.marginBottom = '8px';
+    heading.textContent = 'Configured Templates (Click to view, Load to edit)';
+
+    container.innerHTML = '';
+    container.appendChild(heading);
+
+    matching.forEach(screener => {
+        const card = document.createElement('div');
+        card.className = 'config-card';
+        card.style.marginBottom = '8px';
+
+        const enabledPill = screener.enabled
+            ? '<span class="pill pill-enabled">Enabled</span>'
+            : '<span class="pill pill-disabled">Disabled</span>';
+
+        const loadBtn = `<button type="button" class="btn btn-primary" style="padding: 2px 8px; font-size: 0.75rem; margin-left: auto;" onclick="loadScreenerTemplateParams('${escapeAttr(JSON.stringify(screener))}')">Load Filters</button>`;
+
+        card.innerHTML = `
+            <div class="config-card-header">
+                <div class="flex items-center gap-sm flex-wrap" style="width: 100%;">
+                    <span class="card-arrow">▶</span>
+                    <strong>${screener.alias || screener.screenerType}</strong>
+                    <span class="card-badge">${screener.securitiesFile || 'Custom'}</span>
+                    ${enabledPill}
+                    ${loadBtn}
+                </div>
+            </div>
+            <div class="config-card-body">
+                ${renderFilterGrid(screener.conditions || {})}
+                ${screener.securities ? `<div class="mt-sm"><span class="config-item-label">Securities (Inline)</span> <span class="config-item-value">${screener.securities}</span></div>` : ''}
+            </div>`;
+
+        card.querySelector('.config-card-header').addEventListener('click', function (e) {
+            if (e.target.tagName === 'BUTTON') return;
+            this.querySelector('.card-arrow').classList.toggle('open');
+            this.nextElementSibling.classList.toggle('open');
+        });
+
+        container.appendChild(card);
+    });
+}
+
+function loadScreenerTemplateParams(screenerJson) {
+    try {
+        const screener = JSON.parse(decodeAttr(screenerJson));
+
+        // Set general fields
+        const aliasEl = document.getElementById('screener-alias-input');
+        if (aliasEl) aliasEl.value = (screener.alias || '') + ' (Custom)';
+
+        const secInput = document.getElementById('screener-securities-input');
+        if (secInput) secInput.value = screener.securities || '';
+
+        const secFileInput = document.getElementById('screener-securities-file-input');
+        if (secFileInput) secFileInput.value = screener.securitiesFile || '';
+
+        const conds = screener.conditions || {};
+
+        // Set select/number fields
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val !== undefined && val !== null ? val : ''; };
+        setVal('sc-rsiCondition', conds.rsiCondition);
+        setVal('sc-bollingerCondition', conds.bollingerCondition);
+        setVal('sc-minVolume', conds.minVolume);
+        setVal('sc-minDropPercent', conds.minDropPercent);
+        setVal('sc-lookbackDays', conds.lookbackDays);
+
+        // Set checkboxes
+        const setCheck = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+        setCheck('sc-priceBelowMA20', conds.requirePriceBelowMA20);
+        setCheck('sc-priceAboveMA20', conds.requirePriceAboveMA20);
+        setCheck('sc-priceBelowMA50', conds.requirePriceBelowMA50);
+        setCheck('sc-priceAboveMA50', conds.requirePriceAboveMA50);
+        setCheck('sc-priceBelowMA100', conds.requirePriceBelowMA100);
+        setCheck('sc-priceAboveMA100', conds.requirePriceAboveMA100);
+        setCheck('sc-priceBelowMA200', conds.requirePriceBelowMA200);
+        setCheck('sc-priceAboveMA200', conds.requirePriceAboveMA200);
+
+        showToast('Template filters loaded!');
+    } catch (e) {
+        showToast('Error loading template', 'error');
+    }
+}
+
+async function executeCustomScreener() {
+    const type = document.getElementById('screener-type').value;
+    if (!type) { showToast('Select a screener type', 'error'); return; }
+
+    const alias            = document.getElementById('screener-alias-input').value.trim() || null;
+    const securitiesFile   = document.getElementById('screener-securities-file-input').value.trim() || null;
+    const securities       = document.getElementById('screener-securities-input').value.trim() || null;
+
+    if (!securitiesFile && !securities) {
+        showToast('Provide a securities file or tickers', 'error');
+        return;
+    }
+
+    const rsiCondition      = document.getElementById('sc-rsiCondition').value || null;
+    const bollingerCondition = document.getElementById('sc-bollingerCondition').value || null;
+    const minVolumeRaw      = document.getElementById('sc-minVolume').value;
+    const minVolume         = minVolumeRaw ? parseInt(minVolumeRaw) : null;
+    const minDropRaw        = document.getElementById('sc-minDropPercent').value;
+    const minDropPercent    = minDropRaw ? parseFloat(minDropRaw) : null;
+    const lookbackRaw       = document.getElementById('sc-lookbackDays').value;
+    const lookbackDays      = lookbackRaw !== '' ? parseInt(lookbackRaw) : null;
+
+    const payload = {
+        screenerType: type,
+        alias,
+        securitiesFile,
+        securities,
+        rsiCondition,
+        bollingerCondition,
+        minVolume,
+        requirePriceBelowMA20:  document.getElementById('sc-priceBelowMA20').checked  || null,
+        requirePriceAboveMA20:  document.getElementById('sc-priceAboveMA20').checked  || null,
+        requirePriceBelowMA50:  document.getElementById('sc-priceBelowMA50').checked  || null,
+        requirePriceAboveMA50:  document.getElementById('sc-priceAboveMA50').checked  || null,
+        requirePriceBelowMA100: document.getElementById('sc-priceBelowMA100').checked || null,
+        requirePriceAboveMA100: document.getElementById('sc-priceAboveMA100').checked || null,
+        requirePriceBelowMA200: document.getElementById('sc-priceBelowMA200').checked || null,
+        requirePriceAboveMA200: document.getElementById('sc-priceAboveMA200').checked || null,
+        minDropPercent,
+        lookbackDays,
+    };
+
+    // Strip nulls/false to keep the payload clean
+    Object.keys(payload).forEach(k => {
+        if (payload[k] === null || payload[k] === false || payload[k] === '') delete payload[k];
+    });
+
+    try {
+        setCustomScreenerBusy(true);
+        const res = await API.post('/api/execute/custom-screener', payload);
+        showToast(res.message);
+        startTimer(Date.now());
+        startPolling(() => {
+            setCustomScreenerBusy(false);
+            loadCustomScreenerResults();
+            showToast('Screener execution completed!');
+        });
+    } catch (e) {
+        setCustomScreenerBusy(false);
+        showToast(e.message, 'error');
+    }
+}
+
+async function loadCustomScreenerResults() {
+    const container = document.getElementById('screener-custom-results');
+    if (!container) return;
+    try {
+        const results = await API.get('/api/results/custom/screeners');
+        container.innerHTML = '';
+        if (!results || results.length === 0) {
+            container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔬</div>No screener results yet. Run a custom screener above.</div>';
+        } else {
+            for (const r of results) {
+                container.appendChild(buildScreenerCard(r, true));
+            }
+        }
+    } catch (e) {
+        container.innerHTML = `<div class="empty-state text-danger">Failed to load results: ${e.message}</div>`;
+    }
+}
+
+async function checkCustomScreenerExecutionStatus() {
+    try {
+        const status = await API.get('/api/status');
+        if (status.alerts && status.alerts.length > 0) showErrorPanel(status.alerts);
+        if (status.running) {
+            window.currentExecutionTaskName = status.currentTask || '';
+            setCustomScreenerBusy(true);
+            startTimer(status.startTimeMs);
+            startPolling(() => {
+                setCustomScreenerBusy(false);
+                loadCustomScreenerResults();
+                showToast('Screener execution completed!');
+            });
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function setCustomScreenerBusy(busy) {
+    const progress = document.getElementById('screener-custom-progress');
+    if (progress) progress.style.display = busy ? 'block' : 'none';
 }

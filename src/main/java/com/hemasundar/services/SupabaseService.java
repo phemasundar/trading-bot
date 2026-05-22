@@ -28,6 +28,7 @@ public class SupabaseService {
     private final StrategyResultRepository strategyResultRepository;
     private final ScreenerResultRepository screenerResultRepository;
     private final CustomExecutionRepository customExecutionRepository;
+    private final CustomScreenerRepository customScreenerRepository;
 
     /**
      * Tests connection to Supabase by making a simple GET request.
@@ -126,5 +127,29 @@ public class SupabaseService {
      */
     public void deleteCustomExecution(String id) throws IOException {
         customExecutionRepository.deleteCustomExecution(id);
+    }
+
+    // ==================== Custom Screener Results ====================
+
+    /**
+     * Saves a custom screener execution result to the dedicated table.
+     */
+    public void saveCustomScreenerResult(com.hemasundar.dto.ScreenerExecutionResult result,
+            java.util.List<String> securities) throws IOException {
+        customScreenerRepository.saveCustomScreenerResult(result, securities);
+    }
+
+    /**
+     * Retrieves the most recent custom screener execution results.
+     */
+    public java.util.List<com.hemasundar.dto.ScreenerExecutionResult> getRecentCustomScreenerExecutions(int limit) throws IOException {
+        return customScreenerRepository.getRecentCustomScreenerExecutions(limit);
+    }
+
+    /**
+     * Deletes a custom screener execution result by its database ID.
+     */
+    public void deleteCustomScreenerExecution(String id) throws IOException {
+        customScreenerRepository.deleteCustomScreenerExecution(id);
     }
 }

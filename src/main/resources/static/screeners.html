@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bot — Screeners Dashboard</title>
+    <meta name="description" content="Real-time technical screener execution monitor for automated stock screening">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+    <div class="app-layout">
+        <!-- Mobile menu toggle -->
+        <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-brand">
+                Trading Bot
+                <small>Automated Systems</small>
+            </div>
+            <a href="/" class="nav-link">
+                <span class="nav-icon">📊</span>
+                <span>Options</span>
+            </a>
+            <a href="/screeners.html" class="nav-link active">
+                <span class="nav-icon">🔎</span>
+                <span>Screeners</span>
+            </a>
+            <a href="/execute.html" class="nav-link">
+                <span class="nav-icon">▶️</span>
+                <span>Execute Strategy</span>
+            </a>
+            <a href="/execute-screener.html" class="nav-link">
+                <span class="nav-icon">🧪</span>
+                <span>Execute Screener</span>
+            </a>
+            <a href="/config.html" class="nav-link">
+                <span class="nav-icon">⚙️</span>
+                <span>Config</span>
+            </a>
+            <a href="/logs.html" class="nav-link">
+                <span class="nav-icon">📋</span>
+                <span>Execution Logs</span>
+            </a>
+        </nav>
+        <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <h1 class="page-title">Screeners Dashboard</h1>
+            <p class="page-subtitle">Real-time technical screener execution monitor</p>
+
+            <!-- Screener Selector -->
+            <div class="card">
+                <div class="collapsible-header" onclick="toggleSection('screener-section')">
+                    <span class="card-arrow" id="arrow-screener-section">▶</span>
+                    <h3 style="font-size:0.9rem; margin:0; color:var(--text-secondary)">Technical Screeners</h3>
+                    <span class="text-muted small" id="screener-count-badge"></span>
+                </div>
+                <div class="collapsible-body" id="screener-section">
+                    <div class="checkbox-group" id="screener-checkboxes">
+                        <span class="text-muted">Loading screeners...</span>
+                    </div>
+                </div>
+                <div class="flex gap-sm mt-sm">
+                    <button class="btn btn-sm btn-ghost" onclick="selectAllScreeners(true)">Select All</button>
+                    <button class="btn btn-sm btn-ghost" onclick="selectAllScreeners(false)">Clear All</button>
+                </div>
+            </div>
+
+            <!-- Execution Controls -->
+            <div class="flex gap-sm items-center mb-md">
+                <button class="btn btn-primary" id="execute-btn" onclick="executeScreenersSelected()">
+                    ▶ Execute Selected
+                </button>
+                <button class="btn btn-danger" id="stop-btn" onclick="cancelExecution()" style="display:none">
+                    ⏹ Stop
+                </button>
+            </div>
+
+            <!-- Progress -->
+            <div class="progress-container" id="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width:30%"></div>
+                </div>
+                <p class="progress-text" id="elapsed-text">Executing screeners...</p>
+            </div>
+
+            <!-- Screener Results -->
+            <h3 style="font-size:1rem; margin-bottom:12px; color:var(--text-secondary)">Latest Technical Screener Results</h3>
+            <div id="screener-results-container">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🔎</div>
+                    Loading screener results...
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="/app.js?v=2"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', initScreenerDashboard);
+    </script>
+
+</body>
+
+</html>

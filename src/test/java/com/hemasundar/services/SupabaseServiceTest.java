@@ -31,6 +31,8 @@ public class SupabaseServiceTest {
     private ScreenerResultRepository screenerResultRepository;
     @Mock
     private CustomExecutionRepository customExecutionRepository;
+    @Mock
+    private CustomScreenerRepository customScreenerRepository;
 
     @BeforeMethod
     public void setup() {
@@ -40,7 +42,8 @@ public class SupabaseServiceTest {
                 ivDataRepository,
                 strategyResultRepository,
                 screenerResultRepository,
-                customExecutionRepository
+                customExecutionRepository,
+                customScreenerRepository
         );
     }
 
