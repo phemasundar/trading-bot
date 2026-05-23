@@ -46,6 +46,7 @@ public class StrategyController {
     private final com.hemasundar.config.StrategiesConfigLoader strategiesConfigLoader;
     private final SupabaseConfig supabaseConfig;
     private final com.hemasundar.utils.AuthErrorUtils authErrorUtils;
+    private final com.hemasundar.services.SupabaseService supabaseService;
     private final Optional<IVDataRepository> ivDataRepository;
 
     // ────────────────────────────────────────────
@@ -163,21 +164,38 @@ public class StrategyController {
     }
 
     /**
-     * Returns recent custom execution results (last 20).
+     * Returns recent custom execution results (last 10).
      */
     @GetMapping("/results/custom")
-    public ResponseEntity<?> getCustomResults(
-            @RequestParam(defaultValue = "20") int limit) {
+    public ResponseEntity<?> getRecentCustomResults(@RequestParam(defaultValue = "10") int limit) {
         try {
             List<StrategyResult> results = executionService.getRecentCustomExecutions(limit);
             return ResponseEntity.ok()
                     .header("Cache-Control", "no-cache, no-store, must-revalidate")
                     .body(results);
         } catch (Exception e) {
-            log.error("Failed to load custom results", e);
-            executionService.addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE, "Failed to load custom results: " + e.getMessage());
+            log.error("Failed to load custom execution results", e);
+            executionService.addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE, "Failed to load custom execution results: " + e.getMessage());
             return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Failed to load custom results: " + e.getMessage()));
+                    .body(Map.of("error", "Failed to load custom execution results: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Returns the most recent manual custom technical screener execution results.
+     */
+    @GetMapping("/results/custom/screeners")
+    public ResponseEntity<?> getRecentCustomScreenerResults(@RequestParam(defaultValue = "10") int limit) {
+        try {
+            List<com.hemasundar.dto.ScreenerExecutionResult> results = supabaseService.getRecentCustomScreenerExecutions(limit);
+            return ResponseEntity.ok()
+                    .header("Cache-Control", "no-cache, no-store, must-revalidate")
+                    .body(results);
+        } catch (Exception e) {
+            log.error("Failed to load custom screener results", e);
+            executionService.addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE, "Failed to load custom screener results: " + e.getMessage());
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Failed to load custom screener results: " + e.getMessage()));
         }
     }
 
@@ -357,6 +375,105 @@ public class StrategyController {
         }
     }
 
+    /**
+     * Executes a custom technical screener with user-provided parameters.
+     * Runs asynchronously and returns immediately.
+     */
+    @PostMapping("/execute/custom-screener")
+    public ResponseEntity<?> executeCustomScreener(@RequestBody com.hemasundar.dto.CustomScreenerRequest request) {
+        if (executionService.isExecutionRunning()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "An execution is already running"));
+        }
+
+        // Validate screener type
+        com.hemasundar.technical.ScreenerType screenerType;
+        try {
+            screenerType = com.hemasundar.technical.ScreenerType.fromString(request.getScreenerType());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Invalid screener type: " + request.getScreenerType()));
+        }
+
+        // Resolve securities
+        Set<String> symbolSet = new LinkedHashSet<>();
+        if (request.getSecuritiesFile() != null && !request.getSecuritiesFile().isBlank()) {
+            try {
+                Map<String, List<String>> securitiesMap = securitiesResolver.loadSecuritiesMaps();
+                for (String fileName : request.getSecuritiesFile().split(",")) {
+                    String key = fileName.trim().toLowerCase();
+                    List<String> fileSymbols = securitiesMap.get(key);
+                    if (fileSymbols != null) {
+                        symbolSet.addAll(fileSymbols);
+                    } else {
+                        log.warn("Securities file '{}' not found. Available: {}", key, securitiesMap.keySet());
+                    }
+                }
+            } catch (java.io.IOException e) {
+                log.error("Failed to load securities maps: {}", e.getMessage());
+                return ResponseEntity.internalServerError()
+                        .body(Map.of("error", "Failed to load securities files: " + e.getMessage()));
+            }
+        }
+        if (request.getSecurities() != null && !request.getSecurities().isBlank()) {
+            Arrays.stream(request.getSecurities().split(","))
+                    .map(String::trim).filter(s -> !s.isEmpty()).map(String::toUpperCase)
+                    .forEach(symbolSet::add);
+        }
+        if (symbolSet.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Provide a securities file, inline tickers, or both"));
+        }
+
+        // Build TechFilterConditions from request
+        com.hemasundar.technical.TechFilterConditions.TechFilterConditionsBuilder condBuilder =
+                com.hemasundar.technical.TechFilterConditions.builder();
+
+        if (request.getRsiCondition() != null && !request.getRsiCondition().isBlank()) {
+            try { condBuilder.rsiCondition(com.hemasundar.technical.RSICondition.valueOf(request.getRsiCondition())); } catch (Exception ignored) {}
+        }
+        if (request.getBollingerCondition() != null && !request.getBollingerCondition().isBlank()) {
+            try { condBuilder.bollingerCondition(com.hemasundar.technical.BollingerCondition.valueOf(request.getBollingerCondition())); } catch (Exception ignored) {}
+        }
+        if (request.getMinVolume() != null)          condBuilder.minVolume(request.getMinVolume());
+        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA20()))  condBuilder.requirePriceBelowMA20(true);
+        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA20()))  condBuilder.requirePriceAboveMA20(true);
+        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA50()))  condBuilder.requirePriceBelowMA50(true);
+        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA50()))  condBuilder.requirePriceAboveMA50(true);
+        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA100())) condBuilder.requirePriceBelowMA100(true);
+        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA100())) condBuilder.requirePriceAboveMA100(true);
+        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA200())) condBuilder.requirePriceBelowMA200(true);
+        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA200())) condBuilder.requirePriceAboveMA200(true);
+        if (request.getMinDropPercent() != null)     condBuilder.minDropPercent(request.getMinDropPercent());
+        if (request.getLookbackDays() != null)       condBuilder.lookbackDays(request.getLookbackDays());
+
+        com.hemasundar.technical.ScreenerConfig screenerConfig = com.hemasundar.technical.ScreenerConfig.builder()
+                .screenerType(screenerType)
+                .alias(request.getAlias() != null ? request.getAlias() : screenerType.getDisplayName())
+                .securities(new ArrayList<>(symbolSet))
+                .conditions(condBuilder.build())
+                .build();
+
+        log.info("REST: Custom screener {} on {} securities", screenerType.getDisplayName(), symbolSet.size());
+
+        CompletableFuture.runAsync(() -> {
+            executionService.startGlobalExecution("Custom Screener: " + screenerConfig.getName());
+            try {
+                screenerExecutionService.executeCustomScreener(screenerConfig);
+            } catch (Exception e) {
+                log.error("Custom screener execution failed", e);
+                executionService.addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_EXECUTION,
+                        String.format(AlertMessages.UNEXPECTED_FAILURE_FMT, e.getMessage()));
+            } finally {
+                executionService.finishGlobalExecution();
+            }
+        });
+
+        return ResponseEntity.ok(Map.of(
+                "status", "started",
+                "message", "Custom screener started: " + screenerType.getDisplayName() + " on " + symbolSet.size() + " securities"));
+    }
+
     // ────────────────────────────────────────────
     // STATUS / CONTROL endpoints
     // ────────────────────────────────────────────
@@ -488,6 +605,21 @@ public class StrategyController {
             return ResponseEntity.ok(Map.of("deleted", true, "id", id));
         } catch (IOException e) {
             log.error("Failed to delete custom execution result id={}", id, e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Failed to delete result: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Deletes a specific custom screener execution result by its Supabase ID.
+     */
+    @DeleteMapping("/results/custom/screeners/{id}")
+    public ResponseEntity<?> deleteCustomScreenerResult(@PathVariable String id) {
+        try {
+            supabaseService.deleteCustomScreenerExecution(id);
+            return ResponseEntity.ok(Map.of("deleted", true, "id", id));
+        } catch (IOException e) {
+            log.error("Failed to delete custom screener result id={}", id, e);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Failed to delete result: " + e.getMessage()));
         }

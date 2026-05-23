@@ -46,6 +46,14 @@ public class ScreenerExecutionService {
     }
 
     public void executeScreeners(Set<Integer> screenerIndices, List<ScreenerConfig> allScreeners) {
+        executeScreenersInternal(screenerIndices, allScreeners, false);
+    }
+
+    public void executeCustomScreener(ScreenerConfig config) {
+        executeScreenersInternal(Set.of(0), List.of(config), true);
+    }
+
+    private void executeScreenersInternal(Set<Integer> screenerIndices, List<ScreenerConfig> allScreeners, boolean isCustom) {
         if (screenerIndices == null || screenerIndices.isEmpty() || allScreeners == null) {
             log.info("No screener indices provided, skipping technical screeners");
             return;
@@ -136,8 +144,13 @@ public class ScreenerExecutionService {
                     .results(screenerResults)
                     .build();
             try {
-                supabaseService.saveScreenerResult(scrResult);
-                log.info("[{}] Saved screener result to Supabase", screenerConfig.getName());
+                if (isCustom) {
+                    supabaseService.saveCustomScreenerResult(scrResult, securitiesToScan);
+                    log.info("[{}] Saved custom screener result to Supabase", screenerConfig.getName());
+                } else {
+                    supabaseService.saveScreenerResult(scrResult);
+                    log.info("[{}] Saved global screener result to Supabase", screenerConfig.getName());
+                }
             } catch (Exception e) {
                 strategyExecutionService.addAlert(ExecutionAlert.Severity.WARNING,
                         String.format(AlertMessages.SRC_SCREENER_FMT, screenerConfig.getName()),
