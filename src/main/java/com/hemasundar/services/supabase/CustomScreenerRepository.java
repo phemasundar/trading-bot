@@ -13,7 +13,9 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Repository for handling custom manual screener executions with Supabase.
@@ -33,8 +35,12 @@ public class CustomScreenerRepository {
 
     /**
      * Saves a custom screener execution result to the dedicated table.
+     *
+     * @param result       the screener execution result
+     * @param securities   the list of securities that were scanned
+     * @param requestParams the original request parameters (serialized for Load Filters)
      */
-    public void saveCustomScreenerResult(ScreenerExecutionResult result, List<String> securities) throws IOException {
+    public void saveCustomScreenerResult(ScreenerExecutionResult result, List<String> securities, Map<String, Object> requestParams) throws IOException {
         try {
             String resultsJson = mapper.writeValueAsString(result.getResults());
 
@@ -44,7 +50,10 @@ public class CustomScreenerRepository {
             payloadNode.put("results_found", result.getResultsFound());
             payloadNode.set("results", mapper.readTree(resultsJson));
 
-            // Not using filterConfig currently for screeners, but available if needed.
+            // Persist the original request parameters so the UI can offer "Load Filters".
+            if (requestParams != null && !requestParams.isEmpty()) {
+                payloadNode.set("request_params", mapper.convertValue(requestParams, com.fasterxml.jackson.databind.node.ObjectNode.class));
+            }
             
             ArrayNode securitiesArray = mapper.createArrayNode();
             if (securities != null) {
@@ -141,6 +150,14 @@ public class CustomScreenerRepository {
             String createdAtStr = node.get("created_at").asText();
             Instant createdAt = Instant.parse(createdAtStr);
 
+            // Parse stored request_params (may be absent for older rows)
+            Map<String, Object> requestParams = null;
+            JsonNode requestParamsNode = node.get("request_params");
+            if (requestParamsNode != null && !requestParamsNode.isNull()) {
+                requestParams = mapper.convertValue(requestParamsNode,
+                        mapper.getTypeFactory().constructMapType(HashMap.class, String.class, Object.class));
+            }
+
             return ScreenerExecutionResult.builder()
                     .screenerId(String.valueOf(node.get("id").asLong()))
                     .screenerName(screenerName)
@@ -148,6 +165,7 @@ public class CustomScreenerRepository {
                     .resultsFound(resultsFound)
                     .results(results)
                     .updatedAt(createdAt)
+                    .requestParams(requestParams)
                     .build();
         } catch (Exception e) {
             throw new IOException("Failed to parse custom screener result: " + e.getMessage(), e);

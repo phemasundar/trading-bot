@@ -1,5 +1,28 @@
 # Project Updates
 
+## Execute Screener: "Load Filters" from History (2026-05-23)
+
+Added a **"⬆ Load Filters"** button to each custom screener result card in the *Recent Custom Screener Results* section, mirroring the same feature available on the Execute Strategy page. Clicking the button re-populates all form fields (screener type, alias, securities, and all filter conditions) from the stored parameters of that historical run.
+
+### How It Works
+1. When a custom screener is executed via `POST /api/execute/custom-screener`, the controller now captures the full request as a `LinkedHashMap<String, Object>` (`requestParams`).
+2. `requestParams` is passed through `ScreenerExecutionService.executeCustomScreener()` → `SupabaseService.saveCustomScreenerResult()` → `CustomScreenerRepository.saveCustomScreenerResult()`.
+3. The repository serialises it as JSONB into the new `request_params` column of the `custom_screener_results` table.
+4. On subsequent page loads, `parseCustomScreenerResult()` deserialises it back and attaches it to `ScreenerExecutionResult.requestParams`.
+5. The frontend `buildScreenerCard()` renders a "⬆ Load Filters" button (only on `execute-screener.html`, only when `requestParams` is present).
+6. `loadScreenerFiltersFromResult()` in `app.js` populates every form field and calls `onScreenerTypeChange()` to ensure drop-specific fields and matching templates are correctly shown.
+
+### Architecture
+- **`ScreenerExecutionResult.java`** [MODIFIED]: Added `Map<String, Object> requestParams` field (nullable, `@JsonInclude(NON_NULL)`).
+- **`CustomScreenerRepository.java`** [MODIFIED]: Updated `saveCustomScreenerResult()` to accept and store a `requestParams` map in the new `request_params` JSONB column; updated `parseCustomScreenerResult()` to read it back.
+- **`SupabaseService.java`** [MODIFIED]: Updated `saveCustomScreenerResult()` wrapper to accept and forward `requestParams`.
+- **`ScreenerExecutionService.java`** [MODIFIED]: Updated `executeCustomScreener()` to accept `Map<String, Object> requestParams` and pass it through.
+- **`StrategyController.java`** [MODIFIED]: Builds `requestParams` map from the raw `CustomScreenerRequest` and passes it to `executeCustomScreener()`.
+- **`app.js`** [MODIFIED]: `buildScreenerCard()` now renders a "⬆ Load Filters" button; added `loadScreenerFiltersFromResult()`.
+- **`custom_screener_load_filters_migration.sql`** [NEW]: Supabase SQL migration to add `request_params JSONB` column to `custom_screener_results`.
+
+> **Backward compatibility**: Older rows without `request_params` (pre-migration) will have `null` and will not show the Load Filters button. Only new executions after running the migration will have it.
+
 ## Custom Screener Persistence (2026-05-22)
 
 Finalized the isolation of manual technical screener results from the global automated dashboard by implementing a dedicated persistence layer and updating UI interactions.

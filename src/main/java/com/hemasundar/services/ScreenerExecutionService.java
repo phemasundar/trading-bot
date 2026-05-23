@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -46,14 +47,21 @@ public class ScreenerExecutionService {
     }
 
     public void executeScreeners(Set<Integer> screenerIndices, List<ScreenerConfig> allScreeners) {
-        executeScreenersInternal(screenerIndices, allScreeners, false);
+        executeScreenersInternal(screenerIndices, allScreeners, false, null);
     }
 
-    public void executeCustomScreener(ScreenerConfig config) {
-        executeScreenersInternal(Set.of(0), List.of(config), true);
+    /**
+     * Executes a one-off custom screener and saves the result with the original
+     * request parameters so the UI can offer a "Load Filters" button.
+     *
+     * @param config        the resolved screener configuration
+     * @param requestParams the raw request parameter map to persist alongside the result
+     */
+    public void executeCustomScreener(ScreenerConfig config, Map<String, Object> requestParams) {
+        executeScreenersInternal(Set.of(0), List.of(config), true, requestParams);
     }
 
-    private void executeScreenersInternal(Set<Integer> screenerIndices, List<ScreenerConfig> allScreeners, boolean isCustom) {
+    private void executeScreenersInternal(Set<Integer> screenerIndices, List<ScreenerConfig> allScreeners, boolean isCustom, Map<String, Object> requestParams) {
         if (screenerIndices == null || screenerIndices.isEmpty() || allScreeners == null) {
             log.info("No screener indices provided, skipping technical screeners");
             return;
@@ -145,7 +153,7 @@ public class ScreenerExecutionService {
                     .build();
             try {
                 if (isCustom) {
-                    supabaseService.saveCustomScreenerResult(scrResult, securitiesToScan);
+                    supabaseService.saveCustomScreenerResult(scrResult, securitiesToScan, requestParams);
                     log.info("[{}] Saved custom screener result to Supabase", screenerConfig.getName());
                 } else {
                     supabaseService.saveScreenerResult(scrResult);
