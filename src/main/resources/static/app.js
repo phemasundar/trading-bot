@@ -426,6 +426,13 @@ function buildScreenerCard(result, isCustom = false) {
     window.tradeDataMap[cardId] = result.results || [];
     window.tradeDataMap[cardId]._type = isDropScreener ? 'drop' : 'screener';
     
+    // Build "Load Filters" button — only for custom results that have stored requestParams
+    // and only when we're on the execute-screener page (which has the screener-type select).
+    const isExecuteScreenerPage = !!document.getElementById('screener-type');
+    const loadFiltersBtn = (isCustom && isExecuteScreenerPage && result.requestParams)
+        ? `<button class="btn btn-primary" style="padding: 2px 8px; font-size: 0.75rem; margin-left: 4px;" onclick="loadScreenerFiltersFromResult('${escapeAttr(JSON.stringify(result.requestParams))}', event)">⬆ Load Filters</button>`
+        : '';
+
     let deleteBtn = '';
     if (isCustom && result.screenerId) {
         deleteBtn = `<button class="btn btn-danger" style="padding: 2px 8px; font-size: 0.75rem; margin-left: auto;" onclick="promptDeleteCustomScreenerResult('${result.screenerId}', event)">🗑️ Delete</button>`;
@@ -437,6 +444,7 @@ function buildScreenerCard(result, isCustom = false) {
                 ${arrow}
                 <span class="card-name">${result.screenerName || 'Screener'}</span>
                 <span class="card-badge" style="background-color: var(--primary); color: #fff;">Screener</span>
+                ${loadFiltersBtn}
                 ${deleteBtn}
             </div>
             <span class="card-stats">Last run: ${timeAgo(result.updatedAt)} · Found: ${result.resultsFound || 0}</span>
@@ -2834,6 +2842,71 @@ function loadScreenerTemplateParams(screenerJson) {
         showToast('Template filters loaded!');
     } catch (e) {
         showToast('Error loading template', 'error');
+    }
+}
+
+/**
+ * Loads the saved filter parameters from a previous custom screener execution
+ * into the Execute Screener form. Called by the "Load Filters" button on history cards.
+ *
+ * @param {string} paramsJson - JSON string of the saved requestParams map.
+ * @param {Event}  event      - Click event (stopped to avoid card collapse).
+ */
+function loadScreenerFiltersFromResult(paramsJson, event) {
+    if (event) event.stopPropagation();
+    try {
+        const params = JSON.parse(decodeAttr(paramsJson));
+
+        // Set screener type first so onScreenerTypeChange can toggle fields
+        const typeEl = document.getElementById('screener-type');
+        if (typeEl && params.screenerType) {
+            typeEl.value = params.screenerType;
+            onScreenerTypeChange(); // updates drop-field visibility & loads templates
+        }
+
+        // Alias, securities
+        const aliasEl = document.getElementById('screener-alias-input');
+        if (aliasEl) aliasEl.value = params.alias || '';
+
+        const secFileEl = document.getElementById('screener-securities-file-input');
+        if (secFileEl) secFileEl.value = params.securitiesFile || '';
+
+        const secEl = document.getElementById('screener-securities-input');
+        if (secEl) secEl.value = params.securities || '';
+
+        // Condition dropdowns / number inputs
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.value = (val !== undefined && val !== null) ? val : '';
+        };
+        setVal('sc-rsiCondition',       params.rsiCondition);
+        setVal('sc-bollingerCondition', params.bollingerCondition);
+        setVal('sc-minVolume',          params.minVolume);
+        setVal('sc-minDropPercent',     params.minDropPercent);
+        setVal('sc-lookbackDays',       params.lookbackDays);
+
+        // Moving Average checkboxes
+        const setCheck = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.checked = !!val;
+        };
+        setCheck('sc-priceBelowMA20',  params.requirePriceBelowMA20);
+        setCheck('sc-priceAboveMA20',  params.requirePriceAboveMA20);
+        setCheck('sc-priceBelowMA50',  params.requirePriceBelowMA50);
+        setCheck('sc-priceAboveMA50',  params.requirePriceAboveMA50);
+        setCheck('sc-priceBelowMA100', params.requirePriceBelowMA100);
+        setCheck('sc-priceAboveMA100', params.requirePriceAboveMA100);
+        setCheck('sc-priceBelowMA200', params.requirePriceBelowMA200);
+        setCheck('sc-priceAboveMA200', params.requirePriceAboveMA200);
+
+        // Scroll up to the form so the user can see the populated fields
+        const firstCard = document.querySelector('.main-content .card');
+        if (firstCard) firstCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        showToast('Filters loaded from history!');
+    } catch (e) {
+        console.error('loadScreenerFiltersFromResult error:', e);
+        showToast('Error loading filters from result', 'error');
     }
 }
 

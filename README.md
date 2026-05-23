@@ -110,6 +110,7 @@ For detailed setup instructions:
 Run `mvn spring-boot:run` to start the Spring Boot application with the built-in web dashboard.
 - **Dashboard (`/index.html`)**: View historical results with interactive strategy descriptions.
 - **Execute Strategy (`/execute.html`)**: Build custom configurations for any strategy type, set filters, and view interactive "speech balloon" tooltips for every field. Previous execution results show collapsible filter details and a "Load Filters" button to quickly reload parameters from past runs.
+- **Execute Screener (`/execute-screener.html`)**: Run one-off technical screeners with fully configurable conditions (RSI, Bollinger, Moving Averages, Price Drop, etc.) without modifying `strategies-config.json`. Historical custom screener results are displayed with a **"⬆ Load Filters"** button to re-populate the form with the exact parameters from any previous run.
 - **Strategy Config (`/config.html`)**: Read-only view of all strategy configurations with full parameter descriptions.
 - **Swagger API Docs (`/swagger-ui.html`)**: Interactive REST API documentation.
 

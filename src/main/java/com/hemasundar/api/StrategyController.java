@@ -456,10 +456,31 @@ public class StrategyController {
 
         log.info("REST: Custom screener {} on {} securities", screenerType.getDisplayName(), symbolSet.size());
 
+        // Capture the request parameters as a plain map so they can be stored
+        // alongside the result and used by the UI "Load Filters" feature.
+        Map<String, Object> requestParams = new LinkedHashMap<>();
+        requestParams.put("screenerType", request.getScreenerType());
+        if (request.getAlias() != null)              requestParams.put("alias", request.getAlias());
+        if (request.getSecuritiesFile() != null)     requestParams.put("securitiesFile", request.getSecuritiesFile());
+        if (request.getSecurities() != null)         requestParams.put("securities", request.getSecurities());
+        if (request.getRsiCondition() != null)       requestParams.put("rsiCondition", request.getRsiCondition());
+        if (request.getBollingerCondition() != null) requestParams.put("bollingerCondition", request.getBollingerCondition());
+        if (request.getMinVolume() != null)          requestParams.put("minVolume", request.getMinVolume());
+        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA20()))  requestParams.put("requirePriceBelowMA20", true);
+        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA20()))  requestParams.put("requirePriceAboveMA20", true);
+        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA50()))  requestParams.put("requirePriceBelowMA50", true);
+        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA50()))  requestParams.put("requirePriceAboveMA50", true);
+        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA100())) requestParams.put("requirePriceBelowMA100", true);
+        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA100())) requestParams.put("requirePriceAboveMA100", true);
+        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA200())) requestParams.put("requirePriceBelowMA200", true);
+        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA200())) requestParams.put("requirePriceAboveMA200", true);
+        if (request.getMinDropPercent() != null)     requestParams.put("minDropPercent", request.getMinDropPercent());
+        if (request.getLookbackDays() != null)       requestParams.put("lookbackDays", request.getLookbackDays());
+
         CompletableFuture.runAsync(() -> {
             executionService.startGlobalExecution("Custom Screener: " + screenerConfig.getName());
             try {
-                screenerExecutionService.executeCustomScreener(screenerConfig);
+                screenerExecutionService.executeCustomScreener(screenerConfig, requestParams);
             } catch (Exception e) {
                 log.error("Custom screener execution failed", e);
                 executionService.addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_EXECUTION,

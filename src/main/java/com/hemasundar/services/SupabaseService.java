@@ -132,11 +132,12 @@ public class SupabaseService {
     // ==================== Custom Screener Results ====================
 
     /**
-     * Saves a custom screener execution result to the dedicated table.
+     * Saves a custom screener execution result to the dedicated table,
+     * including the original request parameters for the "Load Filters" feature.
      */
     public void saveCustomScreenerResult(com.hemasundar.dto.ScreenerExecutionResult result,
-            java.util.List<String> securities) throws IOException {
-        customScreenerRepository.saveCustomScreenerResult(result, securities);
+            java.util.List<String> securities, java.util.Map<String, Object> requestParams) throws IOException {
+        customScreenerRepository.saveCustomScreenerResult(result, securities, requestParams);
     }
 
     /**
