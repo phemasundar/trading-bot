@@ -18,38 +18,41 @@
             Trading Bot
             <small>Automated Systems</small>
         </div>
-        <a href="/" class="nav-link">
-            <span class="nav-icon">📊</span>
-            <span>Options</span>
-        </a>
-        <a href="/screeners.html" class="nav-link">
-            <span class="nav-icon">🔎</span>
-            <span>Screeners</span>
-        </a>
-        <a href="/execute.html" class="nav-link">
-            <span class="nav-icon">▶️</span>
-            <span>Execute Strategy</span>
-        </a>
-        <a href="/execute-screener.html" class="nav-link">
-            <span class="nav-icon">🧪</span>
-            <span>Execute Screener</span>
-        </a>
-        <a href="/config.html" class="nav-link">
-            <span class="nav-icon">⚙️</span>
-            <span>Config</span>
-        </a>
-        <a href="/logs.html" class="nav-link active">
-            <span class="nav-icon">📋</span>
-            <span>Execution Logs</span>
-        </a>
-        <div id="userSection" class="user-profile" style="display:none; margin-top: auto; padding: 16px; border-top: 1px solid rgba(255,255,255,0.1);">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <img id="userAvatar" src="" alt="avatar" style="width: 32px; height: 32px; border-radius: 50%;">
-                <div style="display: flex; flex-direction: column;">
-                    <span id="userName" style="font-size: 0.85rem; font-weight: 500;"></span>
-                    <a href="#" onclick="handleLogout()" style="font-size: 0.75rem; color: var(--danger); text-decoration: none;">Sign Out</a>
-                </div>
-            </div>
+        
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">Options</div>
+            <a href="/" class="nav-link">
+                <span class="nav-icon">📊</span>
+                <span>Dashboard</span>
+            </a>
+            <a href="/execute.html" class="nav-link">
+                <span class="nav-icon">▶️</span>
+                <span>Execute Strategy</span>
+            </a>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">Screeners</div>
+            <a href="/screeners.html" class="nav-link">
+                <span class="nav-icon">🔎</span>
+                <span>Dashboard</span>
+            </a>
+            <a href="/execute-screener.html" class="nav-link">
+                <span class="nav-icon">🧪</span>
+                <span>Execute Screener</span>
+            </a>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">System</div>
+            <a href="/config.html" class="nav-link">
+                <span class="nav-icon">⚙️</span>
+                <span>Config</span>
+            </a>
+            <a href="/logs.html" class="nav-link active">
+                <span class="nav-icon">📋</span>
+                <span>Execution Logs</span>
+            </a>
         </div>
     </nav>
     <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>

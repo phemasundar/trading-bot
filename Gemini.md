@@ -1,5 +1,25 @@
 # Project Updates
 
+## Sidebar Menu Separation: Options & Screeners Sections (2026-05-31)
+
+Divided the sidebar navigation menu into three distinct, structured sections (Options, Screeners, and System) to clearly segregate trading strategies, stock screening, and system tools, and updated navigation labels for maximum cleanliness and consistent responsive behavior.
+
+### Features
+
+- **Divided Sidebar Navigation**: Separated the single mixed list of navigation links into three logical, labeled blocks:
+  - **Options**: Contains Dashboard (`/`) and Execute Strategy (`/execute.html`).
+  - **Screeners**: Contains Dashboard (`/screeners.html`) and Execute Screener (`/execute-screener.html`).
+  - **System**: Contains Config (`/config.html`) and Execution Logs (`/logs.html`).
+- **Clean Section Dividers**: Added subtle horizontal lines between the sidebar sections (`::after` border line on `.sidebar-section`) and premium HSL-tailored typography for section titles (`.sidebar-section-title`).
+- **Standardized Navigation Labels**: Renamed the generic "Options" and "Screeners" dashboard links to "Dashboard" under their respective headers to create a professional, clutter-free look.
+- **Legacy Code Cleanup**: Removed the redundant, legacy `#userSection` and dynamic avatar/logout markup from `logs.html` so it perfectly mirrors the standard, elegant dynamic layout of the other 5 HTML pages using `app.js`'s `injectUserInfo()` wrapper.
+- **Robust Responsive Styling**: Integrated media queries in `style.css` to hide section titles and divider lines when the sidebar collapses to a compact 60px tablet layout, restoring them beautifully on mobile screens or open slide-out panels.
+
+### Architecture
+
+- **`index.html`**, **`screeners.html`**, **`execute.html`**, **`execute-screener.html`**, **`config.html`**, **`logs.html`** [MODIFIED]: Sidebar markup updated to structure links under `.sidebar-section` containers and add `.sidebar-section-title` headers. Replaced specific dashboard page labels with "Dashboard" under their respective section. Removed legacy profile elements from `logs.html`.
+- **`style.css`** [MODIFIED]: Added `.sidebar-section`, `.sidebar-section-title`, and responsive overrides within tablet (`(max-width: 768px)`) and mobile (`(max-width: 480px)`) media queries.
+
 ## Execute Screener: "Load Filters" from History (2026-05-23)
 
 Added a **"⬆ Load Filters"** button to each custom screener result card in the *Recent Custom Screener Results* section, mirroring the same feature available on the Execute Strategy page. Clicking the button re-populates all form fields (screener type, alias, securities, and all filter conditions) from the stored parameters of that historical run.
