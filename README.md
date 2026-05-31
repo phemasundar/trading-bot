@@ -108,10 +108,13 @@ For detailed setup instructions:
 
 #### 1. Via the Web Interface (Static HTML/JS)
 Run `mvn spring-boot:run` to start the Spring Boot application with the built-in web dashboard.
-- **Dashboard (`/index.html`)**: View historical results with interactive strategy descriptions.
+The user interface features a clean, highly structured sidebar navigation divided into logical **Options**, **Screeners**, and **System** blocks for superior workspace organization:
+- **Options Dashboard (`/index.html`)**: Exclusively monitors options strategy runs and displays checkbox filters for option strategies.
+- **Screeners Dashboard (`/screeners.html`)**: Exclusively displays technical stock screener results and allows quick execution/cancel triggers for screeners.
 - **Execute Strategy (`/execute.html`)**: Build custom configurations for any strategy type, set filters, and view interactive "speech balloon" tooltips for every field. Previous execution results show collapsible filter details and a "Load Filters" button to quickly reload parameters from past runs.
 - **Execute Screener (`/execute-screener.html`)**: Run one-off technical screeners with fully configurable conditions (RSI, Bollinger, Moving Averages, Price Drop, etc.) without modifying `strategies-config.json`. Historical custom screener results are displayed with a **"⬆ Load Filters"** button to re-populate the form with the exact parameters from any previous run.
 - **Strategy Config (`/config.html`)**: Read-only view of all strategy configurations with full parameter descriptions.
+- **Execution Logs (`/logs.html`)**: Real-time per-filter logs showing exactly where trade candidates are being discarded (e.g. Delta filter, Volume filter, DTE constraints) to help debug filter configurations.
 - **Swagger API Docs (`/swagger-ui.html`)**: Interactive REST API documentation.
 
 All frontend calls go through Spring Boot REST APIs (`/api/*`) — Supabase keys are never exposed to the browser.
