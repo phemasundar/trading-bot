@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.mockito.Mockito.*;
@@ -117,4 +118,26 @@ public class SupabaseServiceTest {
         supabaseService.getRecentCustomExecutions(10);
         verify(customExecutionRepository).getRecentCustomExecutions(10);
     }
+
+    @Test
+    public void testSaveCustomScreenerResult() throws IOException {
+        com.hemasundar.dto.ScreenerExecutionResult result = mock(com.hemasundar.dto.ScreenerExecutionResult.class);
+        List<String> secs = List.of("AAPL");
+        Map<String, Object> params = Map.of("type", "RSI");
+        supabaseService.saveCustomScreenerResult(result, secs, params);
+        verify(customScreenerRepository).saveCustomScreenerResult(result, secs, params);
+    }
+
+    @Test
+    public void testGetRecentCustomScreenerExecutions() throws IOException {
+        supabaseService.getRecentCustomScreenerExecutions(10);
+        verify(customScreenerRepository).getRecentCustomScreenerExecutions(10);
+    }
+
+    @Test
+    public void testDeleteCustomScreenerExecution() throws IOException {
+        supabaseService.deleteCustomScreenerExecution("123");
+        verify(customScreenerRepository).deleteCustomScreenerExecution("123");
+    }
 }
+

@@ -1,5 +1,27 @@
 # Project Updates
 
+## Robust Unit Test Coverage Optimization: 85% Target (2026-05-31)
+
+Significantly optimized unit test coverage across the application to confidently meet the 85% coverage gate by creating dedicated test suites for custom persistence components, facade service layers, and REST API controller mappings.
+
+### Features
+
+- **Custom Repository Coverage**: Created a complete unit test suite for `CustomScreenerRepository` to mock, serialize, and verify database reads, writes, and deletions using REST APIs.
+- **Facade and Service Hardening**: Added robust verification tests to `SupabaseServiceTest` and `ScreenerExecutionServiceTest` to cover the execution of one-off custom technical screeners and their persistence layers.
+- **REST Controller Mapping Tests**: Expanded `StrategyControllerTest` to fully test 7 previously uncovered endpoints, including MockMvc suites for:
+  - Custom screener executions (`POST /api/execute/custom-screener`)
+  - Custom strategy results retrieval (`GET /api/results/custom/screeners`)
+  - Database result deletions (`DELETE /api/results/custom/screeners/{id}` and `DELETE /api/results/custom/{id}`)
+  - Execution pipeline logging (`GET /api/filter-logs` and `POST /api/filter-logs/clear`)
+  - Volatility metrics analysis (`GET /api/iv-rank` under empty, configured, and error scenarios)
+
+### Architecture
+
+- **`CustomScreenerRepositoryTest.java`** [NEW]: Comprehensive mock-based persistence tests.
+- **`SupabaseServiceTest.java`** [MODIFIED]: Added tests for custom screener facade delegation.
+- **`ScreenerExecutionServiceTest.java`** [MODIFIED]: Covered custom screener execution logic path.
+- **`StrategyControllerTest.java`** [MODIFIED]: Added MockMvc tests covering 7 endpoints.
+
 ## Sidebar Menu Separation: Options & Screeners Sections (2026-05-31)
 
 Divided the sidebar navigation menu into three distinct, structured sections (Options, Screeners, and System) to clearly segregate trading strategies, stock screening, and system tools, and updated navigation labels for maximum cleanliness and consistent responsive behavior.

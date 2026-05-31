@@ -218,7 +218,7 @@ TechnicalFilterChain overboughtFilterChain = TechnicalFilterChain.of(indicators,
 
 ## Testing & CI/CD Coverage
 
-The project enforces a **minimum 75% instruction coverage** for all core business logic using JaCoCo. This is enforced locally during Maven verification and via GitHub Actions for any Pull Request targeting the `main` branch.
+The project enforces a **minimum 85% instruction coverage** for all core business logic using JaCoCo. This is enforced locally during Maven verification and via GitHub Actions for any Pull Request targeting the `develop` or `main` branch.
 
 ### Unit Tests
 Unit tests run locally without making real external API calls (Schwab, Supabase, Telegram are mocked).
