@@ -22,7 +22,8 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
 - **Object-Oriented Filter System**: Extensible filter hierarchy with strategy-specific and leg-specific filters
 - **Technical Indicators**: RSI, Bollinger Bands, and Volume analysis using ta4j library
 - **Telegram Notifications**: Receive trade alerts directly to your Telegram
-- **Interactive UI Dashboard**: Execute custom strategy instances, explore strategy configurations with user-defined technical screener aliases, and view data-rich technical screening results with customizable indicator tables. Integrated Charles Schwab API provides live Market Hours status directly on the dashboard. Sort results by any column (Price, Volume, RSI, Drop %, etc.) with persistent state.
+- **Interactive UI Dashboard**: Execute custom strategy instances, explore strategy configurations with user-defined technical screener aliases, and view data-rich technical screening results with customizable indicator tables. Integrated Charles Schwab API provides live Market Hours status directly on the dashboard. Sort results by any column (Price, Volume, RSI, Drop %, etc.) with persistent state. Options trade tables include a live **Today's Performance** column showing each ticker's daily price change and % change color-coded in real time.
+
 - **Robust Architecture**: Full Spring Dependency Injection (DI) system with standardized constructor-based bean management (via Lombok `@RequiredArgsConstructor`) for guaranteed initialization and enhanced testability. Strictly immutable Data Transfer Objects (DTOs) and standardized service layers ensure thread-safe concurrent execution and a clean, maintainable codebase.
 
 ## Prerequisites
@@ -109,7 +110,8 @@ For detailed setup instructions:
 #### 1. Via the Web Interface (Static HTML/JS)
 Run `mvn spring-boot:run` to start the Spring Boot application with the built-in web dashboard.
 The user interface features a clean, highly structured sidebar navigation divided into logical **Options**, **Screeners**, and **System** blocks for superior workspace organization:
-- **Options Dashboard (`/index.html`)**: Exclusively monitors options strategy runs and displays checkbox filters for option strategies.
+- **Options Dashboard (`/index.html`)**: Exclusively monitors options strategy runs and displays checkbox filters for option strategies. Each trade table includes a live **"Today"** performance column (color-coded `+$X.XX (+Y.YY%)` / `-$X.XX (-Y.YY%)`) fetched from Schwab in real time, sortable by today's % change.
+
 - **Screeners Dashboard (`/screeners.html`)**: Exclusively displays technical stock screener results and allows quick execution/cancel triggers for screeners.
 - **Execute Strategy (`/execute.html`)**: Build custom configurations for any strategy type, set filters, and view interactive "speech balloon" tooltips for every field. Previous execution results show collapsible filter details and a "Load Filters" button to quickly reload parameters from past runs.
 - **Execute Screener (`/execute-screener.html`)**: Run one-off technical screeners with fully configurable conditions (RSI, Bollinger, Moving Averages, Price Drop, etc.) without modifying `strategies-config.json`. Historical custom screener results are displayed with a **"⬆ Load Filters"** button to re-populate the form with the exact parameters from any previous run.

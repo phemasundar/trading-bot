@@ -663,6 +663,7 @@ function buildTradeTable(trades, cardId = null) {
         <thead><tr>
             ${th('ticker', 'Ticker')}
             <th>Price</th>
+            ${th('todayPct', 'Today')}
             <th>Type</th>
             ${th('expiry', 'Expiry')}
             <th>Credit/Debit</th>
@@ -680,10 +681,12 @@ function buildTradeTable(trades, cardId = null) {
             : `<span class="text-danger">-$${Math.abs(credit).toFixed(2)}</span>`;
 
         const detailsEscaped = escapeAttr(t.tradeDetails || '');
+        const sym = t.symbol || '';
 
-        html += `<tr class="trade-row" data-details="${detailsEscaped}">
-            <td><strong>${t.symbol || ''}</strong></td>
+        html += `<tr class="trade-row" data-details="${detailsEscaped}" data-symbol="${escapeAttr(sym)}">
+            <td><strong>${sym}</strong></td>
             <td class="text-mono">$${(t.underlyingPrice || 0).toFixed(2)}</td>
+            <td class="today-perf" data-symbol="${escapeAttr(sym)}"><span class="text-muted">--</span></td>
             <td>${formatLegs(t)}</td>
             <td>${formatExpiryDate(t.expiryDate)} <span class="text-muted">(${t.dte || 0}d)</span></td>
             <td>${creditStr}</td>
@@ -757,6 +760,12 @@ function handleTableSort(cardId, column) {
                     valB = b.maxReturnOnRiskPercentage || b.returnOnRisk || 0;
                     break;
 
+                // ── Today % performance (trade tables) ──
+                case 'todayPct':
+                    valA = a._todayPct != null ? a._todayPct : -Infinity;
+                    valB = b._todayPct != null ? b._todayPct : -Infinity;
+                    break;
+
                 // ── Screener table keys ──
                 case 'price':
                     valA = a.currentPrice || a.underlyingPrice || 0;
@@ -810,7 +819,88 @@ function handleTableSort(cardId, column) {
             contentDiv.innerHTML = buildScreenerTable(data, cardId);
         } else {
             contentDiv.innerHTML = buildTradeTable(data, cardId);
+            // Re-inject today's performance after sort re-render
+            const symbols = [...new Set(data.map(t => t.symbol).filter(Boolean))];
+            if (symbols.length > 0) {
+                injectTodayPerformance(symbols, contentDiv);
+            }
         }
+    }
+}
+
+// ── Today's Performance Injection ──
+
+/**
+ * Given a list of symbols and a DOM scope, fetches live quote data from
+ * /api/quotes and injects the daily price change into every `.today-perf`
+ * cell whose data-symbol attribute matches.
+ * Also stamps `_todayPct` onto each trade object in tradeDataMap so
+ * that sorting by the "Today" column works immediately after injection.
+ *
+ * @param {string[]} symbols - Unique ticker symbols to fetch
+ * @param {Element}  scope   - DOM element to scope the cell query (optional, defaults to document)
+ */
+async function injectTodayPerformance(symbols, scope = document) {
+    if (!symbols || symbols.length === 0) return;
+    try {
+        const data = await API.get(`/api/quotes?symbols=${symbols.join(',')}`);
+        if (!Array.isArray(data)) return;
+
+        // Build a quick lookup map
+        const quoteMap = {};
+        for (const q of data) {
+            quoteMap[q.symbol] = q;
+        }
+
+        // Inject into every matching cell in the scope
+        const cells = scope.querySelectorAll('.today-perf[data-symbol]');
+        cells.forEach(cell => {
+            const sym = cell.dataset.symbol;
+            const q = quoteMap[sym];
+            if (!q || q.netChange == null || q.netPercentChange == null) {
+                cell.innerHTML = '<span class="text-muted">N/A</span>';
+                return;
+            }
+            const chg = q.netChange;
+            const pct = q.netPercentChange;
+            const sign = chg >= 0 ? '+' : '';
+            const cls = chg >= 0 ? 'text-success' : 'text-danger';
+            const chgStr = `${sign}$${Math.abs(chg).toFixed(2)}`;
+            const pctStr = `(${sign}${pct.toFixed(2)}%)`;
+            cell.innerHTML = `<span class="${cls}" style="font-size:0.82rem; white-space:nowrap;">${chgStr} ${pctStr}</span>`;
+        });
+
+        // Also stamp _todayPct onto trade data objects so sort works
+        for (const [cardId, trades] of Object.entries(window.tradeDataMap || {})) {
+            if (!Array.isArray(trades)) continue;
+            trades.forEach(t => {
+                const q = quoteMap[t.symbol];
+                if (q && q.netPercentChange != null) {
+                    t._todayPct = q.netPercentChange;
+                }
+            });
+        }
+    } catch (e) {
+        // Silently fail — not critical
+        console.warn('Today performance fetch failed:', e.message);
+    }
+}
+
+/**
+ * Collects all unique symbols from rendered result cards in a container,
+ * then calls injectTodayPerformance to fetch and display live quote data.
+ *
+ * @param {Element} container - The results container DOM element
+ */
+async function fetchAndInjectTodayPerformance(container) {
+    if (!container) return;
+    const symbols = [...new Set(
+        [...container.querySelectorAll('.today-perf[data-symbol]')]
+            .map(el => el.dataset.symbol)
+            .filter(Boolean)
+    )];
+    if (symbols.length > 0) {
+        await injectTodayPerformance(symbols, container);
     }
 }
 
@@ -890,7 +980,7 @@ function initTradeRowClicks() {
         panel.className = 'trade-detail-panel';
         panel.dataset.rowId = details;
         panel.innerHTML = `
-            <td colspan="9">
+            <td colspan="10">
                 <div class="trade-detail">
                     <div class="trade-detail-header">
                         ▶ ${symbol} — Trade Details
@@ -1261,6 +1351,8 @@ async function loadOptionsResults() {
             for (const r of optionResults) {
                 optionsContainer.appendChild(buildResultCard(r));
             }
+            // Inject live today's performance into every trade table
+            fetchAndInjectTodayPerformance(optionsContainer);
         }
     } catch (e) {
         optionsContainer.innerHTML = `<div class="empty-state text-danger">Failed to load results: ${e.message}</div>`;
@@ -1292,6 +1384,8 @@ async function loadResults() {
                 for (const r of optionResults) {
                     optionsContainer.appendChild(buildResultCard(r));
                 }
+                // Inject live today's performance into every trade table
+                fetchAndInjectTodayPerformance(optionsContainer);
             }
         }
 

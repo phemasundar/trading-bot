@@ -668,6 +668,61 @@ public class StrategyController {
     }
 
     // ────────────────────────────────────────────
+    // TODAY'S QUOTES (price change / % change)
+    // ────────────────────────────────────────────
+
+    /**
+     * Returns today's price performance for a comma-separated list of symbols.
+     * Fetches live quotes from the Schwab API and returns a flat list of
+     * {symbol, netChange, netPercentChange, lastPrice} objects for table display.
+     *
+     * @param symbols comma-separated ticker list, e.g. {@code AAPL,MSFT,TSLA}
+     */
+    @GetMapping("/quotes")
+    public ResponseEntity<?> getQuotes(@RequestParam String symbols) {
+        if (symbols == null || symbols.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "symbols parameter is required"));
+        }
+        try {
+            List<String> symbolList = Arrays.stream(symbols.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toList());
+
+            if (symbolList.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "No valid symbols provided"));
+            }
+
+            Map<String, com.hemasundar.pojos.QuotesResponse.QuoteData> quoteMap =
+                    thinkOrSwinAPIs.getQuotes(symbolList, "quote", null);
+
+            List<Map<String, Object>> response = new ArrayList<>();
+            for (String symbol : symbolList) {
+                com.hemasundar.pojos.QuotesResponse.QuoteData data = quoteMap.get(symbol);
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("symbol", symbol);
+                if (data != null && data.getQuote() != null) {
+                    com.hemasundar.pojos.QuotesResponse.Quote q = data.getQuote();
+                    entry.put("lastPrice", q.getLastPrice());
+                    entry.put("netChange", q.getNetChange());
+                    entry.put("netPercentChange", q.getNetPercentChange());
+                } else {
+                    entry.put("lastPrice", null);
+                    entry.put("netChange", null);
+                    entry.put("netPercentChange", null);
+                }
+                response.add(entry);
+            }
+            return ResponseEntity.ok()
+                    .header("Cache-Control", "no-cache, no-store, must-revalidate")
+                    .body(response);
+        } catch (Exception e) {
+            log.error("Failed to fetch quotes for symbols={}: {}", symbols, e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ────────────────────────────────────────────
     // IV RANK
     // ────────────────────────────────────────────
 
