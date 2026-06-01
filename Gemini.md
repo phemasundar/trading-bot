@@ -1,5 +1,25 @@
 # Project Updates
 
+## New Technical Screeners: 1-Month Drop & 3-Month Drop (2026-06-01)
+
+Added two new pre-configured technical screeners—"1-Month Drop" and "3-Month Drop"—to the technical screeners dashboard and execute screener workflows, implementing dynamic price history fetching and elegant monthly labels for a premium user experience.
+
+### Features
+- **New Screener Templates**:
+  - **1-Month Drop**: Set to filter for stocks down **>= 10%** over **21 trading days** (standard trading month).
+  - **3-Month Drop**: Set to filter for stocks down **>= 15%** over **63 trading days** (standard 3 trading months).
+- **Adaptive Price History Fetching**:
+  Enhanced `PriceDropScreener.java` to dynamically calculate the number of months to fetch daily price history based on the lookback count (lookbacks >= 20 days fetch 3 months, lookbacks >= 60 days fetch 6 months). This fully resolves constraints where the default 1-month fetch would have insufficient bars for multi-week calculations.
+- **Elegant Monthly UI Labels**:
+  Results dynamically translate lookback metrics to cleaner month-based formatting in the UI, mapping `21` lookback days to `"1M"` and `63` lookback days to `"3M"` for professional parity with `5D` and `INTRADAY` labels.
+- **Robust Test Coverage**:
+  Added comprehensive unit test suites checking that lookback periods invoke the Price History API with the correct duration parameter and output matching premium monthly tags.
+
+### Architecture
+- **`strategies-config.json`** [MODIFIED]: Added the "1-Month Drop" and "3-Month Drop" config definitions under `technicalScreeners`.
+- **`PriceDropScreener.java`** [MODIFIED]: Implemented the adaptive `monthsNeeded` lookup logic and the premium `dropType` tag overrides inside `screenMultiDayDrop`.
+- **`PriceDropScreenerTest.java`** [MODIFIED]: Added two new unit tests `testScreenMultiDayDrop_1Month_Match` and `testScreenMultiDayDrop_3Month_Match` confirming correct mocks, durations, and labels.
+
 ## UI Option Strategies Checkboxes Suffix: Alias + Securities File (2026-06-01)
 
 Appended the configured `securitiesFile` suffix to option strategy checkbox labels on the Options Dashboard and the Execute Strategy page, aligning the checkbox display with the trade result cards' naming conventions for a clean and cohesive user experience.

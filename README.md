@@ -19,7 +19,7 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
 - **Technical Screeners**:
   - RSI Bollinger Crossovers (Bullish/Bearish)
   - Moving Average Crossovers
-  - Multi-day Price Drop (Selectable lookback from 0-N days)
+  - Multi-day Price Drop (Selectable lookback from 0-N days, with pre-configured Intraday Drop, 5-Day Drop, 1-Month Drop, and 3-Month Drop templates)
   - 52-Week High Drop (Percentage decline from yearly high)
 - **Object-Oriented Filter System**: Extensible filter hierarchy with strategy-specific and leg-specific filters
 - **Technical Indicators**: RSI, Bollinger Bands, and Volume analysis using ta4j library
