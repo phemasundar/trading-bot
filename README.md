@@ -123,7 +123,7 @@ For detailed setup instructions:
 Run `mvn spring-boot:run` to start the Spring Boot application with the built-in web dashboard.
 The user interface features a clean, highly structured sidebar navigation divided into logical **Options**, **Screeners**, and **System** blocks for superior workspace organization:
 
-- **Options Dashboard (`/index.html`)**: Exclusively monitors options strategy runs and displays checkbox filters for option strategies. Each trade table includes a live **"Today"** performance column (color-coded `+$X.XX (+Y.YY%)` / `-$X.XX (-Y.YY%)`) fetched from Schwab in real time, sortable by today's % change.
+- **Options Dashboard (`/index.html`)**: Exclusively monitors options strategy runs and displays checkbox filters for option strategies. Checkbox filters and strategy result blocks dynamically display the strategy's alias concatenated with its active securities file suffix (e.g. `Short-Term PCS - Portfolio`) in the UI, keeping the database record clean of configuration changes. Each trade table includes a live **"Today"** performance column (color-coded `+$X.XX (+Y.YY%)` / `-$X.XX (-Y.YY%)`) fetched from Schwab in real time, sortable by today's % change.
 
 - **Screeners Dashboard (`/screeners.html`)**: Exclusively displays technical stock screener results and allows quick execution/cancel triggers for screeners.
 - **Execute Strategy (`/execute.html`)**: Build custom configurations for any strategy type, set filters, and view interactive "speech balloon" tooltips for every field. Previous execution results show collapsible filter details and a "Load Filters" button to quickly reload parameters from past runs.

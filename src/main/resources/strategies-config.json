@@ -2,7 +2,7 @@
     "optionsStrategies": [
         {
             "enabled": true,
-            "alias": "Short-Term PCS - Portfolio",
+            "alias": "Short-Term PCS",
             "strategyType": "PUT_CREDIT_SPREAD",
             "descriptionFile": "put_credit_spread.md",
             "filterType": "CreditSpreadFilter",
@@ -22,7 +22,7 @@
         },
         {
             "enabled": true,
-            "alias": "Long-Term PCS - Tracking & 2026",
+            "alias": "Long-Term PCS",
             "strategyType": "PUT_CREDIT_SPREAD",
             "descriptionFile": "put_credit_spread.md",
             "filterType": "CreditSpreadFilter",
@@ -42,7 +42,7 @@
         },
         {
             "enabled": true,
-            "alias": "Tech RSI/BB PCS - Top 100",
+            "alias": "Tech RSI/BB PCS",
             "strategyType": "TECH_PUT_CREDIT_SPREAD",
             "descriptionFile": "tech_put_credit_spread.md",
             "filterType": "CreditSpreadFilter",
@@ -71,7 +71,7 @@
         },
         {
             "enabled": true,
-            "alias": "Standard CCS - Portfolio",
+            "alias": "Standard CCS",
             "strategyType": "CALL_CREDIT_SPREAD",
             "descriptionFile": "call_credit_spread.md",
             "filterType": "CreditSpreadFilter",
@@ -90,7 +90,7 @@
         },
         {
             "enabled": true,
-            "alias": "Tech RSI/BB CCS - Top 100",
+            "alias": "Tech RSI/BB CCS",
             "strategyType": "TECH_CALL_CREDIT_SPREAD",
             "descriptionFile": "tech_call_credit_spread.md",
             "filterType": "CreditSpreadFilter",
@@ -119,7 +119,7 @@
         },
         {
             "enabled": true,
-            "alias": "0 DTE Iron Condor - Portfolio",
+            "alias": "0 DTE Iron Condor",
             "strategyType": "IRON_CONDOR",
             "descriptionFile": "iron_condor.md",
             "filterType": "IronCondorFilter",
@@ -143,7 +143,7 @@
         },
         {
             "enabled": true,
-            "alias": "Mid-Term Iron Condor - Portfolio",
+            "alias": "Mid-Term Iron Condor",
             "strategyType": "IRON_CONDOR",
             "descriptionFile": "iron_condor.md",
             "filterType": "IronCondorFilter",
@@ -167,7 +167,7 @@
         },
         {
             "enabled": true,
-            "alias": "Long-Term Iron Condor - Bullish",
+            "alias": "Long-Term Iron Condor",
             "strategyType": "IRON_CONDOR",
             "descriptionFile": "iron_condor.md",
             "filterType": "IronCondorFilter",
@@ -191,7 +191,7 @@
         },
         {
             "enabled": true,
-            "alias": "Moderate LEAP - All Holdings",
+            "alias": "Moderate LEAP",
             "strategyType": "LONG_CALL_LEAP",
             "descriptionFile": "long_call_leap.md",
             "filterType": "LongCallLeapFilter",
@@ -213,7 +213,7 @@
         },
         {
             "enabled": true,
-            "alias": "Aggressive LEAP - Top 100",
+            "alias": "Aggressive LEAP",
             "strategyType": "LONG_CALL_LEAP",
             "descriptionFile": "long_call_leap.md",
             "filterType": "LongCallLeapFilter",
@@ -235,7 +235,7 @@
         },
         {
             "enabled": true,
-            "alias": "LEAP Top 5 - Bullish Picks",
+            "alias": "LEAP Top 5",
             "strategyType": "LONG_CALL_LEAP",
             "descriptionFile": "long_call_leap.md",
             "filterType": "LongCallLeapFilter",
@@ -269,7 +269,7 @@
         },
         {
             "enabled": true,
-            "alias": "BWB Conservative - Portfolio (Disabled)",
+            "alias": "BWB Conservative (Disabled)",
             "strategyType": "BULLISH_BROKEN_WING_BUTTERFLY",
             "descriptionFile": "bullish_bwb.md",
             "filterType": "BrokenWingButterflyFilter",
@@ -292,7 +292,7 @@
         },
         {
             "enabled": true,
-            "alias": "BWB Active - Tracking & 2026",
+            "alias": "BWB Active",
             "maxTradesToSend": 10,
             "strategyType": "BULLISH_BROKEN_WING_BUTTERFLY",
             "descriptionFile": "bullish_bwb.md",
@@ -317,7 +317,7 @@
         },
         {
             "enabled": true,
-            "alias": "Bullish ZEBRA - Portfolio",
+            "alias": "Bullish ZEBRA",
             "strategyType": "BULLISH_ZEBRA",
             "descriptionFile": "bullish_zebra.md",
             "filterType": "ZebraFilter",
@@ -341,7 +341,7 @@
         },
         {
             "enabled": true,
-            "alias": "Short Put - portfolio, tracking, 2026",
+            "alias": "Short Put",
             "strategyType": "SHORT_PUT",
             "filterType": "CreditSpreadFilter",
             "filter": {

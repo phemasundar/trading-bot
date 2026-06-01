@@ -1,5 +1,41 @@
 # Project Updates
 
+## UI Option Strategies Checkboxes Suffix: Alias + Securities File (2026-06-01)
+
+Appended the configured `securitiesFile` suffix to option strategy checkbox labels on the Options Dashboard and the Execute Strategy page, aligning the checkbox display with the trade result cards' naming conventions for a clean and cohesive user experience.
+
+### Features
+- **Checkbox Suffix Concatenation**: Formats options strategy checkboxes dynamically as `Alias - <securitiesFile>` (e.g. `Short Put - portfolio`) in both the Options Dashboard and the Execute Strategy pages when `securitiesFile` is present in the configuration.
+- **Unified Tooltip & Description Reference**: Passes the same concatenated name to info modals and help overlays, keeping user guides and description references consistent.
+
+### Architecture
+- **`app.js`** [MODIFIED]: Enhanced `loadOptionsStrategies()` and `loadStrategies()` to format checkbox label text and description info modals as `displayName = name + " - " + securitiesFile` when `securitiesFile` is configured.
+
+## JWT Verification Clock Skew Resilience (2026-06-01)
+
+Implemented clock skew tolerance in `BearerTokenFilter` to prevent unexpected authentication errors when client and server clocks are slightly out of sync.
+
+### Features
+- **10-Second Clock Skew Leeway**: Added a 10-second leeway window to the JWT verification pipeline. This fully resolves issues where tokens are rejected with a `"Token can't be used before X"` error due to minor sub-second time discrepancies between the client's device and the Supabase auth server.
+
+### Architecture
+- **`BearerTokenFilter.java`** [MODIFIED]: Updated the verifier builder at `doFilter()` to include `.acceptLeeway(10)` before verification.
+
+## UI Display Suffix: Alias + Securities File (2026-06-01)
+
+Modified the display of options strategy result blocks on the Options Dashboard (`/index.html`) and the Execute Strategy page (`/execute.html`) to append the active `securitiesFile` suffix to the strategy alias in the UI, while keeping the database representation clean (storing just the `alias` to avoid stale data clutter when configurations change).
+
+### Features
+- **UI Concatenation**: Options strategy result blocks are now rendered with the suffix ` - <securitiesFile>` (e.g. `Short-Term PCS - Portfolio`) dynamically in the UI.
+- **Database Cleanliness**: Restores the database's `strategy_name` representation to the clean, base alias configured in `strategies-config.json`. This eliminates the stale/dangling execution block issue when a user updates `securitiesFile` in the configuration without renaming the alias.
+- **Predefined Options Strategy Enrichment**: Automatically passes the configured `securitiesFile` into the `filterConfig` object of predefined strategies during configuration load, so that it is natively saved and returned by the backend.
+
+### Architecture
+- **`StrategiesConfigLoader.java`** [MODIFIED]: Enhanced the `convertToOptionsConfig` pipeline to copy `securitiesFile` (and inline `securities` if present) from the strategy configuration block into the parsed `OptionsStrategyFilter` model so it is persisted to Supabase as part of `filterConfig`.
+- **`strategies-config.json`** [MODIFIED]: Cleaned up all 15 options strategy aliases by removing the manually appended `- <securitiesFile>` suffixes, standardizing them to clean base aliases (e.g. `Short Put`, `Short-Term PCS`).
+- **`app.js`** [MODIFIED]:
+  - `buildResultCard()`: Dynamically parses the `result.filterConfig` JSON payload, extracts `securitiesFile`, and constructs `displayName = strategyName + " - " + securitiesFile` before rendering `card-name` and info modals.
+
 ## Option Chain Adaptive Retry Mechanism (2026-06-01)
 
 Implemented a robust adaptive retry loop in `ThinkOrSwinAPIs.getOptionChain(symbol)` to handle `502 Body buffer overflow` (`protocol.http.TooBigBody`) errors on highly liquid symbols like QQQ.

@@ -135,7 +135,7 @@ public class BearerTokenFilter implements Filter {
             Jwk        jwk      = jwkProvider.get(decoded.getKeyId());
             Algorithm  algorithm = resolveAlgorithm(jwk);
 
-            JWT.require(algorithm).build().verify(token);
+            JWT.require(algorithm).acceptLeeway(10).build().verify(token);
 
             // Email allowlist — optional gate for invite-only access
             String email = decoded.getClaim("email").asString();

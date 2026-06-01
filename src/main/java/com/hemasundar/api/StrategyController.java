@@ -87,6 +87,8 @@ public class StrategyController {
                         map.put("type", config.getStrategy().getStrategyType().name());
                         map.put("displayType", config.getStrategy().getStrategyType().getDisplayName());
                         map.put("descriptionFile", config.getDescriptionFile());
+                        String securitiesFile = config.getFilter() != null ? config.getFilter().getSecuritiesFile() : null;
+                        map.put("securitiesFile", securitiesFile);
                         return map;
                     })
                     .collect(Collectors.toList());
