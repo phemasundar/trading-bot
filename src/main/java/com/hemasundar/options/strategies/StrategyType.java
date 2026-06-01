@@ -26,7 +26,10 @@ public enum StrategyType {
     BULLISH_LONG_IRON_CONDOR("Bullish Long Iron Condor"),
     LONG_CALL_LEAP("Long Call LEAP"),
     BULLISH_BROKEN_WING_BUTTERFLY("Bullish Broken Wing Butterfly"),
-    BULLISH_ZEBRA("Bullish ZEBRA");
+    BULLISH_ZEBRA("Bullish ZEBRA"),
+
+    // Short (Naked) Strategies
+    SHORT_PUT("OTM Short Put");
 
     private final String displayName;
 

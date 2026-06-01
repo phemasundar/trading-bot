@@ -104,4 +104,14 @@ public class StrategiesBeanConfig {
                                        Optional<SupabaseService> supabaseService) {
         return new ZebraStrategy(StrategyType.BULLISH_ZEBRA, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator, supabaseService);
     }
+
+    // ==================== SHORT (NAKED) STRATEGIES ====================
+
+    @Bean
+    public ShortPutStrategy shortPutStrategy(FinnHubAPIs finnHubAPIs,
+                                             ThinkOrSwinAPIs thinkOrSwinAPIs,
+                                             VolatilityCalculator volatilityCalculator,
+                                             Optional<SupabaseService> supabaseService) {
+        return new ShortPutStrategy(StrategyType.SHORT_PUT, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator, supabaseService);
+    }
 }

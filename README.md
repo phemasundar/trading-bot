@@ -4,7 +4,7 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
 
 ## Features
 
-- **Options Chain Analysis**: Fetch and analyze options data from Schwab API
+- **Options Chain Analysis**: Fetch and analyze options data from Schwab API with an adaptive retry mechanism (supporting automatic fallback down to `strikeCount = 50` on `502 Body buffer overflow` errors)
 - **Multiple Trading Strategies**:
   - Put Credit Spread (PCS)
   - Call Credit Spread (CCS)
@@ -14,7 +14,9 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
   - RSI Bollinger Bear Call Spread (overbought signal-based)
   - Bullish Broken Wing Butterfly (3-leg directional strategy)
   - Bullish ZEBRA (Zero Extrinsic Back Ratio Spread)
-- **Technical Screeners**: 
+  - **OTM Short Put** (single-leg naked / cash-secured put; configurable delta, DTE, and max loss)
+
+- **Technical Screeners**:
   - RSI Bollinger Crossovers (Bullish/Bearish)
   - Moving Average Crossovers
   - Multi-day Price Drop (Selectable lookback from 0-N days)
@@ -46,24 +48,30 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
 To receive trade alerts via Telegram:
 
 #### Step 1: Create a Telegram Bot
+
 1. Open Telegram and search for **@BotFather**
 2. Start a chat and send `/newbot`
 3. Follow the prompts to choose a name and username
 4. Copy the **Bot Token** provided by BotFather
 
 #### Step 2: Get Your Chat ID
+
 **Option A (Recommended):** Use @userinfobot
+
 1. Search for **@userinfobot** in Telegram
 2. Send `/start`
 3. Copy the **User ID** - this is your Chat ID
 
 **Option B:** Use getUpdates API
+
 1. Start a chat with your bot and send any message
 2. Open: `https://api.telegram.org/botYOUR_TOKEN/getUpdates`
 3. Find `"chat":{"id":XXXXXXXXX}` in the response
 
 #### Step 3: Update Configuration
+
 Add to `src/test/resources/test.properties`:
+
 ```properties
 telegram_bot_token=YOUR_BOT_TOKEN_HERE
 telegram_chat_id=YOUR_CHAT_ID_HERE
@@ -74,6 +82,7 @@ telegram_chat_id=YOUR_CHAT_ID_HERE
 The bot can automatically collect and store daily Implied Volatility (IV) data for your securities. This data is used for calculating **IV rank and percentile** for better trade timing. Users can filter trades based on IV Rank constraints, and the UI provides a detailed "Volatility Context (1Y)" panel when clicking on individual trades.
 
 **Supported Databases:**
+
 - **Google Sheets**: Store data in a Google Spreadsheet (see `SETUP_GUIDE.md`)
 - **Supabase**: Store data in a PostgreSQL database (see `SUPABASE_SETUP_GUIDE.md`)
 
@@ -91,6 +100,7 @@ supabase_service_role_key=YOUR_SERVICE_ROLE_KEY
 ```
 
 **Running IV Data Collection:**
+
 ```bash
 # Using quotes ensures compatibility with PowerShell and CMD
 mvn spring-boot:run "-Dspring-boot.run.arguments=--app.job.name=IV_DATA"
@@ -99,6 +109,7 @@ mvn spring-boot:run "-Dspring-boot.run.arguments=--app.job.name=IV_DATA"
 This automated test runs daily (recommended via cron/scheduler) to collect ATM IV data for PUT and CALL options (~30 DTE) for all securities in your `securities/` folder.
 
 For detailed setup instructions:
+
 - Google Sheets: See `SETUP_GUIDE.md`
 - Supabase Database: See `SUPABASE_SETUP_GUIDE.md` (Updated for Service Role Key security)
 - Authentication (Used for dashboard login): See `AUTH_SETUP_GUIDE.md`
@@ -108,8 +119,10 @@ For detailed setup instructions:
 ### Running Strategy Analysis
 
 #### 1. Via the Web Interface (Static HTML/JS)
+
 Run `mvn spring-boot:run` to start the Spring Boot application with the built-in web dashboard.
 The user interface features a clean, highly structured sidebar navigation divided into logical **Options**, **Screeners**, and **System** blocks for superior workspace organization:
+
 - **Options Dashboard (`/index.html`)**: Exclusively monitors options strategy runs and displays checkbox filters for option strategies. Each trade table includes a live **"Today"** performance column (color-coded `+$X.XX (+Y.YY%)` / `-$X.XX (-Y.YY%)`) fetched from Schwab in real time, sortable by today's % change.
 
 - **Screeners Dashboard (`/screeners.html`)**: Exclusively displays technical stock screener results and allows quick execution/cancel triggers for screeners.
@@ -122,12 +135,14 @@ The user interface features a clean, highly structured sidebar navigation divide
 All frontend calls go through Spring Boot REST APIs (`/api/*`) — Supabase keys are never exposed to the browser.
 
 #### 2. Via CLI (Scheduled Background Jobs)
+
 ```bash
 # Using quotes ensures compatibility with PowerShell and CMD
 mvn spring-boot:run "-Dspring-boot.run.arguments=--app.job.name=SCREENER"
 ```
 
 This will:
+
 1. Fetch options chain data for configured securities
 2. Analyze trades based on your strategy filters
 3. Print results to console
@@ -150,6 +165,7 @@ Each strategy can use a different securities file. This is configured in `strate
 ```
 
 **Available securities files:**
+
 - `securities.yaml` - Custom watchlist
 - `top100.yaml` - Top 100 stocks
 
@@ -158,23 +174,29 @@ Each strategy can use a different securities file. This is configured in `strate
 ## Technical Indicator Strategies
 
 ### RSI Bollinger Bull Put Spread
+
 Triggered when **oversold conditions** are detected:
+
 - RSI (14-day) < 30
 - Price touching or below Lower Bollinger Band (20-day, 2 SD)
 - Volume >= 100,000 shares (real-time via Quotes API, configurable)
 
 **Trade Setup:**
+
 - Sell Put at ~30 Delta (below current price)
 - Buy Put at ~15-20 Delta (further below)
 - DTE: 30 days
 
 ### RSI Bollinger Bear Call Spread
+
 Triggered when **overbought conditions** are detected:
+
 - RSI (14-day) > 70
 - Price touching or above Upper Bollinger Band (20-day, 2 SD)
 - Volume >= 100,000 shares (real-time via Quotes API, configurable)
 
 **Trade Setup:**
+
 - Sell Call at ~30 Delta (above current price)
 - Buy Call at ~15-20 Delta (further above)
 - DTE: 30 days
@@ -216,29 +238,33 @@ TechnicalFilterChain oversoldFilterChain = TechnicalFilterChain.of(indicators, o
 TechnicalFilterChain overboughtFilterChain = TechnicalFilterChain.of(indicators, overboughtConditions);
 ```
 
-
-
 ## Testing & CI/CD Coverage
 
 The project enforces a **minimum 85% instruction coverage** for all core business logic using JaCoCo. This is enforced locally during Maven verification and via GitHub Actions for any Pull Request targeting the `develop` or `main` branch.
 
 ### Unit Tests
+
 Unit tests run locally without making real external API calls (Schwab, Supabase, Telegram are mocked).
 To execute all unit tests and generate the coverage report:
+
 ```bash
 mvn clean verify
 # OR
 mvn test
 ```
-*Coverage reports are generated at `target/site/jacoco/index.html`.*
+
+_Coverage reports are generated at `target/site/jacoco/index.html`._
 
 ### Test Architecture
+
 - **Package Mirroring**: The test suite (`src/test/java`) mirrors the main source package structure (`com.hemasundar.*`) for consistent access to package-private components.
 - **Suite Separation**: Unit tests are isolated from functional tests to ensure fast CI gates and prevent rate-limiting.
 
 ### Functional Tests
+
 Functional tests interact with real external APIs. To prevent rate-limiting and unnecessary data writes, they are **excluded from the default build**.
 To execute functional tests:
+
 ```bash
 mvn test -DsuiteXmlFile=FunctionalTests.xml
 ```
@@ -248,12 +274,14 @@ mvn test -DsuiteXmlFile=FunctionalTests.xml
 The `ThinkOrSwinAPIs` class provides the following methods for interacting with Schwab's Market Data API:
 
 ### Option Chain
+
 ```java
-// Get full option chain for a symbol
-OptionChainResponse chain = ThinkOrSwinAPIs.getOptionChainResponse("AAPL");
+// Get full option chain for a symbol (features adaptive retry loop down to strikeCount = 50 on 502 buffer overflows)
+OptionChainResponse chain = schwabApi.getOptionChain("AAPL");
 ```
 
 ### Price History
+
 ```java
 // Get yearly price history with daily frequency
 PriceHistoryResponse history = ThinkOrSwinAPIs.getYearlyPriceHistory("AAPL", 1);
@@ -264,6 +292,7 @@ PriceHistoryResponse history = ThinkOrSwinAPIs.getPriceHistory(
 ```
 
 ### Quotes
+
 ```java
 // Get quotes for multiple symbols
 Map<String, QuotesResponse.QuoteData> quotes = ThinkOrSwinAPIs.getQuotes(
@@ -278,6 +307,7 @@ double lastPrice = quote.getQuote().getLastPrice();
 ```
 
 ### Expiration Chain
+
 ```java
 // Get all available expiration dates for a symbol
 ExpirationChainResponse expirations = ThinkOrSwinAPIs.getExpirationChain("AAPL");
@@ -289,6 +319,7 @@ expirations.getExpirationList().forEach(exp -> {
 ```
 
 ### Market Hours
+
 ```java
 // Get market hours for all equity and option markets
 MarketHoursResponse hours = ThinkOrSwinAPIs.getMarketHours();
@@ -298,12 +329,14 @@ String equityHours = ThinkOrSwinAPIs.getMarketHour("equity", "2024-04-15");
 ```
 
 ### Movers
+
 ```java
 // Get top 10 movers for the S&P 500
 String movers = ThinkOrSwinAPIs.getMovers("$SPX", "PERCENT_CHANGE_UP", 0);
 ```
 
 ### Instruments
+
 ```java
 // Search for instruments by symbol
 String results = ThinkOrSwinAPIs.getInstruments("AAPL", "symbol-search");
@@ -313,15 +346,16 @@ String instrument = ThinkOrSwinAPIs.getInstrumentByCusip("037833100");
 ```
 
 > 📄 For full API documentation, see [`SchwabAPI/schwab-market-data-api.md`](SchwabAPI/schwab-market-data-api.md)
+
 ## Strategy Dashboard
 
 The execution results dashboard is now maintained in a separate repository. It is a static HTML/JS application deployed to GitHub Pages that fetches live strategy results from Supabase.
 
 ### Setup (Separate Repo)
+
 1. Initialize the dashboard repository from the provided standalone export.
 2. Configure GitHub Secrets (`SUPABASE_URL`, `SUPABASE_ANON_KEY`) in the new repo.
 3. Enable GitHub Pages to deploy from the new repo.
-
 
 ## Deployment
 
@@ -381,22 +415,24 @@ For detailed GCP console screenshots and instructions, see [`CLOUD_RUN_DEPLOYMEN
 
 Go to your repo → **Settings → Secrets and variables → Actions** → **New repository secret** and add:
 
-| Secret | How to Get It |
-|---|---|
-| `GCP_PROJECT_ID` | GCP Console → Dashboard → Project ID (e.g., `my-trading-bot-123`) |
-| `GCP_SA_KEY` | Full JSON content of the Service Account key file downloaded above |
-| `SUPABASE_URL` | Supabase Dashboard → Settings → API → Project URL |
-| `SUPABASE_ANON_KEY` | Supabase Dashboard → Settings → API → `anon` / `public` key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → Settings → API → `service_role` key |
-| `ALLOWED_EMAILS` | Comma-separated list of authorized Google/Apple email addresses |
+| Secret                      | How to Get It                                                      |
+| --------------------------- | ------------------------------------------------------------------ |
+| `GCP_PROJECT_ID`            | GCP Console → Dashboard → Project ID (e.g., `my-trading-bot-123`)  |
+| `GCP_SA_KEY`                | Full JSON content of the Service Account key file downloaded above |
+| `SUPABASE_URL`              | Supabase Dashboard → Settings → API → Project URL                  |
+| `SUPABASE_ANON_KEY`         | Supabase Dashboard → Settings → API → `anon` / `public` key        |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → Settings → API → `service_role` key           |
+| `ALLOWED_EMAILS`            | Comma-separated list of authorized Google/Apple email addresses    |
 
 #### Deploy
 
 After configuring secrets:
+
 1. Push to `main` branch — GitHub Actions automatically builds, pushes, and deploys
 2. Or trigger manually: **Actions → Deploy to Google Cloud Run → Run workflow**
 
 The deployed app URL is printed at the end of the workflow:
+
 ```
 https://trading-bot-<hash>-uc.a.run.app
 ```
@@ -421,12 +457,12 @@ Push to main → GitHub Actions → Docker Build → Artifact Registry → Cloud
 
 These are injected into the Cloud Run container at deploy time:
 
-| Variable | Purpose |
-|---|---|
-| `SUPABASE_URL` | Supabase REST API base URL (also used to derive the JWKS endpoint for JWT verification) |
-| `SUPABASE_ANON_KEY` | Public key for frontend auth initialization |
-| `SUPABASE_SERVICE_ROLE_KEY` | Admin key for backend write operations |
-| `ALLOWED_EMAILS` | Comma-separated list of authorized email addresses |
+| Variable                    | Purpose                                                                                 |
+| --------------------------- | --------------------------------------------------------------------------------------- |
+| `SUPABASE_URL`              | Supabase REST API base URL (also used to derive the JWKS endpoint for JWT verification) |
+| `SUPABASE_ANON_KEY`         | Public key for frontend auth initialization                                             |
+| `SUPABASE_SERVICE_ROLE_KEY` | Admin key for backend write operations                                                  |
+| `ALLOWED_EMAILS`            | Comma-separated list of authorized email addresses                                      |
 
 ---
 
@@ -435,8 +471,10 @@ These are injected into the Cloud Run container at deploy time:
 See [`ORACLE_CLOUD_DEPLOYMENT.md`](ORACLE_CLOUD_DEPLOYMENT.md) for deployment to an **Oracle Cloud Always-Free** compute instance.
 
 ## Project Structure
+
 mvn test -DsuiteXmlFile=FunctionalTests.xml
-```
+
+````
 
 ## API Methods
 
@@ -446,9 +484,10 @@ The `ThinkOrSwinAPIs` class provides the following methods for interacting with 
 ```java
 // Get full option chain for a symbol
 OptionChainResponse chain = ThinkOrSwinAPIs.getOptionChainResponse("AAPL");
-```
+````
 
 ### Price History
+
 ```java
 // Get yearly price history with daily frequency
 PriceHistoryResponse history = ThinkOrSwinAPIs.getYearlyPriceHistory("AAPL", 1);
@@ -459,6 +498,7 @@ PriceHistoryResponse history = ThinkOrSwinAPIs.getPriceHistory(
 ```
 
 ### Quotes
+
 ```java
 // Get quotes for multiple symbols
 Map<String, QuotesResponse.QuoteData> quotes = ThinkOrSwinAPIs.getQuotes(
@@ -473,6 +513,7 @@ double lastPrice = quote.getQuote().getLastPrice();
 ```
 
 ### Expiration Chain
+
 ```java
 // Get all available expiration dates for a symbol
 ExpirationChainResponse expirations = ThinkOrSwinAPIs.getExpirationChain("AAPL");
@@ -484,6 +525,7 @@ expirations.getExpirationList().forEach(exp -> {
 ```
 
 ### Market Hours
+
 ```java
 // Get market hours for all equity and option markets
 MarketHoursResponse hours = ThinkOrSwinAPIs.getMarketHours();
@@ -493,12 +535,14 @@ String equityHours = ThinkOrSwinAPIs.getMarketHour("equity", "2024-04-15");
 ```
 
 ### Movers
+
 ```java
 // Get top 10 movers for the S&P 500
 String movers = ThinkOrSwinAPIs.getMovers("$SPX", "PERCENT_CHANGE_UP", 0);
 ```
 
 ### Instruments
+
 ```java
 // Search for instruments by symbol
 String results = ThinkOrSwinAPIs.getInstruments("AAPL", "symbol-search");
@@ -508,15 +552,16 @@ String instrument = ThinkOrSwinAPIs.getInstrumentByCusip("037833100");
 ```
 
 > 📄 For full API documentation, see [`SchwabAPI/schwab-market-data-api.md`](SchwabAPI/schwab-market-data-api.md)
+
 ## Strategy Dashboard
 
 The execution results dashboard is now maintained in a separate repository. It is a static HTML/JS application deployed to GitHub Pages that fetches live strategy results from Supabase.
 
 ### Setup (Separate Repo)
+
 1. Initialize the dashboard repository from the provided standalone export.
 2. Configure GitHub Secrets (`SUPABASE_URL`, `SUPABASE_ANON_KEY`) in the new repo.
 3. Enable GitHub Pages to deploy from the new repo.
-
 
 ## Deployment
 
@@ -576,22 +621,24 @@ For detailed GCP console screenshots and instructions, see [`CLOUD_RUN_DEPLOYMEN
 
 Go to your repo → **Settings → Secrets and variables → Actions** → **New repository secret** and add:
 
-| Secret | How to Get It |
-|---|---|
-| `GCP_PROJECT_ID` | GCP Console → Dashboard → Project ID (e.g., `my-trading-bot-123`) |
-| `GCP_SA_KEY` | Full JSON content of the Service Account key file downloaded above |
-| `SUPABASE_URL` | Supabase Dashboard → Settings → API → Project URL |
-| `SUPABASE_ANON_KEY` | Supabase Dashboard → Settings → API → `anon` / `public` key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → Settings → API → `service_role` key |
-| `ALLOWED_EMAILS` | Comma-separated list of authorized Google/Apple email addresses |
+| Secret                      | How to Get It                                                      |
+| --------------------------- | ------------------------------------------------------------------ |
+| `GCP_PROJECT_ID`            | GCP Console → Dashboard → Project ID (e.g., `my-trading-bot-123`)  |
+| `GCP_SA_KEY`                | Full JSON content of the Service Account key file downloaded above |
+| `SUPABASE_URL`              | Supabase Dashboard → Settings → API → Project URL                  |
+| `SUPABASE_ANON_KEY`         | Supabase Dashboard → Settings → API → `anon` / `public` key        |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → Settings → API → `service_role` key           |
+| `ALLOWED_EMAILS`            | Comma-separated list of authorized Google/Apple email addresses    |
 
 #### Deploy
 
 After configuring secrets:
+
 1. Push to `main` branch — GitHub Actions automatically builds, pushes, and deploys
 2. Or trigger manually: **Actions → Deploy to Google Cloud Run → Run workflow**
 
 The deployed app URL is printed at the end of the workflow:
+
 ```
 https://trading-bot-<hash>-uc.a.run.app
 ```
@@ -616,12 +663,12 @@ Push to main → GitHub Actions → Docker Build → Artifact Registry → Cloud
 
 These are injected into the Cloud Run container at deploy time:
 
-| Variable | Purpose |
-|---|---|
-| `SUPABASE_URL` | Supabase REST API base URL (also used to derive the JWKS endpoint for JWT verification) |
-| `SUPABASE_ANON_KEY` | Public key for frontend auth initialization |
-| `SUPABASE_SERVICE_ROLE_KEY` | Admin key for backend write operations |
-| `ALLOWED_EMAILS` | Comma-separated list of authorized email addresses |
+| Variable                    | Purpose                                                                                 |
+| --------------------------- | --------------------------------------------------------------------------------------- |
+| `SUPABASE_URL`              | Supabase REST API base URL (also used to derive the JWKS endpoint for JWT verification) |
+| `SUPABASE_ANON_KEY`         | Public key for frontend auth initialization                                             |
+| `SUPABASE_SERVICE_ROLE_KEY` | Admin key for backend write operations                                                  |
+| `ALLOWED_EMAILS`            | Comma-separated list of authorized email addresses                                      |
 
 ---
 
@@ -656,28 +703,31 @@ The application uses **Logback** (Spring Boot's native logging framework) for lo
 
 ### Log Levels
 
-| Level | Usage |
-|-------|-------|
+| Level   | Usage                                               |
+| ------- | --------------------------------------------------- |
 | `DEBUG` | Technical indicators, cache operations, API details |
-| `INFO` | Strategy execution, trade signals, API calls |
-| `WARN` | Skipped symbols, missing configurations |
-| `ERROR` | API failures, exceptions |
+| `INFO`  | Strategy execution, trade signals, API calls        |
+| `WARN`  | Skipped symbols, missing configurations             |
+| `ERROR` | API failures, exceptions                            |
 
 ### Configuration
 
 Logs are configured in `src/main/resources/logback-spring.xml`:
+
 - **Console**: Displays only `WARN` level logs or higher to declutter terminal output.
 - **RollingFile**: Writes `INFO` level logs and above to `logs/trading-bot.log` with daily rotation (max 7 files, 10MB each).
 
 To change log levels for local development, edit the `logback-spring.xml` file.
 
 Check individual service coverage locally via:
+
 ```bash
 mvn clean test
 # Report: target/site/jacoco/index.html
 ```
 
 ## Technology Stack & Architecture
+
 - **Core**: Java 17, Spring Boot 3.2.2
 - **Persistence**: Supabase (PostgreSQL), Google Sheets API
 - **Market Data**: Charles Schwab Market Data API

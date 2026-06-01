@@ -11,4 +11,20 @@ By balancing these strikes, the extrinsic value of the 1 short option offsets th
 
 ### Risk & Reward
 * **Max Profit:** Unlimited to the upside.
-* **Max Loss:** The actual net debit paid for the structure.
+* **Max Loss:** Defined. The actual net debit paid for the structure.
+
+### Safe strategy
+- zero extrinsic value
+
+This strategy will work as buying call option for short DTEs.
+Why?
+Problem with Buying call option for short DTEs:
+Long CALL -- Positive Delta, Negative Theta
+As the DTE is smaller, the Time Decay/ Theta is more. Extrinsic value part in Option value will be lost more rapidly, if the price doesn't move fast enough.
+
+How Bullish Zebra fixes this?
+Extrensic value is almost Zero. So theta decay does't effect us.
+Positive Delta
+
+DTE: 20 - 50 days
+close the trade atleast 10 days before the expiry.

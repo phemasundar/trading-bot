@@ -338,6 +338,24 @@
                 }
             },
             "securitiesFile": "portfolio, tracking, 2026"
+        },
+        {
+            "enabled": true,
+            "alias": "Short Put - portfolio, tracking, 2026",
+            "strategyType": "SHORT_PUT",
+            "filterType": "CreditSpreadFilter",
+            "filter": {
+                "minDTE": 25,
+                "maxDTE": 50,
+                "maxLossLimit": 20000,
+                "ignoreEarnings": false,
+                "minReturnOnRisk": 6,
+                "shortLeg": {
+                    "maxDelta": 0.20,
+                    "minOpenInterest": 100
+                }
+            },
+            "securitiesFile": "portfolio, tracking, 2026"
         }
     ],
     "technicalScreeners": [

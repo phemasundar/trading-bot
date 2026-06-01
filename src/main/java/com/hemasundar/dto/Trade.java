@@ -179,7 +179,7 @@ public class Trade {
         // (excluding single-leg buying if it's already represented somehow, but
         // generally helpful)
         if (setup.getNetExtrinsicValue() != 0) {
-            details.append("\nNet Extrinsic: $").append(String.format("%.2f", setup.getNetExtrinsicValue()))
+            details.append("\nNet Extrinsic (Annualized to price): $").append(String.format("%.2f", setup.getNetExtrinsicValue()))
                     .append(" (").append(String.format("%.2f", setup.getAnulizedNetExtrinsicValueToCapitalPercentage()))
                     .append("%)");
         }
