@@ -341,8 +341,9 @@
         },
         {
             "enabled": true,
-            "alias": "Short Put",
+            "alias": "Short Put short term",
             "strategyType": "SHORT_PUT",
+            "descriptionFile": "short_put.md",
             "filterType": "CreditSpreadFilter",
             "filter": {
                 "minDTE": 25,
@@ -350,6 +351,43 @@
                 "maxLossLimit": 20000,
                 "ignoreEarnings": false,
                 "minReturnOnRisk": 6,
+                "shortLeg": {
+                    "maxDelta": 0.20,
+                    "minOpenInterest": 100
+                }
+            },
+            "securitiesFile": "portfolio, tracking, 2026"
+        },
+        {
+            "enabled": true,
+            "alias": "Short Put medium term",
+            "strategyType": "SHORT_PUT",
+            "descriptionFile": "short_put.md",
+            "filterType": "CreditSpreadFilter",
+            "filter": {
+                "minDTE": 55,
+                "maxDTE": 185,
+                "maxLossLimit": 20000,
+                "ignoreEarnings": true,
+                "minReturnOnRisk": 24,
+                "shortLeg": {
+                    "maxDelta": 0.20,
+                    "minOpenInterest": 100
+                }
+            },
+            "securitiesFile": "portfolio, tracking, 2026"
+        },
+        {
+            "enabled": true,
+            "alias": "Short Put long term",
+            "strategyType": "SHORT_PUT",
+            "descriptionFile": "short_put.md",
+            "filterType": "CreditSpreadFilter",
+            "filter": {
+                "minDTE": 330,
+                "maxLossLimit": 20000,
+                "ignoreEarnings": true,
+                "minReturnOnRisk": 48,
                 "shortLeg": {
                     "maxDelta": 0.20,
                     "minOpenInterest": 100
