@@ -116,4 +116,22 @@ public class ScreenerExecutionServiceTest {
         assertNotNull(results);
         verify(supabaseService).getAllLatestScreenerResults();
     }
+
+    @Test
+    public void testExecuteCustomScreener_Success() throws IOException {
+        ScreenerConfig config = ScreenerConfig.builder()
+                .alias("Custom Screener Test")
+                .screenerType(ScreenerType.PRICE_DROP)
+                .securities(List.of("AAPL"))
+                .conditions(TechFilterConditions.builder().build())
+                .build();
+        Map<String, Object> requestParams = Map.of("alias", "Custom Screener Test");
+
+        when(priceDropScreener.screenPriceDrop(anyList(), anyDouble(), anyInt()))
+                .thenReturn(List.of(TechnicalScreener.ScreeningResult.builder().symbol("AAPL").build()));
+
+        screenerExecutionService.executeCustomScreener(config, requestParams);
+
+        verify(supabaseService, times(1)).saveCustomScreenerResult(any(ScreenerExecutionResult.class), anyList(), eq(requestParams));
+    }
 }

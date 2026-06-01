@@ -1,5 +1,51 @@
 # Project Updates
 
+## Today's Performance Column in Options Trade Tables (2026-05-31)
+
+Added a live **"Today" performance column** to all options strategy result trade tables on the Options Dashboard (`/index.html`) and the Execute Strategy page. The column shows today's stock price change and percentage change (e.g. `+$2.36 (+0.7%)`) in green for gains and red for losses, and is fully sortable.
+
+### Features
+
+- **Live Price Performance**: A new "Today" column appears next to "Price" in every options trade table. It displays the ticker's daily price change (`$±X.XX`) and percentage change (`(±Y.YY%)`), color-coded green for positive and red for negative.
+- **Sortable Column**: Clicking the "Today" column header sorts rows ascending/descending by today's percentage change. The sort persists when toggled and resets on a third click.
+- **Batch Quote Fetching**: After result cards are rendered, all unique ticker symbols are collected from the DOM and fetched in a single `GET /api/quotes?symbols=...` call to avoid N+1 API requests.
+- **Sort After Re-Render**: When the user sorts by "Today" and the table re-renders, `injectTodayPerformance` is called again to re-populate the fresh cells immediately.
+- **Graceful Fallback**: Shows `--` until live data arrives, and `N/A` for any symbol the Schwab API cannot return quote data for. All failures are silent (no UI disruption).
+- **Covers Both Pages**: Called in both `loadOptionsResults()` (Dashboard) and `loadResults()` (Execute page) so the column is populated in every context where trades are shown.
+
+### Architecture
+
+- **`StrategyController.java`** [MODIFIED]: Added `GET /api/quotes?symbols=...` endpoint that calls `thinkOrSwinAPIs.getQuotes()` and returns a flat list of `{symbol, netChange, netPercentChange, lastPrice}` objects. Uses `fields=quote` to minimize Schwab API payload.
+- **`app.js`** [MODIFIED]:
+  - `buildTradeTable()`: Added sortable "Today" column header + `<td class="today-perf" data-symbol="...">` placeholder cell per row; added `data-symbol` attribute on each `<tr>`.
+  - `injectTodayPerformance(symbols, scope)` [NEW]: Fetches `/api/quotes`, builds a lookup map, injects colored change text into all `.today-perf[data-symbol]` cells in the given DOM scope, and stamps `_todayPct` onto trade objects in `tradeDataMap` for sort support.
+  - `fetchAndInjectTodayPerformance(container)` [NEW]: Collects unique symbols from rendered cells and delegates to `injectTodayPerformance`.
+  - `handleTableSort()`: Added `todayPct` case that reads `t._todayPct` (stamped by `injectTodayPerformance`), with `-Infinity` fallback for unsorted rows.
+  - `loadOptionsResults()` / `loadResults()`: Now call `fetchAndInjectTodayPerformance(optionsContainer)` after rendering option result cards.
+  - `handleTableSort()` (sort re-render branch): Calls `injectTodayPerformance(symbols, contentDiv)` after rebuilding a trade table to re-inject live data.
+
+## Robust Unit Test Coverage Optimization: 85% Target (2026-05-31)
+
+Significantly optimized unit test coverage across the application to confidently meet the 85% coverage gate by creating dedicated test suites for custom persistence components, facade service layers, and REST API controller mappings.
+
+### Features
+
+- **Custom Repository Coverage**: Created a complete unit test suite for `CustomScreenerRepository` to mock, serialize, and verify database reads, writes, and deletions using REST APIs.
+- **Facade and Service Hardening**: Added robust verification tests to `SupabaseServiceTest` and `ScreenerExecutionServiceTest` to cover the execution of one-off custom technical screeners and their persistence layers.
+- **REST Controller Mapping Tests**: Expanded `StrategyControllerTest` to fully test 7 previously uncovered endpoints, including MockMvc suites for:
+  - Custom screener executions (`POST /api/execute/custom-screener`)
+  - Custom strategy results retrieval (`GET /api/results/custom/screeners`)
+  - Database result deletions (`DELETE /api/results/custom/screeners/{id}` and `DELETE /api/results/custom/{id}`)
+  - Execution pipeline logging (`GET /api/filter-logs` and `POST /api/filter-logs/clear`)
+  - Volatility metrics analysis (`GET /api/iv-rank` under empty, configured, and error scenarios)
+
+### Architecture
+
+- **`CustomScreenerRepositoryTest.java`** [NEW]: Comprehensive mock-based persistence tests.
+- **`SupabaseServiceTest.java`** [MODIFIED]: Added tests for custom screener facade delegation.
+- **`ScreenerExecutionServiceTest.java`** [MODIFIED]: Covered custom screener execution logic path.
+- **`StrategyControllerTest.java`** [MODIFIED]: Added MockMvc tests covering 7 endpoints.
+
 ## Sidebar Menu Separation: Options & Screeners Sections (2026-05-31)
 
 Divided the sidebar navigation menu into three distinct, structured sections (Options, Screeners, and System) to clearly segregate trading strategies, stock screening, and system tools, and updated navigation labels for maximum cleanliness and consistent responsive behavior.

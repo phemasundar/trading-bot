@@ -7,6 +7,8 @@ import com.hemasundar.config.properties.SupabaseConfig;
 import com.hemasundar.dto.ExecuteRequest;
 import com.hemasundar.dto.ExecutionAlert;
 import com.hemasundar.dto.CustomExecuteRequest;
+import com.hemasundar.dto.CustomScreenerRequest;
+import com.hemasundar.services.supabase.IVDataRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -25,8 +27,10 @@ import java.util.Map;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -366,5 +370,202 @@ public class StrategyControllerTest {
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.equityStatus").value("CLOSED"))
                 .andExpect(jsonPath("$.error").value("API Down"));
+    }
+
+    @Test
+    public void testGetRecentCustomScreenerResults_Success() throws Exception {
+        when(supabaseService.getRecentCustomScreenerExecutions(10)).thenReturn(Collections.emptyList());
+        mockMvc.perform(get("/api/results/custom/screeners?limit=10"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void testGetRecentCustomScreenerResults_Error() throws Exception {
+        when(supabaseService.getRecentCustomScreenerExecutions(10)).thenThrow(new IOException("DB error"));
+        mockMvc.perform(get("/api/results/custom/screeners?limit=10"))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    public void testExecuteCustomScreener_AlreadyRunning() throws Exception {
+        CustomScreenerRequest request = CustomScreenerRequest.builder()
+                .screenerType("RSI_OVERSOLD")
+                .build();
+        when(executionService.isExecutionRunning()).thenReturn(true);
+
+        mockMvc.perform(post("/api/execute/custom-screener")
+                .content(objectMapper.writeValueAsString(request))
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("An execution is already running"));
+    }
+
+    @Test
+    public void testExecuteCustomScreener_InvalidType() throws Exception {
+        CustomScreenerRequest request = CustomScreenerRequest.builder()
+                .screenerType("INVALID_TYPE")
+                .build();
+        when(executionService.isExecutionRunning()).thenReturn(false);
+
+        mockMvc.perform(post("/api/execute/custom-screener")
+                .content(objectMapper.writeValueAsString(request))
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Invalid screener type: INVALID_TYPE"));
+    }
+
+    @Test
+    public void testExecuteCustomScreener_NoSecurities() throws Exception {
+        CustomScreenerRequest request = CustomScreenerRequest.builder()
+                .screenerType("RSI_OVERSOLD")
+                .build();
+        when(executionService.isExecutionRunning()).thenReturn(false);
+
+        mockMvc.perform(post("/api/execute/custom-screener")
+                .content(objectMapper.writeValueAsString(request))
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Provide a securities file, inline tickers, or both"));
+    }
+
+    @Test
+    public void testExecuteCustomScreener_Success() throws Exception {
+        CustomScreenerRequest request = CustomScreenerRequest.builder()
+                .screenerType("RSI_OVERSOLD")
+                .securities("AAPL,MSFT")
+                .alias("My scan")
+                .rsiCondition("OVERSOLD")
+                .bollingerCondition("LOWER_BAND")
+                .minVolume(100000L)
+                .requirePriceBelowMA20(true)
+                .requirePriceAboveMA20(false)
+                .requirePriceBelowMA50(true)
+                .requirePriceAboveMA50(false)
+                .requirePriceBelowMA100(true)
+                .requirePriceAboveMA100(false)
+                .requirePriceBelowMA200(true)
+                .requirePriceAboveMA200(false)
+                .minDropPercent(5.0)
+                .lookbackDays(0)
+                .build();
+
+        when(executionService.isExecutionRunning()).thenReturn(false);
+
+        mockMvc.perform(post("/api/execute/custom-screener")
+                .content(objectMapper.writeValueAsString(request))
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("started"));
+    }
+
+    @Test
+    public void testExecuteCustomScreener_WithSecuritiesFile() throws Exception {
+        CustomScreenerRequest request = CustomScreenerRequest.builder()
+                .screenerType("RSI_OVERSOLD")
+                .securitiesFile("portfolio")
+                .build();
+
+        when(executionService.isExecutionRunning()).thenReturn(false);
+        when(securitiesResolver.loadSecuritiesMaps()).thenReturn(Map.of("portfolio", List.of("AAPL")));
+
+        mockMvc.perform(post("/api/execute/custom-screener")
+                .content(objectMapper.writeValueAsString(request))
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void testDeleteCustomResult_Success() throws Exception {
+        mockMvc.perform(delete("/api/results/custom/123"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deleted").value(true));
+        verify(executionService).deleteCustomExecution("123");
+    }
+
+    @Test
+    public void testDeleteCustomResult_Error() throws Exception {
+        doThrow(new IOException("DB error")).when(executionService).deleteCustomExecution("123");
+        mockMvc.perform(delete("/api/results/custom/123"))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    public void testDeleteCustomScreenerResult_Success() throws Exception {
+        mockMvc.perform(delete("/api/results/custom/screeners/123"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deleted").value(true));
+        verify(supabaseService).deleteCustomScreenerExecution("123");
+    }
+
+    @Test
+    public void testDeleteCustomScreenerResult_Error() throws Exception {
+        doThrow(new IOException("DB error")).when(supabaseService).deleteCustomScreenerExecution("123");
+        mockMvc.perform(delete("/api/results/custom/screeners/123"))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    public void testGetFilterLogs() throws Exception {
+        when(executionService.getFilterLogs()).thenReturn(Collections.emptyList());
+        mockMvc.perform(get("/api/filter-logs"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void testClearFilterLogs() throws Exception {
+        mockMvc.perform(post("/api/filter-logs/clear"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cleared").value(true));
+        verify(executionService).clearFilterLogs();
+    }
+
+    @Test
+    public void testGetIVRank_ServiceUnavailable() throws Exception {
+        mockMvc.perform(get("/api/iv-rank?symbol=AAPL"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.error").value("Supabase is not configured"));
+    }
+
+    @Test
+    public void testGetIVRank_Success() throws Exception {
+        IVDataRepository mockRepo = mock(IVDataRepository.class);
+        when(mockRepo.getIVRank("AAPL")).thenReturn(62.3);
+        when(mockRepo.getIVStats("AAPL")).thenReturn(Map.of("minIV", 18.4, "maxIV", 45.6, "currentIV", 34.1));
+
+        StrategyController customController = new StrategyController(executionService, screenerExecutionService, securitiesResolver, thinkOrSwinAPIs, strategiesConfigLoader, supabaseConfig, authErrorUtils, supabaseService, java.util.Optional.of(mockRepo));
+        MockMvc customMockMvc = MockMvcBuilders.standaloneSetup(customController).build();
+
+        customMockMvc.perform(get("/api/iv-rank?symbol=AAPL"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.symbol").value("AAPL"))
+                .andExpect(jsonPath("$.ivRank").value(62.3))
+                .andExpect(jsonPath("$.minIV").value(18.4))
+                .andExpect(jsonPath("$.maxIV").value(45.6))
+                .andExpect(jsonPath("$.currentIV").value(34.1));
+    }
+
+    @Test
+    public void testGetIVRank_NoData() throws Exception {
+        IVDataRepository mockRepo = mock(IVDataRepository.class);
+        when(mockRepo.getIVRank("AAPL")).thenReturn(null);
+
+        StrategyController customController = new StrategyController(executionService, screenerExecutionService, securitiesResolver, thinkOrSwinAPIs, strategiesConfigLoader, supabaseConfig, authErrorUtils, supabaseService, java.util.Optional.of(mockRepo));
+        MockMvc customMockMvc = MockMvcBuilders.standaloneSetup(customController).build();
+
+        customMockMvc.perform(get("/api/iv-rank?symbol=AAPL"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    public void testGetIVRank_Error() throws Exception {
+        IVDataRepository mockRepo = mock(IVDataRepository.class);
+        when(mockRepo.getIVRank("AAPL")).thenThrow(new IOException("Connection reset"));
+
+        StrategyController customController = new StrategyController(executionService, screenerExecutionService, securitiesResolver, thinkOrSwinAPIs, strategiesConfigLoader, supabaseConfig, authErrorUtils, supabaseService, java.util.Optional.of(mockRepo));
+        MockMvc customMockMvc = MockMvcBuilders.standaloneSetup(customController).build();
+
+        customMockMvc.perform(get("/api/iv-rank?symbol=AAPL"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.error").value("Connection reset"));
     }
 }
