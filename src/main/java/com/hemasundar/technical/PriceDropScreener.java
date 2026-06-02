@@ -149,11 +149,20 @@ public class PriceDropScreener {
 
         log.info("Screening {} symbols for >= {}% drop over {} days", symbols.size(), minDropPercent, lookbackDays);
 
+        // Determine how many months of daily history we need to fetch based on lookbackDays.
+        // Standard periods for "month" are 1, 2, 3, 6 months in the Schwab Price History API.
+        int monthsNeeded = 1;
+        if (lookbackDays >= 60) {
+            monthsNeeded = 6;
+        } else if (lookbackDays >= 20) {
+            monthsNeeded = 3;
+        }
+
         for (String symbol : symbols) {
             try {
                 // Fetch enough daily data to cover the lookback period
                 PriceHistoryResponse history = thinkOrSwinAPIs.getPriceHistory(
-                        symbol, "month", 1, "daily", 1, null, null, false, false);
+                        symbol, "month", monthsNeeded, "daily", 1, null, null, false, false);
 
                 if (history == null || history.getCandles() == null || history.getCandles().isEmpty()) {
                     continue;
@@ -183,8 +192,17 @@ public class PriceDropScreener {
                 double dropPct = ((referencePrice - currentPrice) / referencePrice) * 100.0;
 
                 if (dropPct >= minDropPercent) {
+                    String dropType;
+                    if (lookbackDays == 21) {
+                        dropType = "1M";
+                    } else if (lookbackDays == 63) {
+                        dropType = "3M";
+                    } else {
+                        dropType = lookbackDays + "D";
+                    }
+
                     results.add(buildResult(symbol, currentPrice, volume,
-                            dropPct, referencePrice, lookbackDays + "D"));
+                            dropPct, referencePrice, dropType));
                     log.info("[{}] Down {}% over {} days (${} -> ${})",
                             symbol, String.format("%.2f", dropPct), lookbackDays,
                             String.format("%.2f", referencePrice), String.format("%.2f", currentPrice));

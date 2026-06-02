@@ -262,12 +262,23 @@ function buildResultCard(result, badgeText = 'Standard') {
         ? `<button type="button" class="btn btn-danger btn-sm" style="margin-left: 4px;" onclick="event.stopPropagation(); confirmDeleteCustomResult('${escapeAttr(result.strategyId)}', this.closest('.card'))">🗑 Delete</button>`
         : '';
 
+    // Determine the card's display name, appending securities file if present
+    let displayName = result.strategyName || 'Unknown';
+    if (result.filterConfig) {
+        try {
+            const cfg = typeof result.filterConfig === 'string' ? JSON.parse(result.filterConfig) : result.filterConfig;
+            if (cfg && cfg.securitiesFile) {
+                displayName += ` - ${cfg.securitiesFile}`;
+            }
+        } catch (e) { /* ignore parse errors */ }
+    }
+
     card.innerHTML = `
         <div class="card-header" data-target="${cardId}">
             <div class="flex items-center gap-sm flex-wrap" style="width: 100%;">
                 ${arrow}
-                <span class="card-name">${result.strategyName || 'Unknown'}</span>
-                ${result.descriptionFile ? `<button type="button" class="info-btn" onclick="showInfo(event, '${result.descriptionFile}', '${escapeAttr(result.strategyName)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>` : ''}
+                <span class="card-name">${displayName}</span>
+                ${result.descriptionFile ? `<button type="button" class="info-btn" onclick="showInfo(event, '${result.descriptionFile}', '${escapeAttr(displayName)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>` : ''}
                 <span class="card-badge">${badgeText}</span>
                 ${loadFiltersBtn}
                 ${deleteBtn}
@@ -1273,14 +1284,17 @@ async function loadOptionsStrategies() {
     if (strategyContainer) {
         try {
             const strategies = await API.get('/api/strategies');
-            strategyContainer.innerHTML = strategies.map(s => `
+            strategyContainer.innerHTML = strategies.map(s => {
+                const displayName = s.securitiesFile ? `${s.name} - ${s.securitiesFile}` : s.name;
+                return `
                 <div class="flex items-center gap-sm" style="margin-bottom: 8px;">
                     <label class="checkbox-label" style="margin: 0;">
                         <input type="checkbox" value="${s.index}" data-type="strategy">
-                        <span>${s.name}</span>
+                        <span>${displayName}</span>
                     </label>
-                    ${s.descriptionFile ? `<button type="button" class="info-btn" onclick="showInfo(event, '${s.descriptionFile}', '${escapeAttr(s.name)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>` : ''}
-                </div>`).join('');
+                    ${s.descriptionFile ? `<button type="button" class="info-btn" onclick="showInfo(event, '${s.descriptionFile}', '${escapeAttr(displayName)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>` : ''}
+                </div>`;
+            }).join('');
             const badge = document.getElementById('strategy-count-badge');
             if (badge) badge.textContent = `(${strategies.length})`;
         } catch (e) {
@@ -1298,14 +1312,17 @@ async function loadStrategies() {
     if (strategyContainer) {
         try {
             const strategies = await API.get('/api/strategies');
-            strategyContainer.innerHTML = strategies.map(s => `
+            strategyContainer.innerHTML = strategies.map(s => {
+                const displayName = s.securitiesFile ? `${s.name} - ${s.securitiesFile}` : s.name;
+                return `
                 <div class="flex items-center gap-sm" style="margin-bottom: 8px;">
                     <label class="checkbox-label" style="margin: 0;">
                         <input type="checkbox" value="${s.index}" data-type="strategy">
-                        <span>${s.name}</span>
+                        <span>${displayName}</span>
                     </label>
-                    ${s.descriptionFile ? `<button type="button" class="info-btn" onclick="showInfo(event, '${s.descriptionFile}', '${escapeAttr(s.name)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>` : ''}
-                </div>`).join('');
+                    ${s.descriptionFile ? `<button type="button" class="info-btn" onclick="showInfo(event, '${s.descriptionFile}', '${escapeAttr(displayName)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>` : ''}
+                </div>`;
+            }).join('');
             const badge = document.getElementById('strategy-count-badge');
             if (badge) badge.textContent = `(${strategies.length})`;
         } catch (e) {

@@ -146,6 +146,75 @@ public class ThinkOrSwinAPIsTest {
     }
 
     @Test
+    public void testGetOptionChain_RetryOnce_Success() {
+        Response mockResponse502 = mock(Response.class);
+        when(mockResponse502.statusCode()).thenReturn(502);
+        when(mockResponse502.asString()).thenReturn("Body buffer overflow");
+
+        Response mockResponse200 = mock(Response.class);
+        when(mockResponse200.statusCode()).thenReturn(200);
+        when(mockResponse200.asString()).thenReturn("{\"symbol\": \"AAPL\", \"underlyingPrice\": 150.0}");
+
+        // First call returns 502, second call returns 200
+        when(sharedMockRequest.get(anyString())).thenReturn(mockResponse502, mockResponse200);
+
+        OptionChainResponse chain = apis.getOptionChain("AAPL");
+
+        assertNotNull(chain);
+        assertEquals(chain.getSymbol(), "AAPL");
+
+        // Verify that on the retry attempt, strikeCount was set to 200
+        verify(sharedMockRequest, times(1)).queryParam("strikeCount", 200);
+    }
+
+    @Test
+    public void testGetOptionChain_RetryMultipleTimes_Success() {
+        Response mockResponse502 = mock(Response.class);
+        when(mockResponse502.statusCode()).thenReturn(502);
+        when(mockResponse502.asString()).thenReturn("Body buffer overflow");
+
+        Response mockResponse200 = mock(Response.class);
+        when(mockResponse200.statusCode()).thenReturn(200);
+        when(mockResponse200.asString()).thenReturn("{\"symbol\": \"AAPL\", \"underlyingPrice\": 150.0}");
+
+        // First call fails, second (200) fails, third (150) succeeds
+        when(sharedMockRequest.get(anyString())).thenReturn(mockResponse502, mockResponse502, mockResponse200);
+
+        OptionChainResponse chain = apis.getOptionChain("AAPL");
+
+        assertNotNull(chain);
+        assertEquals(chain.getSymbol(), "AAPL");
+
+        // Verify that strikeCount was set to 200, then 150
+        verify(sharedMockRequest, times(1)).queryParam("strikeCount", 200);
+        verify(sharedMockRequest, times(1)).queryParam("strikeCount", 150);
+    }
+
+    @Test(expectedExceptions = RuntimeException.class)
+    public void testGetOptionChain_FailureThreshold() {
+        Response mockResponse502 = mock(Response.class);
+        when(mockResponse502.statusCode()).thenReturn(502);
+        when(mockResponse502.asString()).thenReturn("Body buffer overflow");
+
+        // First (null) fails, second (200) fails, third (150) fails, fourth (100) fails, fifth (50) fails
+        // Next decrement makes it 0, which is < 50, so it should throw exception without a sixth call
+        when(sharedMockRequest.get(anyString())).thenReturn(mockResponse502, mockResponse502, mockResponse502, mockResponse502, mockResponse502);
+
+        try {
+            apis.getOptionChain("AAPL");
+        } catch (RuntimeException e) {
+            // Verify that strikeCount was set to 200, 150, 100, 50
+            verify(sharedMockRequest, times(1)).queryParam("strikeCount", 200);
+            verify(sharedMockRequest, times(1)).queryParam("strikeCount", 150);
+            verify(sharedMockRequest, times(1)).queryParam("strikeCount", 100);
+            verify(sharedMockRequest, times(1)).queryParam("strikeCount", 50);
+            // Verify it didn't query with 0
+            verify(sharedMockRequest, never()).queryParam("strikeCount", 0);
+            throw e;
+        }
+    }
+
+    @Test
     public void testGetExpirationChain_Success() {
         Response mockResponse = mock(Response.class);
         when(sharedMockRequest.get(anyString())).thenReturn(mockResponse);

@@ -1,8 +1,8 @@
 {
     "optionsStrategies": [
         {
+            "alias": "Short-Term PCS",
             "enabled": true,
-            "alias": "Short-Term PCS - Portfolio",
             "strategyType": "PUT_CREDIT_SPREAD",
             "descriptionFile": "put_credit_spread.md",
             "filterType": "CreditSpreadFilter",
@@ -21,8 +21,8 @@
             "securitiesFile": "portfolio"
         },
         {
+            "alias": "Long-Term PCS",
             "enabled": true,
-            "alias": "Long-Term PCS - Tracking & 2026",
             "strategyType": "PUT_CREDIT_SPREAD",
             "descriptionFile": "put_credit_spread.md",
             "filterType": "CreditSpreadFilter",
@@ -41,8 +41,8 @@
             "securitiesFile": "tracking, 2026"
         },
         {
+            "alias": "Tech RSI/BB PCS",
             "enabled": true,
-            "alias": "Tech RSI/BB PCS - Top 100",
             "strategyType": "TECH_PUT_CREDIT_SPREAD",
             "descriptionFile": "tech_put_credit_spread.md",
             "filterType": "CreditSpreadFilter",
@@ -70,8 +70,8 @@
             }
         },
         {
+            "alias": "Standard CCS",
             "enabled": true,
-            "alias": "Standard CCS - Portfolio",
             "strategyType": "CALL_CREDIT_SPREAD",
             "descriptionFile": "call_credit_spread.md",
             "filterType": "CreditSpreadFilter",
@@ -89,8 +89,8 @@
             "securitiesFile": "portfolio"
         },
         {
+            "alias": "Tech RSI/BB CCS",
             "enabled": true,
-            "alias": "Tech RSI/BB CCS - Top 100",
             "strategyType": "TECH_CALL_CREDIT_SPREAD",
             "descriptionFile": "tech_call_credit_spread.md",
             "filterType": "CreditSpreadFilter",
@@ -118,8 +118,8 @@
             }
         },
         {
+            "alias": "0 DTE Iron Condor",
             "enabled": true,
-            "alias": "0 DTE Iron Condor - Portfolio",
             "strategyType": "IRON_CONDOR",
             "descriptionFile": "iron_condor.md",
             "filterType": "IronCondorFilter",
@@ -142,8 +142,8 @@
             "securitiesFile": "portfolio"
         },
         {
+            "alias": "Mid-Term Iron Condor",
             "enabled": true,
-            "alias": "Mid-Term Iron Condor - Portfolio",
             "strategyType": "IRON_CONDOR",
             "descriptionFile": "iron_condor.md",
             "filterType": "IronCondorFilter",
@@ -166,8 +166,8 @@
             "securitiesFile": "portfolio, 2026"
         },
         {
+            "alias": "Long-Term Iron Condor",
             "enabled": true,
-            "alias": "Long-Term Iron Condor - Bullish",
             "strategyType": "IRON_CONDOR",
             "descriptionFile": "iron_condor.md",
             "filterType": "IronCondorFilter",
@@ -190,8 +190,8 @@
             "securitiesFile": "bullish, 2026"
         },
         {
+            "alias": "Moderate LEAP",
             "enabled": true,
-            "alias": "Moderate LEAP - All Holdings",
             "strategyType": "LONG_CALL_LEAP",
             "descriptionFile": "long_call_leap.md",
             "filterType": "LongCallLeapFilter",
@@ -212,8 +212,8 @@
             }
         },
         {
+            "alias": "Aggressive LEAP",
             "enabled": true,
-            "alias": "Aggressive LEAP - Top 100",
             "strategyType": "LONG_CALL_LEAP",
             "descriptionFile": "long_call_leap.md",
             "filterType": "LongCallLeapFilter",
@@ -234,8 +234,8 @@
             }
         },
         {
+            "alias": "LEAP Top 5",
             "enabled": true,
-            "alias": "LEAP Top 5 - Bullish Picks",
             "strategyType": "LONG_CALL_LEAP",
             "descriptionFile": "long_call_leap.md",
             "filterType": "LongCallLeapFilter",
@@ -268,8 +268,8 @@
             }
         },
         {
+            "alias": "BWB Conservative (Disabled)",
             "enabled": true,
-            "alias": "BWB Conservative - Portfolio (Disabled)",
             "strategyType": "BULLISH_BROKEN_WING_BUTTERFLY",
             "descriptionFile": "bullish_bwb.md",
             "filterType": "BrokenWingButterflyFilter",
@@ -291,8 +291,8 @@
             "securitiesFile": "portfolio, 2026"
         },
         {
+            "alias": "BWB Active",
             "enabled": true,
-            "alias": "BWB Active - Tracking & 2026",
             "maxTradesToSend": 10,
             "strategyType": "BULLISH_BROKEN_WING_BUTTERFLY",
             "descriptionFile": "bullish_bwb.md",
@@ -316,8 +316,8 @@
             "securitiesFile": "tracking, 2026"
         },
         {
+            "alias": "Bullish ZEBRA",
             "enabled": true,
-            "alias": "Bullish ZEBRA - Portfolio",
             "strategyType": "BULLISH_ZEBRA",
             "descriptionFile": "bullish_zebra.md",
             "filterType": "ZebraFilter",
@@ -338,12 +338,68 @@
                 }
             },
             "securitiesFile": "portfolio, tracking, 2026"
+        },
+        {
+            "alias": "Short Put short term",
+            "enabled": true,
+            "strategyType": "SHORT_PUT",
+            "descriptionFile": "short_put.md",
+            "filterType": "CreditSpreadFilter",
+            "filter": {
+                "minDTE": 25,
+                "maxDTE": 50,
+                "maxLossLimit": 20000,
+                "ignoreEarnings": false,
+                "minReturnOnRisk": 6,
+                "shortLeg": {
+                    "maxDelta": 0.20,
+                    "minOpenInterest": 100
+                }
+            },
+            "securitiesFile": "portfolio, tracking, 2026"
+        },
+        {
+            "alias": "Short Put medium term",
+            "enabled": true,
+            "strategyType": "SHORT_PUT",
+            "descriptionFile": "short_put.md",
+            "filterType": "CreditSpreadFilter",
+            "filter": {
+                "minDTE": 55,
+                "maxDTE": 185,
+                "maxLossLimit": 20000,
+                "ignoreEarnings": true,
+                "minReturnOnRisk": 24,
+                "shortLeg": {
+                    "maxDelta": 0.20,
+                    "minOpenInterest": 100
+                }
+            },
+            "securitiesFile": "portfolio, tracking, 2026"
+        },
+        {
+            "alias": "Short Put long term",
+            "enabled": true,
+            "strategyType": "SHORT_PUT",
+            "descriptionFile": "short_put.md",
+            "filterType": "CreditSpreadFilter",
+            "filter": {
+                "minDTE": 330,
+                "maxLossLimit": 20000,
+                "ignoreEarnings": true,
+                "minReturnOnRisk": 48,
+                "shortLeg": {
+                    "maxDelta": 0.20,
+                    "minOpenInterest": 100
+                }
+            },
+            "securitiesFile": "portfolio, tracking, 2026"
         }
     ],
     "technicalScreeners": [
         {
-            "enabled": true,
             "alias": "RSI/BB Bullish Crossover",
+            "enabled": true,
             "screenerType": "RSI_BB_BULLISH_CROSSOVER",
             "securitiesFile": "top100, portfolio, tracking, 2026",
             "conditions": {
@@ -353,8 +409,8 @@
             }
         },
         {
-            "enabled": true,
             "alias": "RSI/BB Bearish Crossover",
+            "enabled": true,
             "screenerType": "RSI_BB_BEARISH_CROSSOVER",
             "securitiesFile": "top100, portfolio, tracking, 2026",
             "conditions": {
@@ -364,8 +420,8 @@
             }
         },
         {
-            "enabled": true,
             "alias": "Below 200 Day MA",
+            "enabled": true,
             "screenerType": "BELOW_200_DAY_MA",
             "securitiesFile": "top100, portfolio, tracking, 2026",
             "conditions": {
@@ -374,8 +430,8 @@
             }
         },
         {
-            "enabled": true,
             "alias": "RSI Oversold",
+            "enabled": true,
             "screenerType": "RSI_OVERSOLD",
             "securitiesFile": "top100, portfolio, tracking, 2026",
             "conditions": {
@@ -384,8 +440,8 @@
             }
         },
         {
-            "enabled": true,
             "alias": "BB Lower Band",
+            "enabled": true,
             "screenerType": "BB_LOWER",
             "securitiesFile": "top100, portfolio, tracking, 2026",
             "conditions": {
@@ -394,8 +450,8 @@
             }
         },
         {
-            "enabled": true,
             "alias": "Intraday Drop",
+            "enabled": true,
             "screenerType": "PRICE_DROP",
             "securitiesFile": "top100, portfolio, tracking, 2026",
             "conditions": {
@@ -404,13 +460,33 @@
             }
         },
         {
-            "enabled": true,
             "alias": "5-Day Drop",
+            "enabled": true,
             "screenerType": "PRICE_DROP",
             "securitiesFile": "top100, portfolio, tracking, 2026",
             "conditions": {
                 "minDropPercent": 5.0,
                 "lookbackDays": 5
+            }
+        },
+        {
+            "alias": "1-Month Drop",
+            "enabled": true,
+            "screenerType": "PRICE_DROP",
+            "securitiesFile": "top100, portfolio, tracking, 2026",
+            "conditions": {
+                "minDropPercent": 10.0,
+                "lookbackDays": 21
+            }
+        },
+        {
+            "alias": "3-Month Drop",
+            "enabled": true,
+            "screenerType": "PRICE_DROP",
+            "securitiesFile": "top100, portfolio, tracking, 2026",
+            "conditions": {
+                "minDropPercent": 15.0,
+                "lookbackDays": 63
             }
         },
         {

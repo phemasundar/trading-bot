@@ -53,10 +53,16 @@ public class StrategyExecutionService {
     private final AtomicBoolean cancellationRequested = new AtomicBoolean(false);
     private final AtomicReference<String> currentExecutionTask = new AtomicReference<>("");
 
-    /** Ordered alert groups keyed by (severity:message) — deduplicates same-message alerts across symbols. */
+    /**
+     * Ordered alert groups keyed by (severity:message) — deduplicates same-message
+     * alerts across symbols.
+     */
     private final Map<String, AlertGroup> alertGroups = new LinkedHashMap<>();
     private volatile long executionStartTimeMs;
-    /** Set to true on the first auth failure; stops processing further symbols/strategies. */
+    /**
+     * Set to true on the first auth failure; stops processing further
+     * symbols/strategies.
+     */
     private final AtomicBoolean authFailed = new AtomicBoolean(false);
 
     public boolean isExecutionRunning() {
@@ -78,7 +84,9 @@ public class StrategyExecutionService {
     public void startGlobalExecution(String initialTask) {
         executionRunning.set(true);
         cancellationRequested.set(false);
-        synchronized (alertGroups) { alertGroups.clear(); } // Clear prior alerts on new execution
+        synchronized (alertGroups) {
+            alertGroups.clear();
+        } // Clear prior alerts on new execution
         authFailed.set(false);
         FilterLogStore.getInstance().clear(); // Reset filter logs for fresh execution
         executionStartTimeMs = System.currentTimeMillis();
@@ -163,7 +171,8 @@ public class StrategyExecutionService {
      * @return ExecutionResult containing results from all executed strategies
      */
     public ExecutionResult executeStrategies(Set<Integer> strategyIndices) throws IOException {
-        // The lock is now managed by the controller (via startGlobalExecution) to allow chained screener execution.
+        // The lock is now managed by the controller (via startGlobalExecution) to allow
+        // chained screener execution.
         long startTime = executionStartTimeMs > 0 ? executionStartTimeMs : System.currentTimeMillis();
         String executionId = "exec_" + startTime;
 
@@ -234,8 +243,6 @@ public class StrategyExecutionService {
                 addAlert(ExecutionAlert.Severity.WARNING, AlertMessages.SRC_SUPABASE,
                         AlertMessages.SAVE_EXEC_RESULT_FAILED);
             }
-
-
 
             // Print cache statistics
             cache.printStats();
@@ -309,8 +316,6 @@ public class StrategyExecutionService {
     public List<StrategyResult> getRecentCustomExecutions(int limit) throws IOException {
         return supabaseService.getRecentCustomExecutions(limit);
     }
-
-
 
     /**
      * Executes a single strategy and returns its result.
@@ -425,7 +430,8 @@ public class StrategyExecutionService {
                 }
             } catch (Exception e) {
                 log.error("Error processing {}: {}", symbol, e.getMessage());
-                String source = String.format(AlertMessages.SRC_STRATEGY_SYMBOL_FMT, strategy.getStrategyName(), symbol);
+                String source = String.format(AlertMessages.SRC_STRATEGY_SYMBOL_FMT, strategy.getStrategyName(),
+                        symbol);
                 if (isAuthError(e)) {
                     authFailed.set(true);
                     addAlert(ExecutionAlert.Severity.ERROR, source, AlertMessages.AUTH_FAILED);
@@ -468,16 +474,18 @@ public class StrategyExecutionService {
     }
 
     /**
-     * Returns true if the exception indicates a Schwab API authentication failure (expired token).
+     * Returns true if the exception indicates a Schwab API authentication failure
+     * (expired token).
      */
     private boolean isAuthError(Exception e) {
         String msg = e.getMessage();
-        if (msg == null) return false;
+        if (msg == null)
+            return false;
         String lower = msg.toLowerCase();
         return lower.contains("401") ||
-               lower.contains("access token") ||
-               lower.contains("error fetching access token") ||
-               lower.contains("unauthorized");
+                lower.contains("access token") ||
+                lower.contains("error fetching access token") ||
+                lower.contains("unauthorized");
     }
 
     // ── Private: Alert Grouping ───────────────────────────────────────────────
@@ -499,7 +507,8 @@ public class StrategyExecutionService {
         }
 
         void addSource(String source) {
-            if (!sources.contains(source)) sources.add(source);
+            if (!sources.contains(source))
+                sources.add(source);
         }
 
         ExecutionAlert toAlert() {
@@ -532,7 +541,8 @@ public class StrategyExecutionService {
     // ── Filter Log Access ──
 
     /**
-     * Returns a snapshot of all filter-stage log entries captured during the current/last execution.
+     * Returns a snapshot of all filter-stage log entries captured during the
+     * current/last execution.
      */
     public List<ExecutionLogEntry> getFilterLogs() {
         return FilterLogStore.getInstance().getEntries();

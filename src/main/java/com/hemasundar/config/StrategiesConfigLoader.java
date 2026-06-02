@@ -207,6 +207,12 @@ public class StrategiesConfigLoader {
         // Parse filter using FilterType enum
         FilterType filterType = FilterType.fromJsonName(entry.getFilterType());
         OptionsStrategyFilter filter = filterType.parseFilter(entry.getFilter());
+        if (filter != null) {
+            filter.setSecuritiesFile(entry.getSecuritiesFile());
+            if (entry.getSecurities() != null && !entry.getSecurities().trim().isEmpty()) {
+                filter.setSecurities(entry.getSecurities());
+            }
+        }
 
         // Get securities list from files (supports comma-separated file names)
         List<String> securities = parseSecuritiesFromFiles(entry.getSecuritiesFile(), securitiesMap);

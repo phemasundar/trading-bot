@@ -1,5 +1,121 @@
 # Project Updates
 
+## New Technical Screeners: 1-Month Drop & 3-Month Drop (2026-06-01)
+
+Added two new pre-configured technical screeners—"1-Month Drop" and "3-Month Drop"—to the technical screeners dashboard and execute screener workflows, implementing dynamic price history fetching and elegant monthly labels for a premium user experience.
+
+### Features
+- **New Screener Templates**:
+  - **1-Month Drop**: Set to filter for stocks down **>= 10%** over **21 trading days** (standard trading month).
+  - **3-Month Drop**: Set to filter for stocks down **>= 15%** over **63 trading days** (standard 3 trading months).
+- **Adaptive Price History Fetching**:
+  Enhanced `PriceDropScreener.java` to dynamically calculate the number of months to fetch daily price history based on the lookback count (lookbacks >= 20 days fetch 3 months, lookbacks >= 60 days fetch 6 months). This fully resolves constraints where the default 1-month fetch would have insufficient bars for multi-week calculations.
+- **Elegant Monthly UI Labels**:
+  Results dynamically translate lookback metrics to cleaner month-based formatting in the UI, mapping `21` lookback days to `"1M"` and `63` lookback days to `"3M"` for professional parity with `5D` and `INTRADAY` labels.
+- **Robust Test Coverage**:
+  Added comprehensive unit test suites checking that lookback periods invoke the Price History API with the correct duration parameter and output matching premium monthly tags.
+
+### Architecture
+- **`strategies-config.json`** [MODIFIED]: Added the "1-Month Drop" and "3-Month Drop" config definitions under `technicalScreeners`.
+- **`PriceDropScreener.java`** [MODIFIED]: Implemented the adaptive `monthsNeeded` lookup logic and the premium `dropType` tag overrides inside `screenMultiDayDrop`.
+- **`PriceDropScreenerTest.java`** [MODIFIED]: Added two new unit tests `testScreenMultiDayDrop_1Month_Match` and `testScreenMultiDayDrop_3Month_Match` confirming correct mocks, durations, and labels.
+
+## UI Option Strategies Checkboxes Suffix: Alias + Securities File (2026-06-01)
+
+Appended the configured `securitiesFile` suffix to option strategy checkbox labels on the Options Dashboard and the Execute Strategy page, aligning the checkbox display with the trade result cards' naming conventions for a clean and cohesive user experience.
+
+### Features
+- **Checkbox Suffix Concatenation**: Formats options strategy checkboxes dynamically as `Alias - <securitiesFile>` (e.g. `Short Put - portfolio`) in both the Options Dashboard and the Execute Strategy pages when `securitiesFile` is present in the configuration.
+- **Unified Tooltip & Description Reference**: Passes the same concatenated name to info modals and help overlays, keeping user guides and description references consistent.
+
+### Architecture
+- **`app.js`** [MODIFIED]: Enhanced `loadOptionsStrategies()` and `loadStrategies()` to format checkbox label text and description info modals as `displayName = name + " - " + securitiesFile` when `securitiesFile` is configured.
+
+## JWT Verification Clock Skew Resilience (2026-06-01)
+
+Implemented clock skew tolerance in `BearerTokenFilter` to prevent unexpected authentication errors when client and server clocks are slightly out of sync.
+
+### Features
+- **10-Second Clock Skew Leeway**: Added a 10-second leeway window to the JWT verification pipeline. This fully resolves issues where tokens are rejected with a `"Token can't be used before X"` error due to minor sub-second time discrepancies between the client's device and the Supabase auth server.
+
+### Architecture
+- **`BearerTokenFilter.java`** [MODIFIED]: Updated the verifier builder at `doFilter()` to include `.acceptLeeway(10)` before verification.
+
+## UI Display Suffix: Alias + Securities File (2026-06-01)
+
+Modified the display of options strategy result blocks on the Options Dashboard (`/index.html`) and the Execute Strategy page (`/execute.html`) to append the active `securitiesFile` suffix to the strategy alias in the UI, while keeping the database representation clean (storing just the `alias` to avoid stale data clutter when configurations change).
+
+### Features
+- **UI Concatenation**: Options strategy result blocks are now rendered with the suffix ` - <securitiesFile>` (e.g. `Short-Term PCS - Portfolio`) dynamically in the UI.
+- **Database Cleanliness**: Restores the database's `strategy_name` representation to the clean, base alias configured in `strategies-config.json`. This eliminates the stale/dangling execution block issue when a user updates `securitiesFile` in the configuration without renaming the alias.
+- **Predefined Options Strategy Enrichment**: Automatically passes the configured `securitiesFile` into the `filterConfig` object of predefined strategies during configuration load, so that it is natively saved and returned by the backend.
+
+### Architecture
+- **`StrategiesConfigLoader.java`** [MODIFIED]: Enhanced the `convertToOptionsConfig` pipeline to copy `securitiesFile` (and inline `securities` if present) from the strategy configuration block into the parsed `OptionsStrategyFilter` model so it is persisted to Supabase as part of `filterConfig`.
+- **`strategies-config.json`** [MODIFIED]: Cleaned up all 15 options strategy aliases by removing the manually appended `- <securitiesFile>` suffixes, standardizing them to clean base aliases (e.g. `Short Put`, `Short-Term PCS`).
+- **`app.js`** [MODIFIED]:
+  - `buildResultCard()`: Dynamically parses the `result.filterConfig` JSON payload, extracts `securitiesFile`, and constructs `displayName = strategyName + " - " + securitiesFile` before rendering `card-name` and info modals.
+
+## Option Chain Adaptive Retry Mechanism (2026-06-01)
+
+Implemented a robust adaptive retry loop in `ThinkOrSwinAPIs.getOptionChain(symbol)` to handle `502 Body buffer overflow` (`protocol.http.TooBigBody`) errors on highly liquid symbols like QQQ.
+
+### Features
+- **Unbounded Default Fetching**: By default, no `strikeCount` parameter is sent to the Schwab API, fetching the full option chain payload.
+- **Adaptive Decremental Retry**: Upon encountering a `502` HTTP status with a `"Body buffer overflow"` payload:
+  1. The client falls back and applies `strikeCount = 200` on the first retry.
+  2. If it fails again, it decrements the `strikeCount` by 50 (`150`, `100`, `50`) and retries.
+- **Fail-Safe Threshold**: If `strikeCount` falls below `50` (i.e. `0` after decrementing from `50`), the client terminates retries and throws the original Schwab API error.
+
+### Architecture
+- **`ThinkOrSwinAPIs.java`** [MODIFIED]: Implemented a retry loop inside `getOptionChain(symbol)` that manages `strikeCount` adaptively and handles the specific 502 error payload.
+- **`ThinkOrSwinAPIsTest.java`** [MODIFIED]: Added unit tests:
+  - `testGetOptionChain_RetryOnce_Success()`
+  - `testGetOptionChain_RetryMultipleTimes_Success()`
+  - `testGetOptionChain_FailureThreshold()`
+
+## New Strategy: OTM Short Put (2026-06-01)
+
+Added a **single-leg OTM Short Put** strategy (`OTM_SHORT_PUT`) — a naked / cash-secured put — as a new options strategy type end-to-end, covering the enum, trade model, strategy class, Spring bean, and config entry.
+
+### Configuration (`strategies-config.json`)
+
+```json
+{
+  "enabled": true,
+  "alias": "OTM Short Put - Portfolio",
+  "strategyType": "OTM_SHORT_PUT",
+  "filterType": "CreditSpreadFilter",
+  "filter": {
+    "minDTE": 25,
+    "maxDTE": 50,
+    "maxLossLimit": 20000,
+    "ignoreEarnings": false,
+    "shortLeg": { "minDelta": 0.8 }
+  },
+  "securitiesFile": "portfolio"
+}
+```
+
+### Risk Model
+
+| Metric         | Formula                                 |
+| -------------- | --------------------------------------- |
+| Net Credit     | `bid × 100`                             |
+| Max Loss       | `(strikePrice − premiumPerShare) × 100` |
+| Break-Even     | `strikePrice − premiumPerShare`         |
+| Return on Risk | `netCredit / maxLoss × 100`             |
+
+### Architecture
+
+- **`StrategyType.java`** [MODIFIED]: Added `OTM_SHORT_PUT("OTM Short Put")` enum constant under a new `// Short (Naked) Strategies` section.
+- **`ShortPut.java`** [NEW]: Single-leg `TradeSetup` implementation. Contains only a `shortPut` leg; `getLegs()` returns a single `SELL PUT` entry. `getNetExtrinsicValue()` returns the sold put's extrinsic value.
+- **`ShortPutStrategy.java`** [NEW]: `AbstractTradingStrategy` subclass. Flattens all puts at the target expiry into a candidate list, applies the full `FilterPipeline` (Delta → Premium → Volume → OI → Volatility → Positive Credit → Max Loss → Break-Even), then maps survivors to `ShortPut` trade objects.
+- **`StrategiesBeanConfig.java`** [MODIFIED]: Registered `otmShortPutStrategy` bean under `OTM_SHORT_PUT`.
+- **`strategies-config.json`** [MODIFIED]: Added the `OTM Short Put - Portfolio` entry with `minDTE: 25`, `maxDTE: 50`, `maxLossLimit: 20000`, `ignoreEarnings: false`, `shortLeg.minDelta: 0.80`.
+
+> **Note on `minDelta: 0.80`**: A delta of 0.80 for a put corresponds to a deeply in-the-money (ITM) put. This yields a larger premium collected but a smaller extrinsic time value. To target classic OTM puts (less assignment risk), lower this to 0.15–0.30.
+
 ## Today's Performance Column in Options Trade Tables (2026-05-31)
 
 Added a live **"Today" performance column** to all options strategy result trade tables on the Options Dashboard (`/index.html`) and the Execute Strategy page. The column shows today's stock price change and percentage change (e.g. `+$2.36 (+0.7%)`) in green for gains and red for losses, and is fully sortable.
@@ -68,9 +184,10 @@ Divided the sidebar navigation menu into three distinct, structured sections (Op
 
 ## Execute Screener: "Load Filters" from History (2026-05-23)
 
-Added a **"⬆ Load Filters"** button to each custom screener result card in the *Recent Custom Screener Results* section, mirroring the same feature available on the Execute Strategy page. Clicking the button re-populates all form fields (screener type, alias, securities, and all filter conditions) from the stored parameters of that historical run.
+Added a **"⬆ Load Filters"** button to each custom screener result card in the _Recent Custom Screener Results_ section, mirroring the same feature available on the Execute Strategy page. Clicking the button re-populates all form fields (screener type, alias, securities, and all filter conditions) from the stored parameters of that historical run.
 
 ### How It Works
+
 1. When a custom screener is executed via `POST /api/execute/custom-screener`, the controller now captures the full request as a `LinkedHashMap<String, Object>` (`requestParams`).
 2. `requestParams` is passed through `ScreenerExecutionService.executeCustomScreener()` → `SupabaseService.saveCustomScreenerResult()` → `CustomScreenerRepository.saveCustomScreenerResult()`.
 3. The repository serialises it as JSONB into the new `request_params` column of the `custom_screener_results` table.
@@ -79,6 +196,7 @@ Added a **"⬆ Load Filters"** button to each custom screener result card in the
 6. `loadScreenerFiltersFromResult()` in `app.js` populates every form field and calls `onScreenerTypeChange()` to ensure drop-specific fields and matching templates are correctly shown.
 
 ### Architecture
+
 - **`ScreenerExecutionResult.java`** [MODIFIED]: Added `Map<String, Object> requestParams` field (nullable, `@JsonInclude(NON_NULL)`).
 - **`CustomScreenerRepository.java`** [MODIFIED]: Updated `saveCustomScreenerResult()` to accept and store a `requestParams` map in the new `request_params` JSONB column; updated `parseCustomScreenerResult()` to read it back.
 - **`SupabaseService.java`** [MODIFIED]: Updated `saveCustomScreenerResult()` wrapper to accept and forward `requestParams`.
@@ -94,12 +212,14 @@ Added a **"⬆ Load Filters"** button to each custom screener result card in the
 Finalized the isolation of manual technical screener results from the global automated dashboard by implementing a dedicated persistence layer and updating UI interactions.
 
 ### Features
+
 - **Dedicated Persistence**: Created `CustomScreenerRepository` and the `custom_screener_results` table in Supabase to permanently store manual executions separately from scheduled automated executions.
 - **Service Isolation**: Updated `ScreenerExecutionService` to toggle between saving to the global dashboard vs the new custom persistence layer.
 - **Custom Endpoints**: Added `GET /api/results/custom/screeners` and `DELETE /api/results/custom/screeners/{id}` endpoints in `StrategyController` to manage isolated history.
 - **Frontend Integration**: Updated `app.js` to fetch recent executions from the custom endpoint for the Execute Screener page and integrated a UI delete button to allow manual history management.
 
 ### Architecture
+
 - **`CustomScreenerRepository.java`** [NEW]: Dedicated Supabase DB access layer for manual screener runs.
 - **`SupabaseService.java`** [MODIFIED]: Added service wrapper methods (`saveCustomScreenerResult`, `getRecentCustomScreenerExecutions`, `deleteCustomScreenerExecution`).
 - **`ScreenerExecutionService.java`** [MODIFIED]: Added `executeCustomScreener` to enforce decoupled persistence paths.
@@ -172,7 +292,6 @@ Conducted a final codebase audit to remove all remaining traces of the legacy Va
 - **Deployment Guide Refresh**: Updated `CLOUD_RUN_DEPLOYMENT.md` to reflect the current static frontend architecture and improved build performance.
 - **Log Removal**: Deleted `run_log.txt` which contained legacy Vaadin startup sequences.
 
-
 ## IV Rank Frontend Integration & Test Stabilization (2026-05-16)
 
 Finalized the IV Rank strategy implementation by integrating frontend visualization and resolving constructor-based compilation failures in the test suite.
@@ -186,10 +305,10 @@ Finalized the IV Rank strategy implementation by integrating frontend visualizat
 
 ## Granular Leg Filter Pipeline (2026-05-10)
 
-
 Fixed a misleading logging issue where the UI reported hundreds of trades filtered by the "Delta Filter", even when Delta constraints were not configured by the user.
 
 ### Features
+
 - **Granular Filter Evaluation**: The monolithic `LegFilter.passes()` method was split into 5 distinct evaluation methods: `passesDelta`, `passesPremium`, `passesVolume`, `passesOpenInterest`, and `passesVolatility`.
 - **New Pipeline Stages**: Expanded `FilterStage` enum to include `LEG_PREMIUM_FILTER`, `VOLUME_FILTER`, `OPEN_INTEREST_FILTER`, and `LEG_VOLATILITY_FILTER` alongside `DELTA_FILTER`.
 - **Strategy Instrumentation**: Refactored the `findValidTrades` pipelines in all 5 trading strategies (`PutCreditSpread`, `CallCreditSpread`, `Zebra`, `BrokenWingButterfly`, `LongCallLeap`). A single `.step("Delta Filter", ...)` call was replaced with five sequential, highly specific `.step()` calls.
@@ -202,13 +321,16 @@ Eliminated hardcoded filter stage name strings scattered across all 5 strategy c
 ### Design Rationale
 
 The old pattern repeated this boilerplate for every filter step in every `findValidTrades` method:
+
 ```java
 List<T> afterX = prev.stream().filter(someFilter()).toList();
 filterLog.logFilter(strategy, symbol, expiry, "Filter Name", prev.size(), afterX.size());
 ```
+
 Filter names were hardcoded strings at the call site, disconnected from the predicate logic and duplicated across strategies.
 
 Two concerns were deliberately separated:
+
 - **`NamedFilter<T>`** — pure data record `(name, predicate)`. No logging, no framework coupling.
 - **`FilterPipeline<T>`** — the explicitly log-aware runner. Its sole responsibility is running a named filter chain and recording each step's result to `FilterLogStore`. Logging context (strategy, symbol, expiry) is set **once** at construction via `forContext(...)`.
 
@@ -260,10 +382,6 @@ Corrected the three-level log hierarchy to be driven by real backend data rather
 - **`style.css`** [MODIFIED]: Added `.log-expiry-other` and `.log-expiry-other .log-expiry-date` for de-emphasised styling of the Other block.
 - **`execute.html`** [MODIFIED]: Filters section wrapped in a collapsible card.
 
-
-
-
-
 Improved the debuggability and observability of the trading bot by implementing a delete function for execution results, adding granular per-filter trade count logging, and creating a new UI screen to visualize these logs in a collapsible, strategy-grouped format.
 
 ### Features
@@ -294,13 +412,13 @@ Completed the second phase of the robust error handling redesign, focusing on pe
 ### Features
 
 - **Alert Deduplication**: Multiple failures of the same type across different symbols (e.g., "Cannot fetch underlying prices" for AAPL, TSLA, MSFT) are now automatically merged into a single alert.
-    - Preserves UI cleanliness during wide-scale API outages or data issues.
-    - Appends `(+N more)` when more than 3 symbols fail with the exact same error.
+  - Preserves UI cleanliness during wide-scale API outages or data issues.
+  - Appends `(+N more)` when more than 3 symbols fail with the exact same error.
 - **Fail-Fast Auth Circuit Breaker**: Introduced a top-level `AtomicBoolean authFailed` flag.
-    - If Schwab API returns a 401 Unauthorized or related token error, the system immediately trips the breaker.
-    - Instantly breaks out of both the symbol iteration loop and the strategy execution loop, preventing hundreds of redundant, doomed API calls.
+  - If Schwab API returns a 401 Unauthorized or related token error, the system immediately trips the breaker.
+  - Instantly breaks out of both the symbol iteration loop and the strategy execution loop, preventing hundreds of redundant, doomed API calls.
 - **Real-Time UI Polling**: The frontend dashboard now surfaces alerts in real-time as they happen during execution.
-    - Moved `showErrorPanel()` from the execution completion callback directly into the active 3s polling cycle `checkExecutionStatus()`.
+  - Moved `showErrorPanel()` from the execution completion callback directly into the active 3s polling cycle `checkExecutionStatus()`.
 
 ### Architecture
 
@@ -342,7 +460,6 @@ Completely redesigned the application's error handling mechanism from scratch to
 - **`style.css`** [MODIFIED]: Added `.error-panel`, `.error-panel-item`, `.error-item-source`, `.toast-dismiss` and related CSS for the error panel and toast dismiss button.
 - **`StrategyControllerTest.java`** [MODIFIED]: Updated test assertions for `getAlerts()`/`clearAlerts()`, added test for new `/api/clear-errors` endpoint.
 
-
 ## Alert Message Centralization (2026-04-19)
 
 Refactored all alert message strings out of service/controller classes into a dedicated constants class for mobile-friendly brevity and easy maintenance.
@@ -360,15 +477,16 @@ Refactored all alert message strings out of service/controller classes into a de
 Migrated the application's logging infrastructure from a manual Log4j 2 configuration to Spring Boot's native **Logback** framework. This transition simplifies dependency management and optimizes log readability for both local development and production environments.
 
 ### Features
+
 - **Console Noise Reduction**: Configured a `ThresholdFilter` for the console appender to display only `WARN` level logs or higher. This declutters the terminal output during execution, showing only critical information and errors.
 - **Detailed File Logging**: Maintained full auditability by continuing to log `INFO` level messages (and above) to `logs/trading-bot.log`.
 - **Log Rotation**: Implemented `SizeAndTimeBasedRollingPolicy` for file logs, ensuring they are rotated daily or when they reach 10MB, with a 7-day retention period.
 - **Dependency Cleanup**: Removed explicit `log4j-api` and `log4j-core` dependencies from `pom.xml`, allowing Spring Boot's `spring-boot-starter-logging` (which uses Logback) to take full control without conflicts.
 
 ### Architecture
+
 - **Standardization**: Aligned the project with Spring Boot's default logging ecosystem, making it easier to configure using standard `logback-spring.xml` patterns.
 - **Configuration**: Replaced the obsolete `log4j2.json` with `src/main/resources/logback-spring.xml`.
-
 
 > **CRITICAL AI RULE**: NEVER execute `git commit` or `git push` unless explicitly requested by the user. Do not assume permission to commit changes.
 > **CRITICAL AI RULE**: NEVER use GitHub MCP tools (create PR, merge, create release, etc.) unless the user explicitly asks. Do not assume permission for any GitHub operations.
@@ -378,16 +496,18 @@ Migrated the application's logging infrastructure from a manual Log4j 2 configur
 Resolved "Strategy not found" errors for variant strategy types (Technical, Bullish, etc.) that occurred after the Spring DI migration.
 
 ### Features
+
 - **Multi-Type Support**: Refactored core strategy classes (`PutCreditSpreadStrategy`, `CallCreditSpreadStrategy`, `IronCondorStrategy`, etc.) to accept `StrategyType` via constructor.
 - **Centralized Strategy Registry**: Created `StrategiesBeanConfig.java` to explicitly define each strategy variant as a Spring bean. This restores support for:
-    - `Technical Put Credit Spread`
-    - `Technical Call Credit Spread`
-    - `Bullish Long Put Credit Spread`
-    - `Bullish Long Iron Condor`
+  - `Technical Put Credit Spread`
+  - `Technical Call Credit Spread`
+  - `Bullish Long Put Credit Spread`
+  - `Bullish Long Iron Condor`
 - **Standardized Constructor DI**: Removed `@Component` from strategy classes and transitioned to manual bean definition in configuration to allow multiple instances of the same logic with different type identities.
 - **Seamless Registry Integration**: `StrategiesConfigLoader` now correctly resolves all 10 defined strategy types during application startup.
 
 ### Architecture
+
 - **Factory Compatibility**: Restored compatibility with the `StrategiesConfig.json` schema without sacrificing Spring DI benefits.
 - **Injection Safety**: Used named bean references to ensure `IronCondorStrategy` correctly receives its required leg strategy logic.
 
@@ -396,12 +516,14 @@ Resolved "Strategy not found" errors for variant strategy types (Technical, Bull
 Resolved the "container failed to start and listen" crash in Cloud Run caused by primitive boolean binding failures and empty secret propagation.
 
 ### Features
+
 - **Boxed Boolean Migration**: Converted all critical feature-flag booleans (`TelegramConfig`, `SupabaseConfig`, `GoogleSheetsConfig`) from `boolean` to `Boolean`. This prevents the `IllegalArgumentException: A null value cannot be assigned to a primitive type` when Spring Boot handles unexpected empty strings.
 - **Dynamic Env Var Assembly**: Rewrote the `deploy-cloud-run.yml` deployment logic to dynamically construct the `--set-env-vars` argument.
 - **Improved Fallback Logic**: Secrets that are missing or empty in GitHub are now **completely omitted** from the deployment command. This ensures the environment variable is unset in the container, allowing Spring Boot to correctly fallback to defaults defined in `application.properties`.
 - **Resource Hardening**: Increased Cloud Run memory allocation to `1Gi` and startup timeout to `300s` to ensure reliable Spring context initialization in production.
 
 ### Architecture
+
 - **Environment Isolation**: Prevented "pollution" of the container environment with empty strings (`""`) which can override valid configuration defaults.
 - **Type Safety**: Improved configuration robustness by allowing null-safe property binding.
 

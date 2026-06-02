@@ -141,4 +141,70 @@ public class PriceDropScreenerTest {
         
         assertEquals(results.size(), 0);
     }
+
+    @Test
+    public void testScreenMultiDayDrop_1Month_Match() {
+        PriceHistoryResponse history = new PriceHistoryResponse();
+        List<PriceHistoryResponse.CandleData> candles = new ArrayList<>();
+        
+        // 21 days ago: Close 100
+        PriceHistoryResponse.CandleData old = new PriceHistoryResponse.CandleData();
+        old.setClose(100.0);
+        candles.add(old);
+        
+        // Intermediary candles
+        for (int i = 0; i < 20; i++) candles.add(new PriceHistoryResponse.CandleData());
+        
+        // Today: Close 88
+        PriceHistoryResponse.CandleData today = new PriceHistoryResponse.CandleData();
+        today.setClose(88.0);
+        today.setVolume(2000000L);
+        candles.add(today);
+        
+        history.setCandles(candles);
+        
+        Mockito.when(thinkOrSwinAPIs.getPriceHistory(
+                anyString(), anyString(), Mockito.eq(3), anyString(), anyInt(), any(), any(), anyBoolean(), anyBoolean()))
+                .thenReturn(history);
+        
+        List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screenPriceDrop(
+                List.of("AAPL"), 10.0, 21);
+        
+        assertEquals(results.size(), 1);
+        assertEquals(results.get(0).getDropPercent(), 12.0, 0.01);
+        assertEquals(results.get(0).getDropType(), "1M");
+    }
+
+    @Test
+    public void testScreenMultiDayDrop_3Month_Match() {
+        PriceHistoryResponse history = new PriceHistoryResponse();
+        List<PriceHistoryResponse.CandleData> candles = new ArrayList<>();
+        
+        // 63 days ago: Close 100
+        PriceHistoryResponse.CandleData old = new PriceHistoryResponse.CandleData();
+        old.setClose(100.0);
+        candles.add(old);
+        
+        // Intermediary candles
+        for (int i = 0; i < 62; i++) candles.add(new PriceHistoryResponse.CandleData());
+        
+        // Today: Close 80
+        PriceHistoryResponse.CandleData today = new PriceHistoryResponse.CandleData();
+        today.setClose(80.0);
+        today.setVolume(2000000L);
+        candles.add(today);
+        
+        history.setCandles(candles);
+        
+        Mockito.when(thinkOrSwinAPIs.getPriceHistory(
+                anyString(), anyString(), Mockito.eq(6), anyString(), anyInt(), any(), any(), anyBoolean(), anyBoolean()))
+                .thenReturn(history);
+        
+        List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screenPriceDrop(
+                List.of("MSFT"), 15.0, 63);
+        
+        assertEquals(results.size(), 1);
+        assertEquals(results.get(0).getDropPercent(), 20.0, 0.01);
+        assertEquals(results.get(0).getDropType(), "3M");
+    }
 }

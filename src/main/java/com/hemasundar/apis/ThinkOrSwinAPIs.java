@@ -32,7 +32,7 @@ public class ThinkOrSwinAPIs {
      * Fetches quotes for multiple symbols in a single API call.
      */
     public Map<String, QuotesResponse.QuoteData> getQuotes(List<String> symbols, String fields,
-                                                                  Boolean indicative) {
+            Boolean indicative) {
 
         String symbolsParam = String.join(",", symbols);
 
@@ -97,20 +97,53 @@ public class ThinkOrSwinAPIs {
     }
 
     public OptionChainResponse getOptionChain(String symbol) {
-        Response response = RestAssured.given()
-                .header("accept", "application/json")
-                .header("Authorization", "Bearer " + tokenProvider.getAccessToken())
-                .queryParam("symbol", symbol)
-                .queryParam("strikeCount", 150)
-                .queryParam("strategy", "SINGLE")
-                .get("https://api.schwabapi.com/marketdata/v1/chains");
-        if (response.statusCode() != 200) {
-            if (response.statusCode() == 400) {
-                apiErrorHandler.handle400Error("Option Chain API", symbol, response.asString());
-                return null;
+        Integer strikeCount = null;
+        Response response = null;
+        boolean success = false;
+
+        while (!success) {
+            var request = RestAssured.given()
+                    .header("accept", "application/json")
+                    .header("Authorization", "Bearer " + tokenProvider.getAccessToken())
+                    .queryParam("symbol", symbol)
+                    .queryParam("strategy", "SINGLE");
+
+            if (strikeCount != null) {
+                request.queryParam("strikeCount", strikeCount);
             }
-            throw new RuntimeException("Option Chain API failed for " + symbol + ": " + response.statusCode() + " - "
-                    + response.asString());
+
+            response = request.get("https://api.schwabapi.com/marketdata/v1/chains");
+
+            if (response.statusCode() == 200) {
+                success = true;
+            } else if (response.statusCode() == 502 && response.asString().contains("Body buffer overflow")) {
+                if (strikeCount == null) {
+                    strikeCount = 200;
+                    log.warn(
+                            "Option Chain API failed for {} due to Body buffer overflow (502). Retrying with strikeCount = {}",
+                            symbol, strikeCount);
+                } else {
+                    strikeCount -= 50;
+                    if (strikeCount < 50) {
+                        log.error(
+                                "Option Chain API failed for {} with Body buffer overflow (502). strikeCount = {}, which is less than 50. Throwing error.",
+                                symbol, strikeCount);
+                        throw new RuntimeException("Option Chain API failed for " + symbol + ": "
+                                + response.statusCode() + " - " + response.asString());
+                    }
+                    log.warn(
+                            "Option Chain API failed for {} due to Body buffer overflow (502) again. Retrying with strikeCount = {}",
+                            symbol, strikeCount);
+                }
+            } else {
+                if (response.statusCode() == 400) {
+                    apiErrorHandler.handle400Error("Option Chain API", symbol, response.asString());
+                    return null;
+                }
+                throw new RuntimeException(
+                        "Option Chain API failed for " + symbol + ": " + response.statusCode() + " - "
+                                + response.asString());
+            }
         }
 
         OptionChainResponse optionChainResponse = JavaUtils.convertJsonToPojo(response.asString(),
@@ -217,7 +250,8 @@ public class ThinkOrSwinAPIs {
                 .get("https://api.schwabapi.com/marketdata/v1/markets");
 
         if (response.statusCode() != 200) {
-            throw new RuntimeException("Market Hours API failed: " + response.statusCode() + " - " + response.asString());
+            throw new RuntimeException(
+                    "Market Hours API failed: " + response.statusCode() + " - " + response.asString());
         }
 
         return JavaUtils.convertJsonToPojo(response.asString(), com.hemasundar.pojos.MarketHoursResponse.class);
@@ -239,7 +273,8 @@ public class ThinkOrSwinAPIs {
 
         if (response.statusCode() != 200) {
             throw new RuntimeException(
-                    "Market Hour API failed for " + marketId + ": " + response.statusCode() + " - " + response.asString());
+                    "Market Hour API failed for " + marketId + ": " + response.statusCode() + " - "
+                            + response.asString());
         }
 
         return response.asString();
@@ -268,7 +303,8 @@ public class ThinkOrSwinAPIs {
                 return null;
             }
             throw new RuntimeException(
-                    "Movers API failed for " + indexSymbol + ": " + response.statusCode() + " - " + response.asString());
+                    "Movers API failed for " + indexSymbol + ": " + response.statusCode() + " - "
+                            + response.asString());
         }
 
         return response.asString();
@@ -291,7 +327,8 @@ public class ThinkOrSwinAPIs {
                 return null;
             }
             throw new RuntimeException(
-                    "Instruments API failed for " + symbol + ": " + response.statusCode() + " - " + response.asString());
+                    "Instruments API failed for " + symbol + ": " + response.statusCode() + " - "
+                            + response.asString());
         }
 
         return response.asString();
@@ -316,7 +353,8 @@ public class ThinkOrSwinAPIs {
                 return null;
             }
             throw new RuntimeException(
-                    "Instruments CUSIP API failed for " + cusipId + ": " + response.statusCode() + " - " + response.asString());
+                    "Instruments CUSIP API failed for " + cusipId + ": " + response.statusCode() + " - "
+                            + response.asString());
         }
 
         return response.asString();
