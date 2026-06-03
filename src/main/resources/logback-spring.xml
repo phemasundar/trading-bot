@@ -4,7 +4,7 @@
     <property name="LOG_PATH" value="logs" />
     <property name="LOG_FILE" value="trading-bot" />
 
-    <!-- Console Appender -->
+    <!-- Console Appender (INFO and above for main app) -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
             <level>INFO</level>
@@ -14,7 +14,7 @@
         </encoder>
     </appender>
 
-    <!-- Rolling File Appender -->
+    <!-- Rolling File Appender (main app log) -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/${LOG_FILE}.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
@@ -28,6 +28,7 @@
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %c{1} - %msg%n</pattern>
         </encoder>
     </appender>
+
 
     <!-- Project Loggers -->
     <logger name="com.hemasundar" level="INFO" additivity="false">

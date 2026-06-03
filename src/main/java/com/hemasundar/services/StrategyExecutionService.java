@@ -14,6 +14,7 @@ import com.hemasundar.options.strategies.AbstractTradingStrategy;
 import com.hemasundar.technical.TechnicalScreener;
 import com.hemasundar.utils.FilePaths;
 import com.hemasundar.utils.OptionChainCache;
+import com.hemasundar.utils.SchwabApiExecutor;
 import com.hemasundar.utils.SecuritiesResolver;
 import com.hemasundar.utils.TelegramUtils;
 import com.hemasundar.utils.VolatilityCalculator;
@@ -47,6 +48,7 @@ public class StrategyExecutionService {
     private final TechnicalScreener technicalScreener;
     private final VolatilityCalculator volatilityCalculator;
     private final StrategiesConfigLoader strategiesConfigLoader;
+    private final SchwabApiExecutor schwabApiExecutor;
 
     // Execution state tracking (visible across page refreshes)
     private final AtomicBoolean executionRunning = new AtomicBoolean(false);
@@ -203,6 +205,25 @@ public class StrategyExecutionService {
             // Shared cache for option chains
             OptionChainCache cache = new OptionChainCache(thinkOrSwinAPIs);
 
+            // ── Parallel Cache Pre-warm (Track A) ──
+            // Collect the union of all securities from strategies that do NOT use a
+            // technical filter. For those strategies the full securities list goes
+            // directly to getOptionChain, so we can pre-warm all of them now.
+            // Strategies that DO have a technical filter are skipped here because their
+            // option-chain calls only happen for the small survivor set after screening
+            // (handled lazily); the screener itself benefits from Track B.
+            List<String> symbolsToPrewarm = selectedStrategies.stream()
+                    .filter(c -> !c.hasTechnicalFilter())
+                    .flatMap(c -> c.getSecurities().stream())
+                    .distinct()
+                    .collect(Collectors.toList());
+
+            if (!symbolsToPrewarm.isEmpty()) {
+                log.info("Pre-warming option chain cache for {} unique symbols across {} strategies",
+                        symbolsToPrewarm.size(), selectedStrategies.size());
+                cache.prewarm(symbolsToPrewarm, schwabApiExecutor);
+            }
+
             // Execute each strategy
             List<StrategyResult> results = new ArrayList<>();
             int totalTrades = 0;
@@ -221,6 +242,7 @@ public class StrategyExecutionService {
                 log.info("Executing strategy {}/{}: {}", i + 1, selectedStrategies.size(), config.getName());
 
                 StrategyResult result = executeStrategy(config, cache, false);
+
                 results.add(result);
                 totalTrades += result.getTradesFound();
             }
@@ -400,9 +422,11 @@ public class StrategyExecutionService {
             }
             try {
                 OptionChainResponse optionChainResponse = cache.get(symbol);
+
                 log.info("Processing symbol: {}", symbol);
 
                 List<TradeSetup> trades = strategy.findTrades(optionChainResponse, config.getFilter());
+
                 trades.forEach(trade -> log.info("Trade: {}", trade));
 
                 if (!trades.isEmpty()) {

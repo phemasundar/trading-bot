@@ -2,6 +2,7 @@ package com.hemasundar.technical;
 
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.pojos.PriceHistoryResponse;
+import com.hemasundar.utils.SchwabApiExecutor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -13,6 +14,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.springframework.stereotype.Component;
 
@@ -26,6 +28,7 @@ import org.springframework.stereotype.Component;
 public class TechnicalScreener {
 
     private final ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private final SchwabApiExecutor schwabApiExecutor;
 
     /**
      * Result object containing stock symbol and all technical values.
@@ -193,19 +196,29 @@ public class TechnicalScreener {
      * @return List of screening results for stocks matching all criteria
      */
     public List<ScreeningResult> screenStocks(List<String> symbols, TechnicalFilterChain filterChain) {
-        List<ScreeningResult> results = new ArrayList<>();
-
         log.info("\n{}", filterChain.getFiltersSummary());
 
-        for (String symbol : symbols) {
+        // ── Parallel execution (Track B) ──
+        // analyzeStock() is pure I/O (getYearlyPriceHistory); each symbol is
+        // independent, so we fan out across all symbols in the thread pool.
+        log.info("Screening {} symbols in parallel", symbols.size());
+        long screenT0 = System.currentTimeMillis();
+
+        List<ScreeningResult> parallelResults = schwabApiExecutor.executeParallel(symbols, symbol -> {
             try {
-                ScreeningResult result = analyzeStock(symbol, filterChain.getIndicators());
-                if (result != null && meetsAllCriteria(result, filterChain.getConditions())) {
-                    results.add(result);
-                    log.info("\n{}", result);
-                }
+                return analyzeStock(symbol, filterChain.getIndicators());
             } catch (Exception e) {
                 log.warn("[{}] Error analyzing stock: {}", symbol, e.getMessage());
+                return null;
+            }
+        });
+
+        // Filter out nulls (errors) and apply conditions on the calling thread
+        List<ScreeningResult> results = new ArrayList<>();
+        for (ScreeningResult result : parallelResults) {
+            if (result != null && meetsAllCriteria(result, filterChain.getConditions())) {
+                results.add(result);
+                log.info("\n{}", result);
             }
         }
 

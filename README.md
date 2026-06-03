@@ -114,6 +114,9 @@ For detailed setup instructions:
 - Supabase Database: See `SUPABASE_SETUP_GUIDE.md` (Updated for Service Role Key security)
 - Authentication (Used for dashboard login): See `AUTH_SETUP_GUIDE.md`
 
+> ⚠️ **Supabase Security**: All tables must have **Row-Level Security (RLS) enabled**. When creating new tables, always include `ENABLE ROW LEVEL SECURITY` and add an `"Allow service role full access"` policy (`FOR ALL USING (true) WITH CHECK (true)`). The backend uses the `service_role` key (server-side only) — failure to enable RLS exposes the table to public read/write/delete access. See [`enable_rls_custom_screener_results.sql`](enable_rls_custom_screener_results.sql) for the canonical policy template.
+
+
 ## Usage
 
 ### Running Strategy Analysis

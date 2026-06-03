@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 @Log4j2
 @RequiredArgsConstructor
@@ -45,15 +46,25 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
         String strategyName = getStrategyName();
         String symbol = chain.getSymbol();
 
+        // ── Track C: Fire HV + IV Rank in parallel ──
+        // Both are independent network I/O calls (~270-330ms each).
+        // Starting them concurrently saves one round-trip per symbol.
+        CompletableFuture<Boolean> hvFuture = CompletableFuture
+                .supplyAsync(() -> checkHistoricalVolatility(symbol, filter));
+        CompletableFuture<Double> ivRankFuture = CompletableFuture
+                .supplyAsync(() -> resolveIVRank(symbol));
+
         // ── Volatility Filter ──
-        if (!checkHistoricalVolatility(symbol, filter)) {
+        boolean passesHV = hvFuture.join();
+        if (!passesHV) {
+            ivRankFuture.cancel(true); // best-effort; IV rank result is not needed
             FilterLogStore.getInstance().logFilter(strategyName, symbol, "Historical Volatility", 1, 0);
             return Collections.emptyList();
         }
         FilterLogStore.getInstance().logFilter(strategyName, symbol, "Historical Volatility", 1, 1);
 
         // ── IV Rank Filter ──
-        Double ivRank = resolveIVRank(symbol);
+        Double ivRank = ivRankFuture.join();
         if (!filter.passesIVRank(ivRank)) {
             log.info("[{}] IV Rank {:.1f}% outside configured bounds [min={}, max={}], skipping symbol",
                     symbol, ivRank, filter.getMinIVRank(), filter.getMaxIVRank());

@@ -3,6 +3,7 @@ package com.hemasundar.technical;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.technical.*;
+import com.hemasundar.utils.SchwabApiExecutor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
@@ -21,11 +22,22 @@ public class TechnicalScreenerTest {
 
     private TechnicalScreener technicalScreener;
     private ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private SchwabApiExecutor schwabApiExecutor;
 
     @BeforeMethod
     public void setUp() {
         thinkOrSwinAPIs = Mockito.mock(ThinkOrSwinAPIs.class);
-        technicalScreener = new TechnicalScreener(thinkOrSwinAPIs);
+        schwabApiExecutor = Mockito.mock(SchwabApiExecutor.class);
+        Mockito.when(schwabApiExecutor.executeParallel(Mockito.anyList(), Mockito.any())).thenAnswer(inv -> {
+            List<String> symbols = inv.getArgument(0);
+            java.util.function.Function<String, Object> func = inv.getArgument(1);
+            List<Object> res = new ArrayList<>();
+            for (String s : symbols) {
+                res.add(func.apply(s));
+            }
+            return res;
+        });
+        technicalScreener = new TechnicalScreener(thinkOrSwinAPIs, schwabApiExecutor);
     }
 
     @Test

@@ -1,5 +1,108 @@
 # Project Updates
 
+## Performance Phase 2: Parallel API Execution (2026-06-03)
+
+Implemented 3-track parallelization strategy to reduce total option strategy execution time from ~210s (sequential) to an estimated ~40-60s by firing Schwab API calls concurrently within a bounded, rate-limit-aware thread pool.
+
+### Track A — Parallel OptionChain Cache Pre-warm
+
+Before the per-strategy loop begins, the union of all securities from non-technical-filter strategies is collected and passed to `cache.prewarm()`. All symbols are fetched in parallel so subsequent `cache.get()` calls in the per-strategy loop are instant cache hits (0 ms).
+
+### Track B — Parallel Technical Screener Loops
+
+Both `TechnicalScreener.screenStocks()` and `PriceDropScreener.screenMultiDayDrop()` now fan out using `SchwabApiExecutor.executeParallel()`. Each symbol's `getYearlyPriceHistory` / `getPriceHistory` call runs concurrently. For a 80-symbol screener this collapses ~80 × 300 ms = 24 s down to ≈300 ms (limited by slowest symbol).
+
+### Track C — Overlapped HV + IV Rank per Symbol
+
+Inside `AbstractTradingStrategy.findTrades()`, `checkHistoricalVolatility()` (~330 ms Schwab call) and `resolveIVRank()` (~270 ms Supabase call) are now fired as parallel `CompletableFuture.supplyAsync()` tasks. This saves one round-trip (~270 ms) per symbol that passes both filters.
+
+### New: `SchwabApiExecutor.java` [NEW]
+
+`com.hemasundar.utils` — Spring singleton wrapping a `FixedThreadPool`. Provides:
+- **`executeParallel(symbols, apiCall)`**: Submits one task per symbol, waits for all, returns results in order; nulls for failures.
+- **Automatic 429 retry**: Sleeps `schwab.api.rate-limit-pause-ms` (default 60 s) on rate-limit errors and retries once.
+- **Configurable thread count**: `schwab.api.parallel-threads` (default 8) tuned for Schwab's 120 req/min rate limit.
+- **Graceful shutdown**: `@PreDestroy` waits up to 30 s for in-flight calls.
+
+### Architecture
+
+| File | Change |
+|---|---|
+| **`SchwabApiExecutor.java`** | [NEW] — bounded parallel executor |
+| **`OptionChainCache.java`** | Added `prewarm()` + made `apiCallCount` an `AtomicInteger` for thread-safety |
+| **`StrategyExecutionService.java`** | Injected `SchwabApiExecutor`, added pre-warm phase before strategy loop |
+| **`TechnicalScreener.java`** | Injected `SchwabApiExecutor`, `screenStocks()` loop parallelized |
+| **`PriceDropScreener.java`** | Injected `SchwabApiExecutor`, `screenMultiDayDrop()` loop parallelized |
+| **`AbstractTradingStrategy.java`** | `checkHistoricalVolatility()` + `resolveIVRank()` fired as parallel CompletableFutures |
+| **`application1.properties`** | Added `schwab.api.parallel-threads=8`, `schwab.api.rate-limit-pause-ms=60000` |
+
+### UI Fix: Execution Time in Expanded Card
+
+The `⏱ Strategy ran in X.Xs` badge is now shown **inside the expanded card content** (not just in the collapsed header stats), so it's visible when the user opens a result card.
+
+- **`app.js`**: `buildResultCard()` now renders `<div class="exec-time-row"><span class="exec-time-badge">⏱ Strategy ran in ${d}</span></div>` at the top of `card-content`.
+- **`style.css`**: Added `.exec-time-row` and `.exec-time-badge` styles (pill shape, primary-dim background).
+
+---
+
+## Performance: PERF Timing Logs & Execution Time UI (2026-06-02)
+
+### Phase 0 — `PERF` Timing Instrumentation
+
+Added a dedicated, zero-noise performance timing system that writes to a separate `logs/trading-bot-perf.log` file. Output is completely isolated from the main log — enable/disable by changing the logger level in `logback-spring.xml` (no code changes needed).
+
+**Architecture:**
+- **`PerformanceLogger.java`** [NEW]: `com.hemasundar.utils` — static utility with `log(phase, symbol, ms)`, `log(phase, ms)`, `header(label)`, and `section(label)` methods. Uses a dedicated SLF4J logger routed exclusively to the PERF appenders.
+- **`logback-spring.xml`** [MODIFIED]: Added `PERF_FILE` rolling file appender (`logs/trading-bot-perf.log`) and `PERF_CONSOLE` appender, wired only to `com.hemasundar.utils.PerformanceLogger` with `additivity="false"`. To disable all PERF output: set level to `OFF`.
+
+**10 instrumented timing points:**
+
+| # | File | What's Timed |
+|---|---|---|
+| 1 | `OptionChainCache` | `getOptionChain` API call latency per symbol |
+| 2 | `OptionChainCache` | Cache hit (0 ms) vs. miss detection |
+| 3 | `StrategyExecutionService` | `strategy.findTrades()` pure CPU computation per symbol |
+| 4 | `StrategyExecutionService` | Total wall time per strategy |
+| 5 | `AbstractTradingStrategy` | `getYearlyPriceHistory` for Historical Volatility filter |
+| 6 | `AbstractTradingStrategy` | Supabase IV Rank lookup per symbol |
+| 7 | `TechnicalScreener` | Full `analyzeStock()` wall time per symbol |
+| 8 | `TechnicalScreener` | `getYearlyPriceHistory` inside `analyzeStock()` |
+| 9 | `PriceDropScreener` | `getPriceHistory` per symbol in `screenMultiDayDrop()` |
+| 10 | `StrategyExecutionService` | Total end-to-end execution wall time |
+
+**Modified files:** `OptionChainCache.java`, `StrategyExecutionService.java`, `AbstractTradingStrategy.java`, `TechnicalScreener.java`, `PriceDropScreener.java`
+
+### Phase 1 — Execution Time in UI Cards
+
+All result cards on the Options Dashboard, Execute Strategy page, Screeners Dashboard, and Execute Screener page now show the per-strategy/screener execution time next to "Last run". The `executionTimeMs` field was already stored in Supabase and returned by the API — only the frontend rendering was missing.
+
+**Example:** `Last run: 3m ago · Trades: 4 · ⏱ 12.3s`
+
+**Architecture:**
+- **`app.js`** [MODIFIED]:
+  - `formatDuration(ms)` [NEW]: Converts ms to human-readable `412ms` / `5.3s` / `2.1m`. Returns `null` for zero/falsy so cards with no timing data show nothing.
+  - `buildResultCard()`: Card stats now appends `· ⏱ ${formatDuration(result.executionTimeMs)}` when available.
+  - `buildScreenerCard()`: Same pattern for screener result cards.
+
+---
+
+## Supabase Security Fix: Enable RLS on custom_screener_results (2026-06-02)
+
+Resolved a **critical Supabase security advisory** (`rls_disabled_in_public`) detected on the `trading-bot-iv-data` project. The `public.custom_screener_results` table was publicly accessible (anyone with the project URL could read, edit, and delete all data) because Row-Level Security was not enabled when the table was created in the Custom Screener Persistence feature.
+
+### Root Cause
+When `custom_screener_results` was introduced (2026-05-22), the Supabase migration did not include `ENABLE ROW LEVEL SECURITY`. All other tables (`iv_data`, `strategy_executions`, `latest_strategy_results`, `custom_execution_results`, `latest_screener_results`) already had RLS enabled with matching policies.
+
+### Fix Applied
+- **RLS Enabled**: `ALTER TABLE public.custom_screener_results ENABLE ROW LEVEL SECURITY;`
+- **Policy Created**: `"Allow service role full access"` — `FOR ALL` with `USING (true) / WITH CHECK (true)`, matching the identical policy on `custom_execution_results`. The Spring backend uses the `service_role` key which is server-side only and never exposed to the browser.
+
+### Architecture
+- **`enable_rls_custom_screener_results.sql`** [NEW]: Migration file documenting and reproducing the fix for source control tracking.
+- **Supabase `custom_screener_results`** [MODIFIED]: RLS enabled + `"Allow service role full access"` policy applied directly via MCP.
+
+---
+
 ## New Technical Screeners: 1-Month Drop & 3-Month Drop (2026-06-01)
 
 Added two new pre-configured technical screeners—"1-Month Drop" and "3-Month Drop"—to the technical screeners dashboard and execute screener workflows, implementing dynamic price history fetching and elegant monthly labels for a premium user experience.

@@ -206,6 +206,18 @@ function timeAgo(dateStr) {
     return 'Just now';
 }
 
+/**
+ * Formats a duration in milliseconds to a human-readable string.
+ * Returns null when ms is 0 or falsy so callers can conditionally render.
+ * Examples: 412 ms → "412ms", 5300 ms → "5.3s", 125000 ms → "2.1m"
+ */
+function formatDuration(ms) {
+    if (!ms || ms <= 0) return null;
+    if (ms >= 60000) return `${(ms / 60000).toFixed(1)}m`;
+    if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`;
+    return `${ms}ms`;
+}
+
 function formatLargeNumber(num) {
     if (!num && num !== 0) return '-';
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -283,13 +295,15 @@ function buildResultCard(result, badgeText = 'Standard') {
                 ${loadFiltersBtn}
                 ${deleteBtn}
             </div>
-            <span class="card-stats">Last run: ${timeAgo(result.updatedAt)} · Trades: ${result.tradesFound || 0}</span>
+            <span class="card-stats">Last run: ${timeAgo(result.updatedAt)} · Trades: ${result.tradesFound || 0}${(() => { const d = formatDuration(result.executionTimeMs); return d ? ` · ⏱ ${d}` : ''; })()}</span>
         </div>
         <div class="card-params">${formatFilterParams(result.filterConfig)}</div>
         ${filterDetailsHtml}
         <div class="card-content" id="content-${cardId}">
+            ${(() => { const d = formatDuration(result.executionTimeMs); return d ? `<div class="exec-time-row"><span class="exec-time-badge">⏱ Strategy ran in ${d}</span></div>` : ''; })()}
             ${buildTradeTable(result.trades || [], cardId)}
         </div>`;
+
 
     // Save trades for sorting
     window.tradeDataMap[cardId] = result.trades || [];
@@ -458,7 +472,7 @@ function buildScreenerCard(result, isCustom = false) {
                 ${loadFiltersBtn}
                 ${deleteBtn}
             </div>
-            <span class="card-stats">Last run: ${timeAgo(result.updatedAt)} · Found: ${result.resultsFound || 0}</span>
+            <span class="card-stats">Last run: ${timeAgo(result.updatedAt)} · Found: ${result.resultsFound || 0}${(() => { const d = formatDuration(result.executionTimeMs); return d ? ` · ⏱ ${d}` : ''; })()}</span>
         </div>
         <div class="card-content" id="content-${cardId}">
             ${buildScreenerTable(result.results || [], cardId)}
