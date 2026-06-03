@@ -29,39 +29,6 @@
         </encoder>
     </appender>
 
-    <!-- ══════════════════════════════════════════════════════════════
-         PERF: Dedicated performance timing file appender.
-         Receives output ONLY from PerformanceLogger (logger configured below).
-         Output: logs/trading-bot-perf.log
-         To disable all PERF output: set the PerformanceLogger level to OFF.
-         ══════════════════════════════════════════════════════════════ -->
-    <appender name="PERF_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_PATH}/trading-bot-perf.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/trading-bot-perf-%d{yyyy-MM-dd}-%i.log.gz</fileNamePattern>
-            <maxFileSize>10MB</maxFileSize>
-            <maxHistory>5</maxHistory>
-            <totalSizeCap>50MB</totalSizeCap>
-        </rollingPolicy>
-        <encoder>
-            <pattern>%d{HH:mm:ss.SSS} %msg%n</pattern>
-        </encoder>
-    </appender>
-
-    <!-- PERF console mirror — comment out the appender-ref below to silence PERF from console -->
-    <appender name="PERF_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [PERF] %msg%n</pattern>
-        </encoder>
-    </appender>
-
-    <!-- PerformanceLogger: routes EXCLUSIVELY to PERF appenders.
-         Set level="OFF" here to completely disable all performance timing output.
-         additivity="false" ensures these lines never appear in the main log file. -->
-    <logger name="com.hemasundar.utils.PerformanceLogger" level="DEBUG" additivity="false">
-        <appender-ref ref="PERF_FILE" />
-        <appender-ref ref="PERF_CONSOLE" />
-    </logger>
 
     <!-- Project Loggers -->
     <logger name="com.hemasundar" level="INFO" additivity="false">

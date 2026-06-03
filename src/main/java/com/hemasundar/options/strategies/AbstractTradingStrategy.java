@@ -23,7 +23,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import com.hemasundar.utils.PerformanceLogger;
 
 @Log4j2
 @RequiredArgsConstructor
@@ -254,10 +253,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             } else {
                 // Fetch price history and calculate volatility
                 log.debug("[{}] Fetching price history to calculate historical volatility", symbol);
-                // Point 5: time the price history API call for HV calculation
-                long t0 = System.currentTimeMillis();
                 PriceHistoryResponse priceHistory = thinkOrSwinAPIs.getYearlyPriceHistory(symbol, 1);
-                PerformanceLogger.log("getYearlyPriceHistory (HV)", symbol, System.currentTimeMillis() - t0);
                 historicalVolatility = volatilityCalculator.calculateAnnualizedVolatility(priceHistory);
 
                 // Cache the result
@@ -306,10 +302,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             return null;
         }
         try {
-            // Point 6: time the Supabase IV Rank lookup
-            long t0 = System.currentTimeMillis();
             Double rank = supabaseService.get().getIVRank(symbol);
-            PerformanceLogger.log("resolveIVRank (Supabase)", symbol, System.currentTimeMillis() - t0);
             cache.put(symbol, rank);
             if (rank != null) {
                 log.debug("[{}] Fetched IV Rank: {:.1f}%", symbol, rank);

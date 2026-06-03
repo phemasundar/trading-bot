@@ -43,18 +43,14 @@ public class OptionChainCache {
      * @return OptionChainResponse for the symbol
      */
     public OptionChainResponse get(String symbol) {
-        // Point 2: detect cache hit early (no API call needed)
         if (cache.containsKey(symbol)) {
-            PerformanceLogger.log("getOptionChain (cache HIT)", symbol, 0);
             return cache.get(symbol);
         }
 
-        // Point 1 & 2: cache miss — time the actual Schwab API call
+        // cache miss — time the actual Schwab API call
         apiCallCounter.incrementAndGet();
         log.debug("Fetching from API: {} (API call #{})", symbol, apiCallCounter.get());
-        long t0 = System.currentTimeMillis();
         OptionChainResponse response = schwabApi.getOptionChain(symbol);
-        PerformanceLogger.log("getOptionChain API call", symbol, System.currentTimeMillis() - t0);
         cache.put(symbol, response);
         return response;
     }
@@ -85,16 +81,12 @@ public class OptionChainCache {
 
         log.info("Cache pre-warm: fetching {} symbols in parallel (skipping {} already cached)",
                 uncached.size(), symbols.size() - uncached.size());
-        PerformanceLogger.header("cache.prewarm: " + uncached.size() + " symbols");
 
         long t0 = System.currentTimeMillis();
         List<OptionChainResponse> responses = executor.executeParallel(uncached,
                 symbol -> {
                     apiCallCounter.incrementAndGet();
-                    long st = System.currentTimeMillis();
-                    OptionChainResponse resp = schwabApi.getOptionChain(symbol);
-                    PerformanceLogger.log("prewarm API call", symbol, System.currentTimeMillis() - st);
-                    return resp;
+                    return schwabApi.getOptionChain(symbol);
                 });
 
         // Store results — nulls from failed calls are skipped
@@ -107,7 +99,6 @@ public class OptionChainCache {
             }
         }
 
-        PerformanceLogger.log("cache.prewarm TOTAL", System.currentTimeMillis() - t0);
         log.info("Cache pre-warm complete: {}/{} symbols fetched in {}ms",
                 uncached.size(), symbols.size(), System.currentTimeMillis() - t0);
     }

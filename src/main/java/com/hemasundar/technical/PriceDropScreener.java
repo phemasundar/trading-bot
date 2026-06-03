@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import com.hemasundar.utils.PerformanceLogger;
 
 @Log4j2
 @Component
@@ -165,11 +164,8 @@ public class PriceDropScreener {
         List<TechnicalScreener.ScreeningResult> parallelResults = schwabApiExecutor.executeParallel(
                 symbols, symbol -> {
                     try {
-                        long t0 = System.currentTimeMillis();
                         PriceHistoryResponse history = thinkOrSwinAPIs.getPriceHistory(
                                 symbol, "month", finalMonthsNeeded, "daily", 1, null, null, false, false);
-                        PerformanceLogger.log("getPriceHistory (dropScreener)", symbol,
-                                System.currentTimeMillis() - t0);
 
                         if (history == null || history.getCandles() == null
                                 || history.getCandles().isEmpty()) {
@@ -226,7 +222,6 @@ public class PriceDropScreener {
             if (r != null) results.add(r);
         }
 
-        PerformanceLogger.log("screenMultiDayDrop TOTAL (parallel)", System.currentTimeMillis() - screenT0);
         log.info("Multi-day drop screening complete. Found {} stocks matching criteria.", results.size());
         return results;
     }

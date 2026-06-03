@@ -30,7 +30,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import com.hemasundar.dto.ExecutionLogEntry;
-import com.hemasundar.utils.PerformanceLogger;
 
 /**
  * Service layer for executing trading strategies.
@@ -206,9 +205,6 @@ public class StrategyExecutionService {
             // Shared cache for option chains
             OptionChainCache cache = new OptionChainCache(thinkOrSwinAPIs);
 
-            // Print PERF header for this run
-            PerformanceLogger.header("executeStrategies: " + selectedStrategies.size() + " strategies");
-
             // ── Parallel Cache Pre-warm (Track A) ──
             // Collect the union of all securities from strategies that do NOT use a
             // technical filter. For those strategies the full securities list goes
@@ -245,11 +241,7 @@ public class StrategyExecutionService {
                 setCurrentExecutionTask(config.getName());
                 log.info("Executing strategy {}/{}: {}", i + 1, selectedStrategies.size(), config.getName());
 
-                // Point 4: time each individual strategy
-                PerformanceLogger.section(config.getName());
-                long stratT0 = System.currentTimeMillis();
                 StrategyResult result = executeStrategy(config, cache, false);
-                PerformanceLogger.log("strategy total", config.getName(), System.currentTimeMillis() - stratT0);
 
                 results.add(result);
                 totalTrades += result.getTradesFound();
@@ -264,9 +256,6 @@ public class StrategyExecutionService {
                     .totalExecutionTimeMs(System.currentTimeMillis() - startTime)
                     .telegramSent(true) // Telegram is sent during strategy execution
                     .build();
-
-            // Point 10: overall execution wall time
-            PerformanceLogger.log("TOTAL execution wall time", System.currentTimeMillis() - startTime);
 
             // Save to Supabase
             try {
@@ -432,17 +421,11 @@ public class StrategyExecutionService {
                 continue;
             }
             try {
-                // Point 2: time the full cache.get() call (API fetch or cache hit)
-                long cacheT0 = System.currentTimeMillis();
                 OptionChainResponse optionChainResponse = cache.get(symbol);
-                PerformanceLogger.log("cache.get (total)", symbol, System.currentTimeMillis() - cacheT0);
 
                 log.info("Processing symbol: {}", symbol);
 
-                // Point 3: time the strategy computation (pure CPU, no I/O)
-                long findT0 = System.currentTimeMillis();
                 List<TradeSetup> trades = strategy.findTrades(optionChainResponse, config.getFilter());
-                PerformanceLogger.log("strategy.findTrades", symbol, System.currentTimeMillis() - findT0);
 
                 trades.forEach(trade -> log.info("Trade: {}", trade));
 

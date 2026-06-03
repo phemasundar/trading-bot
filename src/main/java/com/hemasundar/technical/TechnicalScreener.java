@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.springframework.stereotype.Component;
-import com.hemasundar.utils.PerformanceLogger;
 
 /**
  * Technical stock screener that filters stocks based on technical criteria
@@ -207,10 +206,7 @@ public class TechnicalScreener {
 
         List<ScreeningResult> parallelResults = schwabApiExecutor.executeParallel(symbols, symbol -> {
             try {
-                long t0 = System.currentTimeMillis();
-                ScreeningResult result = analyzeStock(symbol, filterChain.getIndicators());
-                PerformanceLogger.log("analyzeStock (total)", symbol, System.currentTimeMillis() - t0);
-                return result;
+                return analyzeStock(symbol, filterChain.getIndicators());
             } catch (Exception e) {
                 log.warn("[{}] Error analyzing stock: {}", symbol, e.getMessage());
                 return null;
@@ -226,7 +222,6 @@ public class TechnicalScreener {
             }
         }
 
-        PerformanceLogger.log("screenStocks TOTAL (parallel)", System.currentTimeMillis() - screenT0);
         log.info("Screening complete. Found {} stocks matching criteria.", results.size());
         return results;
     }
@@ -235,10 +230,7 @@ public class TechnicalScreener {
      * Analyzes a single stock and calculates all technical values.
      */
     public ScreeningResult analyzeStock(String symbol, TechnicalIndicators indicators) {
-        // Point 8: time the price history API fetch for technical screener
-        long t0 = System.currentTimeMillis();
         PriceHistoryResponse priceHistory = thinkOrSwinAPIs.getYearlyPriceHistory(symbol, 1);
-        PerformanceLogger.log("getYearlyPriceHistory (screener)", symbol, System.currentTimeMillis() - t0);
         if (priceHistory == null) {
             return null;
         }
