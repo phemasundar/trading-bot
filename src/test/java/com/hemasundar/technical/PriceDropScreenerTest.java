@@ -3,6 +3,7 @@ package com.hemasundar.technical;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.pojos.QuotesResponse;
 import com.hemasundar.pojos.PriceHistoryResponse;
+import com.hemasundar.utils.SchwabApiExecutor;
 import org.mockito.Mockito;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -23,11 +24,22 @@ public class PriceDropScreenerTest {
 
     private PriceDropScreener priceDropScreener;
     private ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private SchwabApiExecutor schwabApiExecutor;
 
     @BeforeMethod
     public void setUp() {
         thinkOrSwinAPIs = Mockito.mock(ThinkOrSwinAPIs.class);
-        priceDropScreener = new PriceDropScreener(thinkOrSwinAPIs);
+        schwabApiExecutor = Mockito.mock(SchwabApiExecutor.class);
+        Mockito.when(schwabApiExecutor.executeParallel(anyList(), any())).thenAnswer(inv -> {
+            List<String> symbols = inv.getArgument(0);
+            java.util.function.Function<String, Object> func = inv.getArgument(1);
+            List<Object> res = new ArrayList<>();
+            for (String s : symbols) {
+                res.add(func.apply(s));
+            }
+            return res;
+        });
+        priceDropScreener = new PriceDropScreener(thinkOrSwinAPIs, schwabApiExecutor);
     }
 
     @Test

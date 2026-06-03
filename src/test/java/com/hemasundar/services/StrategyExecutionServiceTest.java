@@ -46,6 +46,9 @@ public class StrategyExecutionServiceTest {
     @Mock
     private TechnicalScreener technicalScreener;
 
+    @Mock
+    private com.hemasundar.utils.SchwabApiExecutor schwabApiExecutor;
+
     @InjectMocks
     private StrategyExecutionService strategyExecutionService;
 
@@ -73,7 +76,8 @@ public class StrategyExecutionServiceTest {
                 telegramUtils,
                 technicalScreener,
                 volatilityCalculator,
-                strategiesConfigLoader
+                strategiesConfigLoader,
+                schwabApiExecutor
         );
 
         mockedFilePaths = Mockito.mockStatic(FilePaths.class);
