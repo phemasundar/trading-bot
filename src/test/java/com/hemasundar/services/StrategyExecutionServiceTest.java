@@ -79,6 +79,15 @@ public class StrategyExecutionServiceTest {
                 strategiesConfigLoader,
                 schwabApiExecutor
         );
+        when(schwabApiExecutor.executeParallel(anyList(), any())).thenAnswer(inv -> {
+            List<String> symbols = inv.getArgument(0);
+            java.util.function.Function<String, Object> func = inv.getArgument(1);
+            List<Object> res = new ArrayList<>();
+            for (String s : symbols) {
+                res.add(func.apply(s));
+            }
+            return res;
+        });
 
         mockedFilePaths = Mockito.mockStatic(FilePaths.class);
         mockedJavaUtils = Mockito.mockStatic(JavaUtils.class);
@@ -163,11 +172,7 @@ public class StrategyExecutionServiceTest {
     public void testExecuteStrategiesCancellation() throws IOException {
         OptionsConfig config1 = mock(OptionsConfig.class);
         when(config1.getName()).thenReturn("Strategy 1");
-        // Trigger cancellation during execution of first strategy via getSecurities()
-        when(config1.getSecurities()).thenAnswer(inv -> {
-            strategyExecutionService.cancelExecution();
-            return Collections.emptyList();
-        });
+        when(config1.getSecurities()).thenReturn(List.of("AAPL"));
         AbstractTradingStrategy strategy1 = mock(AbstractTradingStrategy.class);
         when(config1.getStrategy()).thenReturn(strategy1);
         when(strategy1.getStrategyName()).thenReturn("S1");
@@ -179,8 +184,10 @@ public class StrategyExecutionServiceTest {
         when(setup1.getReturnOnRisk()).thenReturn(20.0);
         when(setup1.getBreakEvenPrice()).thenReturn(145.0);
         when(setup1.getBreakEvenPercentage()).thenReturn(3.0);
-        when(strategy1.findTrades(any(), any()))
-                .thenReturn(List.of(setup1));
+        when(strategy1.findTrades(any(), any())).thenAnswer(inv -> {
+            strategyExecutionService.cancelExecution();
+            return List.of(setup1);
+        });
 
         OptionsConfig config2 = mock(OptionsConfig.class);
         when(config2.getName()).thenReturn("Strategy 2");
