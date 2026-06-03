@@ -14,6 +14,7 @@ import com.hemasundar.options.strategies.AbstractTradingStrategy;
 import com.hemasundar.technical.TechnicalScreener;
 import com.hemasundar.utils.FilePaths;
 import com.hemasundar.utils.OptionChainCache;
+import com.hemasundar.utils.SchwabApiExecutor;
 import com.hemasundar.utils.SecuritiesResolver;
 import com.hemasundar.utils.TelegramUtils;
 import com.hemasundar.utils.VolatilityCalculator;
@@ -29,6 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import com.hemasundar.dto.ExecutionLogEntry;
+import com.hemasundar.utils.PerformanceLogger;
 
 /**
  * Service layer for executing trading strategies.
@@ -47,6 +49,7 @@ public class StrategyExecutionService {
     private final TechnicalScreener technicalScreener;
     private final VolatilityCalculator volatilityCalculator;
     private final StrategiesConfigLoader strategiesConfigLoader;
+    private final SchwabApiExecutor schwabApiExecutor;
 
     // Execution state tracking (visible across page refreshes)
     private final AtomicBoolean executionRunning = new AtomicBoolean(false);
@@ -203,6 +206,28 @@ public class StrategyExecutionService {
             // Shared cache for option chains
             OptionChainCache cache = new OptionChainCache(thinkOrSwinAPIs);
 
+            // Print PERF header for this run
+            PerformanceLogger.header("executeStrategies: " + selectedStrategies.size() + " strategies");
+
+            // ── Parallel Cache Pre-warm (Track A) ──
+            // Collect the union of all securities from strategies that do NOT use a
+            // technical filter. For those strategies the full securities list goes
+            // directly to getOptionChain, so we can pre-warm all of them now.
+            // Strategies that DO have a technical filter are skipped here because their
+            // option-chain calls only happen for the small survivor set after screening
+            // (handled lazily); the screener itself benefits from Track B.
+            List<String> symbolsToPrewarm = selectedStrategies.stream()
+                    .filter(c -> !c.hasTechnicalFilter())
+                    .flatMap(c -> c.getSecurities().stream())
+                    .distinct()
+                    .collect(Collectors.toList());
+
+            if (!symbolsToPrewarm.isEmpty()) {
+                log.info("Pre-warming option chain cache for {} unique symbols across {} strategies",
+                        symbolsToPrewarm.size(), selectedStrategies.size());
+                cache.prewarm(symbolsToPrewarm, schwabApiExecutor);
+            }
+
             // Execute each strategy
             List<StrategyResult> results = new ArrayList<>();
             int totalTrades = 0;
@@ -220,7 +245,12 @@ public class StrategyExecutionService {
                 setCurrentExecutionTask(config.getName());
                 log.info("Executing strategy {}/{}: {}", i + 1, selectedStrategies.size(), config.getName());
 
+                // Point 4: time each individual strategy
+                PerformanceLogger.section(config.getName());
+                long stratT0 = System.currentTimeMillis();
                 StrategyResult result = executeStrategy(config, cache, false);
+                PerformanceLogger.log("strategy total", config.getName(), System.currentTimeMillis() - stratT0);
+
                 results.add(result);
                 totalTrades += result.getTradesFound();
             }
@@ -234,6 +264,9 @@ public class StrategyExecutionService {
                     .totalExecutionTimeMs(System.currentTimeMillis() - startTime)
                     .telegramSent(true) // Telegram is sent during strategy execution
                     .build();
+
+            // Point 10: overall execution wall time
+            PerformanceLogger.log("TOTAL execution wall time", System.currentTimeMillis() - startTime);
 
             // Save to Supabase
             try {
@@ -399,10 +432,18 @@ public class StrategyExecutionService {
                 continue;
             }
             try {
+                // Point 2: time the full cache.get() call (API fetch or cache hit)
+                long cacheT0 = System.currentTimeMillis();
                 OptionChainResponse optionChainResponse = cache.get(symbol);
+                PerformanceLogger.log("cache.get (total)", symbol, System.currentTimeMillis() - cacheT0);
+
                 log.info("Processing symbol: {}", symbol);
 
+                // Point 3: time the strategy computation (pure CPU, no I/O)
+                long findT0 = System.currentTimeMillis();
                 List<TradeSetup> trades = strategy.findTrades(optionChainResponse, config.getFilter());
+                PerformanceLogger.log("strategy.findTrades", symbol, System.currentTimeMillis() - findT0);
+
                 trades.forEach(trade -> log.info("Trade: {}", trade));
 
                 if (!trades.isEmpty()) {

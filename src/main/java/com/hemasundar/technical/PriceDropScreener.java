@@ -3,12 +3,14 @@ package com.hemasundar.technical;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.pojos.QuotesResponse;
+import com.hemasundar.utils.SchwabApiExecutor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import com.hemasundar.utils.PerformanceLogger;
 
 @Log4j2
 @Component
@@ -16,6 +18,7 @@ import java.util.Map;
 public class PriceDropScreener {
 
     private final ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private final SchwabApiExecutor schwabApiExecutor;
 
     /**
      * Screens stocks for price drops over a given number of trading days.
@@ -145,74 +148,86 @@ public class PriceDropScreener {
     private List<TechnicalScreener.ScreeningResult> screenMultiDayDrop(
             List<String> symbols, double minDropPercent, int lookbackDays) {
 
-        List<TechnicalScreener.ScreeningResult> results = new ArrayList<>();
+        log.info("Screening {} symbols for >= {}% drop over {} days (parallel)",
+                symbols.size(), minDropPercent, lookbackDays);
 
-        log.info("Screening {} symbols for >= {}% drop over {} days", symbols.size(), minDropPercent, lookbackDays);
-
-        // Determine how many months of daily history we need to fetch based on lookbackDays.
-        // Standard periods for "month" are 1, 2, 3, 6 months in the Schwab Price History API.
         int monthsNeeded = 1;
         if (lookbackDays >= 60) {
             monthsNeeded = 6;
         } else if (lookbackDays >= 20) {
             monthsNeeded = 3;
         }
+        final int finalMonthsNeeded = monthsNeeded;
 
-        for (String symbol : symbols) {
-            try {
-                // Fetch enough daily data to cover the lookback period
-                PriceHistoryResponse history = thinkOrSwinAPIs.getPriceHistory(
-                        symbol, "month", monthsNeeded, "daily", 1, null, null, false, false);
+        long screenT0 = System.currentTimeMillis();
 
-                if (history == null || history.getCandles() == null || history.getCandles().isEmpty()) {
-                    continue;
-                }
+        // ── Parallel execution (Track B) ──
+        List<TechnicalScreener.ScreeningResult> parallelResults = schwabApiExecutor.executeParallel(
+                symbols, symbol -> {
+                    try {
+                        long t0 = System.currentTimeMillis();
+                        PriceHistoryResponse history = thinkOrSwinAPIs.getPriceHistory(
+                                symbol, "month", finalMonthsNeeded, "daily", 1, null, null, false, false);
+                        PerformanceLogger.log("getPriceHistory (dropScreener)", symbol,
+                                System.currentTimeMillis() - t0);
 
-                List<PriceHistoryResponse.CandleData> candles = history.getCandles();
-                int totalBars = candles.size();
+                        if (history == null || history.getCandles() == null
+                                || history.getCandles().isEmpty()) {
+                            return null;
+                        }
 
-                if (totalBars < lookbackDays + 1) {
-                    log.debug("[{}] Not enough price history ({} bars, need {})", symbol, totalBars, lookbackDays + 1);
-                    continue;
-                }
+                        List<PriceHistoryResponse.CandleData> candles = history.getCandles();
+                        int totalBars = candles.size();
 
-                // Current price is the last candle's close
-                PriceHistoryResponse.CandleData currentCandle = candles.get(totalBars - 1);
-                double currentPrice = currentCandle.getClose();
-                long volume = currentCandle.getVolume();
+                        if (totalBars < lookbackDays + 1) {
+                            log.debug("[{}] Not enough price history ({} bars, need {})",
+                                    symbol, totalBars, lookbackDays + 1);
+                            return null;
+                        }
 
-                // Reference price is the close from N trading days ago
-                PriceHistoryResponse.CandleData referenceCandle = candles.get(totalBars - 1 - lookbackDays);
-                double referencePrice = referenceCandle.getClose();
+                        PriceHistoryResponse.CandleData currentCandle = candles.get(totalBars - 1);
+                        double currentPrice = currentCandle.getClose();
+                        long volume = currentCandle.getVolume();
 
-                if (referencePrice <= 0) {
-                    continue;
-                }
+                        PriceHistoryResponse.CandleData referenceCandle =
+                                candles.get(totalBars - 1 - lookbackDays);
+                        double referencePrice = referenceCandle.getClose();
 
-                double dropPct = ((referencePrice - currentPrice) / referencePrice) * 100.0;
+                        if (referencePrice <= 0) return null;
 
-                if (dropPct >= minDropPercent) {
-                    String dropType;
-                    if (lookbackDays == 21) {
-                        dropType = "1M";
-                    } else if (lookbackDays == 63) {
-                        dropType = "3M";
-                    } else {
-                        dropType = lookbackDays + "D";
+                        double dropPct = ((referencePrice - currentPrice) / referencePrice) * 100.0;
+
+                        if (dropPct >= minDropPercent) {
+                            String dropType;
+                            if (lookbackDays == 21) {
+                                dropType = "1M";
+                            } else if (lookbackDays == 63) {
+                                dropType = "3M";
+                            } else {
+                                dropType = lookbackDays + "D";
+                            }
+                            log.info("[{}] Down {}% over {} days (${} -> ${})",
+                                    symbol, String.format("%.2f", dropPct), lookbackDays,
+                                    String.format("%.2f", referencePrice),
+                                    String.format("%.2f", currentPrice));
+                            return buildResult(symbol, currentPrice, volume, dropPct,
+                                    referencePrice, dropType);
+                        }
+                        return null;
+                    } catch (Exception e) {
+                        log.warn("[{}] Error in drop screener: {}", symbol, e.getMessage());
+                        return null;
                     }
+                });
 
-                    results.add(buildResult(symbol, currentPrice, volume,
-                            dropPct, referencePrice, dropType));
-                    log.info("[{}] Down {}% over {} days (${} -> ${})",
-                            symbol, String.format("%.2f", dropPct), lookbackDays,
-                            String.format("%.2f", referencePrice), String.format("%.2f", currentPrice));
-                }
-            } catch (Exception e) {
-                log.warn("[{}] Error analyzing multi-day drop: {}", symbol, e.getMessage());
-            }
+        // Collect non-null results
+        List<TechnicalScreener.ScreeningResult> results = new ArrayList<>();
+        for (TechnicalScreener.ScreeningResult r : parallelResults) {
+            if (r != null) results.add(r);
         }
 
-        log.info("{}-Day drop screening complete. Found {} stocks matching criteria.", lookbackDays, results.size());
+        PerformanceLogger.log("screenMultiDayDrop TOTAL (parallel)", System.currentTimeMillis() - screenT0);
+        log.info("Multi-day drop screening complete. Found {} stocks matching criteria.", results.size());
         return results;
     }
 

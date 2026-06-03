@@ -282,12 +282,35 @@ a:hover {
     display: block;
 }
 
+/* ── Execution Time Badge (inside expanded card-content) ── */
+.exec-time-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.exec-time-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: rgba(19, 73, 236, 0.12);
+    border: 1px solid rgba(19, 73, 236, 0.25);
+    color: var(--primary);
+    letter-spacing: 0.2px;
+}
+
+
 .card-arrow {
     font-size: 0.7rem;
     transition: transform 0.2s;
     display: inline-block;
     margin-right: 6px;
 }
+
 
 .card-arrow.open {
     transform: rotate(90deg);
