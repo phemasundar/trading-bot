@@ -300,7 +300,6 @@ function buildResultCard(result, badgeText = 'Standard') {
         <div class="card-params">${formatFilterParams(result.filterConfig)}</div>
         ${filterDetailsHtml}
         <div class="card-content" id="content-${cardId}">
-            ${(() => { const d = formatDuration(result.executionTimeMs); return d ? `<div class="exec-time-row"><span class="exec-time-badge">⏱ Strategy ran in ${d}</span></div>` : ''; })()}
             ${buildTradeTable(result.trades || [], cardId)}
         </div>`;
 
