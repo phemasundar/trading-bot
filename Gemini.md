@@ -1,5 +1,24 @@
 # Project Updates
 
+## Bug Fix: Short Put Strategy Filters Ignored on Custom Execution (2026-06-04)
+
+Fixed a bug where leg-specific filters (e.g., `maxDelta`, `minDelta`) for the **Short Put** strategy were silently ignored when executing from the Execute Strategy screen (Custom Execution), and subsequently failed to populate when clicking "Load Filters" on the execution result card.
+
+### Root Cause
+When executing a predefined strategy from the Dashboard, `StrategiesConfigLoader` uses `filterType: "CreditSpreadFilter"` explicitly from the JSON to instantiate a `CreditSpreadFilter` object, which natively includes the `shortLeg` field.
+
+However, Custom Executions via `POST /api/execute/custom` use `FilterParser.buildFilter()` which instantiates the filter object based on a `switch` block evaluating the `StrategyType`. The `SHORT_PUT` enum was completely missing from this switch statement. Consequently, the parser fell back to instantiating the base `OptionsStrategyFilter`, which does **not** have a `shortLeg` nested object. The short leg constraints were silently discarded during deserialization, resulting in the strategy running with no short leg filter constraints, and no short leg data saved to the Supabase JSON payload for UI reloading.
+
+### Fix
+Added `case SHORT_PUT:` to the `CreditSpreadFilter` block in `FilterParser.java`. `SHORT_PUT` custom executions now correctly instantiate a `CreditSpreadFilter`, properly mapping the `shortLeg` constraints to the model for execution and persistence.
+
+### Architecture
+| File | Change |
+|---|---|
+| **`FilterParser.java`** | Added `case SHORT_PUT:` inside `buildFilter()` to map it to `CreditSpreadFilter` |
+
+---
+
 ## New Filter: Minimum Return on Risk CAGR (2026-06-04)
 
 Added `minReturnOnRiskCAGR`, a new common strategy filter that annualizes the raw Return-on-Risk metric based on the trade's Days to Expiration (DTE). This allows users to filter trades by a standard annualized yield percentage (CAGR).

@@ -24,6 +24,7 @@ public class FilterParser {
             case TECH_PUT_CREDIT_SPREAD:
             case CALL_CREDIT_SPREAD:
             case TECH_CALL_CREDIT_SPREAD:
+            case SHORT_PUT:
                 filter = new CreditSpreadFilter();
                 break;
             case IRON_CONDOR:
