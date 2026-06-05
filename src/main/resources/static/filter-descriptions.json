@@ -12,6 +12,7 @@
     "maxTotalCredit": "The maximum total credit allowed for the entire trade.",
     "minTotalCredit": "The minimum total credit required for the trade to be valid.",
     "minReturnOnRisk": "The minimum acceptable percentage return relative to the maximum risk (Max Loss).",
+    "minReturnOnRiskCAGR": "The minimum acceptable annualized Return-on-Risk as a compound annual growth rate (CAGR). Scales the raw Return-on-Risk to a full year based on the trade's DTE using the formula: ((profit / maxLoss + 1)^(365/DTE) - 1) * 100. Example: 50 means only trades whose annualized RoR meets or exceeds 50%.",
     "minHistoricalVolatility": "The minimum annualized historical volatility of the underlying security.",
     "maxBreakEvenPercentage": "The maximum percentage move against the trade required to reach the breakeven point.",
     "maxUpperBreakevenDelta": "The maximum delta allowed at the upper breakeven point.",

@@ -71,6 +71,38 @@ public class OptionsStrategyFilterTest {
     }
 
     @Test
+    public void testPassesMinReturnOnRiskCAGR() {
+        OptionsStrategyFilter filter = OptionsStrategyFilter.builder()
+                .minReturnOnRiskCAGR(50) // 50%
+                .build();
+
+        // Base case: exactly 1 year (365 DTE)
+        // Profit = 500, MaxLoss = 1000 -> raw return = 0.50 (50%)
+        // CAGR = (1 + 0.5)^(365/365) - 1 = 0.5 (50%) -> Pass
+        assertTrue(filter.passesMinReturnOnRiskCAGR(500.0, 1000.0, 365));
+
+        // Less than 1 year (e.g. 73 days, 1/5 of a year)
+        // Profit = 100, MaxLoss = 1000 -> raw return = 0.10 (10%)
+        // CAGR = (1 + 0.1)^(365/73) - 1 = (1.1)^5 - 1 = 1.61051 - 1 = 0.61051 (61.05%) -> Pass
+        assertTrue(filter.passesMinReturnOnRiskCAGR(100.0, 1000.0, 73));
+
+        // Barely failing on short timeframe
+        // Profit = 80, MaxLoss = 1000 -> raw return = 0.08 (8%)
+        // CAGR = (1 + 0.08)^5 - 1 = 0.4693 (46.9%) -> Fail (needs 50%)
+        assertFalse(filter.passesMinReturnOnRiskCAGR(80.0, 1000.0, 73));
+
+        // Edge case: maxLoss = 0 -> pass
+        assertTrue(filter.passesMinReturnOnRiskCAGR(10.0, 0.0, 30));
+
+        // Edge case: DTE = 0 -> pass
+        assertTrue(filter.passesMinReturnOnRiskCAGR(10.0, 1000.0, 0));
+
+        // Edge case: filter disabled
+        filter.setMinReturnOnRiskCAGR(null);
+        assertTrue(filter.passesMinReturnOnRiskCAGR(10.0, 1000.0, 30));
+    }
+
+    @Test
     public void testPassesMaxBreakEvenPercentage() {
         OptionsStrategyFilter filter = OptionsStrategyFilter.builder()
                 .maxBreakEvenPercentage(5.0)

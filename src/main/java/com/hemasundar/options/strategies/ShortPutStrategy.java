@@ -90,6 +90,7 @@ public class ShortPutStrategy extends AbstractTradingStrategy {
                 .step(FilterStage.MIN_CREDIT_FILTER,          commonMinTotalCreditFilter(filter, ShortPutCandidate::netCredit))
                 .step(FilterStage.MAX_LOSS_FILTER,            commonMaxLossFilter(filter, ShortPutCandidate::maxLoss))
                 .step(FilterStage.MIN_RETURN_ON_RISK_FILTER,  commonMinReturnOnRiskFilter(filter, ShortPutCandidate::netCredit, ShortPutCandidate::maxLoss))
+                .step(FilterStage.MIN_RETURN_ON_RISK_CAGR_FILTER, commonMinReturnOnRiskCAGRFilter(filter, ShortPutCandidate::netCredit, ShortPutCandidate::maxLoss, c -> c.shortLeg().getDaysToExpiration()))
                 .run(candidates);
 
         // ── Map to TradeSetup ─────────────────────────────────────────────────

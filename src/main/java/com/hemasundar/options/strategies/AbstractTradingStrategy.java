@@ -178,6 +178,32 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
     }
 
     /**
+     * Common filter for minReturnOnRiskCAGR (annualized Return-on-Risk).
+     * Returns a predicate that checks if the annualized RoR meets the minimum
+     * CAGR threshold configured in the filter.
+     *
+     * <p>CAGR formula: {@code ((profit / maxLoss + 1)^(365.0 / dte) - 1) * 100}
+     *
+     * @param filter           The strategy filter containing minReturnOnRiskCAGR
+     * @param profitExtractor  Function to extract net profit/credit from candidate
+     * @param maxLossExtractor Function to extract maxLoss from candidate
+     * @param dteExtractor     Function to extract days-to-expiration from candidate
+     * @return Predicate that validates annualized RoR against configured minimum
+     */
+    protected <T> java.util.function.Predicate<T> commonMinReturnOnRiskCAGRFilter(
+            OptionsStrategyFilter filter,
+            java.util.function.Function<T, Double> profitExtractor,
+            java.util.function.Function<T, Double> maxLossExtractor,
+            java.util.function.Function<T, Integer> dteExtractor) {
+        return candidate -> {
+            double profit = profitExtractor.apply(candidate);
+            double maxLoss = maxLossExtractor.apply(candidate);
+            int dte = dteExtractor.apply(candidate);
+            return filter.passesMinReturnOnRiskCAGR(profit, maxLoss, dte);
+        };
+    }
+
+    /**
      * Common filter for maxNetExtrinsicValueToPricePercentage.
      * Returns a predicate that checks if the net extrinsic value relative to the
      * stock price is within the max limit.

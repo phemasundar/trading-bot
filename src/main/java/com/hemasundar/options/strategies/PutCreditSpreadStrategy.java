@@ -77,6 +77,7 @@ public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
                 .step(FilterStage.MIN_CREDIT_FILTER,        commonMinTotalCreditFilter(filter, PutSpreadCandidate::netCredit))
                 .step(FilterStage.MAX_LOSS_FILTER,          commonMaxLossFilter(filter, PutSpreadCandidate::maxLoss))
                 .step(FilterStage.MIN_RETURN_ON_RISK_FILTER, commonMinReturnOnRiskFilter(filter, PutSpreadCandidate::netCredit, PutSpreadCandidate::maxLoss))
+                .step(FilterStage.MIN_RETURN_ON_RISK_CAGR_FILTER, commonMinReturnOnRiskCAGRFilter(filter, PutSpreadCandidate::netCredit, PutSpreadCandidate::maxLoss, c -> c.shortLeg().getDaysToExpiration()))
                 .run(candidates);
 
         List<TradeSetup> mapped = survived.stream().map(this::buildTradeSetup).toList();

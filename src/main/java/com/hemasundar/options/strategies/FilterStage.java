@@ -21,6 +21,7 @@ public enum FilterStage {
     IV_RANK_FILTER("IV Rank Filter"),
     MAX_LOSS_FILTER("Max Loss Filter"),
     MIN_RETURN_ON_RISK_FILTER("Min Return on Risk Filter"),
+    MIN_RETURN_ON_RISK_CAGR_FILTER("Min Return on Risk CAGR Filter"),
     MAX_EXTRINSIC_VALUE_FILTER("Max Extrinsic Value Filter"),
     MIN_EXTRINSIC_VALUE_FILTER("Min Extrinsic Value Filter"),
     BREAK_EVEN_FILTER("Break-Even Filter"),

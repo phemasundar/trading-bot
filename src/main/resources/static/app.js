@@ -1075,7 +1075,7 @@ function renderFilterGrid(cfg) {
 
     for (const [key, val] of entries) {
         if (key === 'maxDTE' && val === 2147483647) continue;
-        if ((key === 'targetDTE' || key === 'minDTE' || key === 'minReturnOnRisk') && val === 0) continue;
+        if ((key === 'targetDTE' || key === 'minDTE' || key === 'minReturnOnRisk' || key === 'minReturnOnRiskCAGR') && val === 0) continue;
         
         if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
             nested.push([key, val]);
@@ -1111,6 +1111,7 @@ function formatFilterParams(filterConfigJson) {
         if (cfg.maxUpperBreakevenDelta) parts.push(`Delta < ${cfg.maxUpperBreakevenDelta.toFixed(2)}`);
         if (cfg.maxLossLimit) parts.push(`Max Loss: <$${cfg.maxLossLimit.toFixed(0)}`);
         if (cfg.minReturnOnRisk) parts.push(`Min RoR: ${cfg.minReturnOnRisk}%`);
+        if (cfg.minReturnOnRiskCAGR) parts.push(`Min RoR CAGR: ${cfg.minReturnOnRiskCAGR}%`);
         if (cfg.maxBreakEvenPercentage) parts.push(`Max B/E: ${cfg.maxBreakEvenPercentage.toFixed(1)}%`);
         if (cfg.maxNetExtrinsicValueToPricePercentage) parts.push(`Max Ext: ${cfg.maxNetExtrinsicValueToPricePercentage.toFixed(1)}%`);
         return parts.join(', ') || '';
@@ -2118,7 +2119,7 @@ function loadFiltersFromResult(btn) {
         // 6. Set filter fields via data-filter matching
         for (const [k, v] of Object.entries(flatFilters)) {
             if (k === 'maxDTE' && v === 2147483647) continue;
-            if ((k === 'targetDTE' || k === 'minDTE' || k === 'minReturnOnRisk') && v === 0) continue;
+            if ((k === 'targetDTE' || k === 'minDTE' || k === 'minReturnOnRisk' || k === 'minReturnOnRiskCAGR') && v === 0) continue;
 
             const el = document.querySelector(`[data-filter="${k}"]`);
             if (el) {

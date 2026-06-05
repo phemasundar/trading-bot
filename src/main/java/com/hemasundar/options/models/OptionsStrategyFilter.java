@@ -31,6 +31,14 @@ public class OptionsStrategyFilter {
     // Risk/Return filters
     private Double maxLossLimit;
     private Integer minReturnOnRisk;
+    /**
+     * Minimum annualized Return-on-Risk (CAGR) as a percentage.
+     * Applies the compound annual growth rate formula to the raw Return-on-Risk,
+     * scaling it to a full year based on the trade's DTE:
+     * {@code CAGR = ((profit / maxLoss + 1)^(365.0 / dte) - 1) * 100}
+     * Example: 10 means only trades with an annualized RoR of at least 10%.
+     */
+    private Integer minReturnOnRiskCAGR;
     private Double maxTotalDebit;
     private Double maxTotalCredit;
     private Double minTotalCredit;
@@ -147,6 +155,25 @@ public class OptionsStrategyFilter {
             return true; // Avoid division by zero
         double requiredProfit = maxLoss * (this.minReturnOnRisk / 100.0);
         return profit >= requiredProfit;
+    }
+
+    /**
+     * Checks if profit meets the minimum annualized return on risk (CAGR) requirement.
+     * Uses the compound annual growth rate formula to scale the raw RoR to a full year:
+     * {@code CAGR = ((profit / maxLoss + 1)^(365.0 / dte) - 1) * 100}
+     *
+     * @param profit  the net profit (credit) for the trade
+     * @param maxLoss the maximum loss for the trade
+     * @param dte     the days to expiration for the trade (must be > 0)
+     * @return true if annualized return on risk meets the minimum threshold
+     */
+    public boolean passesMinReturnOnRiskCAGR(double profit, double maxLoss, int dte) {
+        if (this.minReturnOnRiskCAGR == null || this.minReturnOnRiskCAGR <= 0) return true;
+        if (maxLoss <= 0) return true; // Avoid division by zero
+        if (dte <= 0) return true;     // Avoid invalid exponent
+        double rawRoR = profit / maxLoss; // e.g. 0.12 for 12%
+        double cagrPct = (Math.pow(1.0 + rawRoR, 365.0 / dte) - 1.0) * 100.0;
+        return cagrPct >= this.minReturnOnRiskCAGR;
     }
 
     /**

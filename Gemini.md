@@ -1,5 +1,24 @@
 # Project Updates
 
+## New Filter: Minimum Return on Risk CAGR (2026-06-04)
+
+Added `minReturnOnRiskCAGR`, a new common strategy filter that annualizes the raw Return-on-Risk metric based on the trade's Days to Expiration (DTE). This allows users to filter trades by a standard annualized yield percentage (CAGR).
+
+### Formula
+`CAGR = ((profit / maxLoss + 1)^(365 / DTE) - 1) * 100`
+
+### Architecture
+| File | Change |
+|---|---|
+| **`OptionsStrategyFilter.java`** | Added `minReturnOnRiskCAGR` field and `passesMinReturnOnRiskCAGR(profit, maxLoss, dte)` validation method |
+| **`AbstractTradingStrategy.java`** | Added `commonMinReturnOnRiskCAGRFilter()` generic predicate builder for strategies to use |
+| **`FilterStage.java`** | Added `MIN_RETURN_ON_RISK_CAGR_FILTER` enum constant for logging |
+| **`PutCreditSpreadStrategy`**, **`CallCreditSpreadStrategy`**, **`ShortPutStrategy`**, **`BrokenWingButterflyStrategy`**, **`ZebraStrategy`** | Injected the CAGR filter step immediately following the standard `MIN_RETURN_ON_RISK_FILTER` step in the `FilterPipeline` |
+| **`FilterParser.java`** | Extracts `minReturnOnRiskCAGR` from incoming JSON payload |
+| **`app.js`**, **`execute.html`**, **`filter-descriptions.json`** | Added frontend input field, tooltips, and rendering logic |
+
+---
+
 ## Bug Fix: Today Column Not Loading in Custom Options Screen (2026-06-04)
 
 Fixed the "Today" column (live daily price change) not rendering in the **Execute Strategy page → Custom Results** section.
