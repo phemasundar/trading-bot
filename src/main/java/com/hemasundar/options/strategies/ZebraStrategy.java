@@ -76,6 +76,7 @@ public class ZebraStrategy extends AbstractTradingStrategy {
                 .step(FilterStage.MAX_LOSS_FILTER,           commonMaxLossFilter(filter, ZebraCandidate::maxLoss))
                 .step(FilterStage.MAX_DEBIT_FILTER,          commonMaxTotalDebitFilter(filter, ZebraCandidate::netDebit))
                 .step(FilterStage.MIN_RETURN_ON_RISK_FILTER, commonMinReturnOnRiskFilter(filter, candidate -> candidate.maxLoss() > 0 ? 0.0 : 100.0, ZebraCandidate::maxLoss))
+                .step(FilterStage.MIN_RETURN_ON_RISK_CAGR_FILTER, commonMinReturnOnRiskCAGRFilter(filter, candidate -> candidate.maxLoss() > 0 ? 0.0 : 100.0, ZebraCandidate::maxLoss, c -> c.shortLeg().getDaysToExpiration()))
                 .run(candidates);
 
         List<TradeSetup> mapped = survived.stream().map(this::buildTradeSetup).toList();

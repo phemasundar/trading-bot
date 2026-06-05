@@ -90,6 +90,7 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
                 .step(FilterStage.CREDIT_FILTER,             creditFilter(filter))
                 .step(FilterStage.MAX_LOSS_FILTER,           maxLossFilter(filter))
                 .step(FilterStage.MIN_RETURN_ON_RISK_FILTER, commonMinReturnOnRiskFilter(filter, BWBCandidate::maxProfit, BWBCandidate::maxLoss))
+                .step(FilterStage.MIN_RETURN_ON_RISK_CAGR_FILTER, commonMinReturnOnRiskCAGRFilter(filter, BWBCandidate::maxProfit, BWBCandidate::maxLoss, c -> c.leg1().getDaysToExpiration()))
                 .step(FilterStage.UPPER_BREAKEVEN_FILTER,    upperBreakevenFilter(filter, callMap, sortedStrikes))
                 .run(candidates);
 

@@ -77,6 +77,7 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
                 .step(FilterStage.MIN_CREDIT_FILTER,         commonMinTotalCreditFilter(filter, CallSpreadCandidate::netCredit))
                 .step(FilterStage.MAX_LOSS_FILTER,           commonMaxLossFilter(filter, CallSpreadCandidate::maxLoss))
                 .step(FilterStage.MIN_RETURN_ON_RISK_FILTER,  commonMinReturnOnRiskFilter(filter, CallSpreadCandidate::netCredit, CallSpreadCandidate::maxLoss))
+                .step(FilterStage.MIN_RETURN_ON_RISK_CAGR_FILTER, commonMinReturnOnRiskCAGRFilter(filter, CallSpreadCandidate::netCredit, CallSpreadCandidate::maxLoss, c -> c.shortLeg().getDaysToExpiration()))
                 .run(candidates);
 
         List<TradeSetup> mapped = survived.stream().map(this::buildTradeSetup).toList();
