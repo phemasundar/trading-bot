@@ -1,5 +1,31 @@
 # Project Updates
 
+## Bug Fix: Today Column Not Loading in Custom Options Screen (2026-06-04)
+
+Fixed the "Today" column (live daily price change) not rendering in the **Execute Strategy page → Custom Results** section.
+
+### Root Cause
+
+`loadCustomResults()` rendered trade cards via `buildResultCard()` but **never called `fetchAndInjectTodayPerformance`** after rendering. The `--` placeholder cells were created by `buildTradeTable()` inside each card, but no quote fetch was triggered to fill them.
+
+| Function | Called `fetchAndInjectTodayPerformance`? |
+|---|---|
+| `loadOptionsResults()` (Options Dashboard) | ✅ |
+| `loadResults()` (Execute page — predefined strategies) | ✅ |
+| **`loadCustomResults()` (Execute page — custom run)** | ❌ **Missing — now fixed** |
+
+### Fix
+
+Added `fetchAndInjectTodayPerformance(container)` after the card-render loop in `loadCustomResults()` — identical to what `loadOptionsResults()` and `loadResults()` already do.
+
+### Architecture
+
+| File | Change |
+|---|---|
+| **`app.js`** | Added `fetchAndInjectTodayPerformance(container)` call in `loadCustomResults()` after cards are rendered |
+
+---
+
 ## Performance: Track A Pre-warm Extended to Execute Page (2026-06-04)
 
 Extended the parallel option chain cache pre-warm (Track A from Performance Phase 2) to the **Execute Strategy page** (`/execute.html`), which was missing this optimization.
