@@ -295,6 +295,23 @@ public class StrategyExecutionService {
 
             OptionChainCache cache = new OptionChainCache(thinkOrSwinAPIs);
 
+            // ── Parallel Cache Pre-warm (Track A — Custom Execution) ──
+            // For strategies that do NOT use a technical filter, we know the full
+            // securities list upfront. Pre-warm the cache in parallel so that all
+            // subsequent cache.get() calls inside findTradesForStrategy are instant hits.
+            // Strategies WITH a technical filter are skipped here because their symbol
+            // list shrinks to the screened survivors — fetched lazily after screening.
+            if (!config.hasTechnicalFilter()) {
+                List<String> symbolsToPrewarm = config.getSecurities().stream()
+                        .distinct()
+                        .collect(Collectors.toList());
+                if (!symbolsToPrewarm.isEmpty()) {
+                    log.info("Pre-warming option chain cache for {} symbols (custom execution)",
+                            symbolsToPrewarm.size());
+                    cache.prewarm(symbolsToPrewarm, schwabApiExecutor);
+                }
+            }
+
             // Execute the single custom strategy
             StrategyResult result = executeStrategy(config, cache, true);
 

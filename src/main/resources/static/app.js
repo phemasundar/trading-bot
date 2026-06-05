@@ -300,7 +300,6 @@ function buildResultCard(result, badgeText = 'Standard') {
         <div class="card-params">${formatFilterParams(result.filterConfig)}</div>
         ${filterDetailsHtml}
         <div class="card-content" id="content-${cardId}">
-            ${(() => { const d = formatDuration(result.executionTimeMs); return d ? `<div class="exec-time-row"><span class="exec-time-badge">⏱ Strategy ran in ${d}</span></div>` : ''; })()}
             ${buildTradeTable(result.trades || [], cardId)}
         </div>`;
 
@@ -1801,6 +1800,7 @@ const STRATEGY_TYPES = [
     { value: 'LONG_CALL_LEAP', label: 'Long Call LEAP', group: 'leap' },
     { value: 'BULLISH_BROKEN_WING_BUTTERFLY', label: 'Bullish Broken Wing Butterfly', group: 'bwb' },
     { value: 'BULLISH_ZEBRA', label: 'Bullish ZEBRA', group: 'zebra' },
+    { value: 'SHORT_PUT', label: 'Short Put', group: 'short_put' },
 ];
 
 function getLegFilters(prefix, title) {
@@ -1849,6 +1849,9 @@ const STRATEGY_SPECIFIC_FILTERS = {
     zebra: [
         ...getLegFilters('shortCall', 'Short Call'),
         ...getLegFilters('longCall', 'Long Call'),
+    ],
+    short_put: [
+        ...getLegFilters('shortLeg', 'Short Put Leg'),
     ],
 };
 
@@ -2260,6 +2263,8 @@ async function loadCustomResults() {
         for (const r of results) {
             container.appendChild(buildResultCard(r, 'Custom'));
         }
+        // Inject live today's performance into every trade table
+        fetchAndInjectTodayPerformance(container);
     } catch (e) {
         container.innerHTML = `<div class="empty-state text-danger">Failed to load: ${e.message}</div>`;
         if (typeof checkExecutionStatus === 'function') {

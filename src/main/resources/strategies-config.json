@@ -369,7 +369,7 @@
                 "maxDTE": 185,
                 "maxLossLimit": 20000,
                 "ignoreEarnings": true,
-                "minReturnOnRisk": 24,
+                "minReturnOnRisk": 12,
                 "shortLeg": {
                     "maxDelta": 0.20,
                     "minOpenInterest": 100
@@ -387,7 +387,7 @@
                 "minDTE": 330,
                 "maxLossLimit": 20000,
                 "ignoreEarnings": true,
-                "minReturnOnRisk": 48,
+                "minReturnOnRisk": 24,
                 "shortLeg": {
                     "maxDelta": 0.20,
                     "minOpenInterest": 100

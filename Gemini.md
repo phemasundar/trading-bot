@@ -1,5 +1,61 @@
 # Project Updates
 
+## Bug Fix: Today Column Not Loading in Custom Options Screen (2026-06-04)
+
+Fixed the "Today" column (live daily price change) not rendering in the **Execute Strategy page → Custom Results** section.
+
+### Root Cause
+
+`loadCustomResults()` rendered trade cards via `buildResultCard()` but **never called `fetchAndInjectTodayPerformance`** after rendering. The `--` placeholder cells were created by `buildTradeTable()` inside each card, but no quote fetch was triggered to fill them.
+
+| Function | Called `fetchAndInjectTodayPerformance`? |
+|---|---|
+| `loadOptionsResults()` (Options Dashboard) | ✅ |
+| `loadResults()` (Execute page — predefined strategies) | ✅ |
+| **`loadCustomResults()` (Execute page — custom run)** | ❌ **Missing — now fixed** |
+
+### Fix
+
+Added `fetchAndInjectTodayPerformance(container)` after the card-render loop in `loadCustomResults()` — identical to what `loadOptionsResults()` and `loadResults()` already do.
+
+### Architecture
+
+| File | Change |
+|---|---|
+| **`app.js`** | Added `fetchAndInjectTodayPerformance(container)` call in `loadCustomResults()` after cards are rendered |
+
+---
+
+## Performance: Track A Pre-warm Extended to Execute Page (2026-06-04)
+
+Extended the parallel option chain cache pre-warm (Track A from Performance Phase 2) to the **Execute Strategy page** (`/execute.html`), which was missing this optimization.
+
+### Gap Found
+
+| Execution path | Pre-warm? |
+|---|---|
+| Dashboard → Run All (`POST /api/execute` → `executeStrategies()`) | ✅ Already had Track A |
+| Execute page → Custom Run (`POST /api/execute/custom` → `executeCustomStrategy()`) | ❌ **Missing** — no pre-warm |
+| Execute-Screener page → (`POST /api/execute/custom-screener`) | N/A — screeners don't use option chains |
+
+### Fix
+
+Added the same parallel pre-warm block to `executeCustomStrategy()` in `StrategyExecutionService`. For strategies **without** a technical filter, all securities are pre-fetched in parallel via `SchwabApiExecutor` before the sequential per-symbol loop, turning N sequential Schwab API calls into 1 parallel batch. Strategies **with** a technical filter correctly skip the pre-warm (same logic as the dashboard path), since the symbol list is unknown until after screening.
+
+### Impact
+
+For a typical custom execution of, say, 15 symbols without a technical filter:
+- **Before**: ~15 × 300 ms = 4.5 s sequential option chain fetching
+- **After**: ≈300 ms (limited by slowest symbol)
+
+### Architecture
+
+| File | Change |
+|---|---|
+| **`StrategyExecutionService.java`** | Added `cache.prewarm(symbolsToPrewarm, schwabApiExecutor)` block in `executeCustomStrategy()` before `executeStrategy()` is called |
+
+---
+
 ## Performance Phase 2: Parallel API Execution (2026-06-03)
 
 Implemented 3-track parallelization strategy to reduce total option strategy execution time from ~210s (sequential) to an estimated ~40-60s by firing Schwab API calls concurrently within a bounded, rate-limit-aware thread pool.
