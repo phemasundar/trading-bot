@@ -1,5 +1,39 @@
 # Project Updates
 
+## Bug Fix: Return on Risk CAGR Display on Dashboards (2026-06-21)
+
+Resolved an issue where the Return on Risk CAGR was only displayed on the Execute Strategy page, but was missing on the local Options Dashboard screen and the static GitHub Pages dashboard screen.
+
+### Features
+- **Local Dashboard Fallback:** Added a client-side calculation fallback to the local `app.js` table rendering. If `returnOnRiskCAGR` is missing from the database record payload (e.g., for older strategy execution runs stored in Supabase), it is computed dynamically on the fly from the raw `returnOnRisk` and `dte` values. This ensures CAGR is always visible on the Options Dashboard screen for all runs.
+- **Sorting Fallback:** Updated the sorting logic (`handleTableSort`) to use the same on-the-fly CAGR calculation so that sorting by the ROR column behaves consistently even on older data.
+- **GitHub Pages Dashboard Support:** Enabled ROR CAGR rendering on the static GitHub Pages dashboard (`docs/app.js`) by updating the `renderROR` helper function to accept and display the CAGR next to the ROR progress bar, with the same dynamic calculation fallback.
+- **Breakeven CAGR on GitHub Pages:** Added Breakeven CAGR support to `renderBreakeven` in `docs/app.js` to match the local app.
+
+### Architecture
+| File | Change |
+|---|---|
+| **`src/main/resources/static/app.js`** | Added on-the-fly fallback calculation for ROR CAGR in `buildTradeTable` and `handleTableSort` |
+| **`docs/app.js`** | Updated `createTradeGrid` to calculate/pass CAGR to `renderROR`, fixed `colspan` to `8` in details row, added CAGR rendering in `renderROR` and `renderBreakeven` |
+
+---
+
+## UI Enhancement: Return on Risk CAGR in Results Table (2026-06-05)
+
+Updated the frontend and backend to natively compute, display, and sort by the Return on Risk CAGR alongside the raw ROR percentage.
+
+### Features
+- **Backend Metric & Serialization:** Added `getReturnOnRiskCAGR()` as a default method to the `TradeSetup` interface, computing annualized CAGR for every trade based on its Days to Expiration (DTE). Added the `returnOnRiskCAGR` field to the `Trade` DTO class and mapped it in `Trade.fromTradeSetup(TradeSetup, String)` to guarantee the metric is serialized inside the Supabase JSON payload and API responses.
+- **UI Display:** The "ROR%" column now explicitly displays the raw return percentage followed by the annualized CAGR in brackets (e.g., `12.5% (150.0% CAGR)`).
+- **Intelligent Sorting:** Clicking the "ROR%" column header will now prioritize sorting by the `returnOnRiskCAGR` metric if available, seamlessly falling back to `maxReturnOnRiskPercentage` or `returnOnRisk` for strategy setups missing this data (e.g. 0 DTE or missing max loss values).
+
+### Architecture
+| File | Change |
+|---|---|
+| **`TradeSetup.java`** | Added `default Double getReturnOnRiskCAGR()` calculating `((1 + rawRoR)^(365/DTE)) - 1` |
+| **`Trade.java`** | Declared `private Double returnOnRiskCAGR` field and set `.returnOnRiskCAGR(setup.getReturnOnRiskCAGR())` in `fromTradeSetup` builder |
+| **`app.js`** | Updated table rendering inside `buildTradeTable()` to format the ROR cell with the new dual metric, and updated `handleTableSort()` to sort using `returnOnRiskCAGR` |
+
 ## Bug Fix: Short Put Strategy Filters Ignored on Custom Execution (2026-06-04)
 
 Fixed a bug where leg-specific filters (e.g., `maxDelta`, `minDelta`) for the **Short Put** strategy were silently ignored when executing from the Execute Strategy screen (Custom Execution), and subsequently failed to populate when clicking "Load Filters" on the execution result card.

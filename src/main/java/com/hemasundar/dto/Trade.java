@@ -71,6 +71,11 @@ public class Trade {
     private double returnOnRisk;
 
     /**
+     * Return on risk CAGR percentage (annualized return on risk)
+     */
+    private Double returnOnRiskCAGR;
+
+    /**
      * Breakeven price for the underlying
      */
     private double breakEvenPrice;
@@ -193,6 +198,7 @@ public class Trade {
                 .netCredit(setup.getNetCredit())
                 .maxLoss(setup.getMaxLoss())
                 .returnOnRisk(setup.getReturnOnRisk())
+                .returnOnRiskCAGR(setup.getReturnOnRiskCAGR())
                 .breakEvenPrice(setup.getBreakEvenPrice())
                 .breakEvenPercent(setup.getBreakEvenPercentage())
                 .upperBreakEvenPrice(setup.getUpperBreakEvenPrice())

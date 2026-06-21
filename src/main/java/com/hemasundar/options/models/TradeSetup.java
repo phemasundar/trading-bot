@@ -45,4 +45,10 @@ public interface TradeSetup {
     default Double getBreakevenCAGR() {
         return null;
     }
+
+    default Double getReturnOnRiskCAGR() {
+        if (getMaxLoss() <= 0 || getDaysToExpiration() <= 0) return null;
+        double rawRoR = getReturnOnRisk() / 100.0;
+        return (Math.pow(1.0 + rawRoR, 365.0 / getDaysToExpiration()) - 1.0) * 100.0;
+    }
 }
