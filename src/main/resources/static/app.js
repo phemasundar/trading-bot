@@ -707,6 +707,12 @@ function buildTradeTable(trades, cardId = null) {
         const detailsEscaped = escapeAttr(t.tradeDetails || '');
         const sym = t.symbol || '';
 
+        let rorCagr = t.returnOnRiskCAGR;
+        if (rorCagr == null && t.returnOnRisk != null && t.dte > 0 && t.maxLoss > 0) {
+            const rawRoR = t.returnOnRisk / 100.0;
+            rorCagr = (Math.pow(1.0 + rawRoR, 365.0 / t.dte) - 1.0) * 100.0;
+        }
+
         html += `<tr class="trade-row" data-details="${detailsEscaped}" data-symbol="${escapeAttr(sym)}">
             <td><strong>${sym}</strong></td>
             <td class="text-mono">$${(t.underlyingPrice || 0).toFixed(2)}</td>
@@ -717,7 +723,7 @@ function buildTradeTable(trades, cardId = null) {
             <td class="text-danger">$${(t.maxLoss || 0).toFixed(2)}</td>
             <td>$${(t.netExtrinsicValue || 0).toFixed(2)} <span class="text-muted">(${(t.anulizedNetExtrinsicValueToCapitalPercentage || 0).toFixed(1)}%)</span></td>
             <td>${formatBreakeven(t)}</td>
-            <td class="${rorClass}">${(t.returnOnRisk || 0).toFixed(1)}%</td>
+            <td class="${rorClass}">${(t.returnOnRisk || 0).toFixed(1)}%${rorCagr != null ? ` <span class="text-muted">(${rorCagr.toFixed(1)}% CAGR)</span>` : ''}</td>
         </tr>`;
     }
 
@@ -780,8 +786,16 @@ function handleTableSort(cardId, column) {
                     valB = hasCagr ? b.breakevenCAGR : (b.breakEvenPercent || 0);
                     break;
                 case 'ror':
-                    valA = a.maxReturnOnRiskPercentage || a.returnOnRisk || 0;
-                    valB = b.maxReturnOnRiskPercentage || b.returnOnRisk || 0;
+                    const getRoRCagr = (x) => {
+                        if (x.returnOnRiskCAGR != null) return x.returnOnRiskCAGR;
+                        if (x.returnOnRisk != null && x.dte > 0 && x.maxLoss > 0) {
+                            const rawRoR = x.returnOnRisk / 100.0;
+                            return (Math.pow(1.0 + rawRoR, 365.0 / x.dte) - 1.0) * 100.0;
+                        }
+                        return x.maxReturnOnRiskPercentage || x.returnOnRisk || 0;
+                    };
+                    valA = getRoRCagr(a);
+                    valB = getRoRCagr(b);
                     break;
 
                 // ── Today % performance (trade tables) ──

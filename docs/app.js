@@ -196,6 +196,13 @@ function createTradeGrid(trades, strategyIdx) {
         // Main row
         const tr = document.createElement('tr');
         tr.style.cursor = 'pointer';
+
+        let rorCagr = trade.returnOnRiskCAGR;
+        if (rorCagr == null && trade.returnOnRisk != null && trade.dte > 0 && trade.maxLoss > 0) {
+            const rawRoR = trade.returnOnRisk / 100.0;
+            rorCagr = (Math.pow(1.0 + rawRoR, 365.0 / trade.dte) - 1.0) * 100.0;
+        }
+
         tr.innerHTML = `
             <td class="cell-ticker">${escHtml(trade.symbol || '')}</td>
             <td class="cell-mono">$${formatNum(trade.underlyingPrice || 0)}</td>
@@ -204,7 +211,7 @@ function createTradeGrid(trades, strategyIdx) {
             <td class="${trade.netCredit >= 0 ? 'cell-credit' : 'cell-debit'}">${formatCurrency(trade.netCredit)}</td>
             <td class="cell-mono" style="color:var(--accent-red);">$${formatNum(Math.abs(trade.maxLoss || 0))}</td>
             <td>${renderBreakeven(trade)}</td>
-            <td>${renderROR(trade.returnOnRisk)}</td>
+            <td>${renderROR(trade.returnOnRisk, rorCagr)}</td>
         `;
 
         // Click to expand trade details
@@ -227,7 +234,7 @@ function createTradeGrid(trades, strategyIdx) {
         detailTr.id = rowId;
         detailTr.className = 'trade-details-row';
         detailTr.innerHTML = `
-            <td colspan="7" class="trade-details-cell">
+            <td colspan="8" class="trade-details-cell">
                 <div class="trade-details-header">▶ ${escHtml(trade.symbol || '')} — Trade Details</div>
                 <div class="trade-details-text">${escHtml(trade.tradeDetails || 'No details available')}</div>
             </td>
@@ -275,16 +282,24 @@ function renderBreakeven(trade) {
         const ubePct = trade.upperBreakEvenPercent || 0;
         html += `<span class="be-line be-upper">$${formatNum(trade.upperBreakEvenPrice)} <span style="color:var(--text-muted)">(+${Math.abs(ubePct).toFixed(1)}%)</span></span>`;
     }
+
+    if (trade.breakevenCAGR != null) {
+        html += `<span class="be-line" style="color:var(--text-muted); font-size:0.75rem;">CAGR: ${trade.breakevenCAGR.toFixed(1)}%</span>`;
+    }
     return html;
 }
 
-function renderROR(ror) {
+function renderROR(ror, rorCagr) {
     const value = ror || 0;
     const pctClass = value >= 0 ? 'ror-positive' : 'ror-negative';
     const barWidth = Math.min(Math.abs(value), 100);
+    const cagrText = rorCagr != null ? `<span style="font-size:0.75rem; color:var(--text-muted); display:block; margin-top:2px;">(${rorCagr.toFixed(1)}% CAGR)</span>` : '';
     return `
         <div class="cell-ror ${pctClass}">
-            <span class="ror-value">${value.toFixed(1)}%</span>
+            <div style="display:flex; flex-direction:column;">
+                <span class="ror-value" style="line-height:1.2;">${value.toFixed(1)}%</span>
+                ${cagrText}
+            </div>
             <div class="ror-bar-bg">
                 <div class="ror-bar-fill" style="width:${barWidth}%"></div>
             </div>
