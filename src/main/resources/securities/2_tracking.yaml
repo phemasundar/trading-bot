@@ -19,3 +19,5 @@ securities:
   - "SPGI" # S&P Global
   - "BKNG" # Booking Holdings
   - "HOOD" # Robinhood
+  - "UBER" # Uber
+  - "DASH" # Door Dash
