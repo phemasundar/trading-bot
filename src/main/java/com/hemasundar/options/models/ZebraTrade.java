@@ -53,6 +53,7 @@ public class ZebraTrade implements TradeSetup {
                         .strike(shortCall.getStrikePrice())
                         .delta(shortCall.getDelta())
                         .premium(shortCall.getMark())
+                        .optionData(shortCall)
                         .build(),
                 TradeLeg.builder()
                         .action("BUY")
@@ -61,6 +62,7 @@ public class ZebraTrade implements TradeSetup {
                         .strike(longCall.getStrikePrice())
                         .delta(longCall.getDelta())
                         .premium(longCall.getMark())
+                        .optionData(longCall)
                         .build());
     }
 

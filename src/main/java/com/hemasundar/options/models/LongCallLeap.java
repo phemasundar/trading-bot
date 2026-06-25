@@ -65,6 +65,7 @@ public class LongCallLeap implements TradeSetup {
                         .strike(longCall.getStrikePrice())
                         .delta(longCall.getDelta())
                         .premium(longCall.getMark())
+                        .optionData(longCall)
                         .build());
     }
 

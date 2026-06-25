@@ -1,5 +1,34 @@
 # Project Updates
 
+## Feature: Option Chain Data in Trade Detail Panel (2026-06-24)
+
+Clicking a trade row now shows the raw Schwab option chain `OptionData` for each leg in a structured table, inserted between the trade summary text and the Volatility Context section.
+
+### How It Works
+
+The `OptionData` object (bid/ask, mark, greeks, IV, open interest, volume, etc.) is now carried end-to-end from the API response through the domain model to the JSON payload stored in Supabase and returned to the UI.
+
+1. **`TradeLeg.java`** — Added `optionData: OptionChainResponse.OptionData` field.
+2. **Each strategy model** — `ShortPut`, `PutCreditSpread`, `CallCreditSpread`, `ZebraTrade`, `LongCallLeap`, `BrokenWingButterfly`, `IronCondor` all pass `.optionData(...)` into their `TradeLeg` builder.
+3. **`TradeLegDTO.java`** — Added matching `optionData` field.
+4. **`Trade.fromTradeSetup()`** — Maps `leg.getOptionData()` into `TradeLegDTO`.
+5. **`app.js`** — `buildTradeTable()` stores per-leg `optionData` in a `data-legs-option-data` HTML attribute. `renderOptionDataTable()` (new helper) renders a clean grid showing Symbol, Bid/Ask, Mark, Volume, Open Interest, IV, Greeks (Δ/Γ/Θ/Vega/Rho), Intrinsic/Extrinsic/Time Value, ITM, Strike, DTE, Expiry Date, and 52W High/Low per leg. The section appears between `trade-detail-body` and the IV panel.
+
+### Notes
+- Older Supabase records (pre this change) will show "No option data available (re-run strategy to populate)" per leg since the field was not previously serialized.
+- New executions will immediately show the full option chain contract data.
+
+### Architecture
+| File | Change |
+|---|---|
+| **`TradeLeg.java`** | Added `optionData` field |
+| **`TradeLegDTO.java`** | Added `optionData` field |
+| **`Trade.java`** | Maps `leg.getOptionData()` in `fromTradeSetup()` |
+| **`ShortPut.java`**, **`PutCreditSpread.java`**, **`CallCreditSpread.java`**, **`ZebraTrade.java`**, **`LongCallLeap.java`**, **`BrokenWingButterfly.java`**, **`IronCondor.java`** | Pass `.optionData(...)` in `TradeLeg` builder |
+| **`app.js`** | Added `renderOptionDataTable()`, updated `buildTradeTable()` and `initTradeRowClicks()` |
+
+---
+
 ## Bug Fix: Return on Risk CAGR Display on Dashboards (2026-06-21)
 
 Resolved an issue where the Return on Risk CAGR was only displayed on the Execute Strategy page, but was missing on the local Options Dashboard screen and the static GitHub Pages dashboard screen.

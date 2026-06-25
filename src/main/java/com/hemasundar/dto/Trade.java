@@ -2,6 +2,7 @@ package com.hemasundar.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.hemasundar.options.models.LongCallLeap;
+import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.TradeSetup;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -127,6 +128,7 @@ public class Trade {
                         .strike(leg.getStrike())
                         .delta(leg.getDelta())
                         .premium(leg.getPremium())
+                        .optionData(leg.getOptionData())
                         .build())
                 .toList();
 

@@ -69,6 +69,7 @@ public class ShortPut implements TradeSetup {
                         .strike(shortPut.getStrikePrice())
                         .delta(shortPut.getDelta())
                         .premium(shortPut.getMark())
+                        .optionData(shortPut)
                         .build());
     }
 }

@@ -77,6 +77,7 @@ public class IronCondor implements TradeSetup {
                 .strike(putLeg.getShortPut().getStrikePrice())
                 .delta(putLeg.getShortPut().getDelta())
                 .premium(putLeg.getShortPut().getMark())
+                .optionData(putLeg.getShortPut())
                 .build());
         legs.add(TradeLeg.builder()
                 .action("BUY")
@@ -84,6 +85,7 @@ public class IronCondor implements TradeSetup {
                 .strike(putLeg.getLongPut().getStrikePrice())
                 .delta(putLeg.getLongPut().getDelta())
                 .premium(putLeg.getLongPut().getMark())
+                .optionData(putLeg.getLongPut())
                 .build());
         // Call side
         legs.add(TradeLeg.builder()
@@ -92,6 +94,7 @@ public class IronCondor implements TradeSetup {
                 .strike(callLeg.getShortCall().getStrikePrice())
                 .delta(callLeg.getShortCall().getDelta())
                 .premium(callLeg.getShortCall().getMark())
+                .optionData(callLeg.getShortCall())
                 .build());
         legs.add(TradeLeg.builder()
                 .action("BUY")
@@ -99,6 +102,7 @@ public class IronCondor implements TradeSetup {
                 .strike(callLeg.getLongCall().getStrikePrice())
                 .delta(callLeg.getLongCall().getDelta())
                 .premium(callLeg.getLongCall().getMark())
+                .optionData(callLeg.getLongCall())
                 .build());
         return legs;
     }
