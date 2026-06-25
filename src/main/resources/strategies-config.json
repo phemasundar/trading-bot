@@ -340,7 +340,7 @@
             "securitiesFile": "portfolio, tracking, 2026"
         },
         {
-            "alias": "Naked Short Put short term",
+            "alias": "Cash Secured Put short term",
             "enabled": true,
             "strategyType": "SHORT_PUT",
             "descriptionFile": "short_put.md",
@@ -359,7 +359,7 @@
             "securitiesFile": "portfolio, tracking, 2026"
         },
         {
-            "alias": "Naked Short Put medium term",
+            "alias": "Cash Secured Put medium term",
             "enabled": true,
             "strategyType": "SHORT_PUT",
             "descriptionFile": "short_put.md",
@@ -378,7 +378,7 @@
             "securitiesFile": "portfolio, tracking, 2026"
         },
         {
-            "alias": "Naked Short Put long term",
+            "alias": "Cash Secured Put long term",
             "enabled": true,
             "strategyType": "SHORT_PUT",
             "descriptionFile": "short_put.md",

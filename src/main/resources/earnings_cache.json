@@ -3625,6 +3625,50 @@
         "symbol" : "TEST_TICKER",
         "year" : null
       } ]
+    },
+    "DASH" : {
+      "lastFetched" : "2026-06-23",
+      "earnings" : [ {
+        "date" : "2027-05-04",
+        "epsActual" : null,
+        "epsEstimate" : "0.8117",
+        "hour" : "",
+        "quarter" : 1,
+        "revenueActual" : null,
+        "revenueEstimate" : 4975407703,
+        "symbol" : "DASH",
+        "year" : 2027
+      }, {
+        "date" : "2027-02-16",
+        "epsActual" : null,
+        "epsEstimate" : "0.8462",
+        "hour" : "amc",
+        "quarter" : 4,
+        "revenueActual" : null,
+        "revenueEstimate" : 4837715190,
+        "symbol" : "DASH",
+        "year" : 2026
+      }, {
+        "date" : "2026-11-03",
+        "epsActual" : null,
+        "epsEstimate" : "0.7608",
+        "hour" : "amc",
+        "quarter" : 3,
+        "revenueActual" : null,
+        "revenueEstimate" : 4569227149,
+        "symbol" : "DASH",
+        "year" : 2026
+      }, {
+        "date" : "2026-08-04",
+        "epsActual" : null,
+        "epsEstimate" : "0.4688",
+        "hour" : "amc",
+        "quarter" : 2,
+        "revenueActual" : null,
+        "revenueEstimate" : 4418014954,
+        "symbol" : "DASH",
+        "year" : 2026
+      } ]
     }
   }
 }

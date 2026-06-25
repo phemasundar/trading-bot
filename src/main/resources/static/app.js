@@ -706,6 +706,9 @@ function buildTradeTable(trades, cardId = null) {
 
         const detailsEscaped = escapeAttr(t.tradeDetails || '');
         const sym = t.symbol || '';
+        // Store per-leg optionData from the option chain API for the detail panel
+        const legsOptionData = (t.legs || []).map(l => ({ action: l.action, optionType: l.optionType, optionData: l.optionData || null }));
+        const legsAttr = escapeAttr(JSON.stringify(legsOptionData));
 
         let rorCagr = t.returnOnRiskCAGR;
         if (rorCagr == null && t.returnOnRisk != null && t.dte > 0 && t.maxLoss > 0) {
@@ -713,7 +716,7 @@ function buildTradeTable(trades, cardId = null) {
             rorCagr = (Math.pow(1.0 + rawRoR, 365.0 / t.dte) - 1.0) * 100.0;
         }
 
-        html += `<tr class="trade-row" data-details="${detailsEscaped}" data-symbol="${escapeAttr(sym)}">
+        html += `<tr class="trade-row" data-details="${detailsEscaped}" data-legs-option-data="${legsAttr}" data-symbol="${escapeAttr(sym)}">
             <td><strong>${sym}</strong></td>
             <td class="text-mono">$${(t.underlyingPrice || 0).toFixed(2)}</td>
             <td class="today-perf" data-symbol="${escapeAttr(sym)}"><span class="text-muted">--</span></td>
@@ -988,6 +991,78 @@ function formatExpiryDate(dateStr) {
 
 // ── Trade Detail Popup ──
 
+/**
+ * Renders a formatted option chain data section for each trade leg.
+ * Shows the raw OptionData from the Schwab API response for each leg.
+ * @param {Array} legsOptionData - Array of {action, optionType, optionData}
+ */
+function renderOptionDataTable(legsOptionData) {
+    if (!legsOptionData || legsOptionData.length === 0) return '';
+
+    const fmt = (v, digits = 2) => (v != null && v !== 0) ? (typeof v === 'number' ? v.toFixed(digits) : v) : '—';
+    const fmtDollar = (v) => (v != null && v !== 0) ? `$${Math.abs(v).toFixed(2)}` : '—';
+    const fmtInt = (v) => (v != null && v !== 0) ? v.toLocaleString() : '—';
+
+    let html = `<div style="margin-top: 10px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;">
+        <div style="padding: 7px 12px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.06em; color: var(--text-muted); text-transform: uppercase;">
+            Option Chain Data
+        </div>`;
+
+    for (const leg of legsOptionData) {
+        const d = leg.optionData;
+        const actionCls = leg.action === 'SELL' ? 'leg-sell' : 'leg-buy';
+        const legLabel = `<span class="leg-chip ${actionCls}" style="font-size:0.75rem; padding:2px 7px;">${leg.action} ${leg.optionType}</span>`;
+
+        if (!d) {
+            html += `<div style="padding: 8px 12px; font-size:0.82rem; color: var(--text-muted);">${legLabel} <span style="margin-left:8px;">No option data available (re-run strategy to populate)</span></div>`;
+            continue;
+        }
+
+        const rows = [
+            ['Symbol', escapeHtmlContent(d.symbol || '—')],
+            ['Bid / Ask', `${fmtDollar(d.bid)} / ${fmtDollar(d.ask)}`],
+            ['Mark', fmtDollar(d.mark)],
+            ['Last', fmtDollar(d.last)],
+            ['Bid×Ask Size', escapeHtmlContent(d.bidAskSize || '—')],
+            ['Volume', fmtInt(d.totalVolume)],
+            ['Open Interest', fmtInt(d.openInterest)],
+            ['IV (Volatility)', d.volatility != null ? `${fmt(d.volatility, 1)}%` : '—'],
+            ['Delta', fmt(d.delta, 4)],
+            ['Gamma', fmt(d.gamma, 4)],
+            ['Theta', fmt(d.theta, 4)],
+            ['Vega', fmt(d.vega, 4)],
+            ['Rho', fmt(d.rho, 4)],
+            ['Intrinsic Value', fmtDollar(d.intrinsicValue)],
+            ['Extrinsic Value', fmtDollar(d.extrinsicValue)],
+            ['Time Value', fmtDollar(d.timeValue)],
+            ['Theoretical Value', fmtDollar(d.theoreticalOptionValue)],
+            ['% Change', d.percentChange != null ? `${fmt(d.percentChange, 2)}%` : '—'],
+            ['In The Money', d.inTheMoney ? 'Yes' : 'No'],
+            ['Days to Expiry', d.daysToExpiration != null ? d.daysToExpiration : '—'],
+            ['Expiration Date', escapeHtmlContent(d.expirationDate || '—')],
+            ['Strike', fmtDollar(d.strikePrice)],
+            ['52W High', fmtDollar(d.high52Week)],
+            ['52W Low', fmtDollar(d.low52Week)],
+        ];
+
+        html += `<div style="padding: 8px 12px 6px; border-bottom: 1px solid var(--border);">
+            <div style="margin-bottom: 6px;">${legLabel} <span style="font-size:0.78rem; color:var(--text-muted); margin-left:6px;">${escapeHtmlContent(d.description || '')}</span></div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 3px 16px;">`;
+
+        for (const [label, val] of rows) {
+            html += `<div style="display:flex; justify-content:space-between; font-size:0.8rem; padding: 2px 0; border-bottom: 1px solid var(--border); gap:8px;">
+                <span style="color:var(--text-muted); white-space:nowrap;">${label}</span>
+                <span style="color:var(--text-primary); font-family:var(--font-mono); text-align:right;">${val}</span>
+            </div>`;
+        }
+
+        html += `</div></div>`;
+    }
+
+    html += `</div>`;
+    return html;
+}
+
 function initTradeRowClicks() {
     document.addEventListener('click', (e) => {
         const row = e.target.closest('.trade-row');
@@ -1012,6 +1087,11 @@ function initTradeRowClicks() {
         row.classList.add('selected');
 
         const symbol = row.querySelector('td strong')?.textContent || '';
+        let legsOptionData = null;
+        try {
+            const raw = row.dataset.legsOptionData ? decodeAttr(row.dataset.legsOptionData) : null;
+            legsOptionData = raw ? JSON.parse(raw) : null;
+        } catch(e) {}
         
         // Create detail panel right after the row
         const panel = document.createElement('tr');
@@ -1024,6 +1104,7 @@ function initTradeRowClicks() {
                         ▶ ${symbol} — Trade Details
                     </div>
                     <pre class="trade-detail-body">${decodeAttr(details)}</pre>
+                    ${legsOptionData ? renderOptionDataTable(legsOptionData) : ''}
                     <div class="iv-data-panel" style="margin-top: 10px; font-family: var(--font-mono); font-size: 0.85rem; padding: 8px; background: var(--bg-alt); border-radius: 4px; border: 1px solid var(--border);">
                         <span class="text-muted">Loading Volatility Data...</span>
                     </div>
@@ -1134,6 +1215,10 @@ function formatFilterParams(filterConfigJson) {
 
 function escapeAttr(str) {
     return (str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function escapeHtmlContent(str) {
+    return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function decodeAttr(str) {

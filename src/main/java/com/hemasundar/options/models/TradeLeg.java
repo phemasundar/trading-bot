@@ -21,4 +21,7 @@ public class TradeLeg {
     private double strike;
     private double delta;
     private double premium; // mark price
+
+    /** Full raw OptionData object from the option chain API for this leg. */
+    private OptionChainResponse.OptionData optionData;
 }

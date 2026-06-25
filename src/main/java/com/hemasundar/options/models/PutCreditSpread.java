@@ -45,6 +45,7 @@ public class PutCreditSpread implements TradeSetup {
                         .strike(shortPut.getStrikePrice())
                         .delta(shortPut.getDelta())
                         .premium(shortPut.getMark())
+                        .optionData(shortPut)
                         .build(),
                 TradeLeg.builder()
                         .action("BUY")
@@ -52,6 +53,7 @@ public class PutCreditSpread implements TradeSetup {
                         .strike(longPut.getStrikePrice())
                         .delta(longPut.getDelta())
                         .premium(longPut.getMark())
+                        .optionData(longPut)
                         .build());
     }
 

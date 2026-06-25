@@ -1,5 +1,6 @@
 package com.hemasundar.dto;
 
+import com.hemasundar.options.models.OptionChainResponse;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -46,4 +47,10 @@ public class TradeLegDTO {
      */
     @Builder.Default
     private int quantity = 1;
+
+    /**
+     * Full raw OptionData object from the option chain API for this leg.
+     * Contains bid/ask, IV, greeks (theta, gamma, vega), open interest, etc.
+     */
+    private OptionChainResponse.OptionData optionData;
 }
