@@ -212,6 +212,9 @@ public class StrategiesConfigLoader {
             if (entry.getSecurities() != null && !entry.getSecurities().trim().isEmpty()) {
                 filter.setSecurities(entry.getSecurities());
             }
+            if (entry.getGreeks() != null && !entry.getGreeks().isEmpty()) {
+                filter.setGreeks(entry.getGreeks());
+            }
         }
 
         // Get securities list from files (supports comma-separated file names)
@@ -246,6 +249,7 @@ public class StrategiesConfigLoader {
                 .alias(entry.getAlias())
                 .descriptionFile(entry.getDescriptionFile())
                 .maxTradesToSend(entry.getMaxTradesToSend())
+                .greeks(entry.getGreeks())
                 .build();
     }
 

@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+
 /**
  * Root POJO for strategies-config.json with all nested configuration classes.
  * Contains all options strategies, technical screeners, and global technical
@@ -84,6 +85,14 @@ public class StrategiesConfig {
          */
         private String securities;
         private Object technicalFilter;
+
+        /**
+         * Optional Greek exposure map for this strategy.
+         * Keys: "delta", "gamma", "theta", "vega".
+         * Values: "positive", "negative", or "neutral".
+         * Drives the colored Greek pill labels on the Options Dashboard UI.
+         */
+        private Map<String, String> greeks;
 
         public boolean hasTechnicalFilter() {
             return technicalFilter != null;

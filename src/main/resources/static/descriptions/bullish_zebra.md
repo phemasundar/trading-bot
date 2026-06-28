@@ -1,5 +1,13 @@
 # Bullish ZEBRA (Zero Extrinsic Back Ratio)
 
+### Strategy Option Greeks
+| Greek | Polarity | Description & Utility |
+|---|---|---|
+| **Delta (Δ)** | **Positive** | Emulates holding 100 shares of stock, moving dollar-for-dollar with the underlying. |
+| **Gamma (Γ)** | **Positive** | Net positive gamma accelerates delta gains as the stock rallies. |
+| **Theta (Θ)** | **Negative** | Near zero; the short option decay offsets the combined decay of the two long options. |
+| **Vega (V)** | **Positive** | Position gains value if implied volatility rises, as the long options dominate. |
+
 A ZEBRA is a stock replacement strategy designed to emulate the P&L of holding 100 shares, while defining risk and completely eliminating extrinsic value (time decay).
 
 ### How it works

@@ -224,6 +224,42 @@ a:hover {
     color: var(--primary);
 }
 
+/* ── Greek Exposure Pills ── */
+.greek-pills {
+    display: inline-flex;
+    gap: 3px;
+    align-items: center;
+}
+
+.greek-pill {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    border: 1px solid transparent;
+}
+
+.greek-pill.greek-positive {
+    background: rgba(34, 197, 94, 0.12);
+    color: #22c55e;
+    border-color: rgba(34, 197, 94, 0.25);
+}
+
+.greek-pill.greek-negative {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.25);
+}
+
+.greek-pill.greek-neutral {
+    background: rgba(148, 163, 184, 0.1);
+    color: var(--text-muted);
+    border-color: rgba(148, 163, 184, 0.2);
+}
+
+
 .card-stats {
     font-size: 0.75rem;
     color: var(--text-secondary);

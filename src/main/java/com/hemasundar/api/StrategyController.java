@@ -62,8 +62,7 @@ public class StrategyController {
     public ResponseEntity<?> getAuthConfig() {
         return ResponseEntity.ok(Map.of(
                 "supabaseUrl", supabaseConfig.getUrl() != null ? supabaseConfig.getUrl() : "",
-                "supabaseAnonKey", supabaseConfig.getAnonKey() != null ? supabaseConfig.getAnonKey() : ""
-        ));
+                "supabaseAnonKey", supabaseConfig.getAnonKey() != null ? supabaseConfig.getAnonKey() : ""));
     }
 
     // ────────────────────────────────────────────
@@ -87,8 +86,10 @@ public class StrategyController {
                         map.put("type", config.getStrategy().getStrategyType().name());
                         map.put("displayType", config.getStrategy().getStrategyType().getDisplayName());
                         map.put("descriptionFile", config.getDescriptionFile());
-                        String securitiesFile = config.getFilter() != null ? config.getFilter().getSecuritiesFile() : null;
+                        String securitiesFile = config.getFilter() != null ? config.getFilter().getSecuritiesFile()
+                                : null;
                         map.put("securitiesFile", securitiesFile);
+                        map.put("greeks", config.getGreeks());
                         return map;
                     })
                     .collect(Collectors.toList());
@@ -142,7 +143,8 @@ public class StrategyController {
                     .body(results);
         } catch (Exception e) {
             log.error("Failed to load results", e);
-            executionService.addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE, "Failed to load results: " + e.getMessage());
+            executionService.addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE,
+                    "Failed to load results: " + e.getMessage());
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Failed to load results: " + e.getMessage()));
         }
@@ -159,7 +161,8 @@ public class StrategyController {
                     .body(screenerExecutionService.getLatestScreenerResults());
         } catch (Exception e) {
             log.error("Failed to load screener results", e);
-            executionService.addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE, "Failed to load screener results: " + e.getMessage());
+            executionService.addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE,
+                    "Failed to load screener results: " + e.getMessage());
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Failed to load screener results: " + e.getMessage()));
         }
@@ -177,7 +180,8 @@ public class StrategyController {
                     .body(results);
         } catch (Exception e) {
             log.error("Failed to load custom execution results", e);
-            executionService.addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE, "Failed to load custom execution results: " + e.getMessage());
+            executionService.addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE,
+                    "Failed to load custom execution results: " + e.getMessage());
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Failed to load custom execution results: " + e.getMessage()));
         }
@@ -189,13 +193,15 @@ public class StrategyController {
     @GetMapping("/results/custom/screeners")
     public ResponseEntity<?> getRecentCustomScreenerResults(@RequestParam(defaultValue = "10") int limit) {
         try {
-            List<com.hemasundar.dto.ScreenerExecutionResult> results = supabaseService.getRecentCustomScreenerExecutions(limit);
+            List<com.hemasundar.dto.ScreenerExecutionResult> results = supabaseService
+                    .getRecentCustomScreenerExecutions(limit);
             return ResponseEntity.ok()
                     .header("Cache-Control", "no-cache, no-store, must-revalidate")
                     .body(results);
         } catch (Exception e) {
             log.error("Failed to load custom screener results", e);
-            executionService.addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE, "Failed to load custom screener results: " + e.getMessage());
+            executionService.addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE,
+                    "Failed to load custom screener results: " + e.getMessage());
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Failed to load custom screener results: " + e.getMessage()));
         }
@@ -229,8 +235,10 @@ public class StrategyController {
     }
 
     /**
-     * Returns a map of securities file keys to their respective lists of securities.
-     * Used by the config viewer to display actual tickers instead of just file names.
+     * Returns a map of securities file keys to their respective lists of
+     * securities.
+     * Used by the config viewer to display actual tickers instead of just file
+     * names.
      */
     @GetMapping("/securities")
     public ResponseEntity<?> getSecuritiesMaps() {
@@ -370,7 +378,8 @@ public class StrategyController {
 
             return ResponseEntity.ok(Map.of(
                     "status", "started",
-                    "message", "Custom execution started: " + type.getDisplayName() + " on " + symbols.size() + " securities"));
+                    "message",
+                    "Custom execution started: " + type.getDisplayName() + " on " + symbols.size() + " securities"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Invalid strategy type: " + request.getStrategyType()));
@@ -428,26 +437,44 @@ public class StrategyController {
         }
 
         // Build TechFilterConditions from request
-        com.hemasundar.technical.TechFilterConditions.TechFilterConditionsBuilder condBuilder =
-                com.hemasundar.technical.TechFilterConditions.builder();
+        com.hemasundar.technical.TechFilterConditions.TechFilterConditionsBuilder condBuilder = com.hemasundar.technical.TechFilterConditions
+                .builder();
 
         if (request.getRsiCondition() != null && !request.getRsiCondition().isBlank()) {
-            try { condBuilder.rsiCondition(com.hemasundar.technical.RSICondition.valueOf(request.getRsiCondition())); } catch (Exception ignored) {}
+            try {
+                condBuilder.rsiCondition(com.hemasundar.technical.RSICondition.valueOf(request.getRsiCondition()));
+            } catch (Exception ignored) {
+            }
         }
         if (request.getBollingerCondition() != null && !request.getBollingerCondition().isBlank()) {
-            try { condBuilder.bollingerCondition(com.hemasundar.technical.BollingerCondition.valueOf(request.getBollingerCondition())); } catch (Exception ignored) {}
+            try {
+                condBuilder.bollingerCondition(
+                        com.hemasundar.technical.BollingerCondition.valueOf(request.getBollingerCondition()));
+            } catch (Exception ignored) {
+            }
         }
-        if (request.getMinVolume() != null)          condBuilder.minVolume(request.getMinVolume());
-        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA20()))  condBuilder.requirePriceBelowMA20(true);
-        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA20()))  condBuilder.requirePriceAboveMA20(true);
-        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA50()))  condBuilder.requirePriceBelowMA50(true);
-        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA50()))  condBuilder.requirePriceAboveMA50(true);
-        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA100())) condBuilder.requirePriceBelowMA100(true);
-        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA100())) condBuilder.requirePriceAboveMA100(true);
-        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA200())) condBuilder.requirePriceBelowMA200(true);
-        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA200())) condBuilder.requirePriceAboveMA200(true);
-        if (request.getMinDropPercent() != null)     condBuilder.minDropPercent(request.getMinDropPercent());
-        if (request.getLookbackDays() != null)       condBuilder.lookbackDays(request.getLookbackDays());
+        if (request.getMinVolume() != null)
+            condBuilder.minVolume(request.getMinVolume());
+        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA20()))
+            condBuilder.requirePriceBelowMA20(true);
+        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA20()))
+            condBuilder.requirePriceAboveMA20(true);
+        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA50()))
+            condBuilder.requirePriceBelowMA50(true);
+        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA50()))
+            condBuilder.requirePriceAboveMA50(true);
+        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA100()))
+            condBuilder.requirePriceBelowMA100(true);
+        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA100()))
+            condBuilder.requirePriceAboveMA100(true);
+        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA200()))
+            condBuilder.requirePriceBelowMA200(true);
+        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA200()))
+            condBuilder.requirePriceAboveMA200(true);
+        if (request.getMinDropPercent() != null)
+            condBuilder.minDropPercent(request.getMinDropPercent());
+        if (request.getLookbackDays() != null)
+            condBuilder.lookbackDays(request.getLookbackDays());
 
         com.hemasundar.technical.ScreenerConfig screenerConfig = com.hemasundar.technical.ScreenerConfig.builder()
                 .screenerType(screenerType)
@@ -462,22 +489,38 @@ public class StrategyController {
         // alongside the result and used by the UI "Load Filters" feature.
         Map<String, Object> requestParams = new LinkedHashMap<>();
         requestParams.put("screenerType", request.getScreenerType());
-        if (request.getAlias() != null)              requestParams.put("alias", request.getAlias());
-        if (request.getSecuritiesFile() != null)     requestParams.put("securitiesFile", request.getSecuritiesFile());
-        if (request.getSecurities() != null)         requestParams.put("securities", request.getSecurities());
-        if (request.getRsiCondition() != null)       requestParams.put("rsiCondition", request.getRsiCondition());
-        if (request.getBollingerCondition() != null) requestParams.put("bollingerCondition", request.getBollingerCondition());
-        if (request.getMinVolume() != null)          requestParams.put("minVolume", request.getMinVolume());
-        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA20()))  requestParams.put("requirePriceBelowMA20", true);
-        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA20()))  requestParams.put("requirePriceAboveMA20", true);
-        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA50()))  requestParams.put("requirePriceBelowMA50", true);
-        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA50()))  requestParams.put("requirePriceAboveMA50", true);
-        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA100())) requestParams.put("requirePriceBelowMA100", true);
-        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA100())) requestParams.put("requirePriceAboveMA100", true);
-        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA200())) requestParams.put("requirePriceBelowMA200", true);
-        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA200())) requestParams.put("requirePriceAboveMA200", true);
-        if (request.getMinDropPercent() != null)     requestParams.put("minDropPercent", request.getMinDropPercent());
-        if (request.getLookbackDays() != null)       requestParams.put("lookbackDays", request.getLookbackDays());
+        if (request.getAlias() != null)
+            requestParams.put("alias", request.getAlias());
+        if (request.getSecuritiesFile() != null)
+            requestParams.put("securitiesFile", request.getSecuritiesFile());
+        if (request.getSecurities() != null)
+            requestParams.put("securities", request.getSecurities());
+        if (request.getRsiCondition() != null)
+            requestParams.put("rsiCondition", request.getRsiCondition());
+        if (request.getBollingerCondition() != null)
+            requestParams.put("bollingerCondition", request.getBollingerCondition());
+        if (request.getMinVolume() != null)
+            requestParams.put("minVolume", request.getMinVolume());
+        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA20()))
+            requestParams.put("requirePriceBelowMA20", true);
+        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA20()))
+            requestParams.put("requirePriceAboveMA20", true);
+        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA50()))
+            requestParams.put("requirePriceBelowMA50", true);
+        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA50()))
+            requestParams.put("requirePriceAboveMA50", true);
+        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA100()))
+            requestParams.put("requirePriceBelowMA100", true);
+        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA100()))
+            requestParams.put("requirePriceAboveMA100", true);
+        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA200()))
+            requestParams.put("requirePriceBelowMA200", true);
+        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA200()))
+            requestParams.put("requirePriceAboveMA200", true);
+        if (request.getMinDropPercent() != null)
+            requestParams.put("minDropPercent", request.getMinDropPercent());
+        if (request.getLookbackDays() != null)
+            requestParams.put("lookbackDays", request.getLookbackDays());
 
         CompletableFuture.runAsync(() -> {
             executionService.startGlobalExecution("Custom Screener: " + screenerConfig.getName());
@@ -494,7 +537,8 @@ public class StrategyController {
 
         return ResponseEntity.ok(Map.of(
                 "status", "started",
-                "message", "Custom screener started: " + screenerType.getDisplayName() + " on " + symbolSet.size() + " securities"));
+                "message", "Custom screener started: " + screenerType.getDisplayName() + " on " + symbolSet.size()
+                        + " securities"));
     }
 
     // ────────────────────────────────────────────
@@ -502,7 +546,8 @@ public class StrategyController {
     // ────────────────────────────────────────────
 
     /**
-     * Returns current execution status, including any alerts from the last execution.
+     * Returns current execution status, including any alerts from the last
+     * execution.
      */
     @GetMapping("/status")
     public ResponseEntity<?> getStatus() {
@@ -514,7 +559,8 @@ public class StrategyController {
             response.put("elapsedMs", System.currentTimeMillis() - executionService.getExecutionStartTimeMs());
             response.put("currentTask", executionService.getCurrentExecutionTask());
         }
-        // Always include alerts so the UI can surface warnings/errors after execution completes
+        // Always include alerts so the UI can surface warnings/errors after execution
+        // completes
         List<ExecutionAlert> alerts = executionService.getAlerts();
         if (!alerts.isEmpty()) {
             response.put("alerts", alerts);
@@ -531,7 +577,9 @@ public class StrategyController {
         return ResponseEntity.ok(Map.of("cleared", true));
     }
 
-    /** @deprecated Use /api/clear-errors instead. Kept for backward compatibility. */
+    /**
+     * @deprecated Use /api/clear-errors instead. Kept for backward compatibility.
+     */
     @PostMapping("/clear-error")
     public ResponseEntity<?> clearLastError() {
         executionService.clearAlerts();
@@ -579,14 +627,17 @@ public class StrategyController {
             if (authErrorUtils.isAuthError(e)) {
                 executionService.addAlert(ExecutionAlert.Severity.ERROR, "Market Status", AlertMessages.AUTH_FAILED);
             } else {
-                executionService.addAlert(ExecutionAlert.Severity.WARNING, "Market Status", String.format(AlertMessages.UNEXPECTED_FAILURE_FMT, e.getMessage()));
+                executionService.addAlert(ExecutionAlert.Severity.WARNING, "Market Status",
+                        String.format(AlertMessages.UNEXPECTED_FAILURE_FMT, e.getMessage()));
             }
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage(), "equityStatus", "CLOSED", "optionsStatus", "CLOSED"));
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", e.getMessage(), "equityStatus", "CLOSED", "optionsStatus", "CLOSED"));
         }
     }
 
     /**
-     * Resolves the textual market status by comparing current time against session windows.
+     * Resolves the textual market status by comparing current time against session
+     * windows.
      */
     private String resolveMarketStatus(MarketHoursResponse.MarketData data) {
         if (data == null || data.getSessionHours() == null) {
@@ -595,21 +646,27 @@ public class StrategyController {
         java.time.OffsetDateTime now = java.time.OffsetDateTime.now();
         MarketHoursResponse.SessionHours sh = data.getSessionHours();
 
-        if (isWithinWindows(now, sh.getRegularMarket())) return "OPEN";
-        if (isWithinWindows(now, sh.getPreMarket())) return "PRE_MARKET";
-        if (isWithinWindows(now, sh.getPostMarket())) return "POST_MARKET";
+        if (isWithinWindows(now, sh.getRegularMarket()))
+            return "OPEN";
+        if (isWithinWindows(now, sh.getPreMarket()))
+            return "PRE_MARKET";
+        if (isWithinWindows(now, sh.getPostMarket()))
+            return "POST_MARKET";
         return "CLOSED";
     }
 
     private boolean isWithinWindows(java.time.OffsetDateTime now,
-                                     java.util.List<MarketHoursResponse.TimeWindow> windows) {
-        if (windows == null || windows.isEmpty()) return false;
+            java.util.List<MarketHoursResponse.TimeWindow> windows) {
+        if (windows == null || windows.isEmpty())
+            return false;
         for (MarketHoursResponse.TimeWindow w : windows) {
             try {
                 java.time.OffsetDateTime start = java.time.OffsetDateTime.parse(w.getStart());
-                java.time.OffsetDateTime end   = java.time.OffsetDateTime.parse(w.getEnd());
-                if (!now.isBefore(start) && now.isBefore(end)) return true;
-            } catch (Exception ignored) {}
+                java.time.OffsetDateTime end = java.time.OffsetDateTime.parse(w.getEnd());
+                if (!now.isBefore(start) && now.isBefore(end))
+                    return true;
+            } catch (Exception ignored) {
+            }
         }
         return false;
     }
@@ -653,15 +710,18 @@ public class StrategyController {
     // ────────────────────────────────────────────
 
     /**
-     * Returns all filter-stage log entries captured during the current or most recent execution.
+     * Returns all filter-stage log entries captured during the current or most
+     * recent execution.
      * Used by the /logs.html page to display per-filter trade counts in real-time.
      */
     @GetMapping("/filter-logs")
     public ResponseEntity<?> getFilterLogs() {
         return ResponseEntity.ok(executionService.getFilterLogs());
     }
+
     /**
-     * Clears the in-memory filter log store on demand (e.g., from the Logs UI page).
+     * Clears the in-memory filter log store on demand (e.g., from the Logs UI
+     * page).
      */
     @PostMapping("/filter-logs/clear")
     public ResponseEntity<?> clearFilterLogs() {
@@ -695,8 +755,8 @@ public class StrategyController {
                 return ResponseEntity.badRequest().body(Map.of("error", "No valid symbols provided"));
             }
 
-            Map<String, com.hemasundar.pojos.QuotesResponse.QuoteData> quoteMap =
-                    thinkOrSwinAPIs.getQuotes(symbolList, "quote", null);
+            Map<String, com.hemasundar.pojos.QuotesResponse.QuoteData> quoteMap = thinkOrSwinAPIs.getQuotes(symbolList,
+                    "quote", null);
 
             List<Map<String, Object>> response = new ArrayList<>();
             for (String symbol : symbolList) {
@@ -732,10 +792,16 @@ public class StrategyController {
      * Returns the current IV Rank for a given symbol, calculated from up to 1 year
      * of historical iv_data stored in Supabase.
      *
-     * <p>Response JSON:
-     * <pre>{"symbol": "AAPL", "ivRank": 62.3, "minIV": 18.4, "maxIV": 45.6, "currentIV": 34.1}</pre>
+     * <p>
+     * Response JSON:
+     * 
+     * <pre>
+     * {"symbol": "AAPL", "ivRank": 62.3, "minIV": 18.4, "maxIV": 45.6, "currentIV": 34.1}
+     * </pre>
      *
-     * <p>Returns 503 when Supabase is disabled, and 204 (no content) when insufficient data exists.
+     * <p>
+     * Returns 503 when Supabase is disabled, and 204 (no content) when insufficient
+     * data exists.
      *
      * @param symbol stock ticker, e.g. {@code AAPL}
      */

@@ -23,6 +23,14 @@ public class OptionsStrategyFilter {
     private String securitiesFile;
     private String securities;
 
+    /**
+     * Optional Greek exposure map for this strategy.
+     * Keys: "delta", "gamma", "theta", "vega".
+     * Values: "positive", "negative", or "neutral".
+     * Serialized into the filterConfig JSON blob for UI rendering.
+     */
+    private java.util.Map<String, String> greeks;
+
     // Time-based filters
     private Integer targetDTE; // If > 0, uses single nearest expiry (backward compatible)
     private Integer minDTE; // Used with maxDTE when targetDTE == null or 0

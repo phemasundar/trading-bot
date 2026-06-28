@@ -18,6 +18,12 @@
                     "minOpenInterest": 500
                 }
             },
+            "greeks": {
+                "delta": "positive",
+                "gamma": "negative",
+                "theta": "positive",
+                "vega": "negative"
+            },
             "securitiesFile": "portfolio"
         },
         {
@@ -38,8 +44,15 @@
                     "minOpenInterest": 500
                 }
             },
+            "greeks": {
+                "delta": "positive",
+                "gamma": "negative",
+                "theta": "positive",
+                "vega": "negative"
+            },
             "securitiesFile": "tracking, 2026"
         },
+
         {
             "alias": "Tech RSI/BB PCS",
             "enabled": true,
@@ -56,6 +69,12 @@
                     "maxDelta": 0.3,
                     "minOpenInterest": 500
                 }
+            },
+            "greeks": {
+                "delta": "positive",
+                "gamma": "negative",
+                "theta": "positive",
+                "vega": "negative"
             },
             "securitiesFile": "top100",
             "technicalFilter": {
@@ -86,6 +105,12 @@
                     "minOpenInterest": 500
                 }
             },
+            "greeks": {
+                "delta": "negative",
+                "gamma": "negative",
+                "theta": "positive",
+                "vega": "negative"
+            },
             "securitiesFile": "portfolio"
         },
         {
@@ -104,6 +129,12 @@
                     "maxDelta": 0.3,
                     "minOpenInterest": 500
                 }
+            },
+            "greeks": {
+                "delta": "negative",
+                "gamma": "negative",
+                "theta": "positive",
+                "vega": "negative"
             },
             "securitiesFile": "top100",
             "technicalFilter": {
@@ -139,6 +170,12 @@
                     "minOpenInterest": 100
                 }
             },
+            "greeks": {
+                "delta": "neutral",
+                "gamma": "negative",
+                "theta": "positive",
+                "vega": "negative"
+            },
             "securitiesFile": "portfolio"
         },
         {
@@ -162,6 +199,12 @@
                     "maxDelta": 0.15,
                     "minOpenInterest": 500
                 }
+            },
+            "greeks": {
+                "delta": "neutral",
+                "gamma": "negative",
+                "theta": "positive",
+                "vega": "negative"
             },
             "securitiesFile": "portfolio, 2026"
         },
@@ -187,6 +230,12 @@
                     "minOpenInterest": 500
                 }
             },
+            "greeks": {
+                "delta": "neutral",
+                "gamma": "negative",
+                "theta": "positive",
+                "vega": "negative"
+            },
             "securitiesFile": "bullish, 2026"
         },
         {
@@ -209,6 +258,12 @@
                     "minDelta": 0.4,
                     "minOpenInterest": 100
                 }
+            },
+            "greeks": {
+                "delta": "positive",
+                "gamma": "positive",
+                "theta": "negative",
+                "vega": "positive"
             }
         },
         {
@@ -231,6 +286,12 @@
                     "minDelta": 0.4,
                     "minOpenInterest": 100
                 }
+            },
+            "greeks": {
+                "delta": "positive",
+                "gamma": "positive",
+                "theta": "negative",
+                "vega": "positive"
             }
         },
         {
@@ -265,6 +326,12 @@
                     "optionPricePercent",
                     "breakevenCAGR"
                 ]
+            },
+            "greeks": {
+                "delta": "positive",
+                "gamma": "positive",
+                "theta": "negative",
+                "vega": "positive"
             }
         },
         {
@@ -287,6 +354,12 @@
                     "maxDelta": 0.4,
                     "minOpenInterest": 1000
                 }
+            },
+            "greeks": {
+                "delta": "positive",
+                "gamma": "negative",
+                "theta": "positive",
+                "vega": "negative"
             },
             "securitiesFile": "portfolio, 2026"
         },
@@ -313,6 +386,12 @@
                     "minOpenInterest": 1000
                 }
             },
+            "greeks": {
+                "delta": "positive",
+                "gamma": "negative",
+                "theta": "positive",
+                "vega": "negative"
+            },
             "securitiesFile": "tracking, 2026"
         },
         {
@@ -337,6 +416,12 @@
                     "minOpenInterest": 100
                 }
             },
+            "greeks": {
+                "delta": "positive",
+                "gamma": "positive",
+                "theta": "negative",
+                "vega": "positive"
+            },
             "securitiesFile": "portfolio, tracking, 2026"
         },
         {
@@ -355,6 +440,12 @@
                     "maxDelta": 0.20,
                     "minOpenInterest": 100
                 }
+            },
+            "greeks": {
+                "delta": "positive",
+                "gamma": "negative",
+                "theta": "positive",
+                "vega": "negative"
             },
             "securitiesFile": "portfolio, tracking, 2026"
         },
@@ -375,6 +466,12 @@
                     "minOpenInterest": 100
                 }
             },
+            "greeks": {
+                "delta": "positive",
+                "gamma": "negative",
+                "theta": "positive",
+                "vega": "negative"
+            },
             "securitiesFile": "portfolio, tracking, 2026"
         },
         {
@@ -392,6 +489,12 @@
                     "maxDelta": 0.20,
                     "minOpenInterest": 100
                 }
+            },
+            "greeks": {
+                "delta": "positive",
+                "gamma": "negative",
+                "theta": "positive",
+                "vega": "negative"
             },
             "securitiesFile": "portfolio, tracking, 2026"
         }
