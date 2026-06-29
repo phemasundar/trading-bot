@@ -1,5 +1,43 @@
 # Project Updates
 
+## Feature: Greek Exposure Pill Labels on Strategy Cards (2026-06-28)
+
+Added four colored Greek exposure pill labels (Δ Delta, Γ Gamma, Θ Theta, V Vega) to every strategy result card on the Options Dashboard and Execute Strategy page. Each pill is color-coded based on the strategy's configured Greek polarity. Also added a standardized Greeks details table (explaining polarity and utility) to the top of all strategy description markdown files.
+
+### Color Coding
+| Value | Color |
+|---|---|
+| `positive` | Green (`#22c55e`) |
+| `negative` | Red (`#ef4444`) |
+| `neutral` | Muted gray |
+
+### How It Works
+Greek polarity is configured in `strategies-config.json` per strategy under a new `"greeks"` object. The data flows through the full stack and is persisted as part of the `filterConfig` JSON blob in Supabase.
+
+### Architecture
+| File | Change |
+|---|---|
+| **`strategies-config.json`** | Added `"greeks": { "delta": "...", "gamma": "...", "theta": "...", "vega": "..." }` to all 17 option strategy entries |
+| **`StrategiesConfig.StrategyEntry`** | Added `private Map<String, String> greeks` field |
+| **`OptionsConfig.java`** | Added `private final Map<String, String> greeks` field |
+| **`OptionsStrategyFilter.java`** | Added `private java.util.Map<String, String> greeks` field — auto-serialized into the `filterConfig` JSON blob stored in Supabase |
+| **`StrategiesConfigLoader.java`** | Passes `entry.getGreeks()` into both `filter.setGreeks()` and the `OptionsConfig` builder |
+| **`StrategyController.java`** | Adds `greeks` to the `/api/strategies` response map |
+| **`app.js`** | Added `renderGreeksPills()` helper; reads `cfg.greeks` from `filterConfig` and renders pills in `buildResultCard()` |
+| **`style.css`** | Added `.greek-pills`, `.greek-pill`, `.greek-positive`, `.greek-negative`, `.greek-neutral` CSS classes |
+
+### Greek Conventions by Strategy
+| Strategy | Δ Delta | Γ Gamma | Θ Theta | V Vega |
+|---|---|---|---|---|
+| PCS / Short Put | positive | negative | positive | negative |
+| CCS | negative | negative | positive | negative |
+| Iron Condor | neutral | negative | positive | negative |
+| Long Call LEAP | positive | positive | negative | positive |
+| Bullish BWB | positive | negative | positive | negative |
+| Bullish ZEBRA | positive | positive | negative | positive |
+
+---
+
 ## Feature: Option Chain Data in Trade Detail Panel (2026-06-24)
 
 Clicking a trade row now shows the raw Schwab option chain `OptionData` for each leg in a structured table, inserted between the trade summary text and the Volatility Context section.

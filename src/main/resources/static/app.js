@@ -231,6 +231,30 @@ window.tradeDataMap = window.tradeDataMap || {};
 
 // ── Card Builder ──
 
+/**
+ * Renders 4 colored Greek exposure pills (Δ Γ Θ V) from a greeks map.
+ * @param {Object|null} greeks - e.g. { delta: 'positive', gamma: 'negative', theta: 'positive', vega: 'negative' }
+ * @returns {string} HTML string of the .greek-pills container, or '' if no data.
+ */
+function renderGreeksPills(greeks) {
+    if (!greeks) return '';
+    const labels = [
+        { key: 'delta', symbol: 'Δ' },
+        { key: 'gamma', symbol: 'Γ' },
+        { key: 'theta', symbol: 'Θ' },
+        { key: 'vega',  symbol: 'V' }
+    ];
+    const pills = labels.map(({ key, symbol }) => {
+        const val = (greeks[key] || 'neutral').toLowerCase();
+        const cls = val === 'positive' ? 'greek-positive'
+                  : val === 'negative' ? 'greek-negative'
+                  : 'greek-neutral';
+        const sign = val === 'positive' ? '+' : val === 'negative' ? '−' : '';
+        return `<span class="greek-pill ${cls}" title="${key.charAt(0).toUpperCase() + key.slice(1)}: ${val}">${symbol}${sign}</span>`;
+    }).join('');
+    return `<span class="greek-pills">${pills}</span>`;
+}
+
 function buildResultCard(result, badgeText = 'Standard') {
     const card = document.createElement('div');
     const hasTrades = result.trades && result.trades.length > 0;
@@ -292,6 +316,7 @@ function buildResultCard(result, badgeText = 'Standard') {
                 <span class="card-name">${displayName}</span>
                 ${result.descriptionFile ? `<button type="button" class="info-btn" onclick="showInfo(event, '${result.descriptionFile}', '${escapeAttr(displayName)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>` : ''}
                 <span class="card-badge">${badgeText}</span>
+                ${(() => { try { const cfg = typeof result.filterConfig === 'string' ? JSON.parse(result.filterConfig) : result.filterConfig; return renderGreeksPills(cfg && cfg.greeks); } catch(e) { return ''; } })()}
                 ${loadFiltersBtn}
                 ${deleteBtn}
             </div>

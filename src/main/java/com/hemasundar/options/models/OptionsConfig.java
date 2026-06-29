@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Configuration for an options trading strategy.
@@ -67,6 +68,13 @@ public class OptionsConfig {
      * If null or blank, falls back to StrategyType display name.
      */
     private final String alias;
+
+    /**
+     * Optional Greek exposure map for this strategy configuration.
+     * Keys: "delta", "gamma", "theta", "vega".
+     * Values: "positive", "negative", or "neutral".
+     */
+    private final Map<String, String> greeks;
 
     /**
      * Gets the display name for this strategy configuration.

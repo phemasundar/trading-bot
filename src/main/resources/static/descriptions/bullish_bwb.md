@@ -1,5 +1,13 @@
 # Bullish Broken Wing Butterfly (BWB)
 
+### Strategy Option Greeks
+| Greek | Polarity | Description & Utility |
+|---|---|---|
+| **Delta (Δ)** | **Positive** | Positive overall, benefiting from flat to upward movement in the stock. |
+| **Gamma (Γ)** | **Negative** | Negative at short body strikes; rapid price movement near the body increases risk. |
+| **Theta (Θ)** | **Positive** | Time decay works in your favor, eroding the middle sold options faster than the wings. |
+| **Vega (V)** | **Negative** | Position typically benefits from a decrease in implied volatility. |
+
 A Broken Wing Butterfly is an options strategy designed to have a very high probability of profit while eliminating risk on one side of the trade (typically the downside for a bullish BWB).
 
 ### How it works

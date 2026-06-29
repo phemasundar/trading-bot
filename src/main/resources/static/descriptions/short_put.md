@@ -1,8 +1,12 @@
-Option Greeks:
-Positive Delta
-Positive Theta
-Negative VEGA -- profit when the IV crash
-So try picking the trade, when the IV rank is high
+# Cash-Secured Put (Short Put / CSP)
+
+### Strategy Option Greeks
+| Greek | Polarity | Description & Utility |
+|---|---|---|
+| **Delta (Δ)** | **Positive** | Profits as the stock price rises or stays above the strike price. |
+| **Gamma (Γ)** | **Negative** | Risk accelerates if the underlying price drops rapidly towards or below the strike. |
+| **Theta (Θ)** | **Positive** | Time decay works in your favor, eroding the value of the put option you sold. |
+| **Vega (V)** | **Negative** | Profits from a drop in implied volatility. Best opened when IV Rank is elevated. |
 
 
 The primary options strategy for acquiring a stock at a lower future price is a **Cash-Secured Put (CSP)**.
