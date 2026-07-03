@@ -32,11 +32,27 @@ public class EarningsCacheManagerTest {
     }
 
     @Test
-    public void testGetFromCache_Stale() {
-        // This is tricky as we can't easily mock the time inside the static class without PowerMock
-        // or refactoring to use a Clock.
-        // But we can test the null case for non-existent symbols.
-        List<EarningsCalendarResponse.EarningCalendar> cached = EarningsCacheManager.getEarningsFromCache("NON_EXISTENT", LocalDate.now());
+    public void testGetFromCache_Stale() throws Exception {
+        String symbol = "STALE_TICKER";
+        
+        // Manually build a stale entry
+        com.hemasundar.pojos.EarningsCache.CacheEntry entry = com.hemasundar.pojos.EarningsCache.CacheEntry.builder()
+                .lastFetched(LocalDate.now().minusDays(40).toString())
+                .earnings(Collections.emptyList())
+                .build();
+                
+        // Inject via reflection into EarningsCacheManager
+        java.lang.reflect.Field field = EarningsCacheManager.class.getDeclaredField("earningsCache");
+        field.setAccessible(true);
+        com.hemasundar.pojos.EarningsCache cache = (com.hemasundar.pojos.EarningsCache) field.get(null);
+        if (cache == null) {
+            cache = com.hemasundar.pojos.EarningsCache.builder().build();
+            field.set(null, cache);
+        }
+        cache.getCache().put(symbol, entry);
+
+        // Retrieve from cache - should be null since it's stale (> 30 days)
+        List<EarningsCalendarResponse.EarningCalendar> cached = EarningsCacheManager.getEarningsFromCache(symbol, LocalDate.now());
         assertNull(cached);
     }
 }

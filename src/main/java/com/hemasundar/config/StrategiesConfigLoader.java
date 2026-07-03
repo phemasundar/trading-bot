@@ -10,6 +10,7 @@ import com.hemasundar.options.strategies.StrategyType;
 import com.hemasundar.technical.*;
 import com.hemasundar.utils.FilePaths;
 import com.hemasundar.utils.JavaUtils;
+import com.hemasundar.utils.WikipediaSecuritiesFetcher;
 import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,13 @@ import java.util.*;
 public class StrategiesConfigLoader {
 
     private final List<AbstractTradingStrategy> availableStrategies;
+
+    /**
+     * Fetcher for dynamic Wikipedia index constituents (SPY, QQQ).
+     * Called lazily — only when a strategy references SPY or QQQ and is about to run.
+     */
+    private final WikipediaSecuritiesFetcher wikipediaFetcher;
+
     private final Map<StrategyType, AbstractTradingStrategy> strategyMap = new HashMap<>();
 
     @PostConstruct
@@ -318,23 +326,39 @@ public class StrategiesConfigLoader {
             return List.of();
         }
 
-        // Split by comma and trim whitespace
         String[] fileNames = securitiesFile.split(",");
-
-        // Use LinkedHashSet to maintain order and uniqueness
         Set<String> uniqueSecurities = new LinkedHashSet<>();
 
         for (String fileName : fileNames) {
-            String trimmedFileName = fileName.trim();
-            List<String> securities = securitiesMap.getOrDefault(trimmedFileName, List.of());
-            uniqueSecurities.addAll(securities);
+            String key = fileName.trim();
 
-            if (securities.isEmpty()) {
-                log.warn("Securities file '{}' not found in map or is empty", trimmedFileName);
+            // Fast path: key is in the pre-loaded static map
+            if (securitiesMap.containsKey(key)) {
+                List<String> securities = securitiesMap.get(key);
+                uniqueSecurities.addAll(securities);
+                if (securities.isEmpty()) {
+                    log.warn("Securities key '{}' is present in the map but empty", key);
+                }
+                continue;
             }
+
+            // Lazy path: dynamic keyword not in the static map — fetch from Wikipedia on demand.
+            // This is intentionally deferred to execution time so that a Wikipedia outage
+            // does NOT prevent the application from starting or the /api/strategies listing
+            // from loading.
+            if (key.equalsIgnoreCase("SPY") || key.equalsIgnoreCase("QQQ")) {
+                log.info("Lazily fetching dynamic securities for keyword '{}' from Wikipedia", key);
+                List<String> tickers = wikipediaFetcher.fetch(key); // throws IllegalStateException on failure
+                log.info("Fetched {} tickers for '{}' from Wikipedia", tickers.size(), key);
+                uniqueSecurities.addAll(tickers);
+                continue;
+            }
+
+            // Unknown key: warn but do not fail — the strategy will run with an empty list
+            log.warn("Securities key '{}' not found in static map and is not a recognised dynamic keyword (SPY/QQQ)", key);
         }
 
-        log.debug("Loaded {} unique securities from files: {}", uniqueSecurities.size(), securitiesFile);
+        log.debug("Resolved {} unique securities from '{}'", uniqueSecurities.size(), securitiesFile);
         return new ArrayList<>(uniqueSecurities);
     }
 }

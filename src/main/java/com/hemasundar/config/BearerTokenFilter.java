@@ -156,14 +156,25 @@ public class BearerTokenFilter implements Filter {
             }
 
             log.info("[AUTH SUCCESS] JWT verified for {} on {}", email, path);
+            // Auth passed — let the request continue to the controller/servlet.
+            // Any IOException or ServletException thrown by downstream code will
+            // propagate through here naturally and be handled by Spring's own
+            // error mechanism (NOT logged as an auth error).
             chain.doFilter(request, response);
 
         } catch (JWTVerificationException e) {
             log.info("[AUTH ERROR] JWT verification failed for {}: {}", path, e.getMessage());
             sendError(response, HttpServletResponse.SC_UNAUTHORIZED,
                     "Invalid or expired token. Please sign in again.");
+        } catch (IOException | ServletException e) {
+            // These are downstream (business logic) exceptions — re-throw so Spring
+            // can handle them via @ExceptionHandler / @ControllerAdvice and return
+            // a meaningful HTTP error to the client instead of a misleading 401.
+            throw e;
         } catch (Exception e) {
-            log.info("[AUTH ERROR] Unexpected error during JWT verification for {}: {}", path, e.getMessage(), e);
+            // Only remaining cases: JWK fetch failures, algorithm resolution errors, etc.
+            // These are genuine authentication infrastructure problems.
+            log.warn("[AUTH ERROR] JWT infrastructure error for {}: {}", path, e.getMessage(), e);
             sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "Token verification failed.");
         }
     }

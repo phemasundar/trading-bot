@@ -71,16 +71,11 @@ public class IVDataJobServiceTest {
         dataPoint.setSymbol("AAPL");
         when(ivDataCollector.collectIVDataPoint("AAPL")).thenReturn(dataPoint);
 
-        // We need to bypass or mock loadAllSecurities()
-        // Since loadAllSecurities reads from the file system, we might need to use a Spy or 
-        // inject the securities set if we want to avoid file system dependency.
-        // However, we can try to mock the collector to throw an exception for any symbol 
-        // if we can't control the securities list.
+        // Spy on service to mock loadAllSecurities to avoid loading 128 symbols and sleeping
+        IVDataJobService spyService = spy(ivDataJobService);
+        doReturn(Collections.singleton("AAPL")).when(spyService).loadAllSecurities();
         
-        // Let's use reflection or just let it read the actual files if they exist in the test environment.
-        // Better: mock the Collector such that it does something detectable.
-        
-        ivDataJobService.runIVDataCollection();
+        spyService.runIVDataCollection();
         
         // Verify summary was sent
         verify(telegramUtils, atLeastOnce()).sendMessage(anyString());

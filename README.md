@@ -155,26 +155,59 @@ This will:
 
 ### Configuring Securities Files Per Strategy
 
-Each strategy can use a different securities file. This is configured in `strategies-config.json` via the `securitiesFile` property for each enabled strategy definition.
+Each strategy and screener resolves its symbol universe from three sources, all configured via `securitiesFile` and/or `securities` in `strategies-config.json`. Multiple names can be combined with commas; duplicates are automatically deduplicated.
 
 ```json
 {
-  "strategies": [
-    {
-      "enabled": true,
-      "type": "PUT_CREDIT_SPREAD",
-      "securitiesFile": "securities"
-    }
-  ]
+  "alias": "My Strategy",
+  "strategyType": "PUT_CREDIT_SPREAD",
+  "securitiesFile": "QQQ, portfolio",
+  "securities": "TSLA, CRWD"
 }
 ```
 
-**Available securities files:**
+---
 
-- `securities.yaml` - Custom watchlist
-- `top100.yaml` - Top 100 stocks
+#### 1. Static YAML Files
 
-**API Call Optimization:** The `OptionChainCache` ensures each symbol is fetched only once, even if used by multiple strategies. At the end of execution, cache statistics are printed showing the total API calls made.
+Pre-defined symbol lists bundled inside the JAR (`src/main/resources/securities/`):
+
+| Key | File | Description |
+|---|---|---|
+| `portfolio` | `securities/1_portfolio.yaml` | Personal holdings watchlist |
+| `tracking` | `securities/2_tracking.yaml` | Tracked stocks (not yet in portfolio) |
+| `bullish` | `securities/3_bullish.yaml` | High-conviction bullish candidates |
+| `2026` | `securities/4_2026.yaml` | 2026 watchlist |
+| `top100` | `securities/top100.yaml` | Top 100 liquid stocks by volume |
+
+Edit the corresponding `.yaml` file to add/remove symbols.
+
+#### 2. Inline Symbols (`securities` field)
+
+Pass a comma-separated list of ticker symbols directly in the JSON config. These are merged with any `securitiesFile` symbols:
+
+```json
+"securities": "TSLA, CRWD, PLTR"
+```
+
+#### 3. Dynamic Wikipedia Index Lists ✨ **New**
+
+Specify a magic keyword to fetch the live constituent list from Wikipedia at runtime. Lists are **cached in memory for 24 hours** (configurable via `securities.wiki.cache-hours` in `application.properties`). A hard `IllegalStateException` is thrown if Wikipedia is unreachable.
+
+| Keyword | Index | Source | ~Size |
+|---|---|---|---|
+| `SPY` | S&P 500 | [Wikipedia – List of S&P 500 companies](https://en.wikipedia.org/wiki/List_of_S%26P_500_companies) | ~503 tickers |
+| `QQQ` | Nasdaq-100 | [Wikipedia – Nasdaq-100](https://en.wikipedia.org/wiki/Nasdaq-100) | ~100 tickers |
+
+```json
+"securitiesFile": "QQQ"                  // Only Nasdaq-100
+"securitiesFile": "SPY, portfolio"        // S&P 500 + personal watchlist
+"securitiesFile": "QQQ, tracking, 2026"  // Mix of dynamic + static
+```
+
+**API Call Optimization:** The `OptionChainCache` ensures each symbol is fetched only once, even if it appears in multiple sources. Cache hit/miss statistics are logged at the end of every execution run.
+
+
 
 ## Technical Indicator Strategies
 

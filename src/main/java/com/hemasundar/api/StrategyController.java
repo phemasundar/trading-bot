@@ -48,6 +48,7 @@ public class StrategyController {
     private final com.hemasundar.utils.AuthErrorUtils authErrorUtils;
     private final com.hemasundar.services.SupabaseService supabaseService;
     private final Optional<IVDataRepository> ivDataRepository;
+    private final com.hemasundar.utils.WikipediaSecuritiesFetcher wikipediaFetcher;
 
     // ────────────────────────────────────────────
     // AUTH CONFIG (public — excluded from filter)
@@ -96,6 +97,17 @@ public class StrategyController {
             return ResponseEntity.ok()
                     .header("Cache-Control", "no-cache, no-store, must-revalidate")
                     .body(response);
+        } catch (IllegalStateException e) {
+            // Thrown by WikipediaSecuritiesFetcher when Wikipedia is unreachable or its
+            // page structure has changed. Surface it clearly so the frontend can show a
+            // meaningful message instead of a silent failure or misleading auth error.
+            log.error("Dynamic securities fetch failed (Wikipedia): {}", e.getMessage());
+            return ResponseEntity.status(503)
+                    .body(Map.of(
+                            "error",   "Failed to load dynamic securities from Wikipedia.",
+                            "details", e.getMessage(),
+                            "hint",    "Wikipedia may be unreachable or the page structure has changed. " +
+                                       "Check the application logs for details."));
         } catch (IOException e) {
             log.error("Failed to load strategies", e);
             return ResponseEntity.internalServerError()
@@ -323,10 +335,20 @@ public class StrategyController {
                     Map<String, List<String>> securitiesMap = securitiesResolver.loadSecuritiesMaps();
                     String[] fileNames = request.getSecuritiesFile().split(",");
                     for (String fileName : fileNames) {
-                        String key = fileName.trim().toLowerCase();
-                        List<String> fileSymbols = securitiesMap.get(key);
+                        String key = fileName.trim(); // Do not lowercase, Wikipedia expects "SPY" / "QQQ"
+                        String keyLower = key.toLowerCase();
+                        
+                        List<String> fileSymbols = securitiesMap.get(keyLower);
                         if (fileSymbols != null) {
                             symbolSet.addAll(fileSymbols);
+                        } else if (key.equalsIgnoreCase("SPY") || key.equalsIgnoreCase("QQQ")) {
+                            log.info("Lazily fetching dynamic securities for custom execution: {}", key);
+                            try {
+                                symbolSet.addAll(wikipediaFetcher.fetch(key.toUpperCase()));
+                            } catch (IllegalStateException e) {
+                                return ResponseEntity.status(503)
+                                        .body(Map.of("error", "Failed to load " + key + " from Wikipedia: " + e.getMessage()));
+                            }
                         } else {
                             log.warn("Securities file '{}' not found. Available: {}", key, securitiesMap.keySet());
                         }
@@ -412,10 +434,19 @@ public class StrategyController {
             try {
                 Map<String, List<String>> securitiesMap = securitiesResolver.loadSecuritiesMaps();
                 for (String fileName : request.getSecuritiesFile().split(",")) {
-                    String key = fileName.trim().toLowerCase();
-                    List<String> fileSymbols = securitiesMap.get(key);
+                    String key = fileName.trim();
+                    String keyLower = key.toLowerCase();
+                    List<String> fileSymbols = securitiesMap.get(keyLower);
                     if (fileSymbols != null) {
                         symbolSet.addAll(fileSymbols);
+                    } else if (key.equalsIgnoreCase("SPY") || key.equalsIgnoreCase("QQQ")) {
+                        log.info("Lazily fetching dynamic securities for custom screener: {}", key);
+                        try {
+                            symbolSet.addAll(wikipediaFetcher.fetch(key.toUpperCase()));
+                        } catch (IllegalStateException e) {
+                            return ResponseEntity.status(503)
+                                    .body(Map.of("error", "Failed to load " + key + " from Wikipedia: " + e.getMessage()));
+                        }
                     } else {
                         log.warn("Securities file '{}' not found. Available: {}", key, securitiesMap.keySet());
                     }
