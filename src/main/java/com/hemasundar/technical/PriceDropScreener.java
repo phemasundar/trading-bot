@@ -1,15 +1,18 @@
 package com.hemasundar.technical;
 
 import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.cache.PriceHistoryCache;
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.pojos.QuotesResponse;
 import com.hemasundar.utils.SchwabApiExecutor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 
 @Log4j2
 @Component
@@ -30,12 +33,12 @@ public class PriceDropScreener {
      * @return List of ScreeningResult for stocks matching the criteria
      */
     public List<TechnicalScreener.ScreeningResult> screenPriceDrop(
-            List<String> symbols, double minDropPercent, int lookbackDays) {
+            List<String> symbols, double minDropPercent, int lookbackDays, BiConsumer<String, String> alertCallback) {
 
         if (lookbackDays == 0) {
-            return screenIntradayDrop(symbols, minDropPercent);
+            return screenIntradayDrop(symbols, minDropPercent, alertCallback);
         } else {
-            return screenMultiDayDrop(symbols, minDropPercent, lookbackDays);
+            return screenMultiDayDrop(symbols, minDropPercent, lookbackDays, alertCallback);
         }
     }
 
@@ -43,11 +46,12 @@ public class PriceDropScreener {
      * Screens stocks for drops from their 52-week high.
      *
      * @param symbols        List of stock symbols to screen
-     * @param minDropPercent Minimum drop percentage from 52-week high (e.g., 20.0 for 20%)
+     * @param minDropPercent Minimum drop percentage from 52-week high (e.g., 20.0
+     *                       for 20%)
      * @return List of ScreeningResult for stocks matching the criteria
      */
     public List<TechnicalScreener.ScreeningResult> screen52WeekHighDrop(
-            List<String> symbols, double minDropPercent) {
+            List<String> symbols, double minDropPercent, BiConsumer<String, String> alertCallback) {
 
         List<TechnicalScreener.ScreeningResult> results = new ArrayList<>();
 
@@ -87,6 +91,9 @@ public class PriceDropScreener {
                 }
             } catch (Exception e) {
                 log.warn("Error fetching quotes for batch starting at {}: {}", i, e.getMessage());
+                if (alertCallback != null) {
+                    alertCallback.accept("Batch " + i, e.getMessage());
+                }
             }
         }
 
@@ -98,7 +105,7 @@ public class PriceDropScreener {
      * Screens for intraday price drops using Quotes API netPercentChange.
      */
     private List<TechnicalScreener.ScreeningResult> screenIntradayDrop(
-            List<String> symbols, double minDropPercent) {
+            List<String> symbols, double minDropPercent, BiConsumer<String, String> alertCallback) {
 
         List<TechnicalScreener.ScreeningResult> results = new ArrayList<>();
 
@@ -134,6 +141,9 @@ public class PriceDropScreener {
                 }
             } catch (Exception e) {
                 log.warn("Error fetching quotes for batch starting at {}: {}", i, e.getMessage());
+                if (alertCallback != null) {
+                    alertCallback.accept("Batch " + i, e.getMessage());
+                }
             }
         }
 
@@ -145,81 +155,69 @@ public class PriceDropScreener {
      * Screens for multi-day price drops using Price History API.
      */
     private List<TechnicalScreener.ScreeningResult> screenMultiDayDrop(
-            List<String> symbols, double minDropPercent, int lookbackDays) {
+            List<String> symbols, double minDropPercent, int lookbackDays, BiConsumer<String, String> alertCallback) {
 
         log.info("Screening {} symbols for >= {}% drop over {} days (parallel)",
                 symbols.size(), minDropPercent, lookbackDays);
-
-        int monthsNeeded = 1;
-        if (lookbackDays >= 60) {
-            monthsNeeded = 6;
-        } else if (lookbackDays >= 20) {
-            monthsNeeded = 3;
-        }
-        final int finalMonthsNeeded = monthsNeeded;
 
         long screenT0 = System.currentTimeMillis();
 
         // ── Parallel execution (Track B) ──
         List<TechnicalScreener.ScreeningResult> parallelResults = schwabApiExecutor.executeParallel(
                 symbols, symbol -> {
-                    try {
-                        PriceHistoryResponse history = thinkOrSwinAPIs.getPriceHistory(
-                                symbol, "month", finalMonthsNeeded, "daily", 1, null, null, false, false);
+                    PriceHistoryCache.HistoricalData cachedData = PriceHistoryCache.getInstance().getHistoricalData(symbol, thinkOrSwinAPIs, null);
+                    PriceHistoryResponse history = cachedData != null ? cachedData.getPriceHistory() : null;
 
-                        if (history == null || history.getCandles() == null
-                                || history.getCandles().isEmpty()) {
-                            return null;
-                        }
-
-                        List<PriceHistoryResponse.CandleData> candles = history.getCandles();
-                        int totalBars = candles.size();
-
-                        if (totalBars < lookbackDays + 1) {
-                            log.debug("[{}] Not enough price history ({} bars, need {})",
-                                    symbol, totalBars, lookbackDays + 1);
-                            return null;
-                        }
-
-                        PriceHistoryResponse.CandleData currentCandle = candles.get(totalBars - 1);
-                        double currentPrice = currentCandle.getClose();
-                        long volume = currentCandle.getVolume();
-
-                        PriceHistoryResponse.CandleData referenceCandle =
-                                candles.get(totalBars - 1 - lookbackDays);
-                        double referencePrice = referenceCandle.getClose();
-
-                        if (referencePrice <= 0) return null;
-
-                        double dropPct = ((referencePrice - currentPrice) / referencePrice) * 100.0;
-
-                        if (dropPct >= minDropPercent) {
-                            String dropType;
-                            if (lookbackDays == 21) {
-                                dropType = "1M";
-                            } else if (lookbackDays == 63) {
-                                dropType = "3M";
-                            } else {
-                                dropType = lookbackDays + "D";
-                            }
-                            log.info("[{}] Down {}% over {} days (${} -> ${})",
-                                    symbol, String.format("%.2f", dropPct), lookbackDays,
-                                    String.format("%.2f", referencePrice),
-                                    String.format("%.2f", currentPrice));
-                            return buildResult(symbol, currentPrice, volume, dropPct,
-                                    referencePrice, dropType);
-                        }
-                        return null;
-                    } catch (Exception e) {
-                        log.warn("[{}] Error in drop screener: {}", symbol, e.getMessage());
+                    if (history == null || history.getCandles() == null
+                            || history.getCandles().isEmpty()) {
                         return null;
                     }
-                });
+
+                    List<PriceHistoryResponse.CandleData> candles = history.getCandles();
+                    int totalBars = candles.size();
+
+                    if (totalBars < lookbackDays + 1) {
+                        log.debug("[{}] Not enough price history ({} bars, need {})",
+                                symbol, totalBars, lookbackDays + 1);
+                        return null;
+                    }
+
+                    PriceHistoryResponse.CandleData currentCandle = candles.get(totalBars - 1);
+                    double currentPrice = currentCandle.getClose();
+                    long volume = currentCandle.getVolume();
+
+                    PriceHistoryResponse.CandleData referenceCandle = candles.get(totalBars - 1 - lookbackDays);
+                    double referencePrice = referenceCandle.getClose();
+
+                    if (referencePrice <= 0)
+                        return null;
+
+                    double dropPct = ((referencePrice - currentPrice) / referencePrice) * 100.0;
+
+                    if (dropPct >= minDropPercent) {
+                        String dropType;
+                        if (lookbackDays == 21) {
+                            dropType = "1M";
+                        } else if (lookbackDays == 63) {
+                            dropType = "3M";
+                        } else {
+                            dropType = lookbackDays + "D";
+                        }
+                        log.info("[{}] Down {}% over {} days (${} -> ${})",
+                                symbol, String.format("%.2f", dropPct), lookbackDays,
+                                String.format("%.2f", referencePrice),
+                                String.format("%.2f", currentPrice));
+                        return buildResult(symbol, currentPrice, volume, dropPct,
+                                referencePrice, dropType);
+                    }
+                    return null;
+                }, alertCallback);
 
         // Collect non-null results
         List<TechnicalScreener.ScreeningResult> results = new ArrayList<>();
         for (TechnicalScreener.ScreeningResult r : parallelResults) {
-            if (r != null) results.add(r);
+            if (r != null)
+                results.add(r);
         }
 
         log.info("Multi-day drop screening complete. Found {} stocks matching criteria.", results.size());

@@ -8,6 +8,9 @@ import com.hemasundar.dto.ScreenerExecutionResult;
 import com.hemasundar.technical.*;
 import com.hemasundar.utils.SecuritiesResolver;
 import com.hemasundar.utils.TelegramUtils;
+import com.hemasundar.utils.SchwabApiExecutor;
+import com.hemasundar.utils.VolatilityCalculator;
+import com.hemasundar.cache.PriceHistoryCache;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
@@ -31,6 +34,8 @@ public class ScreenerExecutionService {
     private final TechnicalScreener technicalScreener;
     private final PriceDropScreener priceDropScreener;
     private final StrategiesConfigLoader strategiesConfigLoader;
+    private final SchwabApiExecutor schwabApiExecutor;
+    private final VolatilityCalculator volatilityCalculator;
 
     /**
      * Loads all enabled technical screeners from strategies-config.json
@@ -83,6 +88,24 @@ public class ScreenerExecutionService {
                 .map(i -> allScreeners.get(i))
                 .collect(Collectors.toList());
 
+        // PREWARM CACHE (Parallel Fetch) - Performance Optimization
+        List<String> allSymbolsToPrewarm = selectedScreeners.stream()
+                .filter(s -> s.getSecurities() != null)
+                .flatMap(s -> s.getSecurities().stream())
+                .distinct()
+                .toList();
+
+        if (!allSymbolsToPrewarm.isEmpty()) {
+            java.util.function.BiConsumer<String, String> prewarmAlertCallback = (sourceContext, errorMsg) -> {
+                if (strategyExecutionService != null) {
+                    strategyExecutionService.addAlert(ExecutionAlert.Severity.ERROR, "Prewarm: " + sourceContext, errorMsg);
+                }
+            };
+            PriceHistoryCache.getInstance().prewarm(allSymbolsToPrewarm, schwabApiExecutor, 
+                    symbol -> PriceHistoryCache.getInstance().getHistoricalData(symbol, thinkOrSwinAPIs, volatilityCalculator),
+                    prewarmAlertCallback);
+        }
+
         for (ScreenerConfig screenerConfig : selectedScreeners) {
             log.info("Running screener: {}", screenerConfig.getName());
             if (strategyExecutionService != null) {
@@ -99,6 +122,13 @@ public class ScreenerExecutionService {
                 continue;
             }
 
+            java.util.function.BiConsumer<String, String> alertCallback = (sourceContext, errorMsg) -> {
+                if (strategyExecutionService != null) {
+                    String source = String.format("Screener %s (%s)", screenerConfig.getName(), sourceContext);
+                    strategyExecutionService.addAlert(ExecutionAlert.Severity.ERROR, source, errorMsg);
+                }
+            };
+
             List<TechnicalScreener.ScreeningResult> screenerResults;
             try {
                 // Route to appropriate screener based on type
@@ -107,17 +137,17 @@ public class ScreenerExecutionService {
                         TechFilterConditions cond = screenerConfig.getConditions();
                         double minDrop = cond.getMinDropPercent() != null ? cond.getMinDropPercent() : 5.0;
                         int days = cond.getLookbackDays() != null ? cond.getLookbackDays() : 0;
-                        yield priceDropScreener.screenPriceDrop(securitiesToScan, minDrop, days);
+                        yield priceDropScreener.screenPriceDrop(securitiesToScan, minDrop, days, alertCallback);
                     }
                     case HIGH_52W_DROP -> {
                         TechFilterConditions cond = screenerConfig.getConditions();
                         double minDrop = cond.getMinDropPercent() != null ? cond.getMinDropPercent() : 20.0;
-                        yield priceDropScreener.screen52WeekHighDrop(securitiesToScan, minDrop);
+                        yield priceDropScreener.screen52WeekHighDrop(securitiesToScan, minDrop, alertCallback);
                     }
                     default -> {
                         TechnicalFilterChain filterChain = TechnicalFilterChain.of(allIndicators,
                                 screenerConfig.getConditions());
-                        yield technicalScreener.screenStocks(securitiesToScan, filterChain);
+                        yield technicalScreener.screenStocks(securitiesToScan, filterChain, alertCallback);
                     }
                 };
             } catch (Exception e) {

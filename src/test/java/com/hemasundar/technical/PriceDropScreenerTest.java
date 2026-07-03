@@ -4,6 +4,7 @@ import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.pojos.QuotesResponse;
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.utils.SchwabApiExecutor;
+import com.hemasundar.cache.PriceHistoryCache;
 import org.mockito.Mockito;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -30,7 +31,7 @@ public class PriceDropScreenerTest {
     public void setUp() {
         thinkOrSwinAPIs = Mockito.mock(ThinkOrSwinAPIs.class);
         schwabApiExecutor = Mockito.mock(SchwabApiExecutor.class);
-        Mockito.when(schwabApiExecutor.executeParallel(anyList(), any())).thenAnswer(inv -> {
+        Mockito.when(schwabApiExecutor.executeParallel(anyList(), any(), any())).thenAnswer(inv -> {
             List<String> symbols = inv.getArgument(0);
             java.util.function.Function<String, Object> func = inv.getArgument(1);
             List<Object> res = new ArrayList<>();
@@ -40,6 +41,7 @@ public class PriceDropScreenerTest {
             return res;
         });
         priceDropScreener = new PriceDropScreener(thinkOrSwinAPIs, schwabApiExecutor);
+        PriceHistoryCache.getInstance().clear();
     }
 
     @Test
@@ -59,7 +61,7 @@ public class PriceDropScreenerTest {
         Mockito.when(thinkOrSwinAPIs.getQuotes(anyList())).thenReturn(quotes);
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screenPriceDrop(
-                List.of("AAPL"), 3.0, 0);
+                List.of("AAPL"), 3.0, 0, null);
         
         assertEquals(results.size(), 1);
         assertEquals(results.get(0).getSymbol(), "AAPL");
@@ -83,7 +85,7 @@ public class PriceDropScreenerTest {
         Mockito.when(thinkOrSwinAPIs.getQuotes(anyList())).thenReturn(quotes);
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screenPriceDrop(
-                List.of("MSFT"), 3.0, 0);
+                List.of("MSFT"), 3.0, 0, null);
         
         assertEquals(results.size(), 0);
     }
@@ -104,7 +106,7 @@ public class PriceDropScreenerTest {
         Mockito.when(thinkOrSwinAPIs.getQuotes(anyList())).thenReturn(quotes);
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screen52WeekHighDrop(
-                List.of("TSLA"), 15.0);
+                List.of("TSLA"), 15.0, null);
         
         assertEquals(results.size(), 1);
         assertEquals(results.get(0).getDropPercent(), 20.0, 0.01);
@@ -132,12 +134,11 @@ public class PriceDropScreenerTest {
         
         history.setCandles(candles);
         
-        Mockito.when(thinkOrSwinAPIs.getPriceHistory(
-                anyString(), anyString(), anyInt(), anyString(), anyInt(), any(), any(), anyBoolean(), anyBoolean()))
+        Mockito.when(thinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(history);
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screenPriceDrop(
-                List.of("NVDA"), 5.0, 5);
+                List.of("NVDA"), 5.0, 5, null);
         
         assertEquals(results.size(), 1);
         assertEquals(results.get(0).getDropPercent(), 10.0, 0.01);
@@ -149,7 +150,7 @@ public class PriceDropScreenerTest {
         Mockito.when(thinkOrSwinAPIs.getQuotes(anyList())).thenThrow(new RuntimeException("API Down"));
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screenPriceDrop(
-                List.of("AAPL"), 3.0, 0);
+                List.of("AAPL"), 3.0, 0, null);
         
         assertEquals(results.size(), 0);
     }
@@ -175,12 +176,11 @@ public class PriceDropScreenerTest {
         
         history.setCandles(candles);
         
-        Mockito.when(thinkOrSwinAPIs.getPriceHistory(
-                anyString(), anyString(), Mockito.eq(3), anyString(), anyInt(), any(), any(), anyBoolean(), anyBoolean()))
+        Mockito.when(thinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(history);
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screenPriceDrop(
-                List.of("AAPL"), 10.0, 21);
+                List.of("AAPL"), 10.0, 21, null);
         
         assertEquals(results.size(), 1);
         assertEquals(results.get(0).getDropPercent(), 12.0, 0.01);
@@ -208,12 +208,11 @@ public class PriceDropScreenerTest {
         
         history.setCandles(candles);
         
-        Mockito.when(thinkOrSwinAPIs.getPriceHistory(
-                anyString(), anyString(), Mockito.eq(6), anyString(), anyInt(), any(), any(), anyBoolean(), anyBoolean()))
+        Mockito.when(thinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(history);
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screenPriceDrop(
-                List.of("MSFT"), 15.0, 63);
+                List.of("MSFT"), 15.0, 63, null);
         
         assertEquals(results.size(), 1);
         assertEquals(results.get(0).getDropPercent(), 20.0, 0.01);

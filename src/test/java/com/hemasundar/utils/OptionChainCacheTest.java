@@ -89,7 +89,7 @@ public class OptionChainCacheTest {
         OptionChainResponse resp2 = new OptionChainResponse();
 
         SchwabApiExecutor executor = mock(SchwabApiExecutor.class);
-        when(executor.executeParallel(anyList(), any())).thenAnswer(inv -> {
+        when(executor.executeParallel(anyList(), any(), any())).thenAnswer(inv -> {
             List<String> symbols = inv.getArgument(0);
             java.util.function.Function<String, OptionChainResponse> func = inv.getArgument(1);
             return List.of(func.apply(symbol1), func.apply(symbol2));
@@ -113,7 +113,7 @@ public class OptionChainCacheTest {
         OptionChainResponse resp1 = new OptionChainResponse();
 
         SchwabApiExecutor executor = mock(SchwabApiExecutor.class);
-        when(executor.executeParallel(anyList(), any())).thenReturn(java.util.Arrays.asList(resp1, null));
+        when(executor.executeParallel(anyList(), any(), any())).thenReturn(java.util.Arrays.asList(resp1, null));
 
         cache.prewarm(List.of(symbol1, symbol2), executor);
 

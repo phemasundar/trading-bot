@@ -3613,9 +3613,9 @@
       } ]
     },
     "TEST_TICKER" : {
-      "lastFetched" : "2026-07-02",
+      "lastFetched" : "2026-07-03",
       "earnings" : [ {
-        "date" : "2026-07-07",
+        "date" : "2026-07-08",
         "epsActual" : null,
         "epsEstimate" : null,
         "hour" : null,
@@ -3671,7 +3671,7 @@
       } ]
     },
     "STALE_TICKER" : {
-      "lastFetched" : "2026-05-23",
+      "lastFetched" : "2026-05-24",
       "earnings" : [ ]
     }
   }

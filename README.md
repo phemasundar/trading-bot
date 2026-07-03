@@ -278,7 +278,7 @@ TechnicalFilterChain overboughtFilterChain = TechnicalFilterChain.of(indicators,
 
 ## Testing & CI/CD Coverage
 
-The project enforces a **minimum 85% instruction coverage** for all core business logic using JaCoCo. This is enforced locally during Maven verification and via GitHub Actions for any Pull Request targeting the `develop` or `main` branch.
+The project enforces a **minimum 85% instruction coverage** (currently standing at **85.02%**) for all core business logic using JaCoCo. This is enforced locally during Maven verification and via GitHub Actions for any Pull Request targeting the `develop` or `main` branch.
 
 ### Unit Tests
 

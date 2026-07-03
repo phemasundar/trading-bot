@@ -1,5 +1,75 @@
 # Project Updates
 
+## Performance: Pre-warming Price History API Calls (2026-07-03)
+
+Implemented parallel pre-fetching (pre-warming) for `PriceHistory` API calls during Technical Screener execution to minimize duplicate requests and lower latency, mirroring the pattern used for option chains.
+
+### How It Works
+- Created `AbstractApiCache<T>`, a base generic cache class containing universal `prewarm(symbols, executor, fetchFunction, alertCallback)` logic.
+- Refactored `OptionChainCache` and `PriceHistoryCache` to extend `AbstractApiCache`.
+- Modified `PriceHistoryCache` to lazy-load and standardized its underlying API call to fetch **1 year of daily data** universally across all technical modules (e.g. `TechnicalScreener` and `PriceDropScreener`).
+- In `ScreenerExecutionService.executeScreenersInternal()`, all distinct symbols from enabled screeners are aggregated and passed to `PriceHistoryCache.getInstance().prewarm(...)` before sequential screening begins. 
+- Updated screeners to retrieve historical data from the shared cache instead of directly invoking `ThinkOrSwinAPIs`.
+
+### Architecture
+| File | Change |
+|---|---|
+| **`AbstractApiCache.java`** | [NEW] Provides parallel prewarm functionality and standardizes cache properties (hits, misses, calls). |
+| **`OptionChainCache.java`** | Refactored to extend `AbstractApiCache`, removing duplicated parallel fetch logic. |
+| **`PriceHistoryCache.java`** | Extended `AbstractApiCache`. Added `getHistoricalData(symbol, api, calc)` to act as a unified proxy for 1-year daily history. |
+| **`ScreenerExecutionService.java`** | Collects all unique screener symbols and executes `PriceHistoryCache.getInstance().prewarm()` via `SchwabApiExecutor`. |
+| **`TechnicalScreener.java`** & **`PriceDropScreener.java`** | Updated to retrieve `HistoricalData` via the singleton cache instead of separate direct API calls. |
+| Test Classes | Updated `TechnicalScreenerTest`, `PriceDropScreenerTest`, `ScreenerExecutionServiceTest`, `StrategyExecutionServiceTest`, and `OptionChainCacheTest` to accommodate constructor changes and new cache dependencies. |
+
+---
+
+## Fix: Price History API 429 Retry Mechanism and Error Surfacing (2026-07-03)
+
+Resolved an issue where `429 Too Many Requests` API errors occurring during technical screening (via `ThinkOrSwinAPIs.getPriceHistory()`) were silently swallowed by internal `try-catch` blocks. These errors were missing from the UI entirely.
+
+### How It Works
+- Added an `alertCallback` (`BiConsumer<String, String>`) parameter to `SchwabApiExecutor.executeParallel()`. This executor already possessed the logic to pause and retry `HttpClientErrorException.TooManyRequests` (429) errors.
+- Removed the silent `catch (Exception e) { return null; }` blocks inside the per-symbol lambdas in `TechnicalScreener` and `PriceDropScreener`. Exceptions now successfully bubble up to `SchwabApiExecutor` where the retry mechanism triggers.
+- If the 429 retry fails, or any other fatal exception occurs, `SchwabApiExecutor` now intercepts the error and calls `alertCallback.accept(symbol, errorMessage)`.
+- Threaded `alertCallback` through `ScreenerExecutionService` and `StrategyExecutionService` down into the screeners. The service binds the callback to `filterLogStore.addLog()`, surfacing API failures natively to the UI's log panel.
+- Refactored `TechnicalScreenerTest`, `PriceDropScreenerTest`, `ScreenerExecutionServiceTest`, and `StrategyExecutionServiceTest` to accommodate the updated method signatures.
+
+### Architecture
+| File | Change |
+|---|---|
+| **`SchwabApiExecutor.java`** | Added `alertCallback` param to `executeParallel` to capture and surface fatal API errors. |
+| **`TechnicalScreener.java`** | Removed internal `try-catch`; passed `alertCallback` down to executor. |
+| **`PriceDropScreener.java`** | Removed internal `try-catch`; passed `alertCallback` down to executor. |
+| **`StrategyExecutionService.java`** | Passed lambda to `screenStocks()` to route API errors into `FilterLogStore`. |
+| **`ScreenerExecutionService.java`** | Passed lambda to technical and price drop screeners to route API errors into `FilterLogStore`. |
+
+---
+
+## Feature: Comprehensive Unit Testing and Test Coverage Optimization (2026-07-03)
+
+Optimized and expanded the project's unit testing suite to raise the total instruction coverage to **85.02%**, satisfying the repository target (>85%) without altering any production source code.
+
+### Improvements & Covered Scenarios
+- **`TechFilterConditionsTest.java`**: Added tests for all `RSICondition` and `BollingerCondition` evaluate methods by mocking their dependencies, ensuring 100% test coverage of all technical filter condition rules.
+- **`RSIFilterTest.java`**: Added test case `testEqualsAndHashCodeAndToString` to cover Lombok-generated methods (`equals`, `hashCode`, `toString`, and getters/setters).
+- **`BollingerBandsFilterTest.java`**: Covered Lombox-generated methods and setters.
+- **`TokenProviderTest.java`**: Covered record-specific getters, `equals`, `hashCode`, and `toString` on `TokenProvider.TokenData`.
+- **`SchwabApiExecutorTest.java`**: Covered edge cases where rate limit exception messages are case-insensitive or null.
+- **`JavaUtilsTest.java`**: Covered the default constructor.
+- **`EarningsCacheManagerTest.java`**: Used reflection to simulate stale cache entry validation.
+
+### Architecture
+| Test Class | Covered Component | Coverage Status |
+|---|---|---|
+| **`TechFilterConditionsTest`** | `TechFilterConditions`, `RSICondition`, `BollingerCondition` | 100% |
+| **`RSIFilterTest`** | `RSIFilter` | 100% |
+| **`BollingerBandsFilterTest`** | `BollingerBandsFilter` | 100% |
+| **`JavaUtilsTest`** | `JavaUtils` | 100% |
+| **`TokenProviderTest`** | `TokenProvider.TokenData` | 100% |
+| **`EarningsCacheManagerTest`** | `EarningsCacheManager` | Updated |
+
+---
+
 ## Fix: Schwab API 502 Body Buffer Overflow (2026-07-02)
 
 Resolved an issue where highly liquid tickers (like MU or SPY) with massive option chains would cause the Schwab API Gateway to return a `502 Bad Gateway` (Body buffer overflow) because the JSON response exceeded their internal proxy buffer limits. The previous fallback behavior was to aggressively truncate the response by limiting `strikeCount`, resulting in lost option data.

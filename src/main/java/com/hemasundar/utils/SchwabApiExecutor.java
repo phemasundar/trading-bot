@@ -70,10 +70,11 @@ public class SchwabApiExecutor {
      *
      * @param symbols list of stock symbols to process
      * @param apiCall function that takes a symbol and calls the Schwab API
+     * @param alertCallback optional callback to receive error messages (symbol, errorMsg)
      * @param <T>     return type of the API call
      * @return list of results in the same order as {@code symbols}; may contain nulls
      */
-    public <T> List<T> executeParallel(List<String> symbols, Function<String, T> apiCall) {
+    public <T> List<T> executeParallel(List<String> symbols, Function<String, T> apiCall, java.util.function.BiConsumer<String, String> alertCallback) {
         List<CompletableFuture<T>> futures = new ArrayList<>(symbols.size());
 
         for (String symbol : symbols) {
@@ -87,10 +88,17 @@ public class SchwabApiExecutor {
                 results.add(futures.get(i).join());
             } catch (Exception e) {
                 log.error("Parallel API call failed for symbol [{}]: {}", symbols.get(i), e.getMessage());
+                if (alertCallback != null) {
+                    alertCallback.accept(symbols.get(i), e.getMessage() != null ? e.getMessage() : e.toString());
+                }
                 results.add(null);
             }
         }
         return results;
+    }
+
+    public <T> List<T> executeParallel(List<String> symbols, Function<String, T> apiCall) {
+        return executeParallel(symbols, apiCall, null);
     }
 
     /**
