@@ -28,6 +28,7 @@ import java.util.*;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import com.hemasundar.dto.ExecutionLogEntry;
 
@@ -366,8 +367,14 @@ public class StrategyExecutionService {
 
         // Apply technical filter if configured
         if (config.hasTechnicalFilter()) {
+            BiConsumer<String, String> alertCallback = (symbol, errorMsg) -> {
+                String source = String.format("Technical Filter: %s (%s)", config.getName(), symbol);
+                addAlert(ExecutionAlert.Severity.ERROR, source,
+                        String.format(AlertMessages.SYMBOL_PROCESSING_FAILED_FMT, errorMsg));
+            };
+
             List<TechnicalScreener.ScreeningResult> screeningResults = technicalScreener.screenStocks(
-                    securities, config.getTechnicalFilterChain());
+                    securities, config.getTechnicalFilterChain(), alertCallback);
             securities = screeningResults.stream()
                     .map(TechnicalScreener.ScreeningResult::getSymbol)
                     .collect(Collectors.toList());

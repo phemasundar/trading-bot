@@ -4,6 +4,7 @@ import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.technical.*;
 import com.hemasundar.utils.SchwabApiExecutor;
+import com.hemasundar.cache.PriceHistoryCache;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
@@ -28,7 +29,7 @@ public class TechnicalScreenerTest {
     public void setUp() {
         thinkOrSwinAPIs = Mockito.mock(ThinkOrSwinAPIs.class);
         schwabApiExecutor = Mockito.mock(SchwabApiExecutor.class);
-        Mockito.when(schwabApiExecutor.executeParallel(Mockito.anyList(), Mockito.any())).thenAnswer(inv -> {
+        Mockito.when(schwabApiExecutor.executeParallel(Mockito.anyList(), Mockito.any(), Mockito.any())).thenAnswer(inv -> {
             List<String> symbols = inv.getArgument(0);
             java.util.function.Function<String, Object> func = inv.getArgument(1);
             List<Object> res = new ArrayList<>();
@@ -38,6 +39,7 @@ public class TechnicalScreenerTest {
             return res;
         });
         technicalScreener = new TechnicalScreener(thinkOrSwinAPIs, schwabApiExecutor);
+        PriceHistoryCache.getInstance().clear();
     }
 
     @Test
@@ -100,7 +102,7 @@ public class TechnicalScreenerTest {
 
         TechnicalFilterChain chain = TechnicalFilterChain.of(indicators, conditions);
 
-        List<TechnicalScreener.ScreeningResult> results = technicalScreener.screenStocks(Arrays.asList("GOOGL"), chain);
+        List<TechnicalScreener.ScreeningResult> results = technicalScreener.screenStocks(Arrays.asList("GOOGL"), chain, null);
 
         assertNotNull(results);
         assertEquals(results.size(), 1, "Should find 1 stock as flat price meets volume 500 requirement");
@@ -122,7 +124,7 @@ public class TechnicalScreenerTest {
 
         TechnicalFilterChain chain = TechnicalFilterChain.of(indicators, conditions);
 
-        List<TechnicalScreener.ScreeningResult> results = technicalScreener.screenStocks(Arrays.asList("NVDA"), chain);
+        List<TechnicalScreener.ScreeningResult> results = technicalScreener.screenStocks(Arrays.asList("NVDA"), chain, null);
 
         assertNotNull(results);
         assertEquals(results.size(), 0, "Should find 0 stocks as volume 1000 < 10M");
@@ -171,14 +173,14 @@ public class TechnicalScreenerTest {
         
         // This will call analyzeStock which builds result, then meetsAllCriteria
         List<TechnicalScreener.ScreeningResult> results = 
-                technicalScreener.screenStocks(List.of("T"), TechnicalFilterChain.of(indicators, conditions));
+                technicalScreener.screenStocks(List.of("T"), TechnicalFilterChain.of(indicators, conditions), null);
         assertNotNull(results);
 
         // Scenario 2: Require Price Below MA200
         conditions = TechFilterConditions.builder()
                 .requirePriceBelowMA200(true)
                 .build();
-        results = technicalScreener.screenStocks(List.of("T"), TechnicalFilterChain.of(indicators, conditions));
+        results = technicalScreener.screenStocks(List.of("T"), TechnicalFilterChain.of(indicators, conditions), null);
         assertNotNull(results);
     }
 

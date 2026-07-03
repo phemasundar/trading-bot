@@ -3,6 +3,7 @@ package com.hemasundar.technical;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.utils.SchwabApiExecutor;
+import com.hemasundar.cache.PriceHistoryCache;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -195,7 +196,7 @@ public class TechnicalScreener {
      *                    conditions
      * @return List of screening results for stocks matching all criteria
      */
-    public List<ScreeningResult> screenStocks(List<String> symbols, TechnicalFilterChain filterChain) {
+    public List<ScreeningResult> screenStocks(List<String> symbols, TechnicalFilterChain filterChain, java.util.function.BiConsumer<String, String> alertCallback) {
         log.info("\n{}", filterChain.getFiltersSummary());
 
         // ── Parallel execution (Track B) ──
@@ -205,13 +206,8 @@ public class TechnicalScreener {
         long screenT0 = System.currentTimeMillis();
 
         List<ScreeningResult> parallelResults = schwabApiExecutor.executeParallel(symbols, symbol -> {
-            try {
-                return analyzeStock(symbol, filterChain.getIndicators());
-            } catch (Exception e) {
-                log.warn("[{}] Error analyzing stock: {}", symbol, e.getMessage());
-                return null;
-            }
-        });
+            return analyzeStock(symbol, filterChain.getIndicators());
+        }, alertCallback);
 
         // Filter out nulls (errors) and apply conditions on the calling thread
         List<ScreeningResult> results = new ArrayList<>();
@@ -230,7 +226,9 @@ public class TechnicalScreener {
      * Analyzes a single stock and calculates all technical values.
      */
     public ScreeningResult analyzeStock(String symbol, TechnicalIndicators indicators) {
-        PriceHistoryResponse priceHistory = thinkOrSwinAPIs.getYearlyPriceHistory(symbol, 1);
+        PriceHistoryCache.HistoricalData cachedData = PriceHistoryCache.getInstance().getHistoricalData(symbol, thinkOrSwinAPIs, null);
+        PriceHistoryResponse priceHistory = cachedData != null ? cachedData.getPriceHistory() : null;
+        
         if (priceHistory == null) {
             return null;
         }

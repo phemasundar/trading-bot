@@ -79,7 +79,7 @@ public class StrategyExecutionServiceTest {
                 strategiesConfigLoader,
                 schwabApiExecutor
         );
-        when(schwabApiExecutor.executeParallel(anyList(), any())).thenAnswer(inv -> {
+        when(schwabApiExecutor.executeParallel(anyList(), any(), any())).thenAnswer(inv -> {
             List<String> symbols = inv.getArgument(0);
             java.util.function.Function<String, Object> func = inv.getArgument(1);
             List<Object> res = new ArrayList<>();
@@ -261,13 +261,13 @@ public class StrategyExecutionServiceTest {
 
         TechnicalScreener.ScreeningResult res = mock(TechnicalScreener.ScreeningResult.class);
         when(res.getSymbol()).thenReturn("AAPL");
-        when(technicalScreener.screenStocks(anyList(), any()))
+        when(technicalScreener.screenStocks(anyList(), any(), any()))
                 .thenReturn(List.of(res));
 
         ExecutionResult result = strategyExecutionService.executeCustomStrategy(config);
 
         assertNotNull(result);
-        verify(technicalScreener).screenStocks(eq(List.of("AAPL", "MSFT")), any());
+        verify(technicalScreener).screenStocks(eq(List.of("AAPL", "MSFT")), any(), any());
     }
 
     @Test

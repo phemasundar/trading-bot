@@ -48,6 +48,12 @@ public class ScreenerExecutionServiceTest {
     @Mock
     private com.hemasundar.config.StrategiesConfigLoader strategiesConfigLoader;
 
+    @Mock
+    private com.hemasundar.utils.SchwabApiExecutor schwabApiExecutor;
+
+    @Mock
+    private com.hemasundar.utils.VolatilityCalculator volatilityCalculator;
+
     @BeforeMethod
     public void setUp() {
         MockitoAnnotations.openMocks(this);
@@ -60,8 +66,20 @@ public class ScreenerExecutionServiceTest {
                 telegramUtils,
                 technicalScreener,
                 priceDropScreener,
-                strategiesConfigLoader
+                strategiesConfigLoader,
+                schwabApiExecutor,
+                volatilityCalculator
         );
+        
+        when(schwabApiExecutor.executeParallel(anyList(), any(), any())).thenAnswer(inv -> {
+            List<String> symbols = inv.getArgument(0);
+            java.util.function.Function<String, Object> func = inv.getArgument(1);
+            List<Object> res = new ArrayList<>();
+            for (String s : symbols) {
+                res.add(func.apply(s));
+            }
+            return res;
+        });
     }
 
     @AfterMethod
@@ -77,7 +95,7 @@ public class ScreenerExecutionServiceTest {
                 .conditions(TechFilterConditions.builder().build())
                 .build();
 
-        when(priceDropScreener.screenPriceDrop(anyList(), anyDouble(), anyInt()))
+        when(priceDropScreener.screenPriceDrop(anyList(), anyDouble(), anyInt(), any()))
                 .thenReturn(List.of(TechnicalScreener.ScreeningResult.builder().symbol("AAPL").build()));
 
         screenerExecutionService.executeScreeners(Set.of(0), List.of(config));
@@ -95,7 +113,7 @@ public class ScreenerExecutionServiceTest {
                 .conditions(TechFilterConditions.builder().build())
                 .build();
 
-        when(priceDropScreener.screen52WeekHighDrop(anyList(), anyDouble()))
+        when(priceDropScreener.screen52WeekHighDrop(anyList(), anyDouble(), any()))
                 .thenReturn(List.of(TechnicalScreener.ScreeningResult.builder().symbol("TSLA").build()));
 
         screenerExecutionService.executeScreeners(Set.of(0), List.of(config));
@@ -127,7 +145,7 @@ public class ScreenerExecutionServiceTest {
                 .build();
         Map<String, Object> requestParams = Map.of("alias", "Custom Screener Test");
 
-        when(priceDropScreener.screenPriceDrop(anyList(), anyDouble(), anyInt()))
+        when(priceDropScreener.screenPriceDrop(anyList(), anyDouble(), anyInt(), any()))
                 .thenReturn(List.of(TechnicalScreener.ScreeningResult.builder().symbol("AAPL").build()));
 
         screenerExecutionService.executeCustomScreener(config, requestParams);
