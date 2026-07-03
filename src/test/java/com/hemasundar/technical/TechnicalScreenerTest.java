@@ -221,6 +221,67 @@ public class TechnicalScreenerTest {
         assertTrue(toString.contains("Bollinger Bands"));
     }
 
+    @Test
+    public void testScreeningResultFormattedSummary() {
+        TechnicalScreener.ScreeningResult result = TechnicalScreener.ScreeningResult.builder()
+                .symbol("AAPL")
+                .currentPrice(150.0)
+                .previousRsi(45.0)
+                .rsi(35.0)
+                .rsiOversold(true)
+                .volume(1500000L)
+                .bollingerUpper(160.0)
+                .bollingerMiddle(150.0)
+                .bollingerLower(140.0)
+                .priceTouchingLowerBand(true)
+                .ma20(155.0)
+                .priceBelowMA20(true)
+                .ma50(145.0)
+                .priceBelowMA50(false)
+                .ma100(140.0)
+                .priceBelowMA100(false)
+                .ma200(130.0)
+                .priceBelowMA200(false)
+                .dropType("INTRADAY")
+                .dropPercent(5.0)
+                .referencePrice(158.0)
+                .build();
+
+        String summary = result.getFormattedSummary();
+        assertNotNull(summary);
+        assertTrue(summary.contains("Price: $150.00"));
+        assertTrue(summary.contains("Drop: 5.00%"));
+        assertTrue(summary.contains("Ref Price: $158.00"));
+        assertTrue(summary.contains("Volume: 1.50M"));
+        assertTrue(summary.contains("OVERSOLD"));
+        assertTrue(summary.contains("Touching Lower"));
+        assertTrue(summary.contains("Below MA20"));
+        assertTrue(summary.contains("Above MA50, MA100, MA200"));
+
+        // Test with crossover, touch upper band, other volumes, etc.
+        result.setRsiOversold(false);
+        result.setRsiBullishCrossover(true);
+        result.setPriceTouchingLowerBand(false);
+        result.setPriceTouchingUpperBand(true);
+        result.setVolume(500L);
+        summary = result.getFormattedSummary();
+        assertTrue(summary.contains("Volume: 500"));
+        assertTrue(summary.contains("CROSSOVER"));
+        assertTrue(summary.contains("Touching Upper"));
+
+        // Test with bearish crossover, overbought, volume in K
+        result.setRsiBullishCrossover(false);
+        result.setRsiBearishCrossover(true);
+        result.setRsiOverbought(true);
+        result.setPriceTouchingUpperBand(false);
+        result.setVolume(1500L);
+        summary = result.getFormattedSummary();
+        System.out.println("DEBUG FORMATTED SUMMARY:\n" + summary);
+        assertTrue(summary.contains("Volume: 1.50K"));
+        assertTrue(summary.contains("CROSSOVER"));
+        assertTrue(summary.contains("Within bands"));
+    }
+
     private PriceHistoryResponse createMockResponse(double price, int candleCount) {
         PriceHistoryResponse response = new PriceHistoryResponse();
         List<PriceHistoryResponse.CandleData> candles = new ArrayList<>();

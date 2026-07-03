@@ -86,4 +86,71 @@ public class TokenProviderTest {
 
         tokenProvider.getAccessToken();
     }
+
+    @Test
+    public void testGetAccessToken_CacheHit() {
+        RequestSpecification mockRequest = mock(RequestSpecification.class);
+        Response mockResponse = mock(Response.class);
+        io.restassured.specification.AuthenticationSpecification mockAuth = mock(io.restassured.specification.AuthenticationSpecification.class);
+        io.restassured.specification.PreemptiveAuthSpec mockPreemptive = mock(io.restassured.specification.PreemptiveAuthSpec.class);
+        
+        when(RestAssured.given()).thenReturn(mockRequest);
+        when(mockRequest.auth()).thenReturn(mockAuth);
+        when(mockAuth.preemptive()).thenReturn(mockPreemptive);
+        when(mockPreemptive.basic(anyString(), anyString())).thenReturn(mockRequest);
+        
+        when(mockRequest.contentType(anyString())).thenReturn(mockRequest);
+        when(mockRequest.formParam(anyString(), (Object) any())).thenReturn(mockRequest);
+        when(mockRequest.when()).thenReturn(mockRequest);
+        when(mockRequest.post(anyString())).thenReturn(mockResponse);
+        
+        when(mockResponse.statusCode()).thenReturn(200);
+        String jsonResponse = "{\"access_token\": \"new-token\", \"expires_in\": 3600}";
+        when(mockResponse.asPrettyString()).thenReturn(jsonResponse);
+
+        // Fetch once
+        String token1 = tokenProvider.getAccessToken();
+        assertEquals(token1, "new-token");
+
+        // Fetch twice - should hit cache
+        String token2 = tokenProvider.getAccessToken();
+        assertEquals(token2, "new-token");
+
+        // Verify API was called only once
+        verify(mockRequest, times(1)).post(anyString());
+    }
+
+    @Test
+    public void testClearToken() {
+        RequestSpecification mockRequest = mock(RequestSpecification.class);
+        Response mockResponse = mock(Response.class);
+        io.restassured.specification.AuthenticationSpecification mockAuth = mock(io.restassured.specification.AuthenticationSpecification.class);
+        io.restassured.specification.PreemptiveAuthSpec mockPreemptive = mock(io.restassured.specification.PreemptiveAuthSpec.class);
+        
+        when(RestAssured.given()).thenReturn(mockRequest);
+        when(mockRequest.auth()).thenReturn(mockAuth);
+        when(mockAuth.preemptive()).thenReturn(mockPreemptive);
+        when(mockPreemptive.basic(anyString(), anyString())).thenReturn(mockRequest);
+        
+        when(mockRequest.contentType(anyString())).thenReturn(mockRequest);
+        when(mockRequest.formParam(anyString(), (Object) any())).thenReturn(mockRequest);
+        when(mockRequest.when()).thenReturn(mockRequest);
+        when(mockRequest.post(anyString())).thenReturn(mockResponse);
+        
+        when(mockResponse.statusCode()).thenReturn(200);
+        String jsonResponse = "{\"access_token\": \"new-token\", \"expires_in\": 3600}";
+        when(mockResponse.asPrettyString()).thenReturn(jsonResponse);
+
+        // Fetch once
+        tokenProvider.getAccessToken();
+
+        // Clear token
+        tokenProvider.clearToken();
+
+        // Fetch twice - should call API again
+        tokenProvider.getAccessToken();
+
+        // Verify API was called twice
+        verify(mockRequest, times(2)).post(anyString());
+    }
 }

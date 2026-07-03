@@ -68,4 +68,21 @@ public class BollingerBandsFilterTest {
         String name = filter.getFilterName();
         assertTrue(name.contains("Bollinger Bands(20, 2.5 SD)"));
     }
+
+    @Test
+    public void testEqualsAndHashCodeAndToString() {
+        BollingerBandsFilter filter1 = BollingerBandsFilter.builder().period(20).standardDeviations(2.0).build();
+        BollingerBandsFilter filter2 = BollingerBandsFilter.builder().period(20).standardDeviations(2.0).build();
+        BollingerBandsFilter filter3 = BollingerBandsFilter.builder().period(21).standardDeviations(2.0).build();
+
+        assertEquals(filter1, filter2);
+        assertNotEquals(filter1, filter3);
+        assertEquals(filter1.hashCode(), filter2.hashCode());
+        assertNotNull(filter1.toString());
+
+        filter1.setPeriod(15);
+        filter1.setStandardDeviations(1.5);
+        assertEquals(filter1.getPeriod(), 15);
+        assertEquals(filter1.getStandardDeviations(), 1.5);
+    }
 }

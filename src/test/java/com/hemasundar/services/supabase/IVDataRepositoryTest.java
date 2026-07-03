@@ -13,6 +13,7 @@ import java.time.LocalDate;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
+import static org.testng.Assert.*;
 
 public class IVDataRepositoryTest {
 
@@ -85,6 +86,129 @@ public class IVDataRepositoryTest {
         when(response.getBody().asString()).thenReturn("{\"error\":\"bad\"}");
 
         repository.upsertIVData(dataPoint);
+    }
+
+    @Test
+    public void testGetIVRank_Success() throws IOException {
+        String mockResponseString = "[{\"date\":\"2026-07-02\",\"put_iv\":0.40,\"call_iv\":0.30}," +
+                "{\"date\":\"2026-07-01\",\"put_iv\":0.20,\"call_iv\":0.10}," +
+                "{\"date\":\"2026-06-30\",\"put_iv\":0.60,\"call_iv\":0.50}]";
+
+        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
+        when(requestSpec.get(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn(mockResponseString);
+
+        Double ivRank = repository.getIVRank("AAPL");
+
+        assertNotNull(ivRank);
+        assertEquals(ivRank, 50.0, 0.01);
+    }
+
+    @Test
+    public void testGetIVRank_InsufficientData() throws IOException {
+        String mockResponseString = "[{\"date\":\"2026-07-02\",\"put_iv\":0.40,\"call_iv\":0.30}]";
+
+        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
+        when(requestSpec.get(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn(mockResponseString);
+
+        Double ivRank = repository.getIVRank("AAPL");
+
+        assertNull(ivRank);
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testGetIVRank_QueryError() throws IOException {
+        when(requestSpec.get(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(500);
+        when(response.getStatusLine()).thenReturn("Internal Server Error");
+
+        repository.getIVRank("AAPL");
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testGetIVRank_ParseError() throws IOException {
+        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
+        when(requestSpec.get(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn("invalid_json_data");
+
+        repository.getIVRank("AAPL");
+    }
+
+    @Test
+    public void testGetIVRank_MaxEqualsMin() throws IOException {
+        String mockResponseString = "[{\"date\":\"2026-07-02\",\"put_iv\":0.30,\"call_iv\":0.30}," +
+                "{\"date\":\"2026-07-01\",\"put_iv\":0.30,\"call_iv\":0.30}]";
+
+        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
+        when(requestSpec.get(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn(mockResponseString);
+
+        Double ivRank = repository.getIVRank("AAPL");
+
+        assertNotNull(ivRank);
+        assertEquals(ivRank, 0.0, 0.01);
+    }
+
+    @Test
+    public void testGetIVRank_NullPutAndCallIV() throws IOException {
+        String mockResponseString = "[{\"date\":\"2026-07-02\"}," +
+                "{\"date\":\"2026-07-01\"}]";
+
+        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
+        when(requestSpec.get(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn(mockResponseString);
+
+        Double ivRank = repository.getIVRank("AAPL");
+
+        assertNotNull(ivRank);
+        assertEquals(ivRank, 0.0, 0.01);
+    }
+
+    @Test
+    public void testGetIVStats_Success() throws IOException {
+        String mockResponseString = "[{\"date\":\"2026-07-02\",\"put_iv\":0.40,\"call_iv\":0.30}," +
+                "{\"date\":\"2026-07-01\",\"put_iv\":0.20,\"call_iv\":0.10}," +
+                "{\"date\":\"2026-06-30\",\"put_iv\":0.60,\"call_iv\":0.50}]";
+
+        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
+        when(requestSpec.get(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn(mockResponseString);
+
+        java.util.Map<String, Object> stats = repository.getIVStats("AAPL");
+
+        assertNotNull(stats);
+        assertEquals(stats.get("currentIV"), 0.35);
+        assertEquals(stats.get("minIV"), 0.15);
+        assertEquals(stats.get("maxIV"), 0.55);
+        assertEquals(stats.get("recordCount"), 3);
+    }
+
+    @Test
+    public void testGetIVStats_InsufficientData() throws IOException {
+        String mockResponseString = "[{\"date\":\"2026-07-02\",\"put_iv\":0.40,\"call_iv\":0.30}]";
+
+        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
+        when(requestSpec.get(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn(mockResponseString);
+
+        java.util.Map<String, Object> stats = repository.getIVStats("AAPL");
+
+        assertNull(stats);
     }
 
     private IVDataPoint createSampleDataPoint() {

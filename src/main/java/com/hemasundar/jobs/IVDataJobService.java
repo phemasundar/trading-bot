@@ -165,7 +165,7 @@ public class IVDataJobService {
         telegramUtils.sendMessage(message.toString());
     }
 
-    private Set<String> loadAllSecurities() {
+    Set<String> loadAllSecurities() {
         Set<String> securities = new LinkedHashSet<>();
         File securitiesDir = FilePaths.securitiesDirectory.toFile();
 

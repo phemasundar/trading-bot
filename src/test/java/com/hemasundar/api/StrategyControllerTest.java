@@ -62,6 +62,9 @@ public class StrategyControllerTest {
     @Mock
     private com.hemasundar.services.SupabaseService supabaseService;
 
+    @Mock
+    private com.hemasundar.utils.WikipediaSecuritiesFetcher wikipediaFetcher;
+
     private StrategyController strategyController;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -70,7 +73,7 @@ public class StrategyControllerTest {
     public void setup() {
         MockitoAnnotations.openMocks(this);
         // Manual constructor injection is safer than @InjectMocks for final fields
-        strategyController = new StrategyController(executionService, screenerExecutionService, securitiesResolver, thinkOrSwinAPIs, strategiesConfigLoader, supabaseConfig, authErrorUtils, supabaseService, java.util.Optional.empty());
+        strategyController = new StrategyController(executionService, screenerExecutionService, securitiesResolver, thinkOrSwinAPIs, strategiesConfigLoader, supabaseConfig, authErrorUtils, supabaseService, java.util.Optional.empty(), wikipediaFetcher);
         mockMvc = MockMvcBuilders.standaloneSetup(strategyController).build();
     }
 
@@ -532,7 +535,7 @@ public class StrategyControllerTest {
         when(mockRepo.getIVRank("AAPL")).thenReturn(62.3);
         when(mockRepo.getIVStats("AAPL")).thenReturn(Map.of("minIV", 18.4, "maxIV", 45.6, "currentIV", 34.1));
 
-        StrategyController customController = new StrategyController(executionService, screenerExecutionService, securitiesResolver, thinkOrSwinAPIs, strategiesConfigLoader, supabaseConfig, authErrorUtils, supabaseService, java.util.Optional.of(mockRepo));
+        StrategyController customController = new StrategyController(executionService, screenerExecutionService, securitiesResolver, thinkOrSwinAPIs, strategiesConfigLoader, supabaseConfig, authErrorUtils, supabaseService, java.util.Optional.of(mockRepo), wikipediaFetcher);
         MockMvc customMockMvc = MockMvcBuilders.standaloneSetup(customController).build();
 
         customMockMvc.perform(get("/api/iv-rank?symbol=AAPL"))
@@ -549,7 +552,7 @@ public class StrategyControllerTest {
         IVDataRepository mockRepo = mock(IVDataRepository.class);
         when(mockRepo.getIVRank("AAPL")).thenReturn(null);
 
-        StrategyController customController = new StrategyController(executionService, screenerExecutionService, securitiesResolver, thinkOrSwinAPIs, strategiesConfigLoader, supabaseConfig, authErrorUtils, supabaseService, java.util.Optional.of(mockRepo));
+        StrategyController customController = new StrategyController(executionService, screenerExecutionService, securitiesResolver, thinkOrSwinAPIs, strategiesConfigLoader, supabaseConfig, authErrorUtils, supabaseService, java.util.Optional.of(mockRepo), wikipediaFetcher);
         MockMvc customMockMvc = MockMvcBuilders.standaloneSetup(customController).build();
 
         customMockMvc.perform(get("/api/iv-rank?symbol=AAPL"))
@@ -561,7 +564,7 @@ public class StrategyControllerTest {
         IVDataRepository mockRepo = mock(IVDataRepository.class);
         when(mockRepo.getIVRank("AAPL")).thenThrow(new IOException("Connection reset"));
 
-        StrategyController customController = new StrategyController(executionService, screenerExecutionService, securitiesResolver, thinkOrSwinAPIs, strategiesConfigLoader, supabaseConfig, authErrorUtils, supabaseService, java.util.Optional.of(mockRepo));
+        StrategyController customController = new StrategyController(executionService, screenerExecutionService, securitiesResolver, thinkOrSwinAPIs, strategiesConfigLoader, supabaseConfig, authErrorUtils, supabaseService, java.util.Optional.of(mockRepo), wikipediaFetcher);
         MockMvc customMockMvc = MockMvcBuilders.standaloneSetup(customController).build();
 
         customMockMvc.perform(get("/api/iv-rank?symbol=AAPL"))

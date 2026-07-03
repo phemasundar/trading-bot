@@ -25,13 +25,16 @@ public class StrategiesConfigLoaderTest {
     @Mock
     private CallCreditSpreadStrategy callStrategy;
 
+    @Mock
+    private com.hemasundar.utils.WikipediaSecuritiesFetcher wikipediaFetcher;
+
     @BeforeMethod
     public void setUp() {
         MockitoAnnotations.openMocks(this);
         when(putStrategy.getStrategyType()).thenReturn(StrategyType.PUT_CREDIT_SPREAD);
         when(callStrategy.getStrategyType()).thenReturn(StrategyType.CALL_CREDIT_SPREAD);
         
-        configLoader = new StrategiesConfigLoader(Arrays.asList(putStrategy, callStrategy));
+        configLoader = new StrategiesConfigLoader(Arrays.asList(putStrategy, callStrategy), wikipediaFetcher);
         configLoader.init(); // Initialize strategyMap
     }
 
