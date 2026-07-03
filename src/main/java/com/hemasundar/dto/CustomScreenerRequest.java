@@ -3,6 +3,9 @@ package com.hemasundar.dto;
 import lombok.Value;
 import lombok.Builder;
 import lombok.extern.jackson.Jacksonized;
+import java.util.List;
+import com.hemasundar.config.StrategiesConfig.PriceCondition;
+import com.hemasundar.config.StrategiesConfig.SmaCondition;
 
 /**
  * Request body for POST /api/execute/custom-screener.
@@ -37,14 +40,8 @@ public class CustomScreenerRequest {
     /** Minimum volume threshold (shares). */
     Long minVolume;
 
-    Boolean requirePriceBelowMA20;
-    Boolean requirePriceAboveMA20;
-    Boolean requirePriceBelowMA50;
-    Boolean requirePriceAboveMA50;
-    Boolean requirePriceBelowMA100;
-    Boolean requirePriceAboveMA100;
-    Boolean requirePriceBelowMA200;
-    Boolean requirePriceAboveMA200;
+    List<PriceCondition> priceConditions;
+    List<SmaCondition> smaConditions;
 
     /** Minimum drop % — used for PRICE_DROP and HIGH_52W_DROP screeners. */
     Double minDropPercent;

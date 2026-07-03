@@ -10,8 +10,10 @@ public class TechnicalFilterChainTest {
     @Test
     public void testTechnicalFilterChain_Of() {
         TechnicalIndicators indicators = TechnicalIndicators.builder()
-                .rsiFilter(RSIFilter.builder().period(14).build())
-                .bollingerFilter(BollingerBandsFilter.builder().period(20).build())
+                .maFilters(new java.util.HashMap<>(java.util.Map.of(
+                        20, MovingAverageFilter.builder().period(20).build(),
+                        50, MovingAverageFilter.builder().period(50).build()
+                )))
                 .build();
         
         TechFilterConditions conditions = TechFilterConditions.builder()
@@ -20,8 +22,10 @@ public class TechnicalFilterChainTest {
         
         TechnicalFilterChain chain = TechnicalFilterChain.of(indicators, conditions);
         
-        Assert.assertNotNull(chain.getRsiFilter());
-        Assert.assertNotNull(chain.getBollingerFilter());
+        Assert.assertNotNull(chain.getMaFilters());
+        Assert.assertEquals(2, chain.getMaFilters().size());
+        Assert.assertNotNull(chain.getMaFilters().get(20));
+        Assert.assertNotNull(chain.getMaFilters().get(50));
         Assert.assertEquals(chain.getRsiCondition(), RSICondition.OVERSOLD);
         Assert.assertEquals(chain.getFilters().size(), 2);
     }
@@ -77,8 +81,10 @@ public class TechnicalFilterChainTest {
                 .rsiFilter(rsi)
                 .bollingerFilter(bb)
                 .volumeFilter(vol)
-                .ma20Filter(ma20)
-                .ma50Filter(ma50)
+                .maFilters(new java.util.HashMap<>(java.util.Map.of(
+                        20, ma20,
+                        50, ma50
+                )))
                 .build();
 
         TechFilterConditions conditions = TechFilterConditions.builder()
@@ -92,8 +98,8 @@ public class TechnicalFilterChainTest {
         Assert.assertEquals(chain.getRsiFilter(), rsi);
         Assert.assertEquals(chain.getBollingerFilter(), bb);
         Assert.assertEquals(chain.getVolumeFilter(), vol);
-        Assert.assertEquals(chain.getMa20Filter(), ma20);
-        Assert.assertEquals(chain.getMa50Filter(), ma50);
+        Assert.assertEquals(chain.getMaFilters().get(20), ma20);
+        Assert.assertEquals(chain.getMaFilters().get(50), ma50);
         Assert.assertEquals(chain.getRsiCondition(), RSICondition.OVERSOLD);
         Assert.assertEquals(chain.getBollingerCondition(), BollingerCondition.LOWER_BAND);
         Assert.assertEquals(chain.getMinVolume(), 500000L);

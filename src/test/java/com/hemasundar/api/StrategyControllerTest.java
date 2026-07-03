@@ -440,14 +440,24 @@ public class StrategyControllerTest {
                 .rsiCondition("OVERSOLD")
                 .bollingerCondition("LOWER_BAND")
                 .minVolume(100000L)
-                .requirePriceBelowMA20(true)
-                .requirePriceAboveMA20(false)
-                .requirePriceBelowMA50(true)
-                .requirePriceAboveMA50(false)
-                .requirePriceBelowMA100(true)
-                .requirePriceAboveMA100(false)
-                .requirePriceBelowMA200(true)
-                .requirePriceAboveMA200(false)
+                .priceConditions(java.util.List.of(
+                        new com.hemasundar.config.StrategiesConfig.PriceCondition() {{
+                            setPeriod(20);
+                            setPosition(com.hemasundar.config.StrategiesConfig.Position.BELOW);
+                        }},
+                        new com.hemasundar.config.StrategiesConfig.PriceCondition() {{
+                            setPeriod(50);
+                            setPosition(com.hemasundar.config.StrategiesConfig.Position.BELOW);
+                        }},
+                        new com.hemasundar.config.StrategiesConfig.PriceCondition() {{
+                            setPeriod(100);
+                            setPosition(com.hemasundar.config.StrategiesConfig.Position.BELOW);
+                        }},
+                        new com.hemasundar.config.StrategiesConfig.PriceCondition() {{
+                            setPeriod(200);
+                            setPosition(com.hemasundar.config.StrategiesConfig.Position.BELOW);
+                        }}
+                ))
                 .minDropPercent(5.0)
                 .lookbackDays(0)
                 .build();

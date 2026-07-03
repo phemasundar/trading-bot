@@ -96,7 +96,7 @@ public class TelegramUtilsTest {
                 .bollingerLower(145.0)
                 .bollingerUpper(160.0)
                 .priceTouchingLowerBand(true)
-                .priceBelowMA200(true)
+                .maValues(new java.util.HashMap<>(java.util.Map.of(200, 100.0)))
                 .build();
 
         telegramUtils.sendTechnicalScreenerAlert("Oversold Screener", List.of(result));
@@ -113,10 +113,6 @@ public class TelegramUtilsTest {
                 .bollingerUpper(200.0)
                 .bollingerLower(180.0)
                 .volume(5000000L)
-                .priceBelowMA20(false)
-                .priceBelowMA50(false)
-                .priceBelowMA100(false)
-                .priceBelowMA200(false)
                 .build();
 
         telegramUtils.sendTechnicalScreenerAlert("Overbought Screener", List.of(result));
@@ -272,7 +268,7 @@ public class TelegramUtilsTest {
                 .bollingerLower(145.0)
                 .bollingerUpper(160.0)
                 .priceTouchingLowerBand(true)
-                .priceBelowMA200(true)
+                .maValues(new java.util.HashMap<>(java.util.Map.of(200, 100.0)))
                 .build();
 
         String summary = result.getFormattedSummary();

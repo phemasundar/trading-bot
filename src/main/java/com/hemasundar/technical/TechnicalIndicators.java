@@ -2,6 +2,8 @@ package com.hemasundar.technical;
 
 import lombok.Builder;
 import lombok.Getter;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
  * Container for technical indicator instances.
@@ -15,8 +17,10 @@ import lombok.Getter;
  * TechnicalIndicators indicators = TechnicalIndicators.builder()
  *         .rsiFilter(RSIFilter.builder().period(14).oversoldThreshold(30.0).overboughtThreshold(70.0).build())
  *         .bollingerFilter(BollingerBandsFilter.builder().period(20).standardDeviations(2.0).build())
- *         .ma20Filter(MovingAverageFilter.builder().period(20).build())
- *         .ma50Filter(MovingAverageFilter.builder().period(50).build())
+ *         .maFilters(new HashMap<>(Map.of(
+ *             20, MovingAverageFilter.builder().period(20).build(),
+ *             50, MovingAverageFilter.builder().period(50).build()
+ *         )))
  *         .volumeFilter(VolumeFilter.builder().minVolume(1_000_000L).build())
  *         .build();
  * </pre>
@@ -29,10 +33,12 @@ public class TechnicalIndicators {
         return TechnicalIndicators.builder()
                 .rsiFilter(RSIFilter.builder().period(14).oversoldThreshold(30.0).overboughtThreshold(70.0).build())
                 .bollingerFilter(BollingerBandsFilter.builder().period(20).standardDeviations(2.0).build())
-                .ma20Filter(MovingAverageFilter.builder().period(20).build())
-                .ma50Filter(MovingAverageFilter.builder().period(50).build())
-                .ma100Filter(MovingAverageFilter.builder().period(100).build())
-                .ma200Filter(MovingAverageFilter.builder().period(200).build())
+                .maFilters(new HashMap<>(Map.of(
+                        20, MovingAverageFilter.builder().period(20).build(),
+                        50, MovingAverageFilter.builder().period(50).build(),
+                        100, MovingAverageFilter.builder().period(100).build(),
+                        200, MovingAverageFilter.builder().period(200).build()
+                )))
                 .volumeFilter(VolumeFilter.builder().build())
                 .build();
     }
@@ -48,24 +54,10 @@ public class TechnicalIndicators {
     private final BollingerBandsFilter bollingerFilter;
 
     /**
-     * 20-day Moving Average filter.
+     * Map of Moving Average filters, keyed by their period (e.g., 20, 50).
      */
-    private final MovingAverageFilter ma20Filter;
-
-    /**
-     * 50-day Moving Average filter.
-     */
-    private final MovingAverageFilter ma50Filter;
-
-    /**
-     * 100-day Moving Average filter.
-     */
-    private final MovingAverageFilter ma100Filter;
-
-    /**
-     * 200-day Moving Average filter.
-     */
-    private final MovingAverageFilter ma200Filter;
+    @Builder.Default
+    private final Map<Integer, MovingAverageFilter> maFilters = new HashMap<>();
 
     /**
      * Volume filter configuration.
