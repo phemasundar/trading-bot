@@ -92,7 +92,7 @@ public class ScreenerExecutionServiceTest {
                 .alias("Price Drop Test")
                 .screenerType(ScreenerType.PRICE_DROP)
                 .securities(List.of("AAPL"))
-                .conditions(TechFilterConditions.builder().build())
+                .filterChain(com.hemasundar.technical.TechnicalFilterChain.of(com.hemasundar.technical.TechnicalIndicators.builder().build(), com.hemasundar.technical.TechFilterConditions.builder().build()))
                 .build();
 
         when(priceDropScreener.screenPriceDrop(anyList(), anyDouble(), anyInt(), any()))
@@ -110,7 +110,7 @@ public class ScreenerExecutionServiceTest {
                 .alias("52W High Drop Test")
                 .screenerType(ScreenerType.HIGH_52W_DROP)
                 .securities(List.of("TSLA"))
-                .conditions(TechFilterConditions.builder().build())
+                .filterChain(com.hemasundar.technical.TechnicalFilterChain.of(com.hemasundar.technical.TechnicalIndicators.builder().build(), com.hemasundar.technical.TechFilterConditions.builder().build()))
                 .build();
 
         when(priceDropScreener.screen52WeekHighDrop(anyList(), anyDouble(), any()))
@@ -141,7 +141,7 @@ public class ScreenerExecutionServiceTest {
                 .alias("Custom Screener Test")
                 .screenerType(ScreenerType.PRICE_DROP)
                 .securities(List.of("AAPL"))
-                .conditions(TechFilterConditions.builder().build())
+                .filterChain(com.hemasundar.technical.TechnicalFilterChain.of(com.hemasundar.technical.TechnicalIndicators.builder().build(), com.hemasundar.technical.TechFilterConditions.builder().build()))
                 .build();
         Map<String, Object> requestParams = Map.of("alias", "Custom Screener Test");
 

@@ -22,8 +22,20 @@ import lombok.Getter;
  * </pre>
  */
 @Getter
-@Builder
+@Builder(toBuilder = true)
 public class TechnicalIndicators {
+
+    public static TechnicalIndicators createDefaults() {
+        return TechnicalIndicators.builder()
+                .rsiFilter(RSIFilter.builder().period(14).oversoldThreshold(30.0).overboughtThreshold(70.0).build())
+                .bollingerFilter(BollingerBandsFilter.builder().period(20).standardDeviations(2.0).build())
+                .ma20Filter(MovingAverageFilter.builder().period(20).build())
+                .ma50Filter(MovingAverageFilter.builder().period(50).build())
+                .ma100Filter(MovingAverageFilter.builder().period(100).build())
+                .ma200Filter(MovingAverageFilter.builder().period(200).build())
+                .volumeFilter(VolumeFilter.builder().build())
+                .build();
+    }
 
     /**
      * RSI (Relative Strength Index) indicator configuration.

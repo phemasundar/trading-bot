@@ -72,16 +72,6 @@ public class ScreenerExecutionService {
             return;
         }
 
-        TechnicalIndicators allIndicators = TechnicalIndicators.builder()
-                .rsiFilter(RSIFilter.builder().period(14).oversoldThreshold(30.0).overboughtThreshold(70.0).build())
-                .bollingerFilter(BollingerBandsFilter.builder().period(20).standardDeviations(2.0).build())
-                .ma20Filter(MovingAverageFilter.builder().period(20).build())
-                .ma50Filter(MovingAverageFilter.builder().period(50).build())
-                .ma100Filter(MovingAverageFilter.builder().period(100).build())
-                .ma200Filter(MovingAverageFilter.builder().period(200).build())
-                .volumeFilter(VolumeFilter.builder().build())
-                .build();
-
         // Filter to only selected screener indices
         List<ScreenerConfig> selectedScreeners = screenerIndices.stream()
                 .filter(i -> i >= 0 && i < allScreeners.size())
@@ -145,9 +135,7 @@ public class ScreenerExecutionService {
                         yield priceDropScreener.screen52WeekHighDrop(securitiesToScan, minDrop, alertCallback);
                     }
                     default -> {
-                        TechnicalFilterChain filterChain = TechnicalFilterChain.of(allIndicators,
-                                screenerConfig.getConditions());
-                        yield technicalScreener.screenStocks(securitiesToScan, filterChain, alertCallback);
+                        yield technicalScreener.screenStocks(securitiesToScan, screenerConfig.getFilterChain(), alertCallback);
                     }
                 };
             } catch (Exception e) {
