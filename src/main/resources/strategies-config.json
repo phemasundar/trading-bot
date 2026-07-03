@@ -1,4 +1,52 @@
 {
+    "technicalIndicatorConfigs": {
+        "default": {
+            "RSI": {
+                "period": 14,
+                "oversoldThreshold": 30.0,
+                "overboughtThreshold": 70.0
+            },
+            "BOLLINGER_BAND": {
+                "bollingerPeriod": 20,
+                "bollingerStdDev": 2.0
+            }
+        },
+        "rsiSample2": {
+            "RSI": {
+                "period": 14,
+                "oversoldThreshold": 40.0,
+                "overboughtThreshold": 60.0
+            }
+        }
+    },
+    "technicalFilters": {
+        "oversold": {
+            "RSI": {
+                "config": "default",
+                "condition": "BULLISH_CROSSOVER"
+            },
+            "BOLLINGER_BAND": {
+                "config": "default",
+                "condition": "LOWER_BAND"
+            },
+            "VOLUME": {
+                "config": { "min": 1000000 }
+            }
+        },
+        "overbought": {
+            "RSI": {
+                "config": "default",
+                "condition": "BEARISH_CROSSOVER"
+            },
+            "BOLLINGER_BAND": {
+                "config": "default",
+                "condition": "UPPER_BAND"
+            },
+            "VOLUME": {
+                "config": { "min": 1000000 }
+            }
+        }
+    },
     "optionsStrategies": [
         {
             "alias": "Short-Term PCS",
@@ -52,7 +100,6 @@
             },
             "securitiesFile": "tracking, 2026"
         },
-
         {
             "alias": "Tech RSI/BB PCS",
             "enabled": true,
@@ -77,16 +124,7 @@
                 "vega": "negative"
             },
             "securitiesFile": "top100",
-            "technicalFilter": {
-                "rsiPeriod": 14,
-                "oversoldThreshold": 30.0,
-                "overboughtThreshold": 70.0,
-                "bollingerPeriod": 20,
-                "bollingerStdDev": 2.0,
-                "rsiCondition": "BULLISH_CROSSOVER",
-                "bollingerCondition": "LOWER_BAND",
-                "minVolume": 1000000
-            }
+            "technicalFilters": "oversold"
         },
         {
             "alias": "Standard CCS",
@@ -137,16 +175,7 @@
                 "vega": "negative"
             },
             "securitiesFile": "top100",
-            "technicalFilter": {
-                "rsiPeriod": 14,
-                "oversoldThreshold": 30.0,
-                "overboughtThreshold": 70.0,
-                "bollingerPeriod": 20,
-                "bollingerStdDev": 2.0,
-                "rsiCondition": "BEARISH_CROSSOVER",
-                "bollingerCondition": "UPPER_BAND",
-                "minVolume": 1000000
-            }
+            "technicalFilters": "overbought"
         },
         {
             "alias": "0 DTE Iron Condor",
@@ -259,6 +288,35 @@
                     "minOpenInterest": 100
                 }
             },
+            "greeks": {
+                "delta": "positive",
+                "gamma": "positive",
+                "theta": "negative",
+                "vega": "positive"
+            }
+        },
+        {
+            "alias": "Tech Moderate LEAP",
+            "enabled": true,
+            "strategyType": "LONG_CALL_LEAP",
+            "descriptionFile": "long_call_leap.md",
+            "filterType": "LongCallLeapFilter",
+            "securitiesFile": "portfolio, tracking, bullish, 2026, top100, SPY, QQQ",
+            "filter": {
+                "minDTE": 330,
+                "ignoreEarnings": true,
+                "marginInterestRate": 6.0,
+                "savingsInterestRate": 10.0,
+                "maxOptionPricePercent": 50.0,
+                "maxCAGRForBreakEven": 15.0,
+                "minCostSavingsPercent": 10.0,
+                "maxLossLimit": 5000,
+                "longCall": {
+                    "minDelta": 0.4,
+                    "minOpenInterest": 100
+                }
+            },
+            "technicalFilters": "oversold",
             "greeks": {
                 "delta": "positive",
                 "gamma": "positive",
@@ -505,10 +563,18 @@
             "enabled": true,
             "screenerType": "RSI_BB_BULLISH_CROSSOVER",
             "securitiesFile": "top100, portfolio, tracking, 2026",
-            "conditions": {
-                "rsiCondition": "BULLISH_CROSSOVER",
-                "bollingerCondition": "LOWER_BAND",
-                "minVolume": 1000000
+            "technicalFilters": {
+                "RSI": {
+                    "config": "default",
+                    "condition": "BULLISH_CROSSOVER"
+                },
+                "BOLLINGER_BAND": {
+                    "config": "default",
+                    "condition": "LOWER_BAND"
+                },
+                "VOLUME": {
+                    "config": { "min": 1000000 }
+                }
             }
         },
         {
@@ -516,10 +582,18 @@
             "enabled": true,
             "screenerType": "RSI_BB_BEARISH_CROSSOVER",
             "securitiesFile": "top100, portfolio, tracking, 2026",
-            "conditions": {
-                "rsiCondition": "BEARISH_CROSSOVER",
-                "bollingerCondition": "UPPER_BAND",
-                "minVolume": 1000000
+            "technicalFilters": {
+                "RSI": {
+                    "config": "default",
+                    "condition": "BEARISH_CROSSOVER"
+                },
+                "BOLLINGER_BAND": {
+                    "config": "default",
+                    "condition": "UPPER_BAND"
+                },
+                "VOLUME": {
+                    "config": { "min": 1000000 }
+                }
             }
         },
         {
@@ -527,9 +601,13 @@
             "enabled": true,
             "screenerType": "BELOW_200_DAY_MA",
             "securitiesFile": "top100, portfolio, tracking, 2026",
-            "conditions": {
-                "requirePriceBelowMA200": true,
-                "minVolume": 1000000
+            "technicalFilters": {
+                "MOVING_AVERAGE": {
+                    "config": { "requirePriceBelowMA200": true }
+                },
+                "VOLUME": {
+                    "config": { "min": 1000000 }
+                }
             }
         },
         {
@@ -537,9 +615,14 @@
             "enabled": true,
             "screenerType": "RSI_OVERSOLD",
             "securitiesFile": "top100, portfolio, tracking, 2026",
-            "conditions": {
-                "rsiCondition": "OVERSOLD",
-                "minVolume": 1000000
+            "technicalFilters": {
+                "RSI": {
+                    "config": "default",
+                    "condition": "OVERSOLD"
+                },
+                "VOLUME": {
+                    "config": { "min": 1000000 }
+                }
             }
         },
         {
@@ -547,9 +630,14 @@
             "enabled": true,
             "screenerType": "BB_LOWER",
             "securitiesFile": "top100, portfolio, tracking, 2026",
-            "conditions": {
-                "bollingerCondition": "LOWER_BAND",
-                "minVolume": 1000000
+            "technicalFilters": {
+                "BOLLINGER_BAND": {
+                    "config": "default",
+                    "condition": "LOWER_BAND"
+                },
+                "VOLUME": {
+                    "config": { "min": 1000000 }
+                }
             }
         },
         {
@@ -557,9 +645,10 @@
             "enabled": true,
             "screenerType": "PRICE_DROP",
             "securitiesFile": "top100, portfolio, tracking, 2026",
-            "conditions": {
-                "minDropPercent": 3.0,
-                "lookbackDays": 0
+            "technicalFilters": {
+                "PRICE_DROP": {
+                    "config": { "minDropPercent": 3.0, "lookbackDays": 0 }
+                }
             }
         },
         {
@@ -567,9 +656,10 @@
             "enabled": true,
             "screenerType": "PRICE_DROP",
             "securitiesFile": "top100, portfolio, tracking, 2026",
-            "conditions": {
-                "minDropPercent": 5.0,
-                "lookbackDays": 5
+            "technicalFilters": {
+                "PRICE_DROP": {
+                    "config": { "minDropPercent": 5.0, "lookbackDays": 5 }
+                }
             }
         },
         {
@@ -577,9 +667,10 @@
             "enabled": true,
             "screenerType": "PRICE_DROP",
             "securitiesFile": "top100, portfolio, tracking, 2026",
-            "conditions": {
-                "minDropPercent": 10.0,
-                "lookbackDays": 21
+            "technicalFilters": {
+                "PRICE_DROP": {
+                    "config": { "minDropPercent": 10.0, "lookbackDays": 21 }
+                }
             }
         },
         {
@@ -587,9 +678,10 @@
             "enabled": true,
             "screenerType": "PRICE_DROP",
             "securitiesFile": "top100, portfolio, tracking, 2026",
-            "conditions": {
-                "minDropPercent": 15.0,
-                "lookbackDays": 63
+            "technicalFilters": {
+                "PRICE_DROP": {
+                    "config": { "minDropPercent": 15.0, "lookbackDays": 63 }
+                }
             }
         },
         {
@@ -597,28 +689,11 @@
             "alias": "Down from 52W High",
             "screenerType": "HIGH_52W_DROP",
             "securitiesFile": "top100, portfolio, tracking, 2026",
-            "conditions": {
-                "minDropPercent": 20.0
+            "technicalFilters": {
+                "PRICE_DROP": {
+                    "config": { "minDropPercent": 20.0 }
+                }
             }
         }
-    ],
-    "technicalIndicators": {
-        "rsiPeriod": 14,
-        "oversoldThreshold": 30.0,
-        "overboughtThreshold": 70.0,
-        "bollingerPeriod": 20,
-        "bollingerStdDev": 2.0
-    },
-    "technicalFilters": {
-        "oversold": {
-            "rsiCondition": "BULLISH_CROSSOVER",
-            "bollingerCondition": "LOWER_BAND",
-            "minVolume": 1000000
-        },
-        "overbought": {
-            "rsiCondition": "BEARISH_CROSSOVER",
-            "bollingerCondition": "UPPER_BAND",
-            "minVolume": 1000000
-        }
-    }
+    ]
 }

@@ -41,9 +41,16 @@ public class ScreenerConfig {
     private final java.util.List<String> securities;
 
     /**
-     * Filter conditions defining what to screen for.
+     * Filter chain containing indicators and conditions defining what to screen for.
      */
-    private final TechFilterConditions conditions;
+    private final TechnicalFilterChain filterChain;
+
+    /**
+     * Helper to get conditions from the filter chain.
+     */
+    public TechFilterConditions getConditions() {
+        return filterChain != null ? filterChain.getConditions() : null;
+    }
 
     /**
      * Gets the display name from the alias if present, otherwise screener type.

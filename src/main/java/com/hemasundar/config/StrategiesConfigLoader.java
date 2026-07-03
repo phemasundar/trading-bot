@@ -1,9 +1,6 @@
 package com.hemasundar.config;
 
-import com.hemasundar.config.StrategiesConfig.ScreenerConditionsConfig;
-import com.hemasundar.config.StrategiesConfig.ScreenerEntry;
-import com.hemasundar.config.StrategiesConfig.StrategyEntry;
-import com.hemasundar.config.StrategiesConfig.TechnicalFilterConfig;
+import com.hemasundar.config.StrategiesConfig.*;
 import com.hemasundar.options.models.*;
 import com.hemasundar.options.strategies.AbstractTradingStrategy;
 import com.hemasundar.options.strategies.StrategyType;
@@ -21,8 +18,22 @@ import java.util.*;
 
 /**
  * Loads strategy and screener configurations from strategies-config.json.
- * Provides POJO-based parsing for both options strategies and technical
- * screeners.
+ * Provides POJO-based parsing for both options strategies and technical screeners.
+ *
+ * <h2>technicalFilters resolution</h2>
+ * Both strategies and screeners use the same {@code technicalFilters} format.
+ * On a strategy entry {@code technicalFilters} may be:
+ * <ul>
+ *   <li>A {@code String} — name of a preset in the root {@code technicalFilters} map</li>
+ *   <li>A {@code Map<String, Object>} — inline filter definition</li>
+ * </ul>
+ * On a screener entry {@code technicalFilters} is always a {@code Map<String, Object>}.
+ *
+ * <p>Each filter entry's {@code "config"} field may be:
+ * <ul>
+ *   <li>A {@code String} — name of a named indicator config in {@code technicalIndicatorConfigs}</li>
+ *   <li>An inline object — deserialized directly to the appropriate config POJO</li>
+ * </ul>
  */
 @Log4j2
 @Component
@@ -80,14 +91,14 @@ public class StrategiesConfigLoader {
             // Parse root config as POJO
             StrategiesConfig rootConfig = JavaUtils.convertJsonToPojo(json, StrategiesConfig.class);
 
-            // Build named filter chains from presets
-            Map<String, TechnicalFilterChain> filterChains = buildFilterChains(
-                    rootConfig.getTechnicalFilters());
+            // Build named preset filter-map lookup from root technicalFilters
+            Map<String, Map<String, Object>> presetFilters = rootConfig.getTechnicalFilters();
+            Map<String, Object> indicatorConfigs = rootConfig.getTechnicalIndicatorConfigs();
 
             // Convert each enabled strategy entry to OptionsConfig
             for (StrategyEntry entry : rootConfig.getEnabledStrategies()) {
                 try {
-                    OptionsConfig config = convertToOptionsConfig(entry, securitiesMap, filterChains);
+                    OptionsConfig config = convertToOptionsConfig(entry, securitiesMap, presetFilters, indicatorConfigs);
                     if (config != null) {
                         configs.add(config);
                     }
@@ -122,7 +133,7 @@ public class StrategiesConfigLoader {
      * Only returns enabled screeners.
      *
      * @param configResource path to the strategies-config.json file
-     * @param securitiesMap map of securities
+     * @param securitiesMap  map of securities
      * @return list of enabled ScreenerConfig objects
      */
     public List<ScreenerConfig> loadScreeners(String configResource, Map<String, List<String>> securitiesMap) {
@@ -133,11 +144,12 @@ public class StrategiesConfigLoader {
 
             // Parse root config as POJO
             StrategiesConfig rootConfig = JavaUtils.convertJsonToPojo(json, StrategiesConfig.class);
+            Map<String, Object> indicatorConfigs = rootConfig.getTechnicalIndicatorConfigs();
 
             // Convert each enabled screener entry to ScreenerConfig
             for (ScreenerEntry entry : rootConfig.getEnabledScreeners()) {
                 try {
-                    ScreenerConfig config = convertToScreenerConfig(entry, securitiesMap);
+                    ScreenerConfig config = convertToScreenerConfig(entry, securitiesMap, indicatorConfigs);
                     if (config != null) {
                         configs.add(config);
                     }
@@ -155,30 +167,19 @@ public class StrategiesConfigLoader {
         return configs;
     }
 
-    private ScreenerConfig convertToScreenerConfig(ScreenerEntry entry, Map<String, List<String>> securitiesMap) {
-        ScreenerConditionsConfig condConfig = entry.getConditions();
+    private ScreenerConfig convertToScreenerConfig(
+            ScreenerEntry entry,
+            Map<String, List<String>> securitiesMap,
+            Map<String, Object> indicatorConfigs) {
 
-        // Build TechFilterConditions from the POJO
-        TechFilterConditions conditions = TechFilterConditions.builder()
-                .rsiCondition(condConfig.getRsiCondition())
-                .bollingerCondition(condConfig.getBollingerCondition())
-                .minVolume(condConfig.getMinVolume())
-                .requirePriceBelowMA20(condConfig.isRequirePriceBelowMA20())
-                .requirePriceAboveMA20(condConfig.isRequirePriceAboveMA20())
-                .requirePriceBelowMA50(condConfig.isRequirePriceBelowMA50())
-                .requirePriceAboveMA50(condConfig.isRequirePriceAboveMA50())
-                .requirePriceBelowMA100(condConfig.isRequirePriceBelowMA100())
-                .requirePriceAboveMA100(condConfig.isRequirePriceAboveMA100())
-                .requirePriceBelowMA200(condConfig.isRequirePriceBelowMA200())
-                .requirePriceAboveMA200(condConfig.isRequirePriceAboveMA200())
-                .minDropPercent(condConfig.getMinDropPercent())
-                .lookbackDays(condConfig.getLookbackDays())
-                .build();
+        // Build TechnicalFilterChain from the technicalFilters map
+        TechnicalFilterChain filterChain = buildFilterChainFromMap(
+                entry.getTechnicalFilters(), indicatorConfigs);
 
         // Get securities list from files (supports comma-separated file names)
         List<String> securities = parseSecuritiesFromFiles(entry.getSecuritiesFile(), securitiesMap);
 
-        // Combine with inline securities if specified (supports comma-separated symbols)
+        // Combine with inline securities if specified
         if (entry.getSecurities() != null && !entry.getSecurities().trim().isEmpty()) {
             java.util.Set<String> combined = new java.util.LinkedHashSet<>(securities);
             for (String symbol : entry.getSecurities().split(",")) {
@@ -195,7 +196,7 @@ public class StrategiesConfigLoader {
                 .screenerType(entry.getScreenerType())
                 .alias(entry.getAlias())
                 .securities(securities)
-                .conditions(conditions)
+                .filterChain(filterChain)
                 .build();
     }
 
@@ -204,7 +205,8 @@ public class StrategiesConfigLoader {
     private OptionsConfig convertToOptionsConfig(
             StrategyEntry entry,
             Map<String, List<String>> securitiesMap,
-            Map<String, TechnicalFilterChain> filterChains) throws Exception {
+            Map<String, Map<String, Object>> presetFilters,
+            Map<String, Object> indicatorConfigs) throws Exception {
 
         // Fetch strategy instance from map
         AbstractTradingStrategy strategy = strategyMap.get(entry.getStrategyType());
@@ -228,8 +230,7 @@ public class StrategiesConfigLoader {
         // Get securities list from files (supports comma-separated file names)
         List<String> securities = parseSecuritiesFromFiles(entry.getSecuritiesFile(), securitiesMap);
 
-        // Combine with inline securities if specified (supports comma-separated
-        // symbols)
+        // Combine with inline securities if specified
         if (entry.getSecurities() != null && !entry.getSecurities().trim().isEmpty()) {
             java.util.Set<String> combined = new java.util.LinkedHashSet<>(securities);
             for (String symbol : entry.getSecurities().split(",")) {
@@ -242,11 +243,11 @@ public class StrategiesConfigLoader {
             log.debug("Combined {} unique securities from files + inline", securities.size());
         }
 
-        // Get optional technical filter
+        // Get optional technical filter chain
         TechnicalFilterChain technicalFilterChain = null;
         if (entry.hasTechnicalFilter()) {
-            technicalFilterChain = resolveTechnicalFilter(
-                    entry.getTechnicalFilter(), filterChains);
+            technicalFilterChain = resolveTechnicalFilterChain(
+                    entry.getTechnicalFilters(), presetFilters, indicatorConfigs);
         }
 
         return OptionsConfig.builder()
@@ -261,62 +262,241 @@ public class StrategiesConfigLoader {
                 .build();
     }
 
-    private TechnicalFilterChain resolveTechnicalFilter(
-            Object techFilter,
-            Map<String, TechnicalFilterChain> filterChains) {
+    /**
+     * Resolves {@code technicalFilters} on a strategy entry into a {@link TechnicalFilterChain}.
+     * The value may be:
+     * <ul>
+     *   <li>A {@code String} — preset name; looked up in {@code presetFilters}</li>
+     *   <li>A {@code Map<String, Object>} — inline filter definition</li>
+     * </ul>
+     */
+    @SuppressWarnings("unchecked")
+    private TechnicalFilterChain resolveTechnicalFilterChain(
+            Object technicalFilters,
+            Map<String, Map<String, Object>> presetFilters,
+            Map<String, Object> indicatorConfigs) {
 
-        if (techFilter instanceof String filterName) {
-            // String reference to predefined filter
-            return filterChains.get(filterName);
+        Map<String, Object> filtersMap;
+
+        if (technicalFilters instanceof String presetName) {
+            // String reference to a root-level named preset
+            filtersMap = presetFilters.get(presetName);
+            if (filtersMap == null) {
+                log.warn("technicalFilters preset '{}' not found in root technicalFilters map", presetName);
+                return null;
+            }
         } else {
-            // Inline object - convert to TechnicalFilterConfig
-            TechnicalFilterConfig config = JavaUtils.convertValue(techFilter, TechnicalFilterConfig.class);
-            return buildFilterChainFromConfig(config);
+            // Inline map
+            filtersMap = (Map<String, Object>) technicalFilters;
+        }
+
+        return buildFilterChainFromMap(filtersMap, indicatorConfigs);
+    }
+
+    /**
+     * Builds a {@link TechnicalFilterChain} from a {@code technicalFilters} map.
+     * Keys: "RSI", "BOLLINGER_BAND", "VOLUME", "MOVING_AVERAGE", "PRICE_DROP".
+     */
+    private TechnicalFilterChain buildFilterChainFromMap(
+            Map<String, Object> filtersMap,
+            Map<String, Object> indicatorConfigs) {
+
+        // Pre-populate with default indicators so UI/Telegram receive full context for all screeners,
+        // even if not explicitly defined in the strategy-config. Explicitly defined ones will overwrite these.
+        TechnicalIndicators.TechnicalIndicatorsBuilder indicatorsBuilder = TechnicalIndicators.createDefaults().toBuilder();
+                
+        TechFilterConditions.TechFilterConditionsBuilder conditionsBuilder = TechFilterConditions.builder();
+
+        if (filtersMap != null) {
+            for (Map.Entry<String, Object> entry : filtersMap.entrySet()) {
+                String key = entry.getKey().toUpperCase();
+                Object rawEntry = entry.getValue();
+
+                switch (key) {
+                    case "RSI" -> applyRsiFilter(rawEntry, indicatorConfigs, indicatorsBuilder, conditionsBuilder);
+                    case "BOLLINGER_BAND" -> applyBollingerFilter(rawEntry, indicatorConfigs, indicatorsBuilder, conditionsBuilder);
+                    case "VOLUME" -> applyVolumeFilter(rawEntry, conditionsBuilder);
+                    case "MOVING_AVERAGE" -> applyMovingAverageFilters(rawEntry, indicatorsBuilder, conditionsBuilder);
+                    case "PRICE_DROP" -> applyPriceDropFilter(rawEntry, conditionsBuilder);
+                    default -> log.warn("Unknown technicalFilters key '{}' — skipping", key);
+                }
+            }
+        }
+
+        return TechnicalFilterChain.of(indicatorsBuilder.build(), conditionsBuilder.build());
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  Per-filter-type application helpers
+    // ─────────────────────────────────────────────────────────
+
+    private void applyRsiFilter(
+            Object rawEntry,
+            Map<String, Object> indicatorConfigs,
+            TechnicalIndicators.TechnicalIndicatorsBuilder indicators,
+            TechFilterConditions.TechFilterConditionsBuilder conditions) {
+
+        RSIFilterEntry entry = JavaUtils.convertValue(rawEntry, RSIFilterEntry.class);
+        RSIConfigParams cfg = resolveRSIConfig(entry.getConfig(), indicatorConfigs);
+
+        indicators.rsiFilter(RSIFilter.builder()
+                .period(cfg.getPeriod())
+                .oversoldThreshold(cfg.getOversoldThreshold())
+                .overboughtThreshold(cfg.getOverboughtThreshold())
+                .build());
+
+        if (entry.getCondition() != null) {
+            conditions.rsiCondition(entry.getCondition());
         }
     }
 
-    private Map<String, TechnicalFilterChain> buildFilterChains(
-            Map<String, TechnicalFilterConfig> presets) {
+    private void applyBollingerFilter(
+            Object rawEntry,
+            Map<String, Object> indicatorConfigs,
+            TechnicalIndicators.TechnicalIndicatorsBuilder indicators,
+            TechFilterConditions.TechFilterConditionsBuilder conditions) {
 
-        Map<String, TechnicalFilterChain> chains = new HashMap<>();
+        BollingerFilterEntry entry = JavaUtils.convertValue(rawEntry, BollingerFilterEntry.class);
+        BollingerConfigParams cfg = resolveBollingerConfig(entry.getConfig(), indicatorConfigs);
 
-        if (presets == null) {
-            return chains;
+        indicators.bollingerFilter(BollingerBandsFilter.builder()
+                .period(cfg.getBollingerPeriod())
+                .standardDeviations(cfg.getBollingerStdDev())
+                .build());
+
+        if (entry.getCondition() != null) {
+            conditions.bollingerCondition(entry.getCondition());
         }
-
-        for (Map.Entry<String, TechnicalFilterConfig> entry : presets.entrySet()) {
-            TechnicalFilterChain chain = buildFilterChainFromConfig(entry.getValue());
-            chains.put(entry.getKey(), chain);
-        }
-
-        return chains;
     }
 
-    private TechnicalFilterChain buildFilterChainFromConfig(TechnicalFilterConfig config) {
-        TechnicalIndicators indicators = TechnicalIndicators.builder()
-                .rsiFilter(RSIFilter.builder()
-                        .period(config.getRsiPeriod())
-                        .oversoldThreshold(config.getOversoldThreshold())
-                        .overboughtThreshold(config.getOverboughtThreshold())
-                        .build())
-                .bollingerFilter(BollingerBandsFilter.builder()
-                        .period(config.getBollingerPeriod())
-                        .standardDeviations(config.getBollingerStdDev())
-                        .build())
-                .build();
+    private void applyVolumeFilter(
+            Object rawEntry,
+            TechFilterConditions.TechFilterConditionsBuilder conditions) {
 
-        TechFilterConditions conditions = TechFilterConditions.builder()
-                .rsiCondition(config.getRsiCondition())
-                .bollingerCondition(config.getBollingerCondition())
-                .minVolume(config.getMinVolume())
-                .requirePriceBelowMA20(config.isRequirePriceBelowMA20())
-                .requirePriceBelowMA50(config.isRequirePriceBelowMA50())
-                .requirePriceBelowMA100(config.isRequirePriceBelowMA100())
-                .requirePriceBelowMA200(config.isRequirePriceBelowMA200())
-                .build();
-
-        return TechnicalFilterChain.of(indicators, conditions);
+        VolumeFilterEntry entry = JavaUtils.convertValue(rawEntry, VolumeFilterEntry.class);
+        if (entry.getConfig() != null && entry.getConfig().getMin() > 0) {
+            conditions.minVolume(entry.getConfig().getMin());
+        }
     }
+
+    private void applyMovingAverageFilters(
+            Object rawEntry,
+            TechnicalIndicators.TechnicalIndicatorsBuilder indicators,
+            TechFilterConditions.TechFilterConditionsBuilder conditions) {
+
+        MovingAverageFilterEntry entry = JavaUtils.convertValue(rawEntry, MovingAverageFilterEntry.class);
+        if (entry.getConfig() == null) return;
+
+        MovingAverageConfigParams cfg = entry.getConfig();
+
+        if (cfg.isRequirePriceBelowMA20() || cfg.isRequirePriceAboveMA20()) {
+            indicators.ma20Filter(MovingAverageFilter.builder().period(20).build());
+            conditions.requirePriceBelowMA20(cfg.isRequirePriceBelowMA20());
+            conditions.requirePriceAboveMA20(cfg.isRequirePriceAboveMA20());
+        }
+        if (cfg.isRequirePriceBelowMA50() || cfg.isRequirePriceAboveMA50()) {
+            indicators.ma50Filter(MovingAverageFilter.builder().period(50).build());
+            conditions.requirePriceBelowMA50(cfg.isRequirePriceBelowMA50());
+            conditions.requirePriceAboveMA50(cfg.isRequirePriceAboveMA50());
+        }
+        if (cfg.isRequirePriceBelowMA100() || cfg.isRequirePriceAboveMA100()) {
+            indicators.ma100Filter(MovingAverageFilter.builder().period(100).build());
+            conditions.requirePriceBelowMA100(cfg.isRequirePriceBelowMA100());
+            conditions.requirePriceAboveMA100(cfg.isRequirePriceAboveMA100());
+        }
+        if (cfg.isRequirePriceBelowMA200() || cfg.isRequirePriceAboveMA200()) {
+            indicators.ma200Filter(MovingAverageFilter.builder().period(200).build());
+            conditions.requirePriceBelowMA200(cfg.isRequirePriceBelowMA200());
+            conditions.requirePriceAboveMA200(cfg.isRequirePriceAboveMA200());
+        }
+    }
+
+    private void applyPriceDropFilter(
+            Object rawEntry,
+            TechFilterConditions.TechFilterConditionsBuilder conditions) {
+
+        PriceDropFilterEntry entry = JavaUtils.convertValue(rawEntry, PriceDropFilterEntry.class);
+        if (entry.getConfig() != null) {
+            conditions.minDropPercent(entry.getConfig().getMinDropPercent());
+            conditions.lookbackDays(entry.getConfig().getLookbackDays());
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  Type-specific indicator config resolution
+    // ─────────────────────────────────────────────────────────
+
+    /**
+     * Resolves an RSI filter entry's {@code "config"} field to {@link RSIConfigParams}.
+     * <ul>
+     *   <li>String → look up by name in {@code indicatorConfigs}, deserialize as {@link RSIConfigParams}</li>
+     *   <li>Object (inline) → deserialize directly as {@link RSIConfigParams}</li>
+     *   <li>null → return defaults (period=14, oversold=30, overbought=70)</li>
+     * </ul>
+     */
+    private RSIConfigParams resolveRSIConfig(Object configValue, Map<String, Object> indicatorConfigs) {
+        RSIConfigParams defaults = new RSIConfigParams();
+        if (configValue == null) return defaults;
+        if (configValue instanceof String refName) {
+            Object named = indicatorConfigs.get(refName);
+            if (named == null) {
+                log.warn("technicalIndicatorConfigs reference '{}' not found for RSI — using defaults", refName);
+                return defaults;
+            }
+            // If the named config is a map, it MUST contain the expected "RSI" key wrapper
+            if (named instanceof Map namedMap) {
+                if (namedMap.containsKey("RSI")) {
+                    named = namedMap.get("RSI");
+                } else {
+                    throw new IllegalArgumentException("Named config '" + refName + "' does not contain an 'RSI' configuration block.");
+                }
+            } else {
+                throw new IllegalArgumentException("Named config '" + refName + "' is invalid. It must be a JSON object containing configuration blocks.");
+            }
+            RSIConfigParams resolved = JavaUtils.convertValue(named, RSIConfigParams.class);
+            return resolved != null ? resolved : defaults;
+        }
+        RSIConfigParams inline = JavaUtils.convertValue(configValue, RSIConfigParams.class);
+        return inline != null ? inline : defaults;
+    }
+
+    /**
+     * Resolves a Bollinger filter entry's {@code "config"} field to {@link BollingerConfigParams}.
+     * <ul>
+     *   <li>String → look up by name in {@code indicatorConfigs}, deserialize as {@link BollingerConfigParams}</li>
+     *   <li>Object (inline) → deserialize directly as {@link BollingerConfigParams}</li>
+     *   <li>null → return defaults (bollingerPeriod=20, bollingerStdDev=2.0)</li>
+     * </ul>
+     */
+    private BollingerConfigParams resolveBollingerConfig(Object configValue, Map<String, Object> indicatorConfigs) {
+        BollingerConfigParams defaults = new BollingerConfigParams();
+        if (configValue == null) return defaults;
+        if (configValue instanceof String refName) {
+            Object named = indicatorConfigs.get(refName);
+            if (named == null) {
+                log.warn("technicalIndicatorConfigs reference '{}' not found for Bollinger — using defaults", refName);
+                return defaults;
+            }
+            // If the named config is a map, it MUST contain the expected "BOLLINGER_BAND" key wrapper
+            if (named instanceof Map namedMap) {
+                if (namedMap.containsKey("BOLLINGER_BAND")) {
+                    named = namedMap.get("BOLLINGER_BAND");
+                } else {
+                    throw new IllegalArgumentException("Named config '" + refName + "' does not contain a 'BOLLINGER_BAND' configuration block.");
+                }
+            } else {
+                throw new IllegalArgumentException("Named config '" + refName + "' is invalid. It must be a JSON object containing configuration blocks.");
+            }
+            BollingerConfigParams resolved = JavaUtils.convertValue(named, BollingerConfigParams.class);
+            return resolved != null ? resolved : defaults;
+        }
+        BollingerConfigParams inline = JavaUtils.convertValue(configValue, BollingerConfigParams.class);
+        return inline != null ? inline : defaults;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  Securities helpers
+    // ─────────────────────────────────────────────────────────
 
     private List<String> parseSecuritiesFromFiles(
             String securitiesFile,
@@ -342,19 +522,15 @@ public class StrategiesConfigLoader {
                 continue;
             }
 
-            // Lazy path: dynamic keyword not in the static map — fetch from Wikipedia on demand.
-            // This is intentionally deferred to execution time so that a Wikipedia outage
-            // does NOT prevent the application from starting or the /api/strategies listing
-            // from loading.
+            // Lazy path: dynamic keyword — fetch from Wikipedia on demand.
             if (key.equalsIgnoreCase("SPY") || key.equalsIgnoreCase("QQQ")) {
                 log.info("Lazily fetching dynamic securities for keyword '{}' from Wikipedia", key);
-                List<String> tickers = wikipediaFetcher.fetch(key); // throws IllegalStateException on failure
+                List<String> tickers = wikipediaFetcher.fetch(key);
                 log.info("Fetched {} tickers for '{}' from Wikipedia", tickers.size(), key);
                 uniqueSecurities.addAll(tickers);
                 continue;
             }
 
-            // Unknown key: warn but do not fail — the strategy will run with an empty list
             log.warn("Securities key '{}' not found in static map and is not a recognised dynamic keyword (SPY/QQQ)", key);
         }
 

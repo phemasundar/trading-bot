@@ -40,20 +40,75 @@ public class StrategiesConfigTest {
     }
 
     @Test
-    public void testScreenerEntryAndConditions() {
+    public void testScreenerEntryAndTechnicalFilters() {
         StrategiesConfig.ScreenerEntry entry = new StrategiesConfig.ScreenerEntry();
         entry.setAlias("Alias");
         entry.setScreenerType(com.hemasundar.technical.ScreenerType.RSI_OVERSOLD);
         entry.setEnabled(true);
         entry.setSecurities("AAPL");
-        
-        StrategiesConfig.ScreenerConditionsConfig conditions = new StrategiesConfig.ScreenerConditionsConfig();
-        conditions.setRsiCondition(com.hemasundar.technical.RSICondition.OVERBOUGHT);
-        conditions.setMinVolume(5000L);
-        entry.setConditions(conditions);
-        
+
+        // technicalFilters is now a Map<String, Object> matching the JSON structure
+        java.util.Map<String, Object> filters = new java.util.HashMap<>();
+        java.util.Map<String, Object> rsiEntry = new java.util.HashMap<>();
+        rsiEntry.put("config", "default");
+        rsiEntry.put("condition", "OVERSOLD");
+        filters.put("RSI", rsiEntry);
+        entry.setTechnicalFilters(filters);
+
         assertEquals(entry.getAlias(), "Alias");
-        assertEquals(entry.getConditions().getRsiCondition(), com.hemasundar.technical.RSICondition.OVERBOUGHT);
-        assertEquals(entry.getConditions().getMinVolume(), Long.valueOf(5000L));
+        assertNotNull(entry.getTechnicalFilters());
+        assertTrue(entry.getTechnicalFilters().containsKey("RSI"));
+    }
+
+    @Test
+    public void testStrategyEntryHasTechnicalFilters() {
+        StrategiesConfig.StrategyEntry strategy = new StrategiesConfig.StrategyEntry();
+        assertFalse(strategy.hasTechnicalFilter(), "No technicalFilters set yet");
+
+        strategy.setTechnicalFilters("oversold");
+        assertTrue(strategy.hasTechnicalFilter(), "String preset reference should register as having a filter");
+
+        strategy.setTechnicalFilters(new java.util.HashMap<>());
+        assertTrue(strategy.hasTechnicalFilter(), "Empty map still registers as having a filter");
+    }
+
+    @Test
+    public void testRSIConfigParamsDefaults() {
+        StrategiesConfig.RSIConfigParams cfg = new StrategiesConfig.RSIConfigParams();
+        assertEquals(cfg.getPeriod(), 14);
+        assertEquals(cfg.getOversoldThreshold(), 30.0);
+        assertEquals(cfg.getOverboughtThreshold(), 70.0);
+    }
+
+    @Test
+    public void testBollingerConfigParamsDefaults() {
+        StrategiesConfig.BollingerConfigParams cfg = new StrategiesConfig.BollingerConfigParams();
+        assertEquals(cfg.getBollingerPeriod(), 20);
+        assertEquals(cfg.getBollingerStdDev(), 2.0);
+    }
+
+    @Test
+    public void testTechnicalIndicatorConfigsAsTypedMap() {
+        StrategiesConfig config = new StrategiesConfig();
+        java.util.Map<String, Object> namedConfigs = new java.util.HashMap<>();
+        
+        // Build the "default" object wrapping both configs
+        java.util.Map<String, Object> defaultObject = new java.util.HashMap<>();
+        
+        java.util.Map<String, Object> rsiParams = new java.util.HashMap<>();
+        rsiParams.put("period", 14);
+        rsiParams.put("oversoldThreshold", 30.0);
+        defaultObject.put("RSI", rsiParams);
+        
+        java.util.Map<String, Object> bbParams = new java.util.HashMap<>();
+        bbParams.put("bollingerPeriod", 20);
+        bbParams.put("bollingerStdDev", 2.0);
+        defaultObject.put("BOLLINGER_BAND", bbParams);
+        
+        namedConfigs.put("default", defaultObject);
+        
+        config.setTechnicalIndicatorConfigs(namedConfigs);
+        assertEquals(config.getTechnicalIndicatorConfigs().size(), 1);
+        assertTrue(config.getTechnicalIndicatorConfigs().containsKey("default"));
     }
 }

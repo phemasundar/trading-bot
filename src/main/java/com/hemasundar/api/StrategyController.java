@@ -511,7 +511,7 @@ public class StrategyController {
                 .screenerType(screenerType)
                 .alias(request.getAlias() != null ? request.getAlias() : screenerType.getDisplayName())
                 .securities(new ArrayList<>(symbolSet))
-                .conditions(condBuilder.build())
+                .filterChain(com.hemasundar.technical.TechnicalFilterChain.of(com.hemasundar.technical.TechnicalIndicators.createDefaults(), condBuilder.build()))
                 .build();
 
         log.info("REST: Custom screener {} on {} securities", screenerType.getDisplayName(), symbolSet.size());

@@ -1,5 +1,51 @@
 # Project Updates
 
+## Refactor: Typed `technicalFilters` with Named Config References (2026-07-03)
+
+Refactored the `technicalFilter` flat-object format in `strategies-config.json` into a fully typed, reference-able `technicalFilters` map. The same format is now shared between options strategies and technical screeners, eliminating duplication.
+
+### New JSON Format
+
+```json
+"technicalIndicatorConfigs": {
+    "default": {
+        "RSI": { "period": 14, "oversoldThreshold": 30.0, "overboughtThreshold": 70.0 },
+        "BOLLINGER_BAND": { "bollingerPeriod": 20, "bollingerStdDev": 2.0 }
+    }
+},
+"technicalFilters": {
+    "oversold": {
+        "RSI": { "config": "default", "condition": "BULLISH_CROSSOVER" },
+        "BOLLINGER_BAND": { "config": "default", "condition": "LOWER_BAND" },
+
+        "VOLUME": { "config": { "min": 1000000 } }
+    }
+}
+```
+
+Each filter type (`RSI`, `BOLLINGER_BAND`, `VOLUME`, `MOVING_AVERAGE`, `PRICE_DROP`) has:
+- **`config`**: either a string reference to a named entry in `technicalIndicatorConfigs`, or an inline object with indicator parameters.
+- **`condition`**: the filter condition to apply (e.g. `BULLISH_CROSSOVER`, `LOWER_BAND`).
+
+Options strategies can reference a named preset by string: `"technicalFilters": "oversold"`.
+
+### Architecture
+
+| File | Change |
+|---|---|
+| **`StrategiesConfig.java`** | Replaced flat `TechnicalFilterConfig` + `ScreenerConditionsConfig` with rich typed POJOs: `TechnicalIndicatorConfigEntry`, `RSIFilterEntry`, `BollingerFilterEntry`, `VolumeFilterEntry`, `MovingAverageFilterEntry`, `PriceDropFilterEntry`, plus inline config param classes. |
+| **`StrategiesConfigLoader.java`** | Full rewrite of technical filter parsing. `resolveTechnicalFilterChain()` dispatches by key; `resolveIndicatorConfig()` resolves string refs vs inline objects; `buildFilterChainFromMap()` assembles the `TechnicalFilterChain`. Screeners now share the same parsing path as strategies. |
+| **`strategies-config.json`** | Added `technicalIndicatorConfigs` root block with `"default"` entry. Updated `technicalFilters` presets (`oversold`/`overbought`) to new format. TECH strategy entries now use string preset refs (`"technicalFilters": "oversold"`). All 10 screener entries: renamed `conditions` → `technicalFilters` with typed sub-objects. Removed old `technicalIndicators` root block. |
+| **`StrategiesConfigTest.java`** | Updated to test new `technicalFilters` Map and new POJO classes. |
+
+### Key Design Decisions
+- `config` and `condition` are deliberately separate: `config` = how to compute the indicator; `condition` = what signal to look for.
+- `config` can be omitted entirely and defaults (RSI 14, BB 20/2.0) are applied automatically.
+- `technicalFilters` root presets act as named, reusable bundles of filter+condition definitions, referenced by string from any strategy entry.
+- All 346 tests pass after the refactoring.
+
+---
+
 ## Performance: Pre-warming Price History API Calls (2026-07-03)
 
 Implemented parallel pre-fetching (pre-warming) for `PriceHistory` API calls during Technical Screener execution to minimize duplicate requests and lower latency, mirroring the pattern used for option chains.

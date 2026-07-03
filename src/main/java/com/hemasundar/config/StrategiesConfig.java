@@ -16,8 +16,30 @@ import java.util.Map;
 
 /**
  * Root POJO for strategies-config.json with all nested configuration classes.
- * Contains all options strategies, technical screeners, and global technical
- * indicator settings.
+ * Contains all options strategies, technical screeners, and reusable technical
+ * indicator config definitions.
+ *
+ * <h2>Technical Filter Format</h2>
+ * Both options strategies and technical screeners use the same {@code technicalFilters}
+ * map structure:
+ * <pre>
+ * "technicalFilters": {
+ *     "RSI": {
+ *         "config": "default",            // string ref to technicalIndicatorConfigs
+ *         "condition": "BULLISH_CROSSOVER"
+ *     },
+ *     "BOLLINGER_BAND": {
+ *         "config": { "period": 20, "stdDev": 2.0 },  // inline config object
+ *         "condition": "LOWER_BAND"
+ *     },
+ *     "VOLUME": { "config": { "min": 1000000 } },
+ *     "MOVING_AVERAGE": { "config": { "requirePriceBelowMA200": true } },
+ *     "PRICE_DROP": { "config": { "minDropPercent": 5.0, "lookbackDays": 5 } }
+ * }
+ * </pre>
+ * Alternatively, {@code technicalFilters} on a strategy entry may be a string
+ * reference to a named preset in the root {@code technicalFilters} map
+ * (e.g. {@code "technicalFilters": "oversold"}).
  */
 @Data
 @NoArgsConstructor
@@ -25,7 +47,7 @@ import java.util.Map;
 public class StrategiesConfig {
 
     /**
-     * List of all strategy configurations.
+     * List of all option strategy configurations.
      */
     private List<StrategyEntry> optionsStrategies = new ArrayList<>();
 
@@ -35,14 +57,29 @@ public class StrategiesConfig {
     private List<ScreenerEntry> technicalScreeners = new ArrayList<>();
 
     /**
-     * Global technical indicator settings (used by string-referenced filters).
+     * Named reusable indicator parameter configs.
+     * Each entry is filter-type-specific — RSI configs carry RSI fields,
+     * Bollinger configs carry Bollinger fields, etc. Referenced by name
+     * from a filter entry's {@code "config"} field.
+     *
+     * <p>Example JSON:
+     * <pre>
+     * "technicalIndicatorConfigs": {
+     *     "defaultRSI": { "period": 14, "oversoldThreshold": 30.0, "overboughtThreshold": 70.0 },
+     *     "defaultBollingerBand": { "bollingerPeriod": 20, "bollingerStdDev": 2.0 }
+     * }
+     * </pre>
      */
-    private TechnicalIndicatorsConfig technicalIndicators;
+    private Map<String, Object> technicalIndicatorConfigs = new HashMap<>();
 
     /**
      * Named technical filter presets (e.g., "oversold", "overbought").
+     * Each preset is a {@code Map<String, Object>} using the same structure
+     * as an inline {@code technicalFilters} block on a strategy/screener entry.
+     * A strategy entry may reference a preset by name:
+     * {@code "technicalFilters": "oversold"}.
      */
-    private Map<String, TechnicalFilterConfig> technicalFilters = new HashMap<>();
+    private Map<String, Map<String, Object>> technicalFilters = new HashMap<>();
 
     /**
      * Returns only enabled strategies.
@@ -65,7 +102,7 @@ public class StrategiesConfig {
     // ==================== INNER CLASSES ====================
 
     /**
-     * POJO representing a single strategy entry in strategies-config.json.
+     * POJO representing a single option strategy entry in strategies-config.json.
      */
     @Data
     @NoArgsConstructor
@@ -74,7 +111,7 @@ public class StrategiesConfig {
 
         private boolean enabled = true;
         private StrategyType strategyType;
-        private String alias; // Optional custom display name for Telegram messages
+        private String alias;
         private String filterType;
         private Object filter;
         private String securitiesFile;
@@ -84,21 +121,30 @@ public class StrategiesConfig {
          * Combined with securitiesFile symbols into a single unique list.
          */
         private String securities;
-        private Object technicalFilter;
+
+        /**
+         * Technical filters for this strategy.
+         * May be:
+         * <ul>
+         *   <li>A {@code String} — name of a preset in the root {@code technicalFilters} map</li>
+         *   <li>A {@code Map<String, Object>} — inline filter definition</li>
+         *   <li>{@code null} — no technical filter applied</li>
+         * </ul>
+         */
+        private Object technicalFilters;
 
         /**
          * Optional Greek exposure map for this strategy.
          * Keys: "delta", "gamma", "theta", "vega".
          * Values: "positive", "negative", or "neutral".
-         * Drives the colored Greek pill labels on the Options Dashboard UI.
          */
         private Map<String, String> greeks;
 
         public boolean hasTechnicalFilter() {
-            return technicalFilter != null;
+            return technicalFilters != null;
         }
 
-        private int maxTradesToSend = 30; // Default to 30 trades per symbol per strategy
+        private int maxTradesToSend = 30;
     }
 
     /**
@@ -114,22 +160,155 @@ public class StrategiesConfig {
         private ScreenerType screenerType;
         private String securitiesFile;
         private String securities;
-        private ScreenerConditionsConfig conditions;
+
+        /**
+         * Technical filters for this screener. Uses the same format as
+         * {@link StrategyEntry#technicalFilters} — a {@code Map<String, Object>}
+         * with keys like "RSI", "BOLLINGER_BAND", "VOLUME", "MOVING_AVERAGE", "PRICE_DROP".
+         */
+        private Map<String, Object> technicalFilters;
     }
 
+    // TechnicalIndicatorConfigEntry removed — configs are now filter-type-specific.
+    // RSI configs → deserialize to RSIConfigParams
+    // Bollinger configs → deserialize to BollingerConfigParams
+    // Both are stored as Object in the technicalIndicatorConfigs map.
     /**
-     * POJO for screener filter conditions.
+     * POJO for an RSI filter entry within a {@code technicalFilters} map.
+     * Key: {@code "RSI"}.
+     *
+     * <p>Example JSON:
+     * <pre>
+     * "RSI": {
+     *     "config": "defaultRSI",
+     *     "condition": "BULLISH_CROSSOVER"
+     * }
+     * </pre>
      */
     @Data
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class ScreenerConditionsConfig {
+    public static class RSIFilterEntry {
+        /**
+         * Either a string reference (e.g. "default") to a named {@code TechnicalIndicatorConfigEntry},
+         * or an inline {@code RSIConfigParams} object.
+         */
+        private Object config;
+        private RSICondition condition;
+    }
 
-        private RSICondition rsiCondition;
-        private BollingerCondition bollingerCondition;
-        private Long minVolume;
+    /**
+     * POJO for inline RSI indicator params (used when {@code "config"} is an object, not a string ref).
+     * Also used when deserializing a named RSI config entry from {@code technicalIndicatorConfigs}.
+     *
+     * <p>Named config example:
+     * <pre>
+     * "defaultRSI": { "period": 14, "oversoldThreshold": 30.0, "overboughtThreshold": 70.0 }
+     * </pre>
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class RSIConfigParams {
+        private int period = 14;
+        private double oversoldThreshold = 30.0;
+        private double overboughtThreshold = 70.0;
+    }
 
-        // MA price filters
+    /**
+     * POJO for a Bollinger Band filter entry within a {@code technicalFilters} map.
+     * Key: {@code "BOLLINGER_BAND"}.
+     *
+     * <p>Example JSON:
+     * <pre>
+     * "BOLLINGER_BAND": {
+     *     "config": "defaultBollingerBand",
+     *     "condition": "LOWER_BAND"
+     * }
+     * </pre>
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class BollingerFilterEntry {
+        /**
+         * Either a string reference or an inline {@code BollingerConfigParams} object.
+         */
+        private Object config;
+        private BollingerCondition condition;
+    }
+
+    /**
+     * POJO for inline or named Bollinger Band indicator params.
+     * Field names match the expected JSON for a named Bollinger config entry:
+     *
+     * <p>Named config example:
+     * <pre>
+     * "defaultBollingerBand": { "bollingerPeriod": 20, "bollingerStdDev": 2.0 }
+     * </pre>
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class BollingerConfigParams {
+        private int bollingerPeriod = 20;
+        private double bollingerStdDev = 2.0;
+    }
+
+    /**
+     * POJO for a Volume filter entry within a {@code technicalFilters} map.
+     * Key: {@code "VOLUME"}.
+     *
+     * <p>Example JSON:
+     * <pre>
+     * "VOLUME": { "config": { "min": 1000000 } }
+     * </pre>
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class VolumeFilterEntry {
+        private VolumeConfigParams config;
+    }
+
+    /**
+     * POJO for inline Volume filter params.
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class VolumeConfigParams {
+        private long min = 0;
+    }
+
+    /**
+     * POJO for a Moving Average filter entry within a {@code technicalFilters} map.
+     * Key: {@code "MOVING_AVERAGE"}.
+     *
+     * <p>Example JSON:
+     * <pre>
+     * "MOVING_AVERAGE": {
+     *     "config": {
+     *         "requirePriceBelowMA200": true,
+     *         "requirePriceAboveMA50": true
+     *     }
+     * }
+     * </pre>
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class MovingAverageFilterEntry {
+        private MovingAverageConfigParams config;
+    }
+
+    /**
+     * POJO for inline Moving Average filter params.
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class MovingAverageConfigParams {
         private boolean requirePriceBelowMA20 = false;
         private boolean requirePriceAboveMA20 = false;
         private boolean requirePriceBelowMA50 = false;
@@ -138,51 +317,32 @@ public class StrategiesConfig {
         private boolean requirePriceAboveMA100 = false;
         private boolean requirePriceBelowMA200 = false;
         private boolean requirePriceAboveMA200 = false;
+    }
 
-        // Price drop screener fields
+    /**
+     * POJO for a Price Drop filter entry within a {@code technicalFilters} map.
+     * Key: {@code "PRICE_DROP"}.
+     *
+     * <p>Example JSON:
+     * <pre>
+     * "PRICE_DROP": { "config": { "minDropPercent": 5.0, "lookbackDays": 5 } }
+     * </pre>
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PriceDropFilterEntry {
+        private PriceDropConfigParams config;
+    }
+
+    /**
+     * POJO for inline Price Drop filter params.
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PriceDropConfigParams {
         private Double minDropPercent;
         private Integer lookbackDays;
-    }
-
-    /**
-     * POJO for global technical indicator settings.
-     */
-    @Data
-    @NoArgsConstructor
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class TechnicalIndicatorsConfig {
-
-        private int rsiPeriod = 14;
-        private double oversoldThreshold = 30.0;
-        private double overboughtThreshold = 70.0;
-        private int bollingerPeriod = 20;
-        private double bollingerStdDev = 2.0;
-    }
-
-    /**
-     * POJO for inline technical filter configuration.
-     */
-    @Data
-    @NoArgsConstructor
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class TechnicalFilterConfig {
-
-        // Indicator settings
-        private int rsiPeriod = 14;
-        private double oversoldThreshold = 30.0;
-        private double overboughtThreshold = 70.0;
-        private int bollingerPeriod = 20;
-        private double bollingerStdDev = 2.0;
-
-        // Filter conditions
-        private RSICondition rsiCondition;
-        private BollingerCondition bollingerCondition;
-        private long minVolume = 0;
-
-        // MA price filters
-        private boolean requirePriceBelowMA20 = false;
-        private boolean requirePriceBelowMA50 = false;
-        private boolean requirePriceBelowMA100 = false;
-        private boolean requirePriceBelowMA200 = false;
     }
 }
