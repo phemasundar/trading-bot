@@ -50,4 +50,9 @@ public class JavaUtilsTest {
         assertEquals(map.get("key1").getName(), "v1");
         assertEquals(map.get("key2").getValue(), 2);
     }
+
+    @Test
+    public void testConstructor() {
+        assertNotNull(new JavaUtils());
+    }
 }

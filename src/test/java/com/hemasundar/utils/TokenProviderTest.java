@@ -153,4 +153,19 @@ public class TokenProviderTest {
         // Verify API was called twice
         verify(mockRequest, times(2)).post(anyString());
     }
+
+    @Test
+    public void testTokenDataRecord() {
+        Instant now = Instant.now();
+        TokenProvider.TokenData data1 = new TokenProvider.TokenData("token", now);
+        TokenProvider.TokenData data2 = new TokenProvider.TokenData("token", now);
+        TokenProvider.TokenData data3 = new TokenProvider.TokenData("token-diff", now);
+
+        assertEquals(data1.accessToken(), "token");
+        assertEquals(data1.expiryTime(), now);
+        assertEquals(data1, data2);
+        assertNotEquals(data1, data3);
+        assertEquals(data1.hashCode(), data2.hashCode());
+        assertNotNull(data1.toString());
+    }
 }

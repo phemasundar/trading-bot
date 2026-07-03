@@ -75,4 +75,27 @@ public class TechFilterConditionsTest {
         String summary = conditions.getSummary();
         Assert.assertEquals(summary, "No conditions set");
     }
+
+    @Test
+    public void testEnumEvaluations() {
+        RSIFilter rsiFilter = org.mockito.Mockito.mock(RSIFilter.class);
+        BollingerBandsFilter bbFilter = org.mockito.Mockito.mock(BollingerBandsFilter.class);
+        org.ta4j.core.BarSeries series = org.mockito.Mockito.mock(org.ta4j.core.BarSeries.class);
+
+        org.mockito.Mockito.when(rsiFilter.isOversold(series)).thenReturn(true);
+        org.mockito.Mockito.when(rsiFilter.isOverbought(series)).thenReturn(true);
+        org.mockito.Mockito.when(rsiFilter.isBullishCrossover(series)).thenReturn(true);
+        org.mockito.Mockito.when(rsiFilter.isBearishCrossover(series)).thenReturn(true);
+
+        Assert.assertTrue(RSICondition.OVERSOLD.evaluate(rsiFilter, series));
+        Assert.assertTrue(RSICondition.OVERBOUGHT.evaluate(rsiFilter, series));
+        Assert.assertTrue(RSICondition.BULLISH_CROSSOVER.evaluate(rsiFilter, series));
+        Assert.assertTrue(RSICondition.BEARISH_CROSSOVER.evaluate(rsiFilter, series));
+
+        org.mockito.Mockito.when(bbFilter.isPriceTouchingLowerBand(series)).thenReturn(true);
+        org.mockito.Mockito.when(bbFilter.isPriceTouchingUpperBand(series)).thenReturn(true);
+
+        Assert.assertTrue(BollingerCondition.LOWER_BAND.evaluate(bbFilter, series));
+        Assert.assertTrue(BollingerCondition.UPPER_BAND.evaluate(bbFilter, series));
+    }
 }

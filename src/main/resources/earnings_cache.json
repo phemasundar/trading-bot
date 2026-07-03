@@ -3669,6 +3669,10 @@
         "symbol" : "DASH",
         "year" : 2026
       } ]
+    },
+    "STALE_TICKER" : {
+      "lastFetched" : "2026-05-23",
+      "earnings" : [ ]
     }
   }
 }

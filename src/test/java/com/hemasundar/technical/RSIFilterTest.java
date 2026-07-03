@@ -121,4 +121,23 @@ public class RSIFilterTest {
         assertTrue(name.contains("30.0"));
         assertTrue(name.contains("70.0"));
     }
+
+    @Test
+    public void testEqualsAndHashCodeAndToString() {
+        RSIFilter filter1 = RSIFilter.builder().period(14).oversoldThreshold(30.0).overboughtThreshold(70.0).build();
+        RSIFilter filter2 = RSIFilter.builder().period(14).oversoldThreshold(30.0).overboughtThreshold(70.0).build();
+        RSIFilter filter3 = RSIFilter.builder().period(15).oversoldThreshold(30.0).overboughtThreshold(70.0).build();
+
+        assertEquals(filter1, filter2);
+        assertNotEquals(filter1, filter3);
+        assertEquals(filter1.hashCode(), filter2.hashCode());
+        assertNotNull(filter1.toString());
+
+        filter1.setPeriod(10);
+        filter1.setOversoldThreshold(25.0);
+        filter1.setOverboughtThreshold(75.0);
+        assertEquals(filter1.getPeriod(), 10);
+        assertEquals(filter1.getOversoldThreshold(), 25.0);
+        assertEquals(filter1.getOverboughtThreshold(), 75.0);
+    }
 }
