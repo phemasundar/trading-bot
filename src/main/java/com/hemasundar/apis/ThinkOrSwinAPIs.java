@@ -96,62 +96,84 @@ public class ThinkOrSwinAPIs {
         return getQuote(symbol, "quote,reference");
     }
 
+    private static class BodyBufferOverflowException extends Exception {}
+
     public OptionChainResponse getOptionChain(String symbol) {
-        Integer strikeCount = null;
-        Response response = null;
-        boolean success = false;
-
-        while (!success) {
-            var request = RestAssured.given()
-                    .header("accept", "application/json")
-                    .header("Authorization", "Bearer " + tokenProvider.getAccessToken())
-                    .queryParam("symbol", symbol)
-                    .queryParam("strategy", "SINGLE");
-
-            if (strikeCount != null) {
-                request.queryParam("strikeCount", strikeCount);
+        try {
+            OptionChainResponse response = fetchChain(symbol, "ALL", null);
+            if (response != null) {
+                response.removeInvalidOptions();
+                log.debug("[{}] Current Market Price: {}", symbol, response.getUnderlyingPrice());
             }
-
-            response = request.get("https://api.schwabapi.com/marketdata/v1/chains");
-
-            if (response.statusCode() == 200) {
-                success = true;
-            } else if (response.statusCode() == 502 && response.asString().contains("Body buffer overflow")) {
-                if (strikeCount == null) {
-                    strikeCount = 200;
-                    log.warn(
-                            "Option Chain API failed for {} due to Body buffer overflow (502). Retrying with strikeCount = {}",
-                            symbol, strikeCount);
-                } else {
-                    strikeCount -= 50;
-                    if (strikeCount < 50) {
-                        log.error(
-                                "Option Chain API failed for {} with Body buffer overflow (502). strikeCount = {}, which is less than 50. Throwing error.",
-                                symbol, strikeCount);
-                        throw new RuntimeException("Option Chain API failed for " + symbol + ": "
-                                + response.statusCode() + " - " + response.asString());
-                    }
-                    log.warn(
-                            "Option Chain API failed for {} due to Body buffer overflow (502) again. Retrying with strikeCount = {}",
-                            symbol, strikeCount);
+            return response;
+        } catch (BodyBufferOverflowException e) {
+            log.warn("Option Chain API failed for {} with 502 (ALL). Splitting request into CALL and PUT to avoid data loss...", symbol);
+            try {
+                OptionChainResponse callChain = fetchChain(symbol, "CALL", null);
+                OptionChainResponse putChain  = fetchChain(symbol, "PUT", null);
+                
+                if (callChain != null && putChain != null) {
+                    // Merge PUT chains into the CALL response object
+                    callChain.setPutExpDateMap(putChain.getPutExpDateMap());
+                    callChain.removeInvalidOptions();
+                    log.debug("[{}] Current Market Price: {}", symbol, callChain.getUnderlyingPrice());
                 }
-            } else {
-                if (response.statusCode() == 400) {
-                    apiErrorHandler.handle400Error("Option Chain API", symbol, response.asString());
-                    return null;
-                }
-                throw new RuntimeException(
-                        "Option Chain API failed for " + symbol + ": " + response.statusCode() + " - "
-                                + response.asString());
+                return callChain;
+            } catch (BodyBufferOverflowException e2) {
+                log.warn("Option Chain API failed for {} with 502 even when split. Falling back to strikeCount reduction...", symbol);
+                return fetchWithStrikeCountFallback(symbol);
             }
         }
-
-        OptionChainResponse optionChainResponse = JavaUtils.convertJsonToPojo(response.asString(),
-                OptionChainResponse.class);
-        optionChainResponse.removeInvalidOptions();
-        log.debug("[{}] Current Market Price: {}", symbol, optionChainResponse.getUnderlyingPrice());
-        return optionChainResponse;
     }
+
+    private OptionChainResponse fetchWithStrikeCountFallback(String symbol) {
+        Integer strikeCount = 200;
+        while (true) {
+            try {
+                OptionChainResponse response = fetchChain(symbol, "ALL", strikeCount);
+                if (response != null) {
+                    response.removeInvalidOptions();
+                    log.debug("[{}] Current Market Price: {}", symbol, response.getUnderlyingPrice());
+                }
+                return response;
+            } catch (BodyBufferOverflowException e) {
+                strikeCount -= 50;
+                if (strikeCount < 50) {
+                    log.error("Option Chain API failed for {} with 502. strikeCount = {}, giving up.", symbol, strikeCount);
+                    throw new RuntimeException("Option Chain API failed for " + symbol + " due to 502 Body buffer overflow");
+                }
+                log.warn("Option Chain API failed for {} with 502. Retrying with strikeCount = {}", symbol, strikeCount);
+            }
+        }
+    }
+
+    private OptionChainResponse fetchChain(String symbol, String contractType, Integer strikeCount) throws BodyBufferOverflowException {
+        var request = RestAssured.given()
+                .header("accept", "application/json")
+                .header("Authorization", "Bearer " + tokenProvider.getAccessToken())
+                .queryParam("symbol", symbol)
+                .queryParam("strategy", "SINGLE")
+                .queryParam("contractType", contractType);
+
+        if (strikeCount != null) {
+            request.queryParam("strikeCount", strikeCount);
+        }
+
+        Response response = request.get("https://api.schwabapi.com/marketdata/v1/chains");
+
+        if (response.statusCode() == 200) {
+            return JavaUtils.convertJsonToPojo(response.asString(), OptionChainResponse.class);
+        } else if (response.statusCode() == 502 && response.asString().contains("Body buffer overflow")) {
+            throw new BodyBufferOverflowException();
+        } else {
+            if (response.statusCode() == 400) {
+                apiErrorHandler.handle400Error("Option Chain API", symbol, response.asString());
+                return null;
+            }
+            throw new RuntimeException("Option Chain API failed for " + symbol + ": " + response.statusCode() + " - " + response.asString());
+        }
+    }
+
 
     /**
      * Fetches the expiration chain for a symbol.

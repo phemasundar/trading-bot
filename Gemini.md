@@ -1,5 +1,22 @@
 # Project Updates
 
+## Fix: Schwab API 502 Body Buffer Overflow (2026-07-02)
+
+Resolved an issue where highly liquid tickers (like MU or SPY) with massive option chains would cause the Schwab API Gateway to return a `502 Bad Gateway` (Body buffer overflow) because the JSON response exceeded their internal proxy buffer limits. The previous fallback behavior was to aggressively truncate the response by limiting `strikeCount`, resulting in lost option data.
+
+### How It Works
+- `ThinkOrSwinAPIs.getOptionChain(symbol)` now initially requests the full chain (`contractType=ALL`).
+- If a 502 Body buffer overflow occurs, it catches a custom `BodyBufferOverflowException` and splits the request into two separate parallel-friendly fetches: one for `CALL` and one for `PUT`.
+- The two responses are merged in-memory (`callChain.setPutExpDateMap(...)`), successfully bypassing Schwab's payload size limit without losing any option strikes.
+- The old `strikeCount` reduction logic is preserved purely as a final fail-safe if even the split requests overflow.
+
+### Architecture
+| File | Change |
+|---|---|
+| **`ThinkOrSwinAPIs.java`** | Added `BodyBufferOverflowException`. Refactored `getOptionChain(symbol)` to catch 502s, perform split `CALL`/`PUT` fetches, merge the `putExpDateMap` into the `CALL` response, and gracefully handle recursive failures. |
+
+---
+
 ## Feature: Dynamic Securities List from Wikipedia (2026-07-02)
 
 Added support for dynamic index constituent lists in `strategies-config.json`. Users can now specify `"SPY"` (S&P 500 ~503 tickers) or `"QQQ"` (Nasdaq-100 ~100 tickers) as `securitiesFile` values just like any static file name.
