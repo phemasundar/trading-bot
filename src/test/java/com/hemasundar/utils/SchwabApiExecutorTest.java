@@ -81,4 +81,39 @@ public class SchwabApiExecutorTest {
         assertNull(results.get(1));
         assertEquals(results.get(2), "MSFT_processed");
     }
+
+    @Test
+    public void testExecuteParallel_RateLimitRetryCaseInsensitive() {
+        List<String> symbols = Arrays.asList("AAPL");
+        AtomicInteger attempts = new AtomicInteger(0);
+
+        Function<String, String> apiCall = symbol -> {
+            int attempt = attempts.incrementAndGet();
+            if (attempt == 1) {
+                throw new RuntimeException("RATE LIMIT EXCEEDED");
+            }
+            return symbol + "_success";
+        };
+
+        List<String> results = executor.executeParallel(symbols, apiCall);
+
+        assertNotNull(results);
+        assertEquals(results.size(), 1);
+        assertEquals(results.get(0), "AAPL_success");
+        assertEquals(attempts.get(), 2);
+    }
+
+    @Test
+    public void testExecuteParallel_ExceptionWithNullMessage() {
+        List<String> symbols = Arrays.asList("AAPL");
+        Function<String, String> apiCall = symbol -> {
+            throw new RuntimeException((String) null);
+        };
+
+        List<String> results = executor.executeParallel(symbols, apiCall);
+
+        assertNotNull(results);
+        assertEquals(results.size(), 1);
+        assertNull(results.get(0));
+    }
 }
