@@ -285,38 +285,36 @@ public class StrategiesConfig {
      * POJO for a Moving Average filter entry within a {@code technicalFilters} map.
      * Key: {@code "MOVING_AVERAGE"}.
      *
-     * <p>Example JSON:
+     * Example:
      * <pre>
-     * "MOVING_AVERAGE": {
-     *     "config": {
-     *         "requirePriceBelowMA200": true,
-     *         "requirePriceAboveMA50": true
-     *     }
-     * }
+     * "MOVING_AVERAGE": [
+     *     "PRICE_ABOVE_SMA50",
+     *     "SMA50_ABOVE_SMA200"
+     * ]
      * </pre>
      */
+
+
     @Data
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class MovingAverageFilterEntry {
-        private MovingAverageConfigParams config;
+    public static class PriceCondition {
+        private int period;
+        private Position position;
     }
 
-    /**
-     * POJO for inline Moving Average filter params.
-     */
     @Data
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class MovingAverageConfigParams {
-        private boolean requirePriceBelowMA20 = false;
-        private boolean requirePriceAboveMA20 = false;
-        private boolean requirePriceBelowMA50 = false;
-        private boolean requirePriceAboveMA50 = false;
-        private boolean requirePriceBelowMA100 = false;
-        private boolean requirePriceAboveMA100 = false;
-        private boolean requirePriceBelowMA200 = false;
-        private boolean requirePriceAboveMA200 = false;
+    public static class SmaCondition {
+        private int period1;
+        private int period2;
+        private Position position;
+    }
+
+    public enum Position {
+        ABOVE,
+        BELOW
     }
 
     /**

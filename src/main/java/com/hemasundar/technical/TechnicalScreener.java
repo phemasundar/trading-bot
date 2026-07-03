@@ -15,6 +15,12 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import com.hemasundar.config.StrategiesConfig.PriceCondition;
+import com.hemasundar.config.StrategiesConfig.SmaCondition;
+import com.hemasundar.config.StrategiesConfig.Position;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.springframework.stereotype.Component;
@@ -48,14 +54,8 @@ public class TechnicalScreener {
         private double bollingerLower;
         private double bollingerMiddle;
         private double bollingerUpper;
-        private double ma20;
-        private double ma50;
-        private double ma100;
-        private double ma200;
-        private boolean priceBelowMA20;
-        private boolean priceBelowMA50;
-        private boolean priceBelowMA100;
-        private boolean priceBelowMA200;
+        @Builder.Default
+        private Map<Integer, Double> maValues = new HashMap<>();
         private boolean priceTouchingLowerBand;
         private boolean priceTouchingUpperBand;
         private boolean rsiOversold;
@@ -115,23 +115,15 @@ public class TechnicalScreener {
             sb.append("\n");
 
             // Moving Averages Section - Condensed summary
-            List<String> belowMAs = new ArrayList<>();
-            List<String> aboveMAs = new ArrayList<>();
-
-            if (priceBelowMA20) belowMAs.add("MA20"); else aboveMAs.add("MA20");
-            if (priceBelowMA50) belowMAs.add("MA50"); else aboveMAs.add("MA50");
-            if (priceBelowMA100) belowMAs.add("MA100"); else aboveMAs.add("MA100");
-            if (priceBelowMA200) belowMAs.add("MA200"); else aboveMAs.add("MA200");
-
             sb.append("  📊 MAs: ");
-            if (!belowMAs.isEmpty()) {
-                sb.append("Below ").append(String.join(", ", belowMAs));
-            }
-            if (!belowMAs.isEmpty() && !aboveMAs.isEmpty()) {
-                sb.append(" | ");
-            }
-            if (!aboveMAs.isEmpty()) {
-                sb.append("Above ").append(String.join(", ", aboveMAs));
+            if (maValues != null && !maValues.isEmpty()) {
+                List<String> maStrings = new ArrayList<>();
+                maValues.forEach((period, value) -> {
+                    maStrings.add(String.format("MA%d($%.2f)", period, value));
+                });
+                sb.append(String.join(", ", maStrings));
+            } else {
+                sb.append("None");
             }
             sb.append("\n");
             return sb.toString();
@@ -151,6 +143,15 @@ public class TechnicalScreener {
             String rsiStatus = rsiBullishCrossover ? "(BULLISH CROSSOVER ↑)"
                     : rsiOversold ? "(OVERSOLD)"
                             : "";
+            StringBuilder maOutput = new StringBuilder();
+            if (maValues != null && !maValues.isEmpty()) {
+                maValues.forEach((period, value) -> {
+                    maOutput.append(String.format("║   MA(%d): %-13.2f %32s ║\n", period, value, ""));
+                });
+            } else {
+                maOutput.append("║   None configured                                        ║\n");
+            }
+
             return String.format(
                     "╔══════════════════════════════════════════════════════════╗\n" +
                             "║ %-56s ║\n" +
@@ -168,10 +169,7 @@ public class TechnicalScreener {
                             "║   Price @ Lower:      %-35s ║\n" +
                             "╠══════════════════════════════════════════════════════════╣\n" +
                             "║ Moving Averages:                                         ║\n" +
-                            "║   MA(20):             $%-10.2f  Price < MA: %-11s ║\n" +
-                            "║   MA(50):             $%-10.2f  Price < MA: %-11s ║\n" +
-                            "║   MA(100):            $%-10.2f  Price < MA: %-11s ║\n" +
-                            "║   MA(200):            $%-10.2f  Price < MA: %-11s ║\n" +
+                            "%s" +
                             "╚══════════════════════════════════════════════════════════╝",
                     symbol,
                     currentPrice,
@@ -181,10 +179,7 @@ public class TechnicalScreener {
                     bollingerMiddle,
                     bollingerLower,
                     priceTouchingLowerBand ? "YES ✓" : "NO",
-                    ma20, priceBelowMA20 ? "YES ✓" : "NO",
-                    ma50, priceBelowMA50 ? "YES ✓" : "NO",
-                    ma100, priceBelowMA100 ? "YES ✓" : "NO",
-                    ma200, priceBelowMA200 ? "YES ✓" : "NO");
+                    maOutput.toString().endsWith("\n") ? maOutput.substring(0, maOutput.length() - 1) : maOutput.toString());
         }
     }
 
@@ -266,32 +261,13 @@ public class TechnicalScreener {
                     .priceTouchingUpperBand(bb.isPriceTouchingUpperBand(series));
         }
 
-        // MA20
-        if (indicators.getMa20Filter() != null) {
-            MovingAverageFilter ma20 = indicators.getMa20Filter();
-            builder.ma20(ma20.getCurrentMA(series))
-                    .priceBelowMA20(ma20.isPriceBelowMA(series));
-        }
-
-        // MA50
-        if (indicators.getMa50Filter() != null) {
-            MovingAverageFilter ma50 = indicators.getMa50Filter();
-            builder.ma50(ma50.getCurrentMA(series))
-                    .priceBelowMA50(ma50.isPriceBelowMA(series));
-        }
-
-        // MA100
-        if (indicators.getMa100Filter() != null) {
-            MovingAverageFilter ma100 = indicators.getMa100Filter();
-            builder.ma100(ma100.getCurrentMA(series))
-                    .priceBelowMA100(ma100.isPriceBelowMA(series));
-        }
-
-        // MA200
-        if (indicators.getMa200Filter() != null) {
-            MovingAverageFilter ma200 = indicators.getMa200Filter();
-            builder.ma200(ma200.getCurrentMA(series))
-                    .priceBelowMA200(ma200.isPriceBelowMA(series));
+        // Moving Averages
+        if (indicators.getMaFilters() != null) {
+            Map<Integer, Double> maValues = new HashMap<>();
+            for (Map.Entry<Integer, MovingAverageFilter> entry : indicators.getMaFilters().entrySet()) {
+                maValues.put(entry.getKey(), entry.getValue().getCurrentMA(series));
+            }
+            builder.maValues(maValues);
         }
 
         // Volume
@@ -332,32 +308,32 @@ public class TechnicalScreener {
                 return false;
         }
 
-        // MA conditions
-        if (conditions.isRequirePriceBelowMA20() && !result.isPriceBelowMA20()) {
-            return false;
+        // MA conditions dynamically evaluated
+        if (conditions.getPriceConditions() != null) {
+            for (PriceCondition condition : conditions.getPriceConditions()) {
+                Double maVal = result.getMaValues().get(condition.getPeriod());
+                if (maVal == null) return false;
+                if (condition.getPosition() == Position.ABOVE && result.getCurrentPrice() <= maVal) {
+                    return false;
+                }
+                if (condition.getPosition() == Position.BELOW && result.getCurrentPrice() >= maVal) {
+                    return false;
+                }
+            }
         }
-        if (conditions.isRequirePriceBelowMA50() && !result.isPriceBelowMA50()) {
-            return false;
-        }
-        if (conditions.isRequirePriceAboveMA20() && result.isPriceBelowMA20()) {
-            return false;
-        }
-        if (conditions.isRequirePriceAboveMA50() && result.isPriceBelowMA50()) {
-            return false;
-        }
-        // MA100 conditions
-        if (conditions.isRequirePriceBelowMA100() && !result.isPriceBelowMA100()) {
-            return false;
-        }
-        if (conditions.isRequirePriceAboveMA100() && result.isPriceBelowMA100()) {
-            return false;
-        }
-        // MA200 conditions
-        if (conditions.isRequirePriceBelowMA200() && !result.isPriceBelowMA200()) {
-            return false;
-        }
-        if (conditions.isRequirePriceAboveMA200() && result.isPriceBelowMA200()) {
-            return false;
+        
+        if (conditions.getSmaConditions() != null) {
+            for (SmaCondition condition : conditions.getSmaConditions()) {
+                Double maVal1 = result.getMaValues().get(condition.getPeriod1());
+                Double maVal2 = result.getMaValues().get(condition.getPeriod2());
+                if (maVal1 == null || maVal2 == null) return false;
+                if (condition.getPosition() == Position.ABOVE && maVal1 <= maVal2) {
+                    return false;
+                }
+                if (condition.getPosition() == Position.BELOW && maVal1 >= maVal2) {
+                    return false;
+                }
+            }
         }
 
         // Volume condition

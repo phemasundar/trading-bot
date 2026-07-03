@@ -316,7 +316,12 @@
                     "minOpenInterest": 100
                 }
             },
-            "technicalFilters": "oversold",
+            "technicalFilters": {
+              "MOVING_AVERAGE": [
+                  "PRICE_ABOVE_SMA50",
+                  "SMA50_ABOVE_SMA200"
+              ]
+            },
             "greeks": {
                 "delta": "positive",
                 "gamma": "positive",
@@ -602,9 +607,9 @@
             "screenerType": "BELOW_200_DAY_MA",
             "securitiesFile": "top100, portfolio, tracking, 2026",
             "technicalFilters": {
-                "MOVING_AVERAGE": {
-                    "config": { "requirePriceBelowMA200": true }
-                },
+                "MOVING_AVERAGE": [
+                    "PRICE_BELOW_SMA200"
+                ],
                 "VOLUME": {
                     "config": { "min": 1000000 }
                 }

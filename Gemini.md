@@ -1,5 +1,45 @@
 # Project Updates
 
+## Refactor: Simplify Moving Average Configuration to Shorthand Strings (2026-07-03)
+
+Redesigned the `MOVING_AVERAGE` JSON schema in `strategies-config.json` to replace the verbose nested object format with a clean, easy-to-read array of shorthand string expressions.
+
+### Schema Changes
+- Eliminated `config`, `condition`, `priceConditions`, and `smaConditions` objects entirely.
+- `MOVING_AVERAGE` now directly accepts a JSON array of string rules.
+- Supported patterns: `PRICE_ABOVE_SMA<period>`, `PRICE_BELOW_SMA<period>`, `SMA<period1>_ABOVE_SMA<period2>`, `SMA<period1>_BELOW_SMA<period2>`.
+- Example: `["PRICE_ABOVE_SMA50", "SMA50_ABOVE_SMA200"]`
+
+### Architecture
+| File | Change |
+|---|---|
+| **`StrategiesConfig.java`** | Deleted unused nested POJOs: `MovingAverageFilterEntry`, `MovingAverageConfigParams`, `MovingAverageCondition`. |
+| **`StrategiesConfigLoader.java`** | Updated `applyMovingAverageFilters` to process a `List<String>`. Uses Regex matching to natively parse string expressions into `PriceCondition` and `SmaCondition` engines. |
+| **`strategies-config.json`** | Migrated `MOVING_AVERAGE` blocks across all screeners and strategies to the new intuitive string list format. |
+
+---
+## Refactor: Dynamic Moving Average Configuration (2026-07-03)
+
+Refactored the hardcoded Moving Average filters (MA20, MA50, MA100, MA200) into a fully dynamic and configurable system. Users can now filter by arbitrary MA periods and even compare an MA to another MA.
+
+### How It Works
+- Removed hardcoded boolean flags like `requirePriceBelowMA20` from `StrategiesConfig.MovingAverageConfigParams`.
+- Replaced them with lists of `PriceCondition` and `SmaCondition` (e.g., `{ "period": 200, "position": "BELOW" }`).
+- `TechnicalScreener` dynamically calculates any requested MA periods, storing them in a `Map<Integer, Double> maValues`.
+- Conditions are dynamically verified during stock screening.
+
+### Architecture
+| File | Change |
+|---|---|
+| **`StrategiesConfig.java`** | Added `PriceCondition`, `SmaCondition` list fields to `MovingAverageConfigParams` |
+| **`TechFilterConditions.java`** | Updated to use condition lists; refactored `getSummary()` string building |
+| **`TechnicalIndicators.java`** | Replaced individual MA filters with `Map<Integer, MovingAverageFilter> maFilters` |
+| **`TechnicalScreener.java`** | Dynamically evaluates MAs from lists and logs output |
+| **`CustomScreenerRequest.java`** | Updated API payload structure for the execution endpoint |
+| **`strategies-config.json`** | Migrated `requirePriceBelowMA200` to `"priceConditions": [{ "period": 200, "position": "BELOW" }]` |
+
+---
+
 ## Refactor: Typed `technicalFilters` with Named Config References (2026-07-03)
 
 Refactored the `technicalFilter` flat-object format in `strategies-config.json` into a fully typed, reference-able `technicalFilters` map. The same format is now shared between options strategies and technical screeners, eliminating duplication.

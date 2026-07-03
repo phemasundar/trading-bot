@@ -384,31 +384,75 @@ public class StrategiesConfigLoader {
             TechnicalIndicators.TechnicalIndicatorsBuilder indicators,
             TechFilterConditions.TechFilterConditionsBuilder conditions) {
 
-        MovingAverageFilterEntry entry = JavaUtils.convertValue(rawEntry, MovingAverageFilterEntry.class);
-        if (entry.getConfig() == null) return;
+        List<String> rules = new ArrayList<>();
+        if (rawEntry instanceof List) {
+            for (Object obj : (List<?>) rawEntry) {
+                rules.add(String.valueOf(obj));
+            }
+        } else if (rawEntry instanceof String) {
+            rules.add((String) rawEntry);
+        } else {
+            log.warn("Invalid MOVING_AVERAGE config format. Expected string or list of strings.");
+            return;
+        }
 
-        MovingAverageConfigParams cfg = entry.getConfig();
+        java.util.Map<Integer, MovingAverageFilter> existingMaFilters = indicators.build().getMaFilters();
+        java.util.Map<Integer, MovingAverageFilter> maFilters = new java.util.HashMap<>(existingMaFilters != null ? existingMaFilters : java.util.Map.of());
 
-        if (cfg.isRequirePriceBelowMA20() || cfg.isRequirePriceAboveMA20()) {
-            indicators.ma20Filter(MovingAverageFilter.builder().period(20).build());
-            conditions.requirePriceBelowMA20(cfg.isRequirePriceBelowMA20());
-            conditions.requirePriceAboveMA20(cfg.isRequirePriceAboveMA20());
+        List<PriceCondition> priceConds = new ArrayList<>();
+        List<SmaCondition> smaConds = new ArrayList<>();
+
+        java.util.regex.Pattern pricePattern = java.util.regex.Pattern.compile("^PRICE_(ABOVE|BELOW)_SMA(\\d+)$");
+        java.util.regex.Pattern smaPattern = java.util.regex.Pattern.compile("^SMA(\\d+)_(ABOVE|BELOW)_SMA(\\d+)$");
+
+        for (String rule : rules) {
+            rule = rule.toUpperCase().trim();
+            java.util.regex.Matcher pMatcher = pricePattern.matcher(rule);
+            if (pMatcher.matches()) {
+                StrategiesConfig.Position pos = StrategiesConfig.Position.valueOf(pMatcher.group(1));
+                int period = Integer.parseInt(pMatcher.group(2));
+                maFilters.putIfAbsent(period, MovingAverageFilter.builder().period(period).build());
+                
+                PriceCondition pc = new PriceCondition();
+                pc.setPeriod(period);
+                pc.setPosition(pos);
+                priceConds.add(pc);
+                continue;
+            }
+
+            java.util.regex.Matcher sMatcher = smaPattern.matcher(rule);
+            if (sMatcher.matches()) {
+                int p1 = Integer.parseInt(sMatcher.group(1));
+                StrategiesConfig.Position pos = StrategiesConfig.Position.valueOf(sMatcher.group(2));
+                int p2 = Integer.parseInt(sMatcher.group(3));
+                
+                maFilters.putIfAbsent(p1, MovingAverageFilter.builder().period(p1).build());
+                maFilters.putIfAbsent(p2, MovingAverageFilter.builder().period(p2).build());
+
+                SmaCondition sc = new SmaCondition();
+                sc.setPeriod1(p1);
+                sc.setPeriod2(p2);
+                sc.setPosition(pos);
+                smaConds.add(sc);
+                continue;
+            }
+            log.warn("Unrecognized MOVING_AVERAGE rule: {}", rule);
         }
-        if (cfg.isRequirePriceBelowMA50() || cfg.isRequirePriceAboveMA50()) {
-            indicators.ma50Filter(MovingAverageFilter.builder().period(50).build());
-            conditions.requirePriceBelowMA50(cfg.isRequirePriceBelowMA50());
-            conditions.requirePriceAboveMA50(cfg.isRequirePriceAboveMA50());
+
+        TechFilterConditions builtConds = conditions.build();
+        if (!priceConds.isEmpty()) {
+            List<PriceCondition> existingPriceConds = builtConds.getPriceConditions();
+            if (existingPriceConds != null) priceConds.addAll(0, existingPriceConds);
+            conditions.priceConditions(priceConds);
         }
-        if (cfg.isRequirePriceBelowMA100() || cfg.isRequirePriceAboveMA100()) {
-            indicators.ma100Filter(MovingAverageFilter.builder().period(100).build());
-            conditions.requirePriceBelowMA100(cfg.isRequirePriceBelowMA100());
-            conditions.requirePriceAboveMA100(cfg.isRequirePriceAboveMA100());
+
+        if (!smaConds.isEmpty()) {
+            List<SmaCondition> existingSmaConds = builtConds.getSmaConditions();
+            if (existingSmaConds != null) smaConds.addAll(0, existingSmaConds);
+            conditions.smaConditions(smaConds);
         }
-        if (cfg.isRequirePriceBelowMA200() || cfg.isRequirePriceAboveMA200()) {
-            indicators.ma200Filter(MovingAverageFilter.builder().period(200).build());
-            conditions.requirePriceBelowMA200(cfg.isRequirePriceBelowMA200());
-            conditions.requirePriceAboveMA200(cfg.isRequirePriceAboveMA200());
-        }
+
+        indicators.maFilters(maFilters);
     }
 
     private void applyPriceDropFilter(

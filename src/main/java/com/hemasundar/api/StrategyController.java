@@ -486,22 +486,12 @@ public class StrategyController {
         }
         if (request.getMinVolume() != null)
             condBuilder.minVolume(request.getMinVolume());
-        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA20()))
-            condBuilder.requirePriceBelowMA20(true);
-        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA20()))
-            condBuilder.requirePriceAboveMA20(true);
-        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA50()))
-            condBuilder.requirePriceBelowMA50(true);
-        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA50()))
-            condBuilder.requirePriceAboveMA50(true);
-        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA100()))
-            condBuilder.requirePriceBelowMA100(true);
-        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA100()))
-            condBuilder.requirePriceAboveMA100(true);
-        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA200()))
-            condBuilder.requirePriceBelowMA200(true);
-        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA200()))
-            condBuilder.requirePriceAboveMA200(true);
+        if (request.getPriceConditions() != null) {
+            condBuilder.priceConditions(request.getPriceConditions());
+        }
+        if (request.getSmaConditions() != null) {
+            condBuilder.smaConditions(request.getSmaConditions());
+        }
         if (request.getMinDropPercent() != null)
             condBuilder.minDropPercent(request.getMinDropPercent());
         if (request.getLookbackDays() != null)
@@ -532,22 +522,10 @@ public class StrategyController {
             requestParams.put("bollingerCondition", request.getBollingerCondition());
         if (request.getMinVolume() != null)
             requestParams.put("minVolume", request.getMinVolume());
-        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA20()))
-            requestParams.put("requirePriceBelowMA20", true);
-        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA20()))
-            requestParams.put("requirePriceAboveMA20", true);
-        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA50()))
-            requestParams.put("requirePriceBelowMA50", true);
-        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA50()))
-            requestParams.put("requirePriceAboveMA50", true);
-        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA100()))
-            requestParams.put("requirePriceBelowMA100", true);
-        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA100()))
-            requestParams.put("requirePriceAboveMA100", true);
-        if (Boolean.TRUE.equals(request.getRequirePriceBelowMA200()))
-            requestParams.put("requirePriceBelowMA200", true);
-        if (Boolean.TRUE.equals(request.getRequirePriceAboveMA200()))
-            requestParams.put("requirePriceAboveMA200", true);
+        if (request.getPriceConditions() != null)
+            requestParams.put("priceConditions", request.getPriceConditions());
+        if (request.getSmaConditions() != null)
+            requestParams.put("smaConditions", request.getSmaConditions());
         if (request.getMinDropPercent() != null)
             requestParams.put("minDropPercent", request.getMinDropPercent());
         if (request.getLookbackDays() != null)

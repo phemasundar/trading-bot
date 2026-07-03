@@ -2,6 +2,11 @@ package com.hemasundar.technical;
 
 import lombok.Builder;
 import lombok.Getter;
+import java.util.List;
+import java.util.ArrayList;
+import com.hemasundar.config.StrategiesConfig.PriceCondition;
+import com.hemasundar.config.StrategiesConfig.SmaCondition;
+import com.hemasundar.config.StrategiesConfig.Position;
 
 /**
  * Container for filter conditions to check.
@@ -15,8 +20,10 @@ import lombok.Getter;
  * FilterConditions oversoldConditions = FilterConditions.builder()
  *         .rsiCondition(RSICondition.BULLISH_CROSSOVER) // RSI crossed from <30 to >=30
  *         .bollingerCondition(BollingerCondition.LOWER_BAND) // Price at lower band
- *         .requirePriceBelowMA20(true) // Price below MA(20)
- *         .requirePriceBelowMA50(true) // Price below MA(50)
+ *         .priceConditions(List.of(
+ *             new PriceCondition() {{ setPeriod(20); setPosition(Position.BELOW); }}, // Price below MA(20)
+ *             new PriceCondition() {{ setPeriod(50); setPosition(Position.BELOW); }}  // Price below MA(50)
+ *         ))
  *         .minVolume(1_000_000L) // Minimum 1M shares
  *         .build();
  * </pre>
@@ -43,52 +50,16 @@ public class TechFilterConditions {
     private final Long minVolume;
 
     /**
-     * When true, requires price to be below MA(20).
+     * Dynamic conditions for comparing price to SMA.
      */
     @Builder.Default
-    private final boolean requirePriceBelowMA20 = false;
+    private final List<PriceCondition> priceConditions = new ArrayList<>();
 
     /**
-     * When true, requires price to be above MA(20).
+     * Dynamic conditions for comparing an SMA to another SMA.
      */
     @Builder.Default
-    private final boolean requirePriceAboveMA20 = false;
-
-    /**
-     * When true, requires price to be below MA(50).
-     */
-    @Builder.Default
-    private final boolean requirePriceBelowMA50 = false;
-
-    /**
-     * When true, requires price to be above MA(50).
-     */
-    @Builder.Default
-    private final boolean requirePriceAboveMA50 = false;
-
-    /**
-     * When true, requires price to be below MA(100).
-     */
-    @Builder.Default
-    private final boolean requirePriceBelowMA100 = false;
-
-    /**
-     * When true, requires price to be above MA(100).
-     */
-    @Builder.Default
-    private final boolean requirePriceAboveMA100 = false;
-
-    /**
-     * When true, requires price to be below MA(200).
-     */
-    @Builder.Default
-    private final boolean requirePriceBelowMA200 = false;
-
-    /**
-     * When true, requires price to be above MA(200).
-     */
-    @Builder.Default
-    private final boolean requirePriceAboveMA200 = false;
+    private final List<SmaCondition> smaConditions = new ArrayList<>();
 
     /**
      * Minimum drop percentage for PRICE_DROP and HIGH_52W_DROP screeners.
@@ -113,29 +84,26 @@ public class TechFilterConditions {
         if (bollingerCondition != null) {
             sb.append("BB: ").append(bollingerCondition.name()).append(" | ");
         }
-        if (requirePriceBelowMA20) {
-            sb.append("Price < MA20 | ");
+        if (priceConditions != null) {
+            for (PriceCondition condition : priceConditions) {
+                sb.append("Price ")
+                  .append(condition.getPosition() == Position.ABOVE ? ">" : "<")
+                  .append(" MA")
+                  .append(condition.getPeriod())
+                  .append(" | ");
+            }
         }
-        if (requirePriceAboveMA20) {
-            sb.append("Price > MA20 | ");
-        }
-        if (requirePriceBelowMA50) {
-            sb.append("Price < MA50 | ");
-        }
-        if (requirePriceAboveMA50) {
-            sb.append("Price > MA50 | ");
-        }
-        if (requirePriceBelowMA100) {
-            sb.append("Price < MA100 | ");
-        }
-        if (requirePriceAboveMA100) {
-            sb.append("Price > MA100 | ");
-        }
-        if (requirePriceBelowMA200) {
-            sb.append("Price < MA200 | ");
-        }
-        if (requirePriceAboveMA200) {
-            sb.append("Price > MA200 | ");
+        
+        if (smaConditions != null) {
+            for (SmaCondition condition : smaConditions) {
+                sb.append("MA")
+                  .append(condition.getPeriod1())
+                  .append(" ")
+                  .append(condition.getPosition() == Position.ABOVE ? ">" : "<")
+                  .append(" MA")
+                  .append(condition.getPeriod2())
+                  .append(" | ");
+            }
         }
         if (minVolume != null && minVolume > 0) {
             sb.append(String.format("Volume >= %,d", minVolume));

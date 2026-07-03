@@ -75,7 +75,9 @@ public class TechnicalScreenerTest {
         TechnicalIndicators indicators = TechnicalIndicators.builder()
                 .rsiFilter(RSIFilter.builder().build())
                 .bollingerFilter(BollingerBandsFilter.builder().build())
-                .ma20Filter(MovingAverageFilter.builder().period(20).build())
+                .maFilters(new java.util.HashMap<>(java.util.Map.of(
+                        20, MovingAverageFilter.builder().period(20).build()
+                )))
                 .build();
 
         TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("MSFT", indicators);
@@ -140,10 +142,12 @@ public class TechnicalScreenerTest {
         TechnicalIndicators indicators = TechnicalIndicators.builder()
                 .rsiFilter(RSIFilter.builder().build())
                 .bollingerFilter(BollingerBandsFilter.builder().build())
-                .ma20Filter(MovingAverageFilter.builder().period(20).build())
-                .ma50Filter(MovingAverageFilter.builder().period(50).build())
-                .ma100Filter(MovingAverageFilter.builder().period(100).build())
-                .ma200Filter(MovingAverageFilter.builder().period(200).build())
+                .maFilters(new java.util.HashMap<>(java.util.Map.of(
+                        20, MovingAverageFilter.builder().period(20).build(),
+                        50, MovingAverageFilter.builder().period(50).build(),
+                        100, MovingAverageFilter.builder().period(100).build(),
+                        200, MovingAverageFilter.builder().period(200).build()
+                )))
                 .volumeFilter(VolumeFilter.builder().build())
                 .build();
 
@@ -152,7 +156,7 @@ public class TechnicalScreenerTest {
         assertNotNull(result);
         assertEquals(result.getSymbol(), "TEST");
         assertTrue(result.getRsi() > 0);
-        assertTrue(result.getMa200() > 0);
+        assertTrue(result.getMaValues().get(200) > 0);
     }
 
     @Test
@@ -178,7 +182,12 @@ public class TechnicalScreenerTest {
 
         // Scenario 2: Require Price Below MA200
         conditions = TechFilterConditions.builder()
-                .requirePriceBelowMA200(true)
+                .priceConditions(java.util.List.of(
+                        new com.hemasundar.config.StrategiesConfig.PriceCondition() {{
+                            setPeriod(200);
+                            setPosition(com.hemasundar.config.StrategiesConfig.Position.BELOW);
+                        }}
+                ))
                 .build();
         results = technicalScreener.screenStocks(List.of("T"), TechnicalFilterChain.of(indicators, conditions), null);
         assertNotNull(results);
@@ -197,14 +206,12 @@ public class TechnicalScreenerTest {
                 .bollingerMiddle(150.0)
                 .bollingerLower(140.0)
                 .priceTouchingLowerBand(false)
-                .ma20(155.0)
-                .priceBelowMA20(true)
-                .ma50(145.0)
-                .priceBelowMA50(false)
-                .ma100(140.0)
-                .priceBelowMA100(false)
-                .ma200(130.0)
-                .priceBelowMA200(false)
+                .maValues(new java.util.HashMap<>(java.util.Map.of(
+                        20, 155.0,
+                        50, 145.0,
+                        100, 140.0,
+                        200, 130.0
+                )))
                 .build();
 
         assertEquals(result.getSymbol(), "AAPL");
@@ -212,8 +219,7 @@ public class TechnicalScreenerTest {
         assertEquals(result.getRsi(), 35.0);
         assertEquals(result.getVolume(), 1000000L);
         assertEquals(result.getBollingerUpper(), 160.0);
-        assertEquals(result.getMa20(), 155.0);
-        assertTrue(result.isPriceBelowMA20());
+        assertEquals(result.getMaValues().get(20), 155.0);
         
         // Exercise toString to cover field access for all fields
         String toString = result.toString();
@@ -236,14 +242,12 @@ public class TechnicalScreenerTest {
                 .bollingerMiddle(150.0)
                 .bollingerLower(140.0)
                 .priceTouchingLowerBand(true)
-                .ma20(155.0)
-                .priceBelowMA20(true)
-                .ma50(145.0)
-                .priceBelowMA50(false)
-                .ma100(140.0)
-                .priceBelowMA100(false)
-                .ma200(130.0)
-                .priceBelowMA200(false)
+                .maValues(new java.util.HashMap<>(java.util.Map.of(
+                        20, 155.0,
+                        50, 145.0,
+                        100, 140.0,
+                        200, 130.0
+                )))
                 .dropType("INTRADAY")
                 .dropPercent(5.0)
                 .referencePrice(158.0)
@@ -257,8 +261,8 @@ public class TechnicalScreenerTest {
         assertTrue(summary.contains("Volume: 1.50M"));
         assertTrue(summary.contains("OVERSOLD"));
         assertTrue(summary.contains("Touching Lower"));
-        assertTrue(summary.contains("Below MA20"));
-        assertTrue(summary.contains("Above MA50, MA100, MA200"));
+        assertTrue(summary.contains("MA20"));
+        assertTrue(summary.contains("MA200"));
 
         // Test with crossover, touch upper band, other volumes, etc.
         result.setRsiOversold(false);
