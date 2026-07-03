@@ -1,5 +1,46 @@
 # Project Updates
 
+## Feature: Dynamic Securities List from Wikipedia (2026-07-02)
+
+Added support for dynamic index constituent lists in `strategies-config.json`. Users can now specify `"SPY"` (S&P 500 ~503 tickers) or `"QQQ"` (Nasdaq-100 ~100 tickers) as `securitiesFile` values just like any static file name.
+
+### How It Works — Lazy Loading
+- Wikipedia fetch happens **only when a strategy that uses SPY/QQQ actually executes** — not at startup or on the `/api/strategies` listing call.
+- `SecuritiesResolver.loadSecuritiesMaps()` returns only static YAML keys. Dynamic keywords are resolved separately.
+- `StrategiesConfigLoader.parseSecuritiesFromFiles()` detects SPY/QQQ at execution time and calls `WikipediaSecuritiesFetcher.fetch(keyword)` lazily. Results are cached 24 h — subsequent runs are instant cache hits.
+- A hard `IllegalStateException` is thrown if Wikipedia is unreachable or table structure changes.
+- The error is surfaced to the frontend via HTTP 503 with `error`, `details`, and `hint` fields — **never** silently masking as an auth failure.
+
+### Error Propagation Fix
+The `BearerTokenFilter` catch-all block previously swallowed all `Exception`s (including Wikipedia `IllegalStateException`s) and logged them as `[AUTH ERROR]`, causing a misleading 401 response on page load. Fixed: `IOException` and `ServletException` from business logic are re-thrown; only JWT-specific exceptions are caught as auth errors.
+
+### Usage in strategies-config.json
+```json
+"securitiesFile": "QQQ"
+"securitiesFile": "SPY, portfolio"
+"securitiesFile": "QQQ, tracking"
+```
+
+### Architecture
+| File | Change |
+|---|---|
+| **`WikipediaSecuritiesFetcher.java`** | [NEW] Spring `@Component`. Uses Wikipedia REST API (`action=parse&section=N`) for reliable HTML. Ticker column resolved dynamically from header row — no hardcoded column indices. TOC API used to resolve section number by anchor ID. Normalizes ticker dots to slashes (`BRK.B` → `BRK/B`) to match broker APIs. In-memory 24h cache. |
+| **`SecuritiesResolver.java`** | Reverted to static-only: loads 5 YAML files, no Wikipedia dependency. Dynamic keywords resolved elsewhere. |
+| **`StrategiesConfigLoader.java`** | Injected `WikipediaSecuritiesFetcher`. `parseSecuritiesFromFiles()` lazily calls it for SPY/QQQ keys not found in the static map. |
+| **`BearerTokenFilter.java`** | Fixed catch block: `IOException`/`ServletException` re-thrown; only JWT infrastructure errors caught as auth errors. |
+| **`StrategyController.java`** | `/api/strategies` now catches `IllegalStateException` (Wikipedia failure) and returns HTTP 503 with `error`, `details`, `hint` fields. |
+| **`pom.xml`** | Added `org.jsoup:jsoup:1.18.1` dependency |
+| **`application.properties`** | Added `securities.wiki.cache-hours=24` property |
+| **`SecuritiesResolverTest.java`** | Updated: no Wikipedia mock; tests verify dynamic keys are NOT eagerly loaded. |
+
+### Wikipedia Sources
+| Keyword | Index | Table selector | Ticker column |
+|---|---|---|---|
+| `SPY` | S&P 500 | `table#constituents` | Dynamically detected from header row |
+| `QQQ` | Nasdaq-100 | `table#constituents` in "Current components" section | Dynamically detected from header row |
+
+---
+
 ## Feature: Greek Exposure Pill Labels on Strategy Cards (2026-06-28)
 
 Added four colored Greek exposure pill labels (Δ Delta, Γ Gamma, Θ Theta, V Vega) to every strategy result card on the Options Dashboard and Execute Strategy page. Each pill is color-coded based on the strategy's configured Greek polarity. Also added a standardized Greeks details table (explaining polarity and utility) to the top of all strategy description markdown files.
