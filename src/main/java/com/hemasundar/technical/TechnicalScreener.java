@@ -313,6 +313,11 @@ public class TechnicalScreener {
                 case OVERBOUGHT -> result.isRsiOverbought();
                 case BULLISH_CROSSOVER -> result.isRsiBullishCrossover();
                 case BEARISH_CROSSOVER -> result.isRsiBearishCrossover();
+                case CUSTOM_RANGE -> {
+                    double rsi = result.getRsi();
+                    yield (conditions.getMinRsi() == null || rsi >= conditions.getMinRsi()) &&
+                          (conditions.getMaxRsi() == null || rsi <= conditions.getMaxRsi());
+                }
             };
             if (!rsiMet)
                 return false;

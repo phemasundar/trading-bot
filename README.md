@@ -22,7 +22,7 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
   - Multi-day Price Drop (Selectable lookback from 0-N days, with pre-configured Intraday Drop, 5-Day Drop, 1-Month Drop, and 3-Month Drop templates)
   - 52-Week High Drop (Percentage decline from yearly high)
 - **Object-Oriented Filter System**: Extensible filter hierarchy with strategy-specific and leg-specific filters, including annualized yield filters (`minReturnOnRiskCAGR`)
-- **Technical Indicators**: RSI, Bollinger Bands, and Volume analysis using ta4j library
+- **Technical Indicators**: RSI (with customizable conditions including custom min/max ranges), Bollinger Bands, and Volume analysis using ta4j library
 - **Telegram Notifications**: Receive trade alerts directly to your Telegram
 - **Interactive UI Dashboard**: Execute custom strategy instances, explore strategy configurations with user-defined technical screener aliases, and view data-rich technical screening results with customizable indicator tables. Integrated Charles Schwab API provides live Market Hours status directly on the dashboard. Sort results by any column (Price, Volume, RSI, Drop %, Return on Risk CAGR, etc.) with persistent state. Options trade tables on both the local dashboard and the static GitHub Pages dashboard include a live **Today's Performance** column (where applicable), intelligent table sorting supporting annualized CAGR yields, and a dual-metric ROR display formatting the raw return percentage alongside its annualized CAGR in brackets (e.g., `12.5% (150.0% CAGR)`) with dynamic client-side fallback calculation for older strategy execution results stored in Supabase.
 

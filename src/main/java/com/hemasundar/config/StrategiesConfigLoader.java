@@ -351,8 +351,24 @@ public class StrategiesConfigLoader {
                 .overboughtThreshold(cfg.getOverboughtThreshold())
                 .build());
 
-        if (entry.getCondition() != null) {
-            conditions.rsiCondition(entry.getCondition());
+        Object conditionObj = entry.getCondition();
+        if (conditionObj != null) {
+            if (conditionObj instanceof String strCond) {
+                conditions.rsiCondition(com.hemasundar.technical.RSICondition.valueOf(strCond));
+            } else {
+                StrategiesConfig.RSIFilterConditionParams params = JavaUtils.convertValue(conditionObj, StrategiesConfig.RSIFilterConditionParams.class);
+                if (params != null) {
+                    if (params.getType() != null) {
+                        conditions.rsiCondition(params.getType());
+                    }
+                    if (params.getMin() != null) {
+                        conditions.minRsi(params.getMin());
+                    }
+                    if (params.getMax() != null) {
+                        conditions.maxRsi(params.getMax());
+                    }
+                }
+            }
         }
     }
 

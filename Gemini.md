@@ -1,5 +1,29 @@
 # Project Updates
 
+## Feature: Custom RSI Range Filtering (2026-07-04)
+
+Added the ability for users to specify custom `minRsi` and `maxRsi` range values when filtering stocks using the Technical Screener and Execute Strategy flows.
+
+### End-to-End Implementation
+- **Backend Model**: Updated `CustomScreenerRequest`, `TechFilterConditions`, and `RSICondition` to accept and process `CUSTOM_RANGE` with `minRsi` and `maxRsi`.
+- **Backend Execution**: Updated `TechnicalScreener` logic to evaluate the stock's actual RSI against the `minRsi` and `maxRsi` thresholds when `CUSTOM_RANGE` is provided.
+- **Config Loader**: Modified `StrategiesConfigLoader` and `StrategiesConfig` to parse `condition` from the JSON configurations as an object. This allows strategies like "Tech Moderate LEAP" to statically configure custom ranges.
+- **Frontend App**: Added "Custom Range" to the `RSI Condition` dropdowns in `execute.html` and `execute-screener.html`. Upon selection, secondary inputs for `Min RSI` and `Max RSI` appear. Updated `app.js` to serialize these fields as a complex object properly to the backend.
+
+### Architecture
+| File | Change |
+|---|---|
+| **`CustomScreenerRequest.java`** | Added `minRsi` and `maxRsi` |
+| **`TechFilterConditions.java`** | Added `minRsi` and `maxRsi`, updated `getSummary()` |
+| **`RSICondition.java`** | Added `CUSTOM_RANGE` enum entry |
+| **`TechnicalScreener.java`** | Added evaluation logic in `meetsAllCriteria()` |
+| **`StrategiesConfigLoader.java`** | Parses `condition` as either string or object (`RSIFilterConditionParams`) |
+| **`StrategiesConfig.java`** | Changed `condition` object type and introduced `RSIFilterConditionParams` |
+| **`StrategyController.java`** | Maps `minRsi` and `maxRsi` to builder and `requestParams` |
+| **`execute.html` & `execute-screener.html`** | Added UI inputs and `onchange` toggle |
+| **`app.js`** | Enhanced payload construction to handle `RSI.condition` as an object and validate mandatory fields |
+| **`strategies-config.json`** | Added custom range configuration for "Tech Moderate LEAP" |
+
 ## Feature: Technical Filters in Execute Strategy UI + Filter Details on Dashboard (2026-07-04)
 
 Added full visibility of applied Technical Filters in both the Execute Strategy page and the Options Dashboard Filter Details panel.

@@ -33,10 +33,19 @@ import com.hemasundar.config.StrategiesConfig.Position;
 public class TechFilterConditions {
 
     /**
-     * RSI condition to check: OVERSOLD, OVERBOUGHT, BULLISH_CROSSOVER, or
-     * BEARISH_CROSSOVER.
+     * RSI condition to check: OVERSOLD, OVERBOUGHT, BULLISH_CROSSOVER, BEARISH_CROSSOVER, or CUSTOM_RANGE.
      */
     private final RSICondition rsiCondition;
+
+    /**
+     * Minimum RSI value for CUSTOM_RANGE condition.
+     */
+    private final Double minRsi;
+
+    /**
+     * Maximum RSI value for CUSTOM_RANGE condition.
+     */
+    private final Double maxRsi;
 
     /**
      * Bollinger Band condition to check: LOWER_BAND or UPPER_BAND.
@@ -107,7 +116,11 @@ public class TechFilterConditions {
         StringBuilder sb = new StringBuilder();
 
         if (rsiCondition != null) {
-            sb.append("RSI: ").append(rsiCondition.name()).append(" | ");
+            if (rsiCondition == RSICondition.CUSTOM_RANGE) {
+                sb.append("RSI: ").append(String.format("%.1f-%.1f", minRsi, maxRsi)).append(" | ");
+            } else {
+                sb.append("RSI: ").append(rsiCondition.name()).append(" | ");
+            }
         }
         if (bollingerCondition != null) {
             sb.append("BB: ").append(bollingerCondition.name()).append(" | ");

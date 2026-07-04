@@ -118,13 +118,24 @@
                         <!-- RSI Condition -->
                         <div class="form-group">
                             <label class="form-label">RSI Condition</label>
-                            <select id="sc-rsiCondition" class="form-select">
+                            <select id="sc-rsiCondition" class="form-select" onchange="document.getElementById('sc-rsi-custom-range-inputs').style.display = this.value === 'CUSTOM_RANGE' ? 'flex' : 'none'">
                                 <option value="">(none)</option>
                                 <option value="OVERSOLD">Oversold (&lt;30)</option>
                                 <option value="OVERBOUGHT">Overbought (&gt;70)</option>
                                 <option value="BULLISH_CROSSOVER">Bullish Crossover (↑30)</option>
                                 <option value="BEARISH_CROSSOVER">Bearish Crossover (↓70)</option>
+                                <option value="CUSTOM_RANGE">Custom Range</option>
                             </select>
+                        </div>
+                        <div id="sc-rsi-custom-range-inputs" style="display:none; gap: 1rem; grid-column: span 1;">
+                            <div style="flex: 1;">
+                                <label class="form-label">Min RSI *</label>
+                                <input type="number" id="sc-minRsi" class="form-input" placeholder="e.g. 40" step="0.1">
+                            </div>
+                            <div style="flex: 1;">
+                                <label class="form-label">Max RSI *</label>
+                                <input type="number" id="sc-maxRsi" class="form-input" placeholder="e.g. 60" step="0.1">
+                            </div>
                         </div>
 
                         <!-- Bollinger Condition -->
