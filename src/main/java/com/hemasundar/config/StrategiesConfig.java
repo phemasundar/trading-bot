@@ -357,7 +357,18 @@ public class StrategiesConfig {
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class HistoricalVolatilityFilterEntry {
+        private HistoricalVolatilityConfigParams config;
         private HistoricalVolatilityCondition condition;
+    }
+
+    /**
+     * POJO for inline Historical Volatility config parameters.
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class HistoricalVolatilityConfigParams {
+        private Integer period = 20;
     }
 
     /**
@@ -367,7 +378,7 @@ public class StrategiesConfig {
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class HistoricalVolatilityCondition {
-        private Double min;
-        private Double max;
+        private Double minRank;
+        private Double maxRank;
     }
 }

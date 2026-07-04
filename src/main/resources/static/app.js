@@ -2335,6 +2335,13 @@ function fillTechFiltersForm(techFilters) {
                             if (el) el.value = condVal;
                         }
                     }
+                } else if (fieldKey === 'config') {
+                    if (typeof fieldVal === 'object') {
+                        for (const [cfgKey, cfgVal] of Object.entries(fieldVal)) {
+                            const el = document.querySelector(`[data-tech-filter="${filterKey}"][data-tech-field="${cfgKey}"]`);
+                            if (el) el.value = cfgVal;
+                        }
+                    }
                 }
             }
         }
@@ -2437,12 +2444,17 @@ async function executeCustom() {
             technicalFilters[filterKey] = rawVal.split(',').map(s => s.trim()).filter(Boolean);
         } else if (fieldKey === 'condition') {
             technicalFilters[filterKey].condition = rawVal;
-        } else if (fieldKey === 'min' || fieldKey === 'max' || fieldKey === 'minDropPercent') {
+        } else if (fieldKey === 'period') {
+            const num = parseInt(rawVal);
+            if (!isNaN(num)) {
+                if (!technicalFilters[filterKey].config) technicalFilters[filterKey].config = {};
+                technicalFilters[filterKey].config.period = num;
+            }
+        } else if (['min', 'max', 'minDropPercent', 'minRank', 'maxRank'].includes(fieldKey)) {
             const num = parseFloat(rawVal);
             if (!isNaN(num)) {
                 if (!technicalFilters[filterKey].condition) technicalFilters[filterKey].condition = {};
-                technicalFilters[filterKey].condition[fieldKey === 'min' ? 'min' :
-                    fieldKey === 'max' ? 'max' : 'minDropPercent'] = num;
+                technicalFilters[filterKey].condition[fieldKey] = num;
             }
         }
     });
@@ -2623,7 +2635,9 @@ function renderConfig(config, container, securitiesMaps = {}) {
                     </div>
                 </div>
                 <div class="config-card-body">
-                    ${renderFilterGrid(screener)}
+                    ${renderTechFiltersGrid(screener.technicalFilters)}
+                    ${screener.securitiesFile ? `<div class="mt-sm"><span class="config-item-label">Securities File</span> <span class="config-item-value">${screener.securitiesFile}</span></div>` : ''}
+                    ${screener.securities ? `<div class="mt-sm"><span class="config-item-label">Securities (Inline)</span> <span class="config-item-value">${screener.securities}</span></div>` : ''}
                 </div>`;
             card.querySelector('.config-card-header').addEventListener('click', function () {
                 this.querySelector('.card-arrow').classList.toggle('open');
@@ -3148,7 +3162,7 @@ async function renderScreenerTemplates(screenerType) {
                 </div>
             </div>
             <div class="config-card-body">
-                ${renderFilterGrid(screener.conditions || {})}
+                ${renderTechFiltersGrid(screener.technicalFilters)}
                 ${screener.securities ? `<div class="mt-sm"><span class="config-item-label">Securities (Inline)</span> <span class="config-item-value">${screener.securities}</span></div>` : ''}
             </div>`;
 
@@ -3176,26 +3190,33 @@ function loadScreenerTemplateParams(screenerJson) {
         const secFileInput = document.getElementById('screener-securities-file-input');
         if (secFileInput) secFileInput.value = screener.securitiesFile || '';
 
-        const conds = screener.conditions || {};
+        const techFilters = screener.technicalFilters || {};
 
         // Set select/number fields
         const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val !== undefined && val !== null ? val : ''; };
-        setVal('sc-rsiCondition', conds.rsiCondition);
-        setVal('sc-bollingerCondition', conds.bollingerCondition);
-        setVal('sc-minVolume', conds.minVolume);
-        setVal('sc-minDropPercent', conds.minDropPercent);
-        setVal('sc-lookbackDays', conds.lookbackDays);
+        
+        // Helper to extract nested condition or config safely
+        const extractField = (filterKey, fieldType, prop) => {
+            if (!techFilters[filterKey]) return undefined;
+            if (fieldType === 'root') return techFilters[filterKey];
+            if (!techFilters[filterKey][fieldType]) return undefined;
+            if (typeof techFilters[filterKey][fieldType] !== 'object') {
+                return prop ? undefined : techFilters[filterKey][fieldType];
+            }
+            return techFilters[filterKey][fieldType][prop];
+        };
 
-        // Set checkboxes
-        const setCheck = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
-        setCheck('sc-priceBelowMA20', conds.requirePriceBelowMA20);
-        setCheck('sc-priceAboveMA20', conds.requirePriceAboveMA20);
-        setCheck('sc-priceBelowMA50', conds.requirePriceBelowMA50);
-        setCheck('sc-priceAboveMA50', conds.requirePriceAboveMA50);
-        setCheck('sc-priceBelowMA100', conds.requirePriceBelowMA100);
-        setCheck('sc-priceAboveMA100', conds.requirePriceAboveMA100);
-        setCheck('sc-priceBelowMA200', conds.requirePriceBelowMA200);
-        setCheck('sc-priceAboveMA200', conds.requirePriceAboveMA200);
+        setVal('sc-rsiCondition', extractField('RSI', 'condition'));
+        setVal('sc-bollingerCondition', extractField('BOLLINGER_BAND', 'condition'));
+        setVal('sc-minVolume', extractField('VOLUME', 'config', 'min'));
+        setVal('sc-minDropPercent', extractField('PRICE_DROP', 'config', 'minDropPercent'));
+        setVal('sc-lookbackDays', extractField('PRICE_DROP', 'config', 'lookbackDays'));
+
+        const maRules = extractField('MOVING_AVERAGE', 'root');
+        setVal('sc-movingAverageRules', maRules && Array.isArray(maRules) ? maRules.join(', ') : '');
+        setVal('sc-hvPeriod', extractField('HISTORICAL_VOLATILITY', 'config', 'period'));
+        setVal('sc-hvMinRank', extractField('HISTORICAL_VOLATILITY', 'condition', 'minRank'));
+        setVal('sc-hvMaxRank', extractField('HISTORICAL_VOLATILITY', 'condition', 'maxRank'));
 
         showToast('Template filters loaded!');
     } catch (e) {
@@ -3243,19 +3264,10 @@ function loadScreenerFiltersFromResult(paramsJson, event) {
         setVal('sc-minDropPercent',     params.minDropPercent);
         setVal('sc-lookbackDays',       params.lookbackDays);
 
-        // Moving Average checkboxes
-        const setCheck = (id, val) => {
-            const el = document.getElementById(id);
-            if (el) el.checked = !!val;
-        };
-        setCheck('sc-priceBelowMA20',  params.requirePriceBelowMA20);
-        setCheck('sc-priceAboveMA20',  params.requirePriceAboveMA20);
-        setCheck('sc-priceBelowMA50',  params.requirePriceBelowMA50);
-        setCheck('sc-priceAboveMA50',  params.requirePriceAboveMA50);
-        setCheck('sc-priceBelowMA100', params.requirePriceBelowMA100);
-        setCheck('sc-priceAboveMA100', params.requirePriceAboveMA100);
-        setCheck('sc-priceBelowMA200', params.requirePriceBelowMA200);
-        setCheck('sc-priceAboveMA200', params.requirePriceAboveMA200);
+        setVal('sc-movingAverageRules', params.movingAverageRules ? params.movingAverageRules.join(', ') : '');
+        setVal('sc-hvPeriod',           params.hvPeriod);
+        setVal('sc-hvMinRank',          params.minHvRank);
+        setVal('sc-hvMaxRank',          params.maxHvRank);
 
         // Scroll up to the form so the user can see the populated fields
         const firstCard = document.querySelector('.main-content .card');
@@ -3290,6 +3302,16 @@ async function executeCustomScreener() {
     const lookbackRaw       = document.getElementById('sc-lookbackDays').value;
     const lookbackDays      = lookbackRaw !== '' ? parseInt(lookbackRaw) : null;
 
+    const maRulesRaw = document.getElementById('sc-movingAverageRules') ? document.getElementById('sc-movingAverageRules').value.trim() : '';
+    const movingAverageRules = maRulesRaw ? maRulesRaw.split(',').map(s => s.trim()).filter(Boolean) : null;
+    
+    const hvPeriodRaw = document.getElementById('sc-hvPeriod') ? document.getElementById('sc-hvPeriod').value : '';
+    const hvPeriod = hvPeriodRaw ? parseInt(hvPeriodRaw) : null;
+    const minHvRankRaw = document.getElementById('sc-hvMinRank') ? document.getElementById('sc-hvMinRank').value : '';
+    const minHvRank = minHvRankRaw ? parseFloat(minHvRankRaw) : null;
+    const maxHvRankRaw = document.getElementById('sc-hvMaxRank') ? document.getElementById('sc-hvMaxRank').value : '';
+    const maxHvRank = maxHvRankRaw ? parseFloat(maxHvRankRaw) : null;
+
     const payload = {
         screenerType: type,
         alias,
@@ -3298,16 +3320,12 @@ async function executeCustomScreener() {
         rsiCondition,
         bollingerCondition,
         minVolume,
-        requirePriceBelowMA20:  document.getElementById('sc-priceBelowMA20').checked  || null,
-        requirePriceAboveMA20:  document.getElementById('sc-priceAboveMA20').checked  || null,
-        requirePriceBelowMA50:  document.getElementById('sc-priceBelowMA50').checked  || null,
-        requirePriceAboveMA50:  document.getElementById('sc-priceAboveMA50').checked  || null,
-        requirePriceBelowMA100: document.getElementById('sc-priceBelowMA100').checked || null,
-        requirePriceAboveMA100: document.getElementById('sc-priceAboveMA100').checked || null,
-        requirePriceBelowMA200: document.getElementById('sc-priceBelowMA200').checked || null,
-        requirePriceAboveMA200: document.getElementById('sc-priceAboveMA200').checked || null,
+        movingAverageRules,
         minDropPercent,
         lookbackDays,
+        hvPeriod,
+        minHvRank,
+        maxHvRank
     };
 
     // Strip nulls/false to keep the payload clean

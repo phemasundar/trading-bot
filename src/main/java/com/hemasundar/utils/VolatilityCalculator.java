@@ -20,30 +20,32 @@ public class VolatilityCalculator {
     private static final int TRADING_DAYS_PER_YEAR = 252;
 
     /**
-     * Calculates annualized historical volatility from price history data.
+     * Calculates the Historical Volatility Percentile Rank.
      * 
      * Formula:
-     * 1. Calculate daily log returns: ln(price[i] / price[i-1])
-     * 2. Calculate standard deviation of returns
-     * 3. Annualize: stdDev × √252
-     * 4. Convert to percentage
+     * 1. Calculate daily log returns for the entire available history.
+     * 2. For each day (from index `period` to end), calculate the standard deviation
+     *    of the preceding `period` log returns.
+     * 3. Annualize each standard deviation: stdDev × √252
+     * 4. Find the percentile rank of the current day's rolling HV against the array
+     *    of historical rolling HVs.
      *
      * @param priceHistory Price history response with candle data
-     * @return Annualized volatility as a percentage (e.g., 25.0 for 25%), or null
-     *         if calculation fails
+     * @param period The rolling window period (e.g., 20)
+     * @return Percentile rank (0.0 to 100.0), or null if calculation fails
      */
-    public Double calculateAnnualizedVolatility(PriceHistoryResponse priceHistory) {
+    public Double calculateHvRank(PriceHistoryResponse priceHistory, int period) {
         if (priceHistory == null || priceHistory.getCandles() == null || priceHistory.getCandles().isEmpty()) {
-            log.warn("Cannot calculate volatility: price history is null or empty");
+            log.warn("Cannot calculate volatility rank: price history is null or empty");
             return null;
         }
 
         List<PriceHistoryResponse.CandleData> candles = priceHistory.getCandles();
 
-        // Need at least 2 data points to calculate returns
-        if (candles.size() < 2) {
-            log.warn("Cannot calculate volatility for {}: insufficient data ({} candles)",
-                    priceHistory.getSymbol(), candles.size());
+        // Need at least period + 1 data points to calculate returns and 1 rolling HV
+        if (candles.size() <= period) {
+            log.warn("Cannot calculate volatility rank for {}: insufficient data ({} candles, period {})",
+                    priceHistory.getSymbol(), candles.size(), period);
             return null;
         }
 
@@ -61,51 +63,60 @@ public class VolatilityCalculator {
             logReturns[i - 1] = Math.log(currentPrice / previousPrice);
         }
 
-        // Calculate standard deviation of log returns
-        double stdDev = calculateStdDev(logReturns);
+        int numHvs = logReturns.length - period + 1;
+        if (numHvs <= 1) {
+            return null; // Not enough historical HVs to compute a rank
+        }
 
-        // Annualize and convert to percentage
-        double annualizedVolatility = stdDev * Math.sqrt(TRADING_DAYS_PER_YEAR) * 100.0;
+        double[] rollingHvs = new double[numHvs];
+        for (int i = 0; i < numHvs; i++) {
+            double stdDev = calculateStdDev(logReturns, i, period);
+            rollingHvs[i] = stdDev * Math.sqrt(TRADING_DAYS_PER_YEAR) * 100.0;
+        }
 
-        log.debug("Calculated volatility for {}: {}% ({} days of data)",
-                priceHistory.getSymbol(), annualizedVolatility, candles.size());
+        double currentHv = rollingHvs[numHvs - 1];
 
-        return annualizedVolatility;
+        // Calculate percentile rank
+        int countBelow = 0;
+        for (int i = 0; i < numHvs; i++) {
+            if (rollingHvs[i] < currentHv) {
+                countBelow++;
+            }
+        }
+
+        double rank = ((double) countBelow / numHvs) * 100.0;
+
+        log.debug("Calculated HV Rank for {}: {} (current HV: {}%, period: {}, data points: {})",
+                priceHistory.getSymbol(), rank, currentHv, period, numHvs);
+
+        return rank;
     }
 
     /**
-     * Calculates sample standard deviation of an array of values.
-     * Uses Bessel's correction (N-1) for unbiased estimation, which is standard in
-     * finance.
+     * Calculates sample standard deviation of a subset of an array.
+     * Uses Bessel's correction (N-1) for unbiased estimation.
      *
      * @param values Array of values
+     * @param offset Start index
+     * @param length Number of elements
      * @return Sample standard deviation
      */
-    private double calculateStdDev(double[] values) {
-        if (values.length == 0) {
-            return 0.0;
-        }
+    private double calculateStdDev(double[] values, int offset, int length) {
+        if (length <= 1) return 0.0;
 
-        if (values.length == 1) {
-            return 0.0; // Cannot calculate standard deviation with single value
-        }
-
-        // Calculate mean
         double sum = 0.0;
-        for (double value : values) {
-            sum += value;
+        for (int i = 0; i < length; i++) {
+            sum += values[offset + i];
         }
-        double mean = sum / values.length;
+        double mean = sum / length;
 
-        // Calculate variance using Bessel's correction (N-1)
-        double sumSquaredDiff = 0.0;
-        for (double value : values) {
-            double diff = value - mean;
-            sumSquaredDiff += diff * diff;
+        double varianceSum = 0.0;
+        for (int i = 0; i < length; i++) {
+            double diff = values[offset + i] - mean;
+            varianceSum += diff * diff;
         }
-        double variance = sumSquaredDiff / (values.length - 1);
 
-        // Return standard deviation
+        double variance = varianceSum / (length - 1);
         return Math.sqrt(variance);
     }
 }

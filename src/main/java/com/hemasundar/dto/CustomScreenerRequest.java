@@ -4,8 +4,7 @@ import lombok.Value;
 import lombok.Builder;
 import lombok.extern.jackson.Jacksonized;
 import java.util.List;
-import com.hemasundar.config.StrategiesConfig.PriceCondition;
-import com.hemasundar.config.StrategiesConfig.SmaCondition;
+
 
 /**
  * Request body for POST /api/execute/custom-screener.
@@ -40,8 +39,17 @@ public class CustomScreenerRequest {
     /** Minimum volume threshold (shares). */
     Long minVolume;
 
-    List<PriceCondition> priceConditions;
-    List<SmaCondition> smaConditions;
+    /** List of moving average rules, e.g., "PRICE_ABOVE_SMA50" */
+    List<String> movingAverageRules;
+
+    /** Rolling period (in days) for Historical Volatility calculation. */
+    Integer hvPeriod;
+
+    /** Minimum Historical Volatility Rank (percentile). */
+    Double minHvRank;
+
+    /** Maximum Historical Volatility Rank (percentile). */
+    Double maxHvRank;
 
     /** Minimum drop % — used for PRICE_DROP and HIGH_52W_DROP screeners. */
     Double minDropPercent;

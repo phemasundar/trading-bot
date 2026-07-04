@@ -3,19 +3,19 @@
         "default": {
             "RSI": {
                 "period": 14,
-                "oversoldThreshold": 30.0,
-                "overboughtThreshold": 70.0
+                "oversoldThreshold": 30,
+                "overboughtThreshold": 70
             },
             "BOLLINGER_BAND": {
                 "bollingerPeriod": 20,
-                "bollingerStdDev": 2.0
+                "bollingerStdDev": 2
             }
         },
         "rsiSample2": {
             "RSI": {
                 "period": 14,
-                "oversoldThreshold": 40.0,
-                "overboughtThreshold": 60.0
+                "oversoldThreshold": 40,
+                "overboughtThreshold": 60
             }
         }
     },
@@ -35,8 +35,11 @@
                 }
             },
             "HISTORICAL_VOLATILITY": {
+                "config": {
+                    "period": 20
+                },
                 "condition": {
-                    "min": 25.0
+                    "minRank": 25
                 }
             }
         },
@@ -55,8 +58,11 @@
                 }
             },
             "HISTORICAL_VOLATILITY": {
+                "config": {
+                    "period": 20
+                },
                 "condition": {
-                    "min": 25.0
+                    "minRank": 25
                 }
             }
         }
@@ -88,8 +94,11 @@
             "securitiesFile": "portfolio",
             "technicalFilters": {
                 "HISTORICAL_VOLATILITY": {
+                    "config": {
+                        "period": 20
+                    },
                     "condition": {
-                        "min": 25.0
+                        "minRank": 25
                     }
                 }
             }
@@ -120,8 +129,11 @@
             "securitiesFile": "tracking, 2026",
             "technicalFilters": {
                 "HISTORICAL_VOLATILITY": {
+                    "config": {
+                        "period": 20
+                    },
                     "condition": {
-                        "min": 25.0
+                        "minRank": 25
                     }
                 }
             }
@@ -176,8 +188,11 @@
             "securitiesFile": "portfolio",
             "technicalFilters": {
                 "HISTORICAL_VOLATILITY": {
+                    "config": {
+                        "period": 20
+                    },
                     "condition": {
-                        "min": 25.0
+                        "minRank": 25
                     }
                 }
             }
@@ -237,8 +252,11 @@
             "securitiesFile": "portfolio",
             "technicalFilters": {
                 "HISTORICAL_VOLATILITY": {
+                    "config": {
+                        "period": 20
+                    },
                     "condition": {
-                        "min": 25.0
+                        "minRank": 25
                     }
                 }
             }
@@ -273,8 +291,11 @@
             "securitiesFile": "portfolio, 2026",
             "technicalFilters": {
                 "HISTORICAL_VOLATILITY": {
+                    "config": {
+                        "period": 20
+                    },
                     "condition": {
-                        "min": 25.0
+                        "minRank": 25
                     }
                 }
             }
@@ -309,8 +330,11 @@
             "securitiesFile": "bullish, 2026",
             "technicalFilters": {
                 "HISTORICAL_VOLATILITY": {
+                    "config": {
+                        "period": 20
+                    },
                     "condition": {
-                        "min": 25.0
+                        "minRank": 25
                     }
                 }
             }
@@ -325,11 +349,11 @@
             "filter": {
                 "minDTE": 330,
                 "ignoreEarnings": true,
-                "marginInterestRate": 6.0,
-                "savingsInterestRate": 10.0,
-                "maxOptionPricePercent": 50.0,
-                "maxCAGRForBreakEven": 15.0,
-                "minCostSavingsPercent": 10.0,
+                "marginInterestRate": 6,
+                "savingsInterestRate": 10,
+                "maxOptionPricePercent": 50,
+                "maxCAGRForBreakEven": 15,
+                "minCostSavingsPercent": 10,
                 "maxLossLimit": 5000,
                 "longCall": {
                     "minDelta": 0.4,
@@ -353,11 +377,11 @@
             "filter": {
                 "minDTE": 330,
                 "ignoreEarnings": true,
-                "marginInterestRate": 6.0,
-                "savingsInterestRate": 10.0,
-                "maxOptionPricePercent": 50.0,
-                "maxCAGRForBreakEven": 15.0,
-                "minCostSavingsPercent": 10.0,
+                "marginInterestRate": 6,
+                "savingsInterestRate": 10,
+                "maxOptionPricePercent": 50,
+                "maxCAGRForBreakEven": 15,
+                "minCostSavingsPercent": 10,
                 "maxLossLimit": 5000,
                 "longCall": {
                     "minDelta": 0.4,
@@ -387,11 +411,11 @@
             "filter": {
                 "minDTE": 330,
                 "ignoreEarnings": true,
-                "marginInterestRate": 6.0,
-                "savingsInterestRate": 10.0,
-                "maxOptionPricePercent": 40.0,
-                "maxCAGRForBreakEven": 10.0,
-                "minCostSavingsPercent": 10.0,
+                "marginInterestRate": 6,
+                "savingsInterestRate": 10,
+                "maxOptionPricePercent": 40,
+                "maxCAGRForBreakEven": 10,
+                "minCostSavingsPercent": 10,
                 "maxLossLimit": 5000,
                 "longCall": {
                     "minDelta": 0.4,
@@ -417,11 +441,11 @@
                 "maxTradesToSend1": 5,
                 "minDTE": 330,
                 "ignoreEarnings": true,
-                "marginInterestRate": 6.0,
-                "savingsInterestRate": 10.0,
-                "maxOptionPricePercent": 50.0,
-                "maxCAGRForBreakEven": 20.0,
-                "minCostSavingsPercent": 5.0,
+                "marginInterestRate": 6,
+                "savingsInterestRate": 10,
+                "maxOptionPricePercent": 50,
+                "maxCAGRForBreakEven": 20,
+                "minCostSavingsPercent": 5,
                 "longCall": {
                     "minDelta": 0.3,
                     "minOpenInterest": 50
@@ -488,7 +512,7 @@
                 "maxLossLimit": 1000,
                 "ignoreEarnings": false,
                 "maxUpperBreakevenDelta": 0.2,
-                "priceVsMaxDebitRatio": 1.0,
+                "priceVsMaxDebitRatio": 1,
                 "leg1Long": {
                     "minDelta": 0.5,
                     "minOpenInterest": 1000
@@ -517,7 +541,7 @@
                 "maxNetExtrinsicValueToPricePercentage": 0.5,
                 "ignoreEarnings": false,
                 "maxLossLimit": 5000,
-                "maxBreakEvenPercentage": 5.0,
+                "maxBreakEvenPercentage": 5,
                 "shortCall": {
                     "minDelta": 0.45,
                     "minOpenInterest": 100
@@ -711,7 +735,7 @@
             "technicalFilters": {
                 "PRICE_DROP": {
                     "config": {
-                        "minDropPercent": 3.0,
+                        "minDropPercent": 3,
                         "lookbackDays": 0
                     }
                 }
@@ -725,7 +749,7 @@
             "technicalFilters": {
                 "PRICE_DROP": {
                     "config": {
-                        "minDropPercent": 5.0,
+                        "minDropPercent": 5,
                         "lookbackDays": 5
                     }
                 }
@@ -739,7 +763,7 @@
             "technicalFilters": {
                 "PRICE_DROP": {
                     "config": {
-                        "minDropPercent": 10.0,
+                        "minDropPercent": 10,
                         "lookbackDays": 21
                     }
                 }
@@ -753,7 +777,7 @@
             "technicalFilters": {
                 "PRICE_DROP": {
                     "config": {
-                        "minDropPercent": 15.0,
+                        "minDropPercent": 15,
                         "lookbackDays": 63
                     }
                 }
@@ -767,7 +791,7 @@
             "technicalFilters": {
                 "PRICE_DROP": {
                     "config": {
-                        "minDropPercent": 20.0
+                        "minDropPercent": 20
                     }
                 }
             }

@@ -385,7 +385,7 @@ public class StrategiesConfigLoader {
         }
     }
 
-    private void applyMovingAverageFilters(
+    public void applyMovingAverageFilters(
             Object rawEntry,
             TechnicalIndicators.TechnicalIndicatorsBuilder indicators,
             TechFilterConditions.TechFilterConditionsBuilder conditions) {
@@ -477,12 +477,17 @@ public class StrategiesConfigLoader {
             TechFilterConditions.TechFilterConditionsBuilder conditions) {
 
         StrategiesConfig.HistoricalVolatilityFilterEntry entry = JavaUtils.convertValue(rawEntry, StrategiesConfig.HistoricalVolatilityFilterEntry.class);
-        if (entry != null && entry.getCondition() != null) {
-            if (entry.getCondition().getMin() != null) {
-                conditions.minHistoricalVolatility(entry.getCondition().getMin());
+        if (entry != null) {
+            if (entry.getConfig() != null && entry.getConfig().getPeriod() != null) {
+                conditions.hvPeriod(entry.getConfig().getPeriod());
             }
-            if (entry.getCondition().getMax() != null) {
-                conditions.maxHistoricalVolatility(entry.getCondition().getMax());
+            if (entry.getCondition() != null) {
+                if (entry.getCondition().getMinRank() != null) {
+                    conditions.minHvRank(entry.getCondition().getMinRank());
+                }
+                if (entry.getCondition().getMaxRank() != null) {
+                    conditions.maxHvRank(entry.getCondition().getMaxRank());
+                }
             }
         }
     }

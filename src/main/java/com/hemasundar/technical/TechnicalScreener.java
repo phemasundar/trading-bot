@@ -64,7 +64,7 @@ public class TechnicalScreener {
         private boolean rsiOverbought;
         private boolean rsiBullishCrossover;
         private boolean rsiBearishCrossover;
-        private Double historicalVolatility;
+        private Double historicalVolatilityRank;
 
         // Price drop screener fields
         private double dropPercent;
@@ -108,14 +108,14 @@ public class TechnicalScreener {
             // Bollinger Bands Section - Condensed
             sb.append("  📉 BB: ");
             if (priceTouchingLowerBand) {
-                sb.append("Touching Lower ($").append(String.format("%.2f", bollingerLower)).append(")");
+                sb.append("TOUCHING LOWER");
             } else if (priceTouchingUpperBand) {
-                sb.append("Touching Upper ($").append(String.format("%.2f", bollingerUpper)).append(")");
+                sb.append("TOUCHING UPPER");
             } else {
-                sb.append("Within bands ($").append(String.format("%.2f", bollingerLower))
-                        .append(" - $").append(String.format("%.2f", bollingerUpper)).append(")");
+                sb.append("INSIDE");
             }
-            sb.append("\n");
+            sb.append(" ($").append(String.format("%.2f", bollingerLower)).append(" - $")
+                    .append(String.format("%.2f", bollingerUpper)).append(")\n");
 
             // Moving Averages Section - Condensed summary
             sb.append("  📊 MAs: ");
@@ -130,9 +130,9 @@ public class TechnicalScreener {
             }
             sb.append("\n");
 
-            // Historical Volatility
-            if (historicalVolatility != null) {
-                sb.append("  📈 HV: ").append(String.format("%.2f%%", historicalVolatility)).append("\n");
+            // Historical Volatility Rank
+            if (historicalVolatilityRank != null) {
+                sb.append("  📈 HV Rank: ").append(String.format("%.1f", historicalVolatilityRank)).append("\n");
             }
 
             return sb.toString();
@@ -177,7 +177,7 @@ public class TechnicalScreener {
                             "║   Lower:              $%-33.2f ║\n" +
                             "║   Price @ Lower:      %-35s ║\n" +
                             "╠══════════════════════════════════════════════════════════╣\n" +
-                            "║ Historical Volatility: %-33s ║\n" +
+                            "║ HV Rank:              %-33s ║\n" +
                             "╠══════════════════════════════════════════════════════════╣\n" +
                             "║ Moving Averages:                                         ║\n" +
                             "%s" +
@@ -190,7 +190,7 @@ public class TechnicalScreener {
                     bollingerMiddle,
                     bollingerLower,
                     priceTouchingLowerBand ? "YES ✓" : "NO",
-                    historicalVolatility != null ? String.format("%.2f%%", historicalVolatility) : "N/A",
+                    historicalVolatilityRank != null ? String.format("%.1f", historicalVolatilityRank) : "N/A",
                     maOutput.toString().endsWith("\n") ? maOutput.substring(0, maOutput.length() - 1) : maOutput.toString());
         }
     }
@@ -212,8 +212,10 @@ public class TechnicalScreener {
         log.info("Screening {} symbols in parallel", symbols.size());
         long screenT0 = System.currentTimeMillis();
 
+        Integer hvPeriod = filterChain.getConditions() != null ? filterChain.getConditions().getHvPeriod() : 20;
+
         List<ScreeningResult> parallelResults = schwabApiExecutor.executeParallel(symbols, symbol -> {
-            return analyzeStock(symbol, filterChain.getIndicators());
+            return analyzeStock(symbol, filterChain.getIndicators(), hvPeriod);
         }, alertCallback);
 
         // Filter out nulls (errors) and apply conditions on the calling thread
@@ -232,12 +234,17 @@ public class TechnicalScreener {
     /**
      * Analyzes a single stock and calculates all technical values.
      */
-    public ScreeningResult analyzeStock(String symbol, TechnicalIndicators indicators) {
-        PriceHistoryCache.HistoricalData cachedData = PriceHistoryCache.getInstance().getHistoricalData(symbol, thinkOrSwinAPIs, volatilityCalculator);
+    public ScreeningResult analyzeStock(String symbol, TechnicalIndicators indicators, Integer hvPeriod) {
+        PriceHistoryCache.HistoricalData cachedData = PriceHistoryCache.getInstance().getHistoricalData(symbol, thinkOrSwinAPIs);
         PriceHistoryResponse priceHistory = cachedData != null ? cachedData.getPriceHistory() : null;
         
         if (priceHistory == null) {
             return null;
+        }
+
+        Double hvRank = null;
+        if (hvPeriod != null && hvPeriod > 0) {
+            hvRank = volatilityCalculator.calculateHvRank(priceHistory, hvPeriod);
         }
 
         BarSeries series = TechnicalIndicatorUtils.buildBarSeries(symbol, priceHistory);
@@ -251,7 +258,7 @@ public class TechnicalScreener {
         ScreeningResult.ScreeningResultBuilder builder = ScreeningResult.builder()
                 .symbol(symbol)
                 .currentPrice(currentPrice)
-                .historicalVolatility(cachedData != null ? cachedData.getAnnualizedHistoricalVolatility() : null);
+                .historicalVolatilityRank(hvRank);
 
         // RSI
         if (indicators.getRsiFilter() != null) {
@@ -356,15 +363,15 @@ public class TechnicalScreener {
             }
         }
 
-        // Historical Volatility condition (fail-open)
-        if (conditions.getMinHistoricalVolatility() != null) {
-            if (result.getHistoricalVolatility() != null && result.getHistoricalVolatility() < conditions.getMinHistoricalVolatility()) {
+        // Historical Volatility Rank condition
+        if (conditions.getMinHvRank() != null) {
+            if (result.getHistoricalVolatilityRank() != null && result.getHistoricalVolatilityRank() < conditions.getMinHvRank()) {
                 return false;
             }
         }
         
-        if (conditions.getMaxHistoricalVolatility() != null) {
-            if (result.getHistoricalVolatility() != null && result.getHistoricalVolatility() > conditions.getMaxHistoricalVolatility()) {
+        if (conditions.getMaxHvRank() != null) {
+            if (result.getHistoricalVolatilityRank() != null && result.getHistoricalVolatilityRank() > conditions.getMaxHvRank()) {
                 return false;
             }
         }

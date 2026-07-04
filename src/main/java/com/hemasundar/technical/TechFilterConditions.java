@@ -67,6 +67,24 @@ public class TechFilterConditions {
     private final Double minDropPercent;
 
     /**
+     * Rolling period (in days) for Historical Volatility calculation.
+     */
+    @Builder.Default
+    private final Integer hvPeriod = 20;
+
+    /**
+     * Minimum Historical Volatility Rank (percentile).
+     * Example: 25.0 means current rolling HV must be >= the 25th percentile of the past year.
+     */
+    private final Double minHvRank;
+
+    /**
+     * Maximum Historical Volatility Rank (percentile).
+     * Example: 35.0 means current rolling HV must be <= the 35th percentile of the past year.
+     */
+    private final Double maxHvRank;
+
+    /**
      * Number of trading days to look back for PRICE_DROP screener.
      * 0 = intraday (uses daily change), >0 = multi-day lookback.
      */
@@ -118,11 +136,11 @@ public class TechFilterConditions {
         if (minVolume != null && minVolume > 0) {
             sb.append(String.format("Volume >= %,d | ", minVolume));
         }
-        if (minHistoricalVolatility != null) {
-            sb.append(String.format("HV >= %.1f%% | ", minHistoricalVolatility));
+        if (minHvRank != null) {
+            sb.append(String.format("HV(%d) Rank >= %.1f | ", hvPeriod, minHvRank));
         }
-        if (maxHistoricalVolatility != null) {
-            sb.append(String.format("HV <= %.1f%% | ", maxHistoricalVolatility));
+        if (maxHvRank != null) {
+            sb.append(String.format("HV(%d) Rank <= %.1f | ", hvPeriod, maxHvRank));
         }
 
         if (sb.length() == 0)
