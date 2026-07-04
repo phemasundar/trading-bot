@@ -165,7 +165,7 @@ public class PriceDropScreener {
         // ── Parallel execution (Track B) ──
         List<TechnicalScreener.ScreeningResult> parallelResults = schwabApiExecutor.executeParallel(
                 symbols, symbol -> {
-                    PriceHistoryCache.HistoricalData cachedData = PriceHistoryCache.getInstance().getHistoricalData(symbol, thinkOrSwinAPIs, null);
+                    PriceHistoryCache.HistoricalData cachedData = PriceHistoryCache.getInstance().getHistoricalData(symbol, thinkOrSwinAPIs);
                     PriceHistoryResponse history = cachedData != null ? cachedData.getPriceHistory() : null;
 
                     if (history == null || history.getCandles() == null

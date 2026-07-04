@@ -92,7 +92,7 @@ public class ScreenerExecutionService {
                 }
             };
             PriceHistoryCache.getInstance().prewarm(allSymbolsToPrewarm, schwabApiExecutor, 
-                    symbol -> PriceHistoryCache.getInstance().getHistoricalData(symbol, thinkOrSwinAPIs, volatilityCalculator),
+                    symbol -> PriceHistoryCache.getInstance().getHistoricalData(symbol, thinkOrSwinAPIs),
                     prewarmAlertCallback);
         }
 

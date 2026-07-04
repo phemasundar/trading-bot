@@ -48,7 +48,7 @@ public class TechnicalScreenerTest {
                 .thenReturn(null);
 
         TechnicalIndicators indicators = TechnicalIndicators.builder().build();
-        TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("AAPL", indicators);
+        TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("AAPL", indicators, 20);
 
         assertNull(result);
     }
@@ -61,7 +61,7 @@ public class TechnicalScreenerTest {
                 .thenReturn(response);
 
         TechnicalIndicators indicators = TechnicalIndicators.builder().build();
-        TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("TSLA", indicators);
+        TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("TSLA", indicators, 20);
 
         assertNull(result);
     }
@@ -80,7 +80,7 @@ public class TechnicalScreenerTest {
                 )))
                 .build();
 
-        TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("MSFT", indicators);
+        TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("MSFT", indicators, 20);
 
         assertNotNull(result);
         assertEquals(result.getSymbol(), "MSFT");
@@ -151,7 +151,7 @@ public class TechnicalScreenerTest {
                 .volumeFilter(VolumeFilter.builder().build())
                 .build();
 
-        TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("TEST", indicators);
+        TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("TEST", indicators, 20);
         
         assertNotNull(result);
         assertEquals(result.getSymbol(), "TEST");
@@ -260,7 +260,7 @@ public class TechnicalScreenerTest {
         assertTrue(summary.contains("Ref Price: $158.00"));
         assertTrue(summary.contains("Volume: 1.50M"));
         assertTrue(summary.contains("OVERSOLD"));
-        assertTrue(summary.contains("Touching Lower"));
+        assertTrue(summary.contains("TOUCHING LOWER"));
         assertTrue(summary.contains("MA20"));
         assertTrue(summary.contains("MA200"));
 
@@ -273,7 +273,7 @@ public class TechnicalScreenerTest {
         summary = result.getFormattedSummary();
         assertTrue(summary.contains("Volume: 500"));
         assertTrue(summary.contains("CROSSOVER"));
-        assertTrue(summary.contains("Touching Upper"));
+        assertTrue(summary.contains("TOUCHING UPPER"));
 
         // Test with bearish crossover, overbought, volume in K
         result.setRsiBullishCrossover(false);
@@ -285,7 +285,7 @@ public class TechnicalScreenerTest {
         System.out.println("DEBUG FORMATTED SUMMARY:\n" + summary);
         assertTrue(summary.contains("Volume: 1.50K"));
         assertTrue(summary.contains("CROSSOVER"));
-        assertTrue(summary.contains("Within bands"));
+        assertTrue(summary.contains("INSIDE"));
     }
 
     private PriceHistoryResponse createMockResponse(double price, int candleCount) {

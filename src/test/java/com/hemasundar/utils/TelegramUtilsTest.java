@@ -274,7 +274,7 @@ public class TelegramUtilsTest {
         String summary = result.getFormattedSummary();
         assertTrue(summary.contains("Price: $150.00"));
         assertTrue(summary.contains("OVERSOLD"));
-        assertTrue(summary.contains("Touching Lower"));
+        assertTrue(summary.contains("TOUCHING LOWER"));
         assertTrue(summary.contains("MA200"));
     }
 }

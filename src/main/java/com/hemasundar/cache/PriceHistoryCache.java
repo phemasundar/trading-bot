@@ -44,10 +44,9 @@ public class PriceHistoryCache extends AbstractApiCache<PriceHistoryCache.Histor
     }
 
     /**
-     * Gets the HistoricalData for a symbol. If not cached, fetches 1-year daily history
-     * and calculates historical volatility.
+     * Gets the HistoricalData for a symbol. If not cached, fetches 1-year daily history.
      */
-    public HistoricalData getHistoricalData(String symbol, ThinkOrSwinAPIs schwabApi, VolatilityCalculator volatilityCalculator) {
+    public HistoricalData getHistoricalData(String symbol, ThinkOrSwinAPIs schwabApi) {
         HistoricalData data = get(symbol);
         if (data != null) {
             return data;
@@ -57,12 +56,7 @@ public class PriceHistoryCache extends AbstractApiCache<PriceHistoryCache.Histor
         log.debug("[PriceHistoryCache] Fetching price history for {}", symbol);
         PriceHistoryResponse priceHistory = schwabApi.getYearlyPriceHistory(symbol, 1);
         
-        Double historicalVolatility = null;
-        if (volatilityCalculator != null && priceHistory != null) {
-            historicalVolatility = volatilityCalculator.calculateAnnualizedVolatility(priceHistory);
-        }
-
-        data = new HistoricalData(priceHistory, historicalVolatility);
+        data = new HistoricalData(priceHistory);
         put(symbol, data);
         return data;
     }
@@ -78,26 +72,18 @@ public class PriceHistoryCache extends AbstractApiCache<PriceHistoryCache.Histor
         log.debug("[PriceHistoryCache] Cached data for {}", symbol);
     }
 
-
-
     /**
      * POJO containing price history and calculated volatility.
      */
     public static class HistoricalData {
         private final PriceHistoryResponse priceHistory;
-        private final Double annualizedHistoricalVolatility;
 
-        public HistoricalData(PriceHistoryResponse priceHistory, Double annualizedHistoricalVolatility) {
+        public HistoricalData(PriceHistoryResponse priceHistory) {
             this.priceHistory = priceHistory;
-            this.annualizedHistoricalVolatility = annualizedHistoricalVolatility;
         }
 
         public PriceHistoryResponse getPriceHistory() {
             return priceHistory;
-        }
-
-        public Double getAnnualizedHistoricalVolatility() {
-            return annualizedHistoricalVolatility;
         }
     }
 }

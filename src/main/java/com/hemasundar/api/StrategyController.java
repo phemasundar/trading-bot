@@ -497,22 +497,30 @@ public class StrategyController {
         }
         if (request.getMinVolume() != null)
             condBuilder.minVolume(request.getMinVolume());
-        if (request.getPriceConditions() != null) {
-            condBuilder.priceConditions(request.getPriceConditions());
+        
+        com.hemasundar.technical.TechnicalIndicators.TechnicalIndicatorsBuilder indicatorsBuilder = com.hemasundar.technical.TechnicalIndicators.createDefaults().toBuilder();
+        
+        if (request.getMovingAverageRules() != null && !request.getMovingAverageRules().isEmpty()) {
+            strategiesConfigLoader.applyMovingAverageFilters(request.getMovingAverageRules(), indicatorsBuilder, condBuilder);
         }
-        if (request.getSmaConditions() != null) {
-            condBuilder.smaConditions(request.getSmaConditions());
-        }
+
         if (request.getMinDropPercent() != null)
             condBuilder.minDropPercent(request.getMinDropPercent());
         if (request.getLookbackDays() != null)
             condBuilder.lookbackDays(request.getLookbackDays());
+        
+        if (request.getHvPeriod() != null)
+            condBuilder.hvPeriod(request.getHvPeriod());
+        if (request.getMinHvRank() != null)
+            condBuilder.minHvRank(request.getMinHvRank());
+        if (request.getMaxHvRank() != null)
+            condBuilder.maxHvRank(request.getMaxHvRank());
 
         com.hemasundar.technical.ScreenerConfig screenerConfig = com.hemasundar.technical.ScreenerConfig.builder()
                 .screenerType(screenerType)
                 .alias(request.getAlias() != null ? request.getAlias() : screenerType.getDisplayName())
                 .securities(new ArrayList<>(symbolSet))
-                .filterChain(com.hemasundar.technical.TechnicalFilterChain.of(com.hemasundar.technical.TechnicalIndicators.createDefaults(), condBuilder.build()))
+                .filterChain(com.hemasundar.technical.TechnicalFilterChain.of(indicatorsBuilder.build(), condBuilder.build()))
                 .build();
 
         log.info("REST: Custom screener {} on {} securities", screenerType.getDisplayName(), symbolSet.size());
@@ -533,14 +541,18 @@ public class StrategyController {
             requestParams.put("bollingerCondition", request.getBollingerCondition());
         if (request.getMinVolume() != null)
             requestParams.put("minVolume", request.getMinVolume());
-        if (request.getPriceConditions() != null)
-            requestParams.put("priceConditions", request.getPriceConditions());
-        if (request.getSmaConditions() != null)
-            requestParams.put("smaConditions", request.getSmaConditions());
+        if (request.getMovingAverageRules() != null)
+            requestParams.put("movingAverageRules", request.getMovingAverageRules());
         if (request.getMinDropPercent() != null)
             requestParams.put("minDropPercent", request.getMinDropPercent());
         if (request.getLookbackDays() != null)
             requestParams.put("lookbackDays", request.getLookbackDays());
+        if (request.getHvPeriod() != null)
+            requestParams.put("hvPeriod", request.getHvPeriod());
+        if (request.getMinHvRank() != null)
+            requestParams.put("minHvRank", request.getMinHvRank());
+        if (request.getMaxHvRank() != null)
+            requestParams.put("maxHvRank", request.getMaxHvRank());
 
         CompletableFuture.runAsync(() -> {
             executionService.startGlobalExecution("Custom Screener: " + screenerConfig.getName());
