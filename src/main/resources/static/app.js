@@ -2331,8 +2331,14 @@ function fillTechFiltersForm(techFilters) {
                         if (el) el.value = fieldVal;
                     } else if (typeof fieldVal === 'object') {
                         for (const [condKey, condVal] of Object.entries(fieldVal)) {
-                            const el = document.querySelector(`[data-tech-filter="${filterKey}"][data-tech-field="${condKey}"]`);
-                            if (el) el.value = condVal;
+                            const mappedKey = condKey === 'type' ? 'condition' : condKey;
+                            const el = document.querySelector(`[data-tech-filter="${filterKey}"][data-tech-field="${mappedKey}"]`);
+                            if (el) {
+                                el.value = condVal;
+                                if (mappedKey === 'condition' && typeof el.onchange === 'function') {
+                                    el.onchange();
+                                }
+                            }
                         }
                     }
                 } else if (fieldKey === 'config') {
@@ -2443,7 +2449,11 @@ async function executeCustom() {
             // MOVING_AVERAGE is a plain array of rule strings
             technicalFilters[filterKey] = rawVal.split(',').map(s => s.trim()).filter(Boolean);
         } else if (fieldKey === 'condition') {
-            technicalFilters[filterKey].condition = rawVal;
+            if (typeof technicalFilters[filterKey].condition === 'object') {
+                technicalFilters[filterKey].condition.type = rawVal;
+            } else {
+                technicalFilters[filterKey].condition = rawVal;
+            }
         } else if (fieldKey === 'period') {
             const num = parseInt(rawVal);
             if (!isNaN(num)) {
@@ -2453,7 +2463,11 @@ async function executeCustom() {
         } else if (['min', 'max', 'minDropPercent', 'minRank', 'maxRank'].includes(fieldKey)) {
             const num = parseFloat(rawVal);
             if (!isNaN(num)) {
-                if (!technicalFilters[filterKey].condition) technicalFilters[filterKey].condition = {};
+                if (!technicalFilters[filterKey].condition || typeof technicalFilters[filterKey].condition === 'string') {
+                    const existingType = typeof technicalFilters[filterKey].condition === 'string' ? technicalFilters[filterKey].condition : null;
+                    technicalFilters[filterKey].condition = {};
+                    if (existingType) technicalFilters[filterKey].condition.type = existingType;
+                }
                 technicalFilters[filterKey].condition[fieldKey] = num;
             }
         }
@@ -2468,6 +2482,13 @@ async function executeCustom() {
         filter,
         technicalFilters: Object.keys(technicalFilters).length > 0 ? technicalFilters : undefined
     };
+
+    if (body.technicalFilters && body.technicalFilters.RSI && body.technicalFilters.RSI.condition && body.technicalFilters.RSI.condition.type === 'CUSTOM_RANGE') {
+        if (body.technicalFilters.RSI.condition.min === undefined || body.technicalFilters.RSI.condition.max === undefined) {
+            showToast('Min RSI and Max RSI are mandatory for Custom Range condition.', 'error');
+            return;
+        }
+    }
 
     try {
         const progress = document.getElementById('custom-progress');
@@ -3259,6 +3280,13 @@ function loadScreenerFiltersFromResult(paramsJson, event) {
             if (el) el.value = (val !== undefined && val !== null) ? val : '';
         };
         setVal('sc-rsiCondition',       params.rsiCondition);
+        const rsiEl = document.getElementById('sc-rsiCondition');
+        if (rsiEl && typeof rsiEl.onchange === 'function') {
+            rsiEl.onchange();
+        }
+        
+        setVal('sc-minRsi',             params.minRsi);
+        setVal('sc-maxRsi',             params.maxRsi);
         setVal('sc-bollingerCondition', params.bollingerCondition);
         setVal('sc-minVolume',          params.minVolume);
         setVal('sc-minDropPercent',     params.minDropPercent);
@@ -3294,6 +3322,16 @@ async function executeCustomScreener() {
     }
 
     const rsiCondition      = document.getElementById('sc-rsiCondition').value || null;
+    const minRsiRaw         = document.getElementById('sc-minRsi') ? document.getElementById('sc-minRsi').value : '';
+    const minRsi            = minRsiRaw ? parseFloat(minRsiRaw) : null;
+    const maxRsiRaw         = document.getElementById('sc-maxRsi') ? document.getElementById('sc-maxRsi').value : '';
+    const maxRsi            = maxRsiRaw ? parseFloat(maxRsiRaw) : null;
+
+    if (rsiCondition === 'CUSTOM_RANGE' && (minRsi === null || maxRsi === null)) {
+        showToast('Min RSI and Max RSI are mandatory for Custom Range condition.', 'error');
+        return;
+    }
+
     const bollingerCondition = document.getElementById('sc-bollingerCondition').value || null;
     const minVolumeRaw      = document.getElementById('sc-minVolume').value;
     const minVolume         = minVolumeRaw ? parseInt(minVolumeRaw) : null;
@@ -3318,6 +3356,8 @@ async function executeCustomScreener() {
         securitiesFile,
         securities,
         rsiCondition,
+        minRsi,
+        maxRsi,
         bollingerCondition,
         minVolume,
         movingAverageRules,

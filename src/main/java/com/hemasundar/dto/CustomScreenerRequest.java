@@ -30,8 +30,14 @@ public class CustomScreenerRequest {
 
     // ── TechFilterConditions fields ──────────────────────────────────────────
 
-    /** RSI condition: OVERSOLD | OVERBOUGHT | BULLISH_CROSSOVER | BEARISH_CROSSOVER */
+    /** RSI condition: OVERSOLD | OVERBOUGHT | BULLISH_CROSSOVER | BEARISH_CROSSOVER | CUSTOM_RANGE */
     String rsiCondition;
+
+    /** Minimum RSI value for CUSTOM_RANGE condition */
+    Double minRsi;
+
+    /** Maximum RSI value for CUSTOM_RANGE condition */
+    Double maxRsi;
 
     /** Bollinger condition: LOWER_BAND | UPPER_BAND */
     String bollingerCondition;

@@ -49,6 +49,18 @@ public enum RSICondition {
         public boolean evaluate(RSIFilter filter, BarSeries series) {
             return filter.isBearishCrossover(series);
         }
+    },
+
+    /**
+     * Custom Range: RSI is between a specified min and max.
+     * Note: the min and max thresholds are stored in TechFilterConditions, not RSIFilter.
+     * The evaluation logic for this is handled in TechnicalScreener.java.
+     */
+    CUSTOM_RANGE {
+        @Override
+        public boolean evaluate(RSIFilter filter, BarSeries series) {
+            return true; // Stub: Handled externally in TechnicalScreener
+        }
     };
 
     /**

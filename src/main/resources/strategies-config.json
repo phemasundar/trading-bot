@@ -389,6 +389,14 @@
                 }
             },
             "technicalFilters": {
+                "RSI": {
+                    "config": "default",
+                    "condition": {
+                        "type": "CUSTOM_RANGE",
+                        "min": 45,
+                        "max": 65
+                    }
+                },
                 "MOVING_AVERAGE": [
                     "PRICE_ABOVE_SMA50",
                     "SMA50_ABOVE_SMA200"

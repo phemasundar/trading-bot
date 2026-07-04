@@ -194,7 +194,19 @@ public class StrategiesConfig {
          * or an inline {@code RSIConfigParams} object.
          */
         private Object config;
-        private RSICondition condition;
+        private Object condition;
+    }
+
+    /**
+     * POJO for an RSI condition with custom range parameters.
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class RSIFilterConditionParams {
+        private RSICondition type;
+        private Double min;
+        private Double max;
     }
 
     /**

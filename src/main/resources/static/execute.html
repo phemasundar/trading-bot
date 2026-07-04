@@ -366,13 +366,24 @@
                     <div class="form-grid">
                         <div class="form-group">
                             <label class="form-label">RSI Condition</label>
-                            <select class="form-select" data-tech-filter="RSI" data-tech-field="condition">
+                            <select id="execute-rsiCondition" class="form-select" data-tech-filter="RSI" data-tech-field="condition" onchange="document.getElementById('rsi-custom-range-inputs').style.display = this.value === 'CUSTOM_RANGE' ? 'flex' : 'none'">
                                 <option value="">— None —</option>
                                 <option value="OVERSOLD">Oversold (&lt;30)</option>
                                 <option value="BULLISH_CROSSOVER">Bullish Crossover (RSI crossed ↑30)</option>
                                 <option value="OVERBOUGHT">Overbought (&gt;70)</option>
                                 <option value="BEARISH_CROSSOVER">Bearish Crossover (RSI crossed ↓70)</option>
+                                <option value="CUSTOM_RANGE">Custom Range</option>
                             </select>
+                        </div>
+                        <div id="rsi-custom-range-inputs" style="display:none; gap: 1rem; grid-column: span 1;">
+                            <div style="flex: 1;">
+                                <label class="form-label">Min RSI</label>
+                                <input type="number" id="execute-minRsi" class="form-input" data-tech-filter="RSI" data-tech-field="min" placeholder="e.g. 40" step="0.1">
+                            </div>
+                            <div style="flex: 1;">
+                                <label class="form-label">Max RSI</label>
+                                <input type="number" id="execute-maxRsi" class="form-input" data-tech-filter="RSI" data-tech-field="max" placeholder="e.g. 60" step="0.1">
+                            </div>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Bollinger Band Condition</label>

@@ -488,6 +488,10 @@ public class StrategyController {
             } catch (Exception ignored) {
             }
         }
+        if (request.getMinRsi() != null)
+            condBuilder.minRsi(request.getMinRsi());
+        if (request.getMaxRsi() != null)
+            condBuilder.maxRsi(request.getMaxRsi());
         if (request.getBollingerCondition() != null && !request.getBollingerCondition().isBlank()) {
             try {
                 condBuilder.bollingerCondition(
@@ -537,6 +541,10 @@ public class StrategyController {
             requestParams.put("securities", request.getSecurities());
         if (request.getRsiCondition() != null)
             requestParams.put("rsiCondition", request.getRsiCondition());
+        if (request.getMinRsi() != null)
+            requestParams.put("minRsi", request.getMinRsi());
+        if (request.getMaxRsi() != null)
+            requestParams.put("maxRsi", request.getMaxRsi());
         if (request.getBollingerCondition() != null)
             requestParams.put("bollingerCondition", request.getBollingerCondition());
         if (request.getMinVolume() != null)
