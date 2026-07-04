@@ -18,7 +18,6 @@ import java.util.List;
 import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.services.SupabaseService;
-import com.hemasundar.utils.VolatilityCalculator;
 
 public class IronCondorStrategy extends AbstractTradingStrategy {
     private final PutCreditSpreadStrategy putStrategy;
@@ -27,11 +26,10 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
     public IronCondorStrategy(StrategyType strategyType,
                              FinnHubAPIs finnHubAPIs,
                              ThinkOrSwinAPIs thinkOrSwinAPIs,
-                             VolatilityCalculator volatilityCalculator,
                              java.util.Optional<SupabaseService> supabaseService,
                              PutCreditSpreadStrategy putStrategy,
                              CallCreditSpreadStrategy callStrategy) {
-        super(strategyType, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator, supabaseService);
+        super(strategyType, finnHubAPIs, thinkOrSwinAPIs, supabaseService);
         this.putStrategy = putStrategy;
         this.callStrategy = callStrategy;
     }

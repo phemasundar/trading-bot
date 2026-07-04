@@ -16,7 +16,6 @@ import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.services.FilterLogStore;
 import com.hemasundar.services.SupabaseService;
-import com.hemasundar.utils.VolatilityCalculator;
 
 /**
  * Unified Long Call LEAP strategy.
@@ -29,9 +28,8 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
     public LongCallLeapStrategy(StrategyType strategyType,
                                FinnHubAPIs finnHubAPIs,
                                ThinkOrSwinAPIs thinkOrSwinAPIs,
-                               VolatilityCalculator volatilityCalculator,
                                java.util.Optional<SupabaseService> supabaseService) {
-        super(strategyType, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator, supabaseService);
+        super(strategyType, finnHubAPIs, thinkOrSwinAPIs, supabaseService);
     }
 
     @Override
@@ -254,7 +252,6 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                 .ignoreEarnings(filter.isIgnoreEarnings())
                 .marginInterestRate(filter.getMarginInterestRate())
                 .savingsInterestRate(filter.getSavingsInterestRate())
-                .minHistoricalVolatility(filter.getMinHistoricalVolatility())
                 .maxLossLimit(filter.getMaxLossLimit())
                 .maxCAGRForBreakEven(relaxCAGR ? null : originalFilter.getMaxCAGRForBreakEven())
                 .maxOptionPricePercent(relaxOptionPrice ? null : originalFilter.getMaxOptionPricePercent())

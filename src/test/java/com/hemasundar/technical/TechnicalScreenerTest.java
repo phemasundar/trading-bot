@@ -38,7 +38,7 @@ public class TechnicalScreenerTest {
             }
             return res;
         });
-        technicalScreener = new TechnicalScreener(thinkOrSwinAPIs, schwabApiExecutor);
+        technicalScreener = new TechnicalScreener(thinkOrSwinAPIs, schwabApiExecutor, new com.hemasundar.utils.VolatilityCalculator());
         PriceHistoryCache.getInstance().clear();
     }
 

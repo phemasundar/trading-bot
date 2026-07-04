@@ -32,10 +32,10 @@ public class IronCondorStrategyTest {
     public void setUp() {
         MockitoAnnotations.openMocks(this);
         // Initialize real sub-strategies with mocks
-        PutCreditSpreadStrategy putStrategy = new PutCreditSpreadStrategy(StrategyType.PUT_CREDIT_SPREAD, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator, java.util.Optional.empty());
-        CallCreditSpreadStrategy callStrategy = new CallCreditSpreadStrategy(StrategyType.CALL_CREDIT_SPREAD, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator, java.util.Optional.empty());
+        PutCreditSpreadStrategy putStrategy = new PutCreditSpreadStrategy(StrategyType.PUT_CREDIT_SPREAD, finnHubAPIs, thinkOrSwinAPIs, java.util.Optional.empty());
+        CallCreditSpreadStrategy callStrategy = new CallCreditSpreadStrategy(StrategyType.CALL_CREDIT_SPREAD, finnHubAPIs, thinkOrSwinAPIs, java.util.Optional.empty());
         
-        strategy = new TestableIronCondorStrategy(finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator, java.util.Optional.empty(), putStrategy, callStrategy);
+        strategy = new TestableIronCondorStrategy(finnHubAPIs, thinkOrSwinAPIs, java.util.Optional.empty(), putStrategy, callStrategy);
     }
 
     @Test
@@ -191,11 +191,10 @@ public class IronCondorStrategyTest {
     private static class TestableIronCondorStrategy extends IronCondorStrategy {
         public TestableIronCondorStrategy(com.hemasundar.apis.FinnHubAPIs finnHubAPIs,
                                          com.hemasundar.apis.ThinkOrSwinAPIs thinkOrSwinAPIs,
-                                         com.hemasundar.utils.VolatilityCalculator volatilityCalculator,
                                          java.util.Optional<com.hemasundar.services.SupabaseService> supabaseService,
                                          PutCreditSpreadStrategy putCreditSpreadStrategy, 
                                          CallCreditSpreadStrategy callCreditSpreadStrategy) {
-            super(StrategyType.IRON_CONDOR, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator, supabaseService, putCreditSpreadStrategy, callCreditSpreadStrategy);
+            super(StrategyType.IRON_CONDOR, finnHubAPIs, thinkOrSwinAPIs, supabaseService, putCreditSpreadStrategy, callCreditSpreadStrategy);
         }
 
         @Override

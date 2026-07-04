@@ -83,13 +83,7 @@ public class OptionsStrategyFilter {
     private Double maxOptionPricePercent; // No default - must be explicitly set or left null
 
     // Volatility filters
-    /**
-     * Minimum historical volatility (annualized percentage).
-     * Symbol is skipped if its historical volatility is below this threshold.
-     * Example: 25.0 means only trade symbols with at least 25% annualized
-     * volatility.
-     */
-    private Double minHistoricalVolatility;
+
 
     /**
      * Minimum IV Rank threshold (0–100) for the symbol.
@@ -107,6 +101,22 @@ public class OptionsStrategyFilter {
      * If null, no upper bound is enforced.
      */
     private Double maxIVRank;
+
+    /**
+     * Human-readable summary of the technical filter conditions applied during execution.
+     * Serialized into the filterConfig JSON blob so the UI can display it in Filter Details.
+     * Populated by StrategyExecutionService when a TechnicalFilterChain is active.
+     * Example: "RSI: BULLISH_CROSSOVER | BB: LOWER_BAND | Volume >= 1,000,000"
+     */
+    private String technicalFilterSummary;
+
+    /**
+     * Structured technical filter configuration used during execution.
+     * Serialized into the filterConfig JSON blob so the UI can restore
+     * technical filter form fields when "Load Filters" is clicked.
+     * Keys: "RSI", "BOLLINGER_BAND", "VOLUME", "HISTORICAL_VOLATILITY", "PRICE_DROP", "MOVING_AVERAGE".
+     */
+    private java.util.Map<String, Object> technicalFilters;
 
     // ========== VALIDATION METHODS ==========
 

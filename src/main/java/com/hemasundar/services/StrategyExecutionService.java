@@ -391,6 +391,15 @@ public class StrategyExecutionService {
 
         // Build StrategyResult from trades map (uses shared Trade.fromTradeSetup)
         long executionTime = System.currentTimeMillis() - strategyStartTime;
+
+        // Enrich the filter with technical filter summary so it gets persisted in filterConfig JSON
+        if (config.hasTechnicalFilter() && config.getFilter() != null) {
+            config.getFilter().setTechnicalFilterSummary(
+                    config.getTechnicalFilterChain().getConditions() != null
+                            ? config.getTechnicalFilterChain().getConditions().getSummary()
+                            : null);
+        }
+
         StrategyResult result = StrategyResult.fromTrades(config.getName(), allTrades, executionTime,
                 config.getFilter(), config.getDescriptionFile());
 

@@ -1,5 +1,36 @@
 # Project Updates
 
+## Feature: Technical Filters in Execute Strategy UI + Filter Details on Dashboard (2026-07-04)
+
+Added full visibility of applied Technical Filters in both the Execute Strategy page and the Options Dashboard Filter Details panel.
+
+### Issue 1 Fixed: Technical Filters Missing on Execute Strategy Page
+Added a dedicated **"Technical Filters"** collapsible card section in `execute.html` with inputs for:
+- **RSI Condition** (dropdown: OVERSOLD, BULLISH_CROSSOVER, OVERBOUGHT, BEARISH_CROSSOVER)
+- **Bollinger Band Condition** (dropdown: LOWER_BAND, UPPER_BAND)
+- **Min Volume** (number)
+- **HV Min/Max %** (Historical Volatility bounds)
+- **Price Drop Min %**
+- **Moving Average Rules** (free-text: `PRICE_ABOVE_SMA50, SMA50_ABOVE_SMA200`)
+
+The `executeCustom()` function in `app.js` now collects these via `data-tech-filter` / `data-tech-field` attributes and packages them into a `technicalFilters` map in the POST body, sent to `/api/execute/custom`. The backend `StrategyController` already parses this into a `TechnicalFilterChain`.
+
+### Issue 2 Fixed: Tech Filters Missing from Filter Details
+Added `technicalFilterSummary` as a serialized field in `OptionsStrategyFilter`. `StrategyExecutionService.executeStrategy()` now populates this field (via `TechFilterConditions.getSummary()`) before building the `StrategyResult`, so the summary is persisted in the Supabase `filter_config` JSON blob and shown in the **"Filter Details"** section of each strategy card on the Options Dashboard.
+
+### Config Page + Template Cards
+The Config Viewer (`config.html`) and Execute Strategy template cards now also call `renderTechFiltersGrid()` to display the `technicalFilters` block from `strategies-config.json`.
+
+### Architecture
+| File | Change |
+|---|---|
+| **`execute.html`** | Added "Technical Filters" collapsible card with RSI, BB, Volume, HV, Price Drop, MA rule inputs |
+| **`app.js`** | Added `renderTechFiltersGrid()` helper; updated `executeCustom()` to collect `[data-tech-filter]` inputs; updated `renderFilterGrid()` to render `technicalFilterSummary` prominently; updated `renderConfig()` and `renderStrategyTemplates()` to show `technicalFilters` |
+| **`OptionsStrategyFilter.java`** | Added `technicalFilterSummary` field (serialized into `filterConfig` JSON blob) |
+| **`StrategyExecutionService.java`** | Populates `filter.technicalFilterSummary` from `TechFilterConditions.getSummary()` before building `StrategyResult` |
+
+---
+
 ## Refactor: Simplify Moving Average Configuration to Shorthand Strings (2026-07-03)
 
 Redesigned the `MOVING_AVERAGE` JSON schema in `strategies-config.json` to replace the verbose nested object format with a clean, easy-to-read array of shorthand string expressions.

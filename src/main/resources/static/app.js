@@ -1192,11 +1192,17 @@ function renderFilterGrid(cfg) {
 
     let html = '<div class="config-grid">';
     const nested = [];
+    const SKIP_KEYS = new Set(['greeks', 'strategyType', 'securitiesFile', 'securities']);
 
     for (const [key, val] of entries) {
+        if (SKIP_KEYS.has(key)) continue;
         if (key === 'maxDTE' && val === 2147483647) continue;
         if ((key === 'targetDTE' || key === 'minDTE' || key === 'minReturnOnRisk' || key === 'minReturnOnRiskCAGR') && val === 0) continue;
-        
+        // technicalFilterSummary: render as a highlighted full-width item
+        if (key === 'technicalFilterSummary' && val) {
+            html += `<div class="config-item" style="grid-column: 1 / -1"><span class="config-item-label" style="color:var(--accent)">🔬 Tech Filters</span><span class="config-item-value">${formatValue(val)}</span></div>`;
+            continue;
+        }
         if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
             nested.push([key, val]);
         } else {
@@ -1217,6 +1223,32 @@ function renderFilterGrid(cfg) {
     }
 
     return html;
+}
+
+/**
+ * Renders a technicalFilters map (from strategies-config.json) as a readable subsection.
+ * technicalFilters can be a string (preset name), an array (MOVING_AVERAGE rules), or a map of filter configs.
+ */
+function renderTechFiltersGrid(technicalFilters) {
+    if (!technicalFilters) return '';
+    if (typeof technicalFilters === 'string') {
+        return `<div class="nested-section"><div class="nested-heading">🔬 Technical Filters (Preset)</div><div class="config-grid"><div class="config-item"><span class="config-item-label">Preset</span><span class="config-item-value">${technicalFilters}</span></div></div></div>`;
+    }
+    if (typeof technicalFilters !== 'object') return '';
+
+    const parts = [];
+    for (const [key, val] of Object.entries(technicalFilters)) {
+        if (Array.isArray(val)) {
+            parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${val.join(', ')}</span></div>`);
+        } else if (val && typeof val === 'object') {
+            const condStr = val.condition ? (typeof val.condition === 'object' ? JSON.stringify(val.condition) : val.condition) : '';
+            parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${condStr || '—'}</span></div>`);
+        } else {
+            parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${val || '—'}</span></div>`);
+        }
+    }
+    if (parts.length === 0) return '';
+    return `<div class="nested-section"><div class="nested-heading">🔬 Technical Filters</div><div class="config-grid">${parts.join('')}</div></div>`;
 }
 
 function formatFilterParams(filterConfigJson) {
@@ -2084,6 +2116,7 @@ async function renderStrategyTemplates(strategyType) {
             </div>
             <div class="config-card-body">
                 ${renderFilterGrid(strategy.filter || {})}
+                ${renderTechFiltersGrid(strategy.technicalFilters)}
                 ${strategy.securities ? `<div class="mt-sm"><span class="config-item-label">Securities (Inline)</span> <span class="config-item-value">${strategy.securities}</span></div>` : ''}
             </div>`;
 
@@ -2156,6 +2189,9 @@ function loadTemplateParams(strategyJson) {
                 }
             }
         }
+
+        // 4. Fill Technical Filters
+        fillTechFiltersForm(strategy.technicalFilters);
 
         showToast('Template load complete. Verify inputs before execution.');
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2257,11 +2293,51 @@ function loadFiltersFromResult(btn) {
             }
         }
 
+        // 7. Fill Technical Filters
+        fillTechFiltersForm(filterConfig.technicalFilters);
+
         showToast('Filters loaded from previous execution. Verify inputs before running.');
         window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e) {
         console.error('Error loading filters from result:', e);
         showToast('Failed to load filters', 'error');
+    }
+}
+
+/**
+ * Fills the Technical Filters form inputs from a structured map.
+ */
+function fillTechFiltersForm(techFilters) {
+    // Clear existing
+    document.querySelectorAll('[data-tech-filter]').forEach(inp => {
+        inp.value = '';
+    });
+
+    if (!techFilters || typeof techFilters !== 'object') return;
+
+    for (const [filterKey, val] of Object.entries(techFilters)) {
+        if (filterKey === 'MOVING_AVERAGE') {
+            const rules = Array.isArray(val) ? val.join(', ') : val;
+            const el = document.querySelector(`[data-tech-filter="${filterKey}"][data-tech-field="rules"]`);
+            if (el) el.value = rules;
+            continue;
+        }
+
+        if (val && typeof val === 'object') {
+            for (const [fieldKey, fieldVal] of Object.entries(val)) {
+                if (fieldKey === 'condition') {
+                    if (typeof fieldVal === 'string') {
+                        const el = document.querySelector(`[data-tech-filter="${filterKey}"][data-tech-field="condition"]`);
+                        if (el) el.value = fieldVal;
+                    } else if (typeof fieldVal === 'object') {
+                        for (const [condKey, condVal] of Object.entries(fieldVal)) {
+                            const el = document.querySelector(`[data-tech-filter="${filterKey}"][data-tech-field="${condKey}"]`);
+                            if (el) el.value = condVal;
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -2346,13 +2422,39 @@ async function executeCustom() {
         }
     });
 
+    // Collect technical filter inputs (data-tech-filter attributes)
+    const technicalFilters = {};
+    document.querySelectorAll('[data-tech-filter]').forEach(input => {
+        const filterKey = input.dataset.techFilter;  // e.g. "RSI", "HISTORICAL_VOLATILITY"
+        const fieldKey = input.dataset.techField;    // e.g. "condition", "min", "max"
+        const rawVal = (input.tagName === 'SELECT' ? input.value : input.value.trim());
+        if (!rawVal) return;
+
+        if (!technicalFilters[filterKey]) technicalFilters[filterKey] = {};
+
+        if (filterKey === 'MOVING_AVERAGE' && fieldKey === 'rules') {
+            // MOVING_AVERAGE is a plain array of rule strings
+            technicalFilters[filterKey] = rawVal.split(',').map(s => s.trim()).filter(Boolean);
+        } else if (fieldKey === 'condition') {
+            technicalFilters[filterKey].condition = rawVal;
+        } else if (fieldKey === 'min' || fieldKey === 'max' || fieldKey === 'minDropPercent') {
+            const num = parseFloat(rawVal);
+            if (!isNaN(num)) {
+                if (!technicalFilters[filterKey].condition) technicalFilters[filterKey].condition = {};
+                technicalFilters[filterKey].condition[fieldKey === 'min' ? 'min' :
+                    fieldKey === 'max' ? 'max' : 'minDropPercent'] = num;
+            }
+        }
+    });
+
     const body = {
         strategyType: typeEl.value,
         securitiesFile: securitiesFileEl ? securitiesFileEl.value.trim() : '',
         securities: securitiesEl ? securitiesEl.value.trim() : '',
         alias: aliasEl ? aliasEl.value : '',
         maxTradesToSend: 30,
-        filter
+        filter,
+        technicalFilters: Object.keys(technicalFilters).length > 0 ? technicalFilters : undefined
     };
 
     try {
@@ -2453,6 +2555,7 @@ function renderConfig(config, container, securitiesMaps = {}) {
                 </div>
                 <div class="config-card-body">
                     ${renderFilterGrid(strategy.filter || {})}
+                    ${renderTechFiltersGrid(strategy.technicalFilters)}
                     ${strategy.securitiesFile ? `<div class="mt-sm"><span class="config-item-label">Securities File <button type="button" class="info-btn" style="font-size: 0.8rem; padding: 0" onclick="showFilterHelp(event, 'securitiesFile', 'Securities File')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></span> <span class="config-item-value">${strategy.securitiesFile}</span></div>` : ''}
                     ${strategy.securities ? `<div class="mt-sm"><span class="config-item-label">Securities <button type="button" class="info-btn" style="font-size: 0.8rem; padding: 0" onclick="showFilterHelp(event, 'securities', 'Securities')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></span> <span class="config-item-value">${strategy.securities}</span></div>` : ''}
                 </div>`;

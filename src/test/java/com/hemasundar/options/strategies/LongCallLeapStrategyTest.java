@@ -32,7 +32,7 @@ public class LongCallLeapStrategyTest {
     @BeforeMethod
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        strategy = new LongCallLeapStrategy(StrategyType.LONG_CALL_LEAP, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator, java.util.Optional.empty());
+        strategy = new LongCallLeapStrategy(StrategyType.LONG_CALL_LEAP, finnHubAPIs, thinkOrSwinAPIs, java.util.Optional.empty());
         mockChain = StrategyTestUtils.createMockChain("AAPL", 150.0);
 
         // ITM Call: 140 Strike, Ask 20.00

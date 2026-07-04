@@ -3,6 +3,7 @@ package com.hemasundar.technical;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.utils.SchwabApiExecutor;
+import com.hemasundar.utils.VolatilityCalculator;
 import com.hemasundar.cache.PriceHistoryCache;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -36,6 +37,7 @@ public class TechnicalScreener {
 
     private final ThinkOrSwinAPIs thinkOrSwinAPIs;
     private final SchwabApiExecutor schwabApiExecutor;
+    private final VolatilityCalculator volatilityCalculator;
 
     /**
      * Result object containing stock symbol and all technical values.
@@ -62,6 +64,7 @@ public class TechnicalScreener {
         private boolean rsiOverbought;
         private boolean rsiBullishCrossover;
         private boolean rsiBearishCrossover;
+        private Double historicalVolatility;
 
         // Price drop screener fields
         private double dropPercent;
@@ -126,6 +129,12 @@ public class TechnicalScreener {
                 sb.append("None");
             }
             sb.append("\n");
+
+            // Historical Volatility
+            if (historicalVolatility != null) {
+                sb.append("  📈 HV: ").append(String.format("%.2f%%", historicalVolatility)).append("\n");
+            }
+
             return sb.toString();
         }
 
@@ -168,6 +177,8 @@ public class TechnicalScreener {
                             "║   Lower:              $%-33.2f ║\n" +
                             "║   Price @ Lower:      %-35s ║\n" +
                             "╠══════════════════════════════════════════════════════════╣\n" +
+                            "║ Historical Volatility: %-33s ║\n" +
+                            "╠══════════════════════════════════════════════════════════╣\n" +
                             "║ Moving Averages:                                         ║\n" +
                             "%s" +
                             "╚══════════════════════════════════════════════════════════╝",
@@ -179,6 +190,7 @@ public class TechnicalScreener {
                     bollingerMiddle,
                     bollingerLower,
                     priceTouchingLowerBand ? "YES ✓" : "NO",
+                    historicalVolatility != null ? String.format("%.2f%%", historicalVolatility) : "N/A",
                     maOutput.toString().endsWith("\n") ? maOutput.substring(0, maOutput.length() - 1) : maOutput.toString());
         }
     }
@@ -221,7 +233,7 @@ public class TechnicalScreener {
      * Analyzes a single stock and calculates all technical values.
      */
     public ScreeningResult analyzeStock(String symbol, TechnicalIndicators indicators) {
-        PriceHistoryCache.HistoricalData cachedData = PriceHistoryCache.getInstance().getHistoricalData(symbol, thinkOrSwinAPIs, null);
+        PriceHistoryCache.HistoricalData cachedData = PriceHistoryCache.getInstance().getHistoricalData(symbol, thinkOrSwinAPIs, volatilityCalculator);
         PriceHistoryResponse priceHistory = cachedData != null ? cachedData.getPriceHistory() : null;
         
         if (priceHistory == null) {
@@ -238,7 +250,8 @@ public class TechnicalScreener {
 
         ScreeningResult.ScreeningResultBuilder builder = ScreeningResult.builder()
                 .symbol(symbol)
-                .currentPrice(currentPrice);
+                .currentPrice(currentPrice)
+                .historicalVolatility(cachedData != null ? cachedData.getAnnualizedHistoricalVolatility() : null);
 
         // RSI
         if (indicators.getRsiFilter() != null) {
@@ -339,6 +352,19 @@ public class TechnicalScreener {
         // Volume condition
         if (conditions.getMinVolume() != null && conditions.getMinVolume() > 0) {
             if (result.getVolume() < conditions.getMinVolume()) {
+                return false;
+            }
+        }
+
+        // Historical Volatility condition (fail-open)
+        if (conditions.getMinHistoricalVolatility() != null) {
+            if (result.getHistoricalVolatility() != null && result.getHistoricalVolatility() < conditions.getMinHistoricalVolatility()) {
+                return false;
+            }
+        }
+        
+        if (conditions.getMaxHistoricalVolatility() != null) {
+            if (result.getHistoricalVolatility() != null && result.getHistoricalVolatility() > conditions.getMaxHistoricalVolatility()) {
                 return false;
             }
         }

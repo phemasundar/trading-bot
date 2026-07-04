@@ -15,4 +15,5 @@ public class CustomExecuteRequest {
     private String alias;
     private Integer maxTradesToSend;
     private Map<String, Object> filter;
+    private Map<String, Object> technicalFilters;
 }

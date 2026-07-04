@@ -53,7 +53,6 @@ public class FilterParser {
         applyIfPresent(filterMap, "maxLossLimit", v -> filter.setMaxLossLimit(toDouble(v)));
         applyIfPresent(filterMap, "minReturnOnRisk", v -> filter.setMinReturnOnRisk(toInt(v)));
         applyIfPresent(filterMap, "minReturnOnRiskCAGR", v -> filter.setMinReturnOnRiskCAGR(toInt(v)));
-        applyIfPresent(filterMap, "minHistoricalVolatility", v -> filter.setMinHistoricalVolatility(toDouble(v)));
         applyIfPresent(filterMap, "maxBreakEvenPercentage", v -> filter.setMaxBreakEvenPercentage(toDouble(v)));
         applyIfPresent(filterMap, "maxUpperBreakevenDelta", v -> filter.setMaxUpperBreakevenDelta(toDouble(v)));
         applyIfPresent(filterMap, "maxNetExtrinsicValueToPricePercentage",

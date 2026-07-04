@@ -73,6 +73,16 @@ public class TechFilterConditions {
     private final Integer lookbackDays;
 
     /**
+     * Minimum historical volatility required.
+     */
+    private final Double minHistoricalVolatility;
+
+    /**
+     * Maximum historical volatility allowed.
+     */
+    private final Double maxHistoricalVolatility;
+
+    /**
      * Returns a readable summary of the conditions.
      */
     public String getSummary() {
@@ -106,7 +116,13 @@ public class TechFilterConditions {
             }
         }
         if (minVolume != null && minVolume > 0) {
-            sb.append(String.format("Volume >= %,d", minVolume));
+            sb.append(String.format("Volume >= %,d | ", minVolume));
+        }
+        if (minHistoricalVolatility != null) {
+            sb.append(String.format("HV >= %.1f%% | ", minHistoricalVolatility));
+        }
+        if (maxHistoricalVolatility != null) {
+            sb.append(String.format("HV <= %.1f%% | ", maxHistoricalVolatility));
         }
 
         if (sb.length() == 0)
