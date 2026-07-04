@@ -12,7 +12,6 @@ import com.hemasundar.options.models.ShortPut;
 import com.hemasundar.options.models.TradeSetup;
 import com.hemasundar.services.FilterLogStore;
 import com.hemasundar.services.SupabaseService;
-import com.hemasundar.utils.VolatilityCalculator;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.CollectionUtils;
 
@@ -42,9 +41,8 @@ public class ShortPutStrategy extends AbstractTradingStrategy {
     public ShortPutStrategy(StrategyType strategyType,
                             FinnHubAPIs finnHubAPIs,
                             ThinkOrSwinAPIs thinkOrSwinAPIs,
-                            VolatilityCalculator volatilityCalculator,
                             Optional<SupabaseService> supabaseService) {
-        super(strategyType, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator, supabaseService);
+        super(strategyType, finnHubAPIs, thinkOrSwinAPIs, supabaseService);
     }
 
     @Override

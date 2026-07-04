@@ -343,4 +343,31 @@ public class StrategiesConfig {
         private Double minDropPercent;
         private Integer lookbackDays;
     }
+
+    /**
+     * POJO for a Historical Volatility filter entry within a {@code technicalFilters} map.
+     * Key: {@code "HISTORICAL_VOLATILITY"}.
+     *
+     * <p>Example JSON:
+     * <pre>
+     * "HISTORICAL_VOLATILITY": { "condition": { "min": 25.0 } }
+     * </pre>
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class HistoricalVolatilityFilterEntry {
+        private HistoricalVolatilityCondition condition;
+    }
+
+    /**
+     * POJO for inline Historical Volatility filter condition parameters.
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class HistoricalVolatilityCondition {
+        private Double min;
+        private Double max;
+    }
 }

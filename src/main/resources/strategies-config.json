@@ -30,7 +30,14 @@
                 "condition": "LOWER_BAND"
             },
             "VOLUME": {
-                "config": { "min": 1000000 }
+                "config": {
+                    "min": 1000000
+                }
+            },
+            "HISTORICAL_VOLATILITY": {
+                "condition": {
+                    "min": 25.0
+                }
             }
         },
         "overbought": {
@@ -43,7 +50,14 @@
                 "condition": "UPPER_BAND"
             },
             "VOLUME": {
-                "config": { "min": 1000000 }
+                "config": {
+                    "min": 1000000
+                }
+            },
+            "HISTORICAL_VOLATILITY": {
+                "condition": {
+                    "min": 25.0
+                }
             }
         }
     },
@@ -59,10 +73,9 @@
                 "maxDTE": 50,
                 "maxLossLimit": 1000,
                 "minReturnOnRisk": 12,
-                "minHistoricalVolatility": 25.0,
                 "ignoreEarnings": false,
                 "shortLeg": {
-                    "maxDelta": 0.20,
+                    "maxDelta": 0.2,
                     "minOpenInterest": 500
                 }
             },
@@ -72,7 +85,14 @@
                 "theta": "positive",
                 "vega": "negative"
             },
-            "securitiesFile": "portfolio"
+            "securitiesFile": "portfolio",
+            "technicalFilters": {
+                "HISTORICAL_VOLATILITY": {
+                    "condition": {
+                        "min": 25.0
+                    }
+                }
+            }
         },
         {
             "alias": "Long-Term PCS",
@@ -85,10 +105,9 @@
                 "maxDTE": 185,
                 "maxLossLimit": 2000,
                 "minReturnOnRisk": 24,
-                "minHistoricalVolatility": 25.0,
                 "ignoreEarnings": true,
                 "shortLeg": {
-                    "maxDelta": 0.20,
+                    "maxDelta": 0.2,
                     "minOpenInterest": 500
                 }
             },
@@ -98,7 +117,14 @@
                 "theta": "positive",
                 "vega": "negative"
             },
-            "securitiesFile": "tracking, 2026"
+            "securitiesFile": "tracking, 2026",
+            "technicalFilters": {
+                "HISTORICAL_VOLATILITY": {
+                    "condition": {
+                        "min": 25.0
+                    }
+                }
+            }
         },
         {
             "alias": "Tech RSI/BB PCS",
@@ -110,7 +136,6 @@
                 "targetDTE": 30,
                 "maxLossLimit": 1000,
                 "minReturnOnRisk": 12,
-                "minHistoricalVolatility": 25.0,
                 "ignoreEarnings": false,
                 "shortLeg": {
                     "maxDelta": 0.3,
@@ -136,10 +161,9 @@
                 "targetDTE": 30,
                 "maxLossLimit": 1000,
                 "minReturnOnRisk": 12,
-                "minHistoricalVolatility": 25.0,
                 "ignoreEarnings": false,
                 "shortLeg": {
-                    "maxDelta": 0.20,
+                    "maxDelta": 0.2,
                     "minOpenInterest": 500
                 }
             },
@@ -149,7 +173,14 @@
                 "theta": "positive",
                 "vega": "negative"
             },
-            "securitiesFile": "portfolio"
+            "securitiesFile": "portfolio",
+            "technicalFilters": {
+                "HISTORICAL_VOLATILITY": {
+                    "condition": {
+                        "min": 25.0
+                    }
+                }
+            }
         },
         {
             "alias": "Tech RSI/BB CCS",
@@ -161,7 +192,6 @@
                 "targetDTE": 30,
                 "maxLossLimit": 1000,
                 "minReturnOnRisk": 12,
-                "minHistoricalVolatility": 25.0,
                 "ignoreEarnings": false,
                 "shortLeg": {
                     "maxDelta": 0.3,
@@ -188,7 +218,6 @@
                 "maxDTE": 1,
                 "maxLossLimit": 500,
                 "minReturnOnRisk": 12,
-                "minHistoricalVolatility": 25.0,
                 "ignoreEarnings": false,
                 "putShortLeg": {
                     "maxDelta": 0.15,
@@ -205,7 +234,14 @@
                 "theta": "positive",
                 "vega": "negative"
             },
-            "securitiesFile": "portfolio"
+            "securitiesFile": "portfolio",
+            "technicalFilters": {
+                "HISTORICAL_VOLATILITY": {
+                    "condition": {
+                        "min": 25.0
+                    }
+                }
+            }
         },
         {
             "alias": "Mid-Term Iron Condor",
@@ -218,7 +254,6 @@
                 "maxDTE": 65,
                 "maxLossLimit": 1000,
                 "minReturnOnRisk": 24,
-                "minHistoricalVolatility": 25.0,
                 "ignoreEarnings": false,
                 "putShortLeg": {
                     "maxDelta": 0.15,
@@ -235,7 +270,14 @@
                 "theta": "positive",
                 "vega": "negative"
             },
-            "securitiesFile": "portfolio, 2026"
+            "securitiesFile": "portfolio, 2026",
+            "technicalFilters": {
+                "HISTORICAL_VOLATILITY": {
+                    "condition": {
+                        "min": 25.0
+                    }
+                }
+            }
         },
         {
             "alias": "Long-Term Iron Condor",
@@ -248,7 +290,6 @@
                 "maxDTE": 185,
                 "maxLossLimit": 2000,
                 "minReturnOnRisk": 36,
-                "minHistoricalVolatility": 25.0,
                 "ignoreEarnings": true,
                 "putShortLeg": {
                     "maxDelta": 0.15,
@@ -265,7 +306,14 @@
                 "theta": "positive",
                 "vega": "negative"
             },
-            "securitiesFile": "bullish, 2026"
+            "securitiesFile": "bullish, 2026",
+            "technicalFilters": {
+                "HISTORICAL_VOLATILITY": {
+                    "condition": {
+                        "min": 25.0
+                    }
+                }
+            }
         },
         {
             "alias": "Moderate LEAP",
@@ -317,10 +365,10 @@
                 }
             },
             "technicalFilters": {
-              "MOVING_AVERAGE": [
-                  "PRICE_ABOVE_SMA50",
-                  "SMA50_ABOVE_SMA200"
-              ]
+                "MOVING_AVERAGE": [
+                    "PRICE_ABOVE_SMA50",
+                    "SMA50_ABOVE_SMA200"
+                ]
             },
             "greeks": {
                 "delta": "positive",
@@ -500,7 +548,7 @@
                 "ignoreEarnings": false,
                 "minReturnOnRisk": 6,
                 "shortLeg": {
-                    "maxDelta": 0.20,
+                    "maxDelta": 0.2,
                     "minOpenInterest": 100
                 }
             },
@@ -525,7 +573,7 @@
                 "ignoreEarnings": true,
                 "minReturnOnRisk": 12,
                 "shortLeg": {
-                    "maxDelta": 0.20,
+                    "maxDelta": 0.2,
                     "minOpenInterest": 100
                 }
             },
@@ -549,7 +597,7 @@
                 "ignoreEarnings": true,
                 "minReturnOnRisk": 24,
                 "shortLeg": {
-                    "maxDelta": 0.20,
+                    "maxDelta": 0.2,
                     "minOpenInterest": 100
                 }
             },
@@ -578,7 +626,9 @@
                     "condition": "LOWER_BAND"
                 },
                 "VOLUME": {
-                    "config": { "min": 1000000 }
+                    "config": {
+                        "min": 1000000
+                    }
                 }
             }
         },
@@ -597,7 +647,9 @@
                     "condition": "UPPER_BAND"
                 },
                 "VOLUME": {
-                    "config": { "min": 1000000 }
+                    "config": {
+                        "min": 1000000
+                    }
                 }
             }
         },
@@ -611,7 +663,9 @@
                     "PRICE_BELOW_SMA200"
                 ],
                 "VOLUME": {
-                    "config": { "min": 1000000 }
+                    "config": {
+                        "min": 1000000
+                    }
                 }
             }
         },
@@ -626,7 +680,9 @@
                     "condition": "OVERSOLD"
                 },
                 "VOLUME": {
-                    "config": { "min": 1000000 }
+                    "config": {
+                        "min": 1000000
+                    }
                 }
             }
         },
@@ -641,7 +697,9 @@
                     "condition": "LOWER_BAND"
                 },
                 "VOLUME": {
-                    "config": { "min": 1000000 }
+                    "config": {
+                        "min": 1000000
+                    }
                 }
             }
         },
@@ -652,7 +710,10 @@
             "securitiesFile": "top100, portfolio, tracking, 2026",
             "technicalFilters": {
                 "PRICE_DROP": {
-                    "config": { "minDropPercent": 3.0, "lookbackDays": 0 }
+                    "config": {
+                        "minDropPercent": 3.0,
+                        "lookbackDays": 0
+                    }
                 }
             }
         },
@@ -663,7 +724,10 @@
             "securitiesFile": "top100, portfolio, tracking, 2026",
             "technicalFilters": {
                 "PRICE_DROP": {
-                    "config": { "minDropPercent": 5.0, "lookbackDays": 5 }
+                    "config": {
+                        "minDropPercent": 5.0,
+                        "lookbackDays": 5
+                    }
                 }
             }
         },
@@ -674,7 +738,10 @@
             "securitiesFile": "top100, portfolio, tracking, 2026",
             "technicalFilters": {
                 "PRICE_DROP": {
-                    "config": { "minDropPercent": 10.0, "lookbackDays": 21 }
+                    "config": {
+                        "minDropPercent": 10.0,
+                        "lookbackDays": 21
+                    }
                 }
             }
         },
@@ -685,7 +752,10 @@
             "securitiesFile": "top100, portfolio, tracking, 2026",
             "technicalFilters": {
                 "PRICE_DROP": {
-                    "config": { "minDropPercent": 15.0, "lookbackDays": 63 }
+                    "config": {
+                        "minDropPercent": 15.0,
+                        "lookbackDays": 63
+                    }
                 }
             }
         },
@@ -696,7 +766,9 @@
             "securitiesFile": "top100, portfolio, tracking, 2026",
             "technicalFilters": {
                 "PRICE_DROP": {
-                    "config": { "minDropPercent": 20.0 }
+                    "config": {
+                        "minDropPercent": 20.0
+                    }
                 }
             }
         }

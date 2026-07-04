@@ -27,7 +27,7 @@ public class ShortPutStrategyTest {
     @BeforeMethod
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        strategy = new ShortPutStrategy(StrategyType.SHORT_PUT, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator, java.util.Optional.empty());
+        strategy = new ShortPutStrategy(StrategyType.SHORT_PUT, finnHubAPIs, thinkOrSwinAPIs, java.util.Optional.empty());
     }
 
     @Test

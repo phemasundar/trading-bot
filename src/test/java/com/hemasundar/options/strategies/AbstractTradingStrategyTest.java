@@ -37,16 +37,13 @@ public class AbstractTradingStrategyTest {
     @Mock
     private ThinkOrSwinAPIs thinkOrSwinAPIs;
     
-    @Mock
-    private VolatilityCalculator volatilityCalculator;
-    
     private AutoCloseable mocks;
 
     // A concrete subclass strictly for testing AbstractTradingStrategy logic
     private static class DummyStrategy extends AbstractTradingStrategy {
 
-        public DummyStrategy(FinnHubAPIs finnHubAPIs, ThinkOrSwinAPIs thinkOrSwinAPIs, VolatilityCalculator volatilityCalculator) {
-            super(StrategyType.PUT_CREDIT_SPREAD, finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator, java.util.Optional.empty());
+        public DummyStrategy(FinnHubAPIs finnHubAPIs, ThinkOrSwinAPIs thinkOrSwinAPIs) {
+            super(StrategyType.PUT_CREDIT_SPREAD, finnHubAPIs, thinkOrSwinAPIs, java.util.Optional.empty());
         }
 
         @Override
@@ -148,7 +145,7 @@ public class AbstractTradingStrategyTest {
     @BeforeMethod
     public void setup() {
         mocks = MockitoAnnotations.openMocks(this);
-        strategy = new DummyStrategy(finnHubAPIs, thinkOrSwinAPIs, volatilityCalculator);
+        strategy = new DummyStrategy(finnHubAPIs, thinkOrSwinAPIs);
         PriceHistoryCache.getInstance().clear();
     }
 
@@ -261,66 +258,6 @@ public class AbstractTradingStrategyTest {
         OptionsStrategyFilter filter = new OptionsStrategyFilter();
         // minHistoricalVolatility is null by default
 
-        List<TradeSetup> trades = strategy.findTrades(chain, filter);
-        assertEquals(1, trades.size());
-    }
-
-    @Test
-    public void testFindTrades_FailsHistoricalVolatility() {
-        OptionChainResponse chain = mock(OptionChainResponse.class);
-        when(chain.getSymbol()).thenReturn("AAPL");
-
-        // Set Volatility to fail
-        PriceHistoryResponse priceHistory = new PriceHistoryResponse();
-        when(thinkOrSwinAPIs.getYearlyPriceHistory("AAPL", 1)).thenReturn(priceHistory);
-        when(volatilityCalculator.calculateAnnualizedVolatility(priceHistory)).thenReturn(15.0);
-
-        OptionsStrategyFilter filter = new OptionsStrategyFilter();
-        filter.setMinHistoricalVolatility(20.0); // 15.0 < 20.0
-
-        List<TradeSetup> trades = strategy.findTrades(chain, filter);
-        assertTrue(trades.isEmpty());
-    }
-
-    @Test
-    public void testFindTrades_PassesHistoricalVolatilityAndCaches() {
-        OptionChainResponse chain = mock(OptionChainResponse.class);
-        when(chain.getSymbol()).thenReturn("AAPL");
-        when(chain.getExpiryDatesInRange(anyInt(), anyInt(), anyInt())).thenReturn(Arrays.asList("2024-01-01"));
-
-        // Setup API to return data
-        PriceHistoryResponse priceHistory = new PriceHistoryResponse();
-        when(thinkOrSwinAPIs.getYearlyPriceHistory("AAPL", 1)).thenReturn(priceHistory);
-        when(volatilityCalculator.calculateAnnualizedVolatility(priceHistory)).thenReturn(25.0);
-
-        OptionsStrategyFilter filter = new OptionsStrategyFilter();
-        filter.setMinHistoricalVolatility(20.0); // 25.0 > 20.0
-
-        // Call #1 (cache miss)
-        List<TradeSetup> trades1 = strategy.findTrades(chain, filter);
-        assertEquals(1, trades1.size());
-        verify(thinkOrSwinAPIs, times(1)).getYearlyPriceHistory("AAPL", 1);
-
-        // Call #2 (cache hit)
-        List<TradeSetup> trades2 = strategy.findTrades(chain, filter);
-        assertEquals(1, trades2.size());
-        verify(thinkOrSwinAPIs, times(1)).getYearlyPriceHistory("AAPL", 1); // Should not increase
-    }
-
-    @Test
-    public void testFindTrades_VolatilityCalculationException_FailsOpen() {
-        OptionChainResponse chain = mock(OptionChainResponse.class);
-        when(chain.getSymbol()).thenReturn("AAPL");
-        when(chain.getExpiryDatesInRange(anyInt(), anyInt(), anyInt())).thenReturn(Arrays.asList("2024-01-01"));
-
-        // Throws exception during API call
-        when(thinkOrSwinAPIs.getYearlyPriceHistory("AAPL", 1))
-                .thenThrow(new RuntimeException("API Error"));
-
-        OptionsStrategyFilter filter = new OptionsStrategyFilter();
-        filter.setMinHistoricalVolatility(20.0);
-
-        // Should return true (Fail-Open)
         List<TradeSetup> trades = strategy.findTrades(chain, filter);
         assertEquals(1, trades.size());
     }

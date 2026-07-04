@@ -11,7 +11,6 @@ import com.hemasundar.pojos.EarningsCalendarResponse;
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.services.FilterLogStore;
 import com.hemasundar.services.SupabaseService;
-import com.hemasundar.utils.VolatilityCalculator;
 import org.apache.commons.collections4.CollectionUtils;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +32,6 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
 
     protected final FinnHubAPIs finnHubAPIs;
     protected final ThinkOrSwinAPIs thinkOrSwinAPIs;
-    protected final VolatilityCalculator volatilityCalculator;
 
     /**
      * Optional Supabase service for IV Rank lookups.
@@ -46,22 +44,9 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
         String strategyName = getStrategyName();
         String symbol = chain.getSymbol();
 
-        // ── Track C: Fire HV + IV Rank in parallel ──
-        // Both are independent network I/O calls (~270-330ms each).
-        // Starting them concurrently saves one round-trip per symbol.
-        CompletableFuture<Boolean> hvFuture = CompletableFuture
-                .supplyAsync(() -> checkHistoricalVolatility(symbol, filter));
+        // ── Track C: Fire IV Rank ──
         CompletableFuture<Double> ivRankFuture = CompletableFuture
                 .supplyAsync(() -> resolveIVRank(symbol));
-
-        // ── Volatility Filter ──
-        boolean passesHV = hvFuture.join();
-        if (!passesHV) {
-            ivRankFuture.cancel(true); // best-effort; IV rank result is not needed
-            FilterLogStore.getInstance().logFilter(strategyName, symbol, "Historical Volatility", 1, 0);
-            return Collections.emptyList();
-        }
-        FilterLogStore.getInstance().logFilter(strategyName, symbol, "Historical Volatility", 1, 1);
 
         // ── IV Rank Filter ──
         Double ivRank = ivRankFuture.join();
@@ -252,62 +237,6 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
         return candidate -> filter.passesMinCredit(creditExtractor.apply(candidate));
     }
 
-    /**
-     * Checks if the symbol's historical volatility meets the minimum threshold.
-     * Uses cache to avoid redundant API calls and calculations.
-     *
-     * @param symbol Stock symbol
-     * @param filter Strategy filter containing minHistoricalVolatility
-     * @return true if volatility check passes or is not configured, false otherwise
-     */
-    protected boolean checkHistoricalVolatility(String symbol, OptionsStrategyFilter filter) {
-        // If no minimum volatility is set, pass all symbols
-        if (filter.getMinHistoricalVolatility() == null) {
-            return true;
-        }
-
-        try {
-            // Check cache first
-            PriceHistoryCache cache = PriceHistoryCache.getInstance();
-            PriceHistoryCache.HistoricalData cachedData = cache.get(symbol);
-
-            Double historicalVolatility;
-            if (cachedData != null) {
-                // Use cached volatility
-                historicalVolatility = cachedData.getAnnualizedHistoricalVolatility();
-                log.debug("[{}] Using cached historical volatility: {}%", symbol, historicalVolatility);
-            } else {
-                // Fetch price history and calculate volatility
-                log.debug("[{}] Fetching price history to calculate historical volatility", symbol);
-                PriceHistoryResponse priceHistory = thinkOrSwinAPIs.getYearlyPriceHistory(symbol, 1);
-                historicalVolatility = volatilityCalculator.calculateAnnualizedVolatility(priceHistory);
-
-                // Cache the result
-                PriceHistoryCache.HistoricalData data = new PriceHistoryCache.HistoricalData(
-                        priceHistory, historicalVolatility);
-                cache.put(symbol, data);
-                log.debug("[{}] Calculated and cached historical volatility: {}%",
-                        symbol, historicalVolatility);
-            }
-
-            // Check if volatility meets threshold
-            if (historicalVolatility == null) {
-                log.warn("[{}] Could not calculate historical volatility, allowing trade", symbol);
-                return true; // Fail-open: allow trade if calculation fails
-            }
-
-            boolean passes = historicalVolatility >= filter.getMinHistoricalVolatility();
-            if (!passes) {
-                log.info("[{}] Historical volatility {}% is below minimum {}%, skipping symbol",
-                        symbol, historicalVolatility, filter.getMinHistoricalVolatility());
-            }
-            return passes;
-
-        } catch (Exception e) {
-            log.error("[{}] Error checking historical volatility: {}, allowing trade", symbol, e.getMessage());
-            return true; // Fail-open: allow trade on error
-        }
-    }
 
     /**
      * Resolves the IV Rank for a symbol, using the per-execution {@link IVRankCache}.

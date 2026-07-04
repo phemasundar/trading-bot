@@ -384,12 +384,23 @@ public class StrategyController {
                 filter.setSecurities(request.getSecurities());
             }
 
+            // Build technical filter chain from request if provided
+            com.hemasundar.technical.TechnicalFilterChain technicalFilterChain = null;
+            if (request.getTechnicalFilters() != null && !request.getTechnicalFilters().isEmpty()) {
+                technicalFilterChain = strategiesConfigLoader.parseTechnicalFilters(request.getTechnicalFilters());
+                // Also persist the structured map on the filter so Load Filters can restore form fields
+                if (filter != null) {
+                    filter.setTechnicalFilters(request.getTechnicalFilters());
+                }
+            }
+
             OptionsConfig config = OptionsConfig.builder()
                     .alias(request.getAlias())
                     .strategy(strategiesConfigLoader.getStrategy(type))
                     .securities(symbols)
                     .maxTradesToSend(request.getMaxTradesToSend() != null ? request.getMaxTradesToSend() : 30)
                     .filter(filter)
+                    .technicalFilterChain(technicalFilterChain)
                     .build();
 
             log.info("REST: Custom execute {} on {} securities", type.getDisplayName(), symbols.size());

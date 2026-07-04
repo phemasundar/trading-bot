@@ -246,8 +246,13 @@ public class StrategiesConfigLoader {
         // Get optional technical filter chain
         TechnicalFilterChain technicalFilterChain = null;
         if (entry.hasTechnicalFilter()) {
-            technicalFilterChain = resolveTechnicalFilterChain(
-                    entry.getTechnicalFilters(), presetFilters, indicatorConfigs);
+            Map<String, Object> filtersMap = resolveTechnicalFiltersMap(entry.getTechnicalFilters(), presetFilters);
+            if (filtersMap != null) {
+                technicalFilterChain = buildFilterChainFromMap(filtersMap, indicatorConfigs);
+                if (filter != null) {
+                    filter.setTechnicalFilters(filtersMap);
+                }
+            }
         }
 
         return OptionsConfig.builder()
@@ -263,7 +268,7 @@ public class StrategiesConfigLoader {
     }
 
     /**
-     * Resolves {@code technicalFilters} on a strategy entry into a {@link TechnicalFilterChain}.
+     * Resolves {@code technicalFilters} on a strategy entry into a map.
      * The value may be:
      * <ul>
      *   <li>A {@code String} — preset name; looked up in {@code presetFilters}</li>
@@ -271,32 +276,32 @@ public class StrategiesConfigLoader {
      * </ul>
      */
     @SuppressWarnings("unchecked")
-    private TechnicalFilterChain resolveTechnicalFilterChain(
+    private Map<String, Object> resolveTechnicalFiltersMap(
             Object technicalFilters,
-            Map<String, Map<String, Object>> presetFilters,
-            Map<String, Object> indicatorConfigs) {
-
-        Map<String, Object> filtersMap;
+            Map<String, Map<String, Object>> presetFilters) {
 
         if (technicalFilters instanceof String presetName) {
             // String reference to a root-level named preset
-            filtersMap = presetFilters.get(presetName);
+            Map<String, Object> filtersMap = presetFilters.get(presetName);
             if (filtersMap == null) {
                 log.warn("technicalFilters preset '{}' not found in root technicalFilters map", presetName);
                 return null;
             }
+            return filtersMap;
         } else {
             // Inline map
-            filtersMap = (Map<String, Object>) technicalFilters;
+            return (Map<String, Object>) technicalFilters;
         }
-
-        return buildFilterChainFromMap(filtersMap, indicatorConfigs);
     }
 
     /**
      * Builds a {@link TechnicalFilterChain} from a {@code technicalFilters} map.
      * Keys: "RSI", "BOLLINGER_BAND", "VOLUME", "MOVING_AVERAGE", "PRICE_DROP".
      */
+    public TechnicalFilterChain parseTechnicalFilters(Map<String, Object> filtersMap) {
+        return buildFilterChainFromMap(filtersMap, java.util.Collections.emptyMap());
+    }
+
     private TechnicalFilterChain buildFilterChainFromMap(
             Map<String, Object> filtersMap,
             Map<String, Object> indicatorConfigs) {
@@ -318,6 +323,7 @@ public class StrategiesConfigLoader {
                     case "VOLUME" -> applyVolumeFilter(rawEntry, conditionsBuilder);
                     case "MOVING_AVERAGE" -> applyMovingAverageFilters(rawEntry, indicatorsBuilder, conditionsBuilder);
                     case "PRICE_DROP" -> applyPriceDropFilter(rawEntry, conditionsBuilder);
+                    case "HISTORICAL_VOLATILITY" -> applyHistoricalVolatilityFilter(rawEntry, conditionsBuilder);
                     default -> log.warn("Unknown technicalFilters key '{}' — skipping", key);
                 }
             }
@@ -463,6 +469,21 @@ public class StrategiesConfigLoader {
         if (entry.getConfig() != null) {
             conditions.minDropPercent(entry.getConfig().getMinDropPercent());
             conditions.lookbackDays(entry.getConfig().getLookbackDays());
+        }
+    }
+
+    private void applyHistoricalVolatilityFilter(
+            Object rawEntry,
+            TechFilterConditions.TechFilterConditionsBuilder conditions) {
+
+        StrategiesConfig.HistoricalVolatilityFilterEntry entry = JavaUtils.convertValue(rawEntry, StrategiesConfig.HistoricalVolatilityFilterEntry.class);
+        if (entry != null && entry.getCondition() != null) {
+            if (entry.getCondition().getMin() != null) {
+                conditions.minHistoricalVolatility(entry.getCondition().getMin());
+            }
+            if (entry.getCondition().getMax() != null) {
+                conditions.maxHistoricalVolatility(entry.getCondition().getMax());
+            }
         }
     }
 
