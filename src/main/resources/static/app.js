@@ -2325,9 +2325,10 @@ function fillTechFiltersForm(techFilters) {
 
     for (const [filterKey, val] of Object.entries(techFilters)) {
         if (filterKey === 'SIMPLE_MOVING_AVERAGE') {
-            const rules = Array.isArray(val) ? val.join(', ') : val;
+            const rules = Array.isArray(val) ? val.join(', ') : (val.conditions || val);
+            const rulesStr = Array.isArray(rules) ? rules.join(', ') : rules;
             const el = document.querySelector(`[data-tech-filter="${filterKey}"][data-tech-field="rules"]`);
-            if (el) el.value = rules;
+            if (el) el.value = rulesStr;
             continue;
         }
 
@@ -2454,8 +2455,8 @@ async function executeCustom() {
         if (!technicalFilters[filterKey]) technicalFilters[filterKey] = {};
 
         if (filterKey === 'SIMPLE_MOVING_AVERAGE' && fieldKey === 'rules') {
-            // SIMPLE_MOVING_AVERAGE is a plain array of rule strings
-            technicalFilters[filterKey] = rawVal.split(',').map(s => s.trim()).filter(Boolean);
+            // SIMPLE_MOVING_AVERAGE is configured as an object with an array of condition strings
+            technicalFilters[filterKey] = { conditions: rawVal.split(',').map(s => s.trim()).filter(Boolean) };
         } else if (fieldKey === 'condition') {
             if (typeof technicalFilters[filterKey].condition === 'object') {
                 technicalFilters[filterKey].condition.type = rawVal;
@@ -2471,12 +2472,19 @@ async function executeCustom() {
         } else if (['min', 'max', 'minDropPercent', 'minRank', 'maxRank'].includes(fieldKey)) {
             const num = parseFloat(rawVal);
             if (!isNaN(num)) {
-                if (!technicalFilters[filterKey].condition || typeof technicalFilters[filterKey].condition === 'string') {
-                    const existingType = typeof technicalFilters[filterKey].condition === 'string' ? technicalFilters[filterKey].condition : null;
-                    technicalFilters[filterKey].condition = {};
-                    if (existingType) technicalFilters[filterKey].condition.type = existingType;
+                if (filterKey === 'VOLUME') {
+                    if (!technicalFilters[filterKey].conditions) {
+                        technicalFilters[filterKey].conditions = [ { type: 'MIN_VOLUME' } ];
+                    }
+                    technicalFilters[filterKey].conditions[0][fieldKey] = num;
+                } else {
+                    if (!technicalFilters[filterKey].condition || typeof technicalFilters[filterKey].condition === 'string') {
+                        const existingType = typeof technicalFilters[filterKey].condition === 'string' ? technicalFilters[filterKey].condition : null;
+                        technicalFilters[filterKey].condition = {};
+                        if (existingType) technicalFilters[filterKey].condition.type = existingType;
+                    }
+                    technicalFilters[filterKey].condition[fieldKey] = num;
                 }
-                technicalFilters[filterKey].condition[fieldKey] = num;
             }
         }
     });
@@ -3237,12 +3245,16 @@ function loadScreenerTemplateParams(screenerJson) {
 
         setVal('sc-rsiCondition', extractField('RSI', 'condition'));
         setVal('sc-bollingerCondition', extractField('BOLLINGER_BAND', 'condition'));
-        setVal('sc-minVolume', extractField('VOLUME', 'config', 'min'));
+        const volConditions = extractField('VOLUME', 'conditions');
+        if (volConditions && Array.isArray(volConditions) && volConditions.length > 0) {
+            setVal('sc-minVolume', volConditions[0].min);
+        }
         setVal('sc-minDropPercent', extractField('PRICE_DROP', 'config', 'minDropPercent'));
         setVal('sc-lookbackDays', extractField('PRICE_DROP', 'config', 'lookbackDays'));
 
-        const maRules = extractField('SIMPLE_MOVING_AVERAGE', 'root');
-        setVal('sc-movingAverageRules', maRules && Array.isArray(maRules) ? maRules.join(', ') : '');
+        let maRules = extractField('SIMPLE_MOVING_AVERAGE', 'root');
+        if (maRules && maRules.conditions) maRules = maRules.conditions;
+        setVal('sc-movingAverageRules', maRules && Array.isArray(maRules) ? maRules.join(', ') : maRules || '');
         setVal('sc-hvPeriod', extractField('HISTORICAL_VOLATILITY', 'config', 'period'));
         setVal('sc-hvMinRank', extractField('HISTORICAL_VOLATILITY', 'condition', 'minRank'));
         setVal('sc-hvMaxRank', extractField('HISTORICAL_VOLATILITY', 'condition', 'maxRank'));

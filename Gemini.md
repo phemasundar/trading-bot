@@ -1,5 +1,24 @@
 # Project Updates
 
+## Refactor: Moving Average Filter Refactoring (2026-07-05)
+
+Refactored the `SIMPLE_MOVING_AVERAGE` configuration to use mathematical condition string expressions similar to the `VOLUME` filter logic instead of enum-like static strings. This improves readability, makes the dynamic nature of SMA periods clearer, and aligns the frontend and backend formatting.
+
+### End-to-End Implementation
+- **Backend Model**: Added `MovingAverageFilterEntry` POJO to handle configuration objects containing `condition` / `conditions` fields.
+- **Config Loader**: Modified `applyMovingAverageFilters` to process condition strings like `PRICE >= SMA50`, `SMA50 >= SMA200` using dynamic regex evaluation that supports `<`, `<=`, `>`, and `>=`.
+- **Frontend App**: Updated `execute.html` and `execute-screener.html` placeholders and inputs. Refactored the payload builder and rendering script in `app.js` to serialize rules into `{"conditions": ["PRICE >= SMA50", "SMA50 >= SMA200"]}` objects instead of string arrays.
+- **Config**: Migrated `SIMPLE_MOVING_AVERAGE` blocks in `strategies-config.json` to the new condition object pattern.
+
+### Architecture
+| File | Change |
+|---|---|
+| **`StrategiesConfig.java`** | Added `MovingAverageFilterEntry` POJO. |
+| **`StrategiesConfigLoader.java`** | Rewrote `applyMovingAverageFilters()` logic to dynamically evaluate operators and support conditions map/object structure. |
+| **`strategies-config.json`** | Replaced old string arrays with `{ "conditions": ["..."] }` properties. |
+| **`app.js`** | Built dynamic `{ conditions: [...] }` payloads instead of string lists. Modified rule display logic in `renderTechFiltersGrid()` and the Execution/Screener panels. |
+| **`execute.html` / `execute-screener.html`** | Updated `data-tech-field` attributes and label hints to reflect the new operator-based syntax. |
+
 ## Feature: Display Tech Indicators on Trade Details UI (2026-07-04)
 
 Added the ability to display technical analysis indicators calculated during strategy execution in the Options Dashboard. When a user clicks any trade row, the details panel now includes a "Tech Indicators" section if technical filters were applied.
@@ -22,7 +41,7 @@ Refactored the Volume Technical Filter to support more robust conditions includi
 
 ### New Features & Improvements
 - **Volume Condition Logic**: Introduced `VolumeCondition` Enum to support `MIN_VOLUME`, `MAX_VOLUME`, `RANGE_VOLUME`, and `STABLE_OR_EXPANDING`.
-- **Dynamic Configuration**: The config json structure now maps `min` and `max` limits to the condition object, separating what gets calculated (config) from the thresholds (condition).
+- **Dynamic Configuration**: The config json structure now maps limits to the condition object, separating what gets calculated (config) from the thresholds. Replaced the single `condition` property with a `conditions` JSON array structure for consistency with SMA.
 - **Stable or Expanding Filtering**: Added support for validating volume expansion using moving averages (`Volume_SMA20 >= Volume_SMA50 * 90%`). The SMA periods and threshold are configurable.
 
 

@@ -427,7 +427,14 @@ public class StrategiesConfigLoader {
         conditions.volumeLongSmaPeriod(cfg.getLongSmaPeriod());
         conditions.volumeThresholdPercent(cfg.getThresholdPercent());
 
-        Object conditionObj = entry.getCondition();
+        Object conditionsObj = entry.getConditions();
+        Object conditionObj = null;
+        if (conditionsObj instanceof List<?> list && !list.isEmpty()) {
+            conditionObj = list.get(0);
+        } else if (conditionsObj != null && !(conditionsObj instanceof List)) {
+            conditionObj = conditionsObj;
+        }
+
         if (conditionObj != null) {
             if (conditionObj instanceof String strCond) {
                 Pattern pattern = Pattern.compile("SMA(\\d+)\\s*>=\\s*SMA(\\d+)\\s*\\*\\s*(\\d+(?:\\.\\d+)?)%");
@@ -472,15 +479,34 @@ public class StrategiesConfigLoader {
             TechFilterConditions.TechFilterConditionsBuilder conditions) {
 
         List<String> rules = new ArrayList<>();
-        if (rawEntry instanceof List) {
+        if (rawEntry instanceof java.util.Map) {
+            StrategiesConfig.MovingAverageFilterEntry entry = JavaUtils.convertValue(rawEntry, StrategiesConfig.MovingAverageFilterEntry.class);
+            if (entry != null) {
+                Object conds = entry.getConditions();
+                if (conds instanceof List<?> list) {
+                    for (Object obj : list) rules.add(String.valueOf(obj));
+                } else if (conds instanceof String str) {
+                    rules.add(str);
+                }
+            }
+        } else if (rawEntry instanceof List) {
             for (Object obj : (List<?>) rawEntry) {
                 rules.add(String.valueOf(obj));
             }
         } else if (rawEntry instanceof String) {
             rules.add((String) rawEntry);
         } else {
-            log.warn("Invalid SIMPLE_MOVING_AVERAGE config format. Expected string or list of strings.");
+            log.warn("Invalid SIMPLE_MOVING_AVERAGE config format.");
             return;
+        }
+
+        List<String> splitRules = new ArrayList<>();
+        for (String rule : rules) {
+            for (String part : rule.split(",")) {
+                if (!part.trim().isEmpty()) {
+                    splitRules.add(part.trim());
+                }
+            }
         }
 
         java.util.Map<Integer, MovingAverageFilter> existingMaFilters = indicators.build().getMaFilters();
@@ -490,14 +516,15 @@ public class StrategiesConfigLoader {
         List<PriceCondition> priceConds = new ArrayList<>();
         List<SmaCondition> smaConds = new ArrayList<>();
 
-        java.util.regex.Pattern pricePattern = java.util.regex.Pattern.compile("^PRICE_(ABOVE|BELOW)_SMA(\\d+)$");
-        java.util.regex.Pattern smaPattern = java.util.regex.Pattern.compile("^SMA(\\d+)_(ABOVE|BELOW)_SMA(\\d+)$");
+        java.util.regex.Pattern pricePattern = java.util.regex.Pattern.compile("^PRICE\\s*(>=|>|<=|<)\\s*SMA(\\d+)$");
+        java.util.regex.Pattern smaPattern = java.util.regex.Pattern.compile("^SMA(\\d+)\\s*(>=|>|<=|<)\\s*SMA(\\d+)$");
 
-        for (String rule : rules) {
+        for (String rule : splitRules) {
             rule = rule.toUpperCase().trim();
             java.util.regex.Matcher pMatcher = pricePattern.matcher(rule);
             if (pMatcher.matches()) {
-                StrategiesConfig.Position pos = StrategiesConfig.Position.valueOf(pMatcher.group(1));
+                String op = pMatcher.group(1);
+                StrategiesConfig.Position pos = (op.equals(">") || op.equals(">=")) ? StrategiesConfig.Position.ABOVE : StrategiesConfig.Position.BELOW;
                 int period = Integer.parseInt(pMatcher.group(2));
                 maFilters.putIfAbsent(period, MovingAverageFilter.builder().period(period).build());
 
@@ -511,7 +538,8 @@ public class StrategiesConfigLoader {
             java.util.regex.Matcher sMatcher = smaPattern.matcher(rule);
             if (sMatcher.matches()) {
                 int p1 = Integer.parseInt(sMatcher.group(1));
-                StrategiesConfig.Position pos = StrategiesConfig.Position.valueOf(sMatcher.group(2));
+                String op = sMatcher.group(2);
+                StrategiesConfig.Position pos = (op.equals(">") || op.equals(">=")) ? StrategiesConfig.Position.ABOVE : StrategiesConfig.Position.BELOW;
                 int p2 = Integer.parseInt(sMatcher.group(3));
 
                 maFilters.putIfAbsent(p1, MovingAverageFilter.builder().period(p1).build());

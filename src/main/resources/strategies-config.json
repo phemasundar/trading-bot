@@ -29,12 +29,7 @@
                 "config": "default",
                 "condition": "LOWER_BAND"
             },
-            "VOLUME": {
-                "condition": {
-                    "type": "MIN_VOLUME",
-                    "min": 1000000
-                }
-            },
+            "VOLUME": { "conditions": [ { "type": "MIN_VOLUME", "min": 1000000 } ] },
             "HISTORICAL_VOLATILITY": {
                 "config": {
                     "period": 20
@@ -53,12 +48,7 @@
                 "config": "default",
                 "condition": "UPPER_BAND"
             },
-            "VOLUME": {
-                "condition": {
-                    "type": "MIN_VOLUME",
-                    "min": 1000000
-                }
-            },
+            "VOLUME": { "conditions": [ { "type": "MIN_VOLUME", "min": 1000000 } ] },
             "HISTORICAL_VOLATILITY": {
                 "config": {
                     "period": 20
@@ -399,12 +389,16 @@
                         "max": 65
                     }
                 },
-                "SIMPLE_MOVING_AVERAGE": [
-                    "PRICE_ABOVE_SMA50",
-                    "SMA50_ABOVE_SMA200"
-                ],
+                "SIMPLE_MOVING_AVERAGE": {
+                    "conditions": [
+                        "PRICE >= SMA50",
+                        "SMA50 >= SMA200"
+                    ]
+                },
                 "VOLUME": {
-                    "condition": "SMA20 >= SMA50 * 90%"
+                    "conditions": [
+                        "SMA20 >= SMA50 * 90%"
+                    ]
                 }
             },
             "greeks": {
@@ -662,12 +656,7 @@
                     "config": "default",
                     "condition": "LOWER_BAND"
                 },
-                "VOLUME": {
-                    "condition": {
-                        "type": "MIN_VOLUME",
-                        "min": 1000000
-                    }
-                }
+                "VOLUME": { "conditions": [ { "type": "MIN_VOLUME", "min": 1000000 } ] }
             }
         },
         {
@@ -685,10 +674,12 @@
                     "condition": "UPPER_BAND"
                 },
                 "VOLUME": {
-                    "condition": {
-                        "type": "MIN_VOLUME",
-                        "min": 1000000
-                    }
+                    "conditions": [
+                        {
+                            "type": "MIN_VOLUME",
+                            "min": 1000000
+                        }
+                    ]
                 }
             }
         },
@@ -698,14 +689,18 @@
             "screenerType": "BELOW_200_DAY_SMA",
             "securitiesFile": "top100, portfolio, tracking, 2026",
             "technicalFilters": {
-                "SIMPLE_MOVING_AVERAGE": [
-                    "PRICE_BELOW_SMA200"
-                ],
+                "SIMPLE_MOVING_AVERAGE": {
+                    "conditions": [
+                        "PRICE < SMA200"
+                    ]
+                },
                 "VOLUME": {
-                    "condition": {
-                        "type": "MIN_VOLUME",
-                        "min": 1000000
-                    }
+                    "conditions": [
+                        {
+                            "type": "MIN_VOLUME",
+                            "min": 1000000
+                        }
+                    ]
                 }
             }
         },
@@ -719,12 +714,7 @@
                     "config": "default",
                     "condition": "OVERSOLD"
                 },
-                "VOLUME": {
-                    "condition": {
-                        "type": "MIN_VOLUME",
-                        "min": 1000000
-                    }
-                }
+                "VOLUME": { "conditions": [ { "type": "MIN_VOLUME", "min": 1000000 } ] }
             }
         },
         {
@@ -737,12 +727,7 @@
                     "config": "default",
                     "condition": "LOWER_BAND"
                 },
-                "VOLUME": {
-                    "condition": {
-                        "type": "MIN_VOLUME",
-                        "min": 1000000
-                    }
-                }
+                "VOLUME": { "conditions": [ { "type": "MIN_VOLUME", "min": 1000000 } ] }
             }
         },
         {
