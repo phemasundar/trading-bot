@@ -20,19 +20,18 @@ public class VolatilityCalculator {
     private static final int TRADING_DAYS_PER_YEAR = 252;
 
     /**
-     * Calculates the Historical Volatility Percentile Rank.
+     * Calculates the Historical Volatility Rank.
      * 
      * Formula:
      * 1. Calculate daily log returns for the entire available history.
      * 2. For each day (from index `period` to end), calculate the standard deviation
      *    of the preceding `period` log returns.
      * 3. Annualize each standard deviation: stdDev × √252
-     * 4. Find the percentile rank of the current day's rolling HV against the array
-     *    of historical rolling HVs.
+     * 4. Calculate the Min-Max rank: (Current - Low) / (High - Low) * 100
      *
      * @param priceHistory Price history response with candle data
      * @param period The rolling window period (e.g., 20)
-     * @return Percentile rank (0.0 to 100.0), or null if calculation fails
+     * @return HV Rank (0.0 to 100.0), or null if calculation fails
      */
     public Double calculateHvRank(PriceHistoryResponse priceHistory, int period) {
         if (priceHistory == null || priceHistory.getCandles() == null || priceHistory.getCandles().isEmpty()) {
@@ -76,15 +75,21 @@ public class VolatilityCalculator {
 
         double currentHv = rollingHvs[numHvs - 1];
 
-        // Calculate percentile rank
-        int countBelow = 0;
-        for (int i = 0; i < numHvs; i++) {
-            if (rollingHvs[i] < currentHv) {
-                countBelow++;
-            }
+        // Calculate Min-Max Rank (Industry standard for HV/IV Rank)
+        double minHv = Double.MAX_VALUE;
+        double maxHv = Double.MIN_VALUE;
+
+        for (double hv : rollingHvs) {
+            if (hv < minHv) minHv = hv;
+            if (hv > maxHv) maxHv = hv;
         }
 
-        double rank = ((double) countBelow / numHvs) * 100.0;
+        double rank;
+        if (maxHv == minHv) {
+            rank = 0.0; // Avoid division by zero if volatility is perfectly flat
+        } else {
+            rank = ((currentHv - minHv) / (maxHv - minHv)) * 100.0;
+        }
 
         log.debug("Calculated HV Rank for {}: {} (current HV: {}%, period: {}, data points: {})",
                 priceHistory.getSymbol(), rank, currentHv, period, numHvs);
