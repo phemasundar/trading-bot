@@ -34,9 +34,9 @@
                 "config": {
                     "period": 20
                 },
-                "condition": {
-                    "minRank": 25
-                }
+                "conditions": [
+                    ">= 25"
+                ]
             }
         },
         "overbought": {
@@ -53,9 +53,9 @@
                 "config": {
                     "period": 20
                 },
-                "condition": {
-                    "minRank": 25
-                }
+                "conditions": [
+                    ">= 25"
+                ]
             }
         }
     },

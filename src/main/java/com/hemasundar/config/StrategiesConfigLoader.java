@@ -600,13 +600,32 @@ public class StrategiesConfigLoader {
             if (entry.getConfig() != null && entry.getConfig().getPeriod() != null) {
                 conditions.hvPeriod(entry.getConfig().getPeriod());
             }
-            if (entry.getCondition() != null) {
-                if (entry.getCondition().getMinRank() != null) {
-                    conditions.minHvRank(entry.getCondition().getMinRank());
-                }
-                if (entry.getCondition().getMaxRank() != null) {
-                    conditions.maxHvRank(entry.getCondition().getMaxRank());
-                }
+            if (entry.getConditions() != null && !entry.getConditions().isEmpty()) {
+                applyHistoricalVolatilityRules(entry.getConditions(), conditions);
+            }
+        }
+    }
+
+    public void applyHistoricalVolatilityRules(List<String> rules, TechFilterConditions.TechFilterConditionsBuilder conditions) {
+        if (rules == null || rules.isEmpty()) return;
+        for (String rule : rules) {
+            rule = rule.trim();
+            if (rule.startsWith(">=")) {
+                try {
+                    conditions.minHvRank(Double.parseDouble(rule.substring(2).trim()));
+                } catch (NumberFormatException ignored) {}
+            } else if (rule.startsWith("<=")) {
+                try {
+                    conditions.maxHvRank(Double.parseDouble(rule.substring(2).trim()));
+                } catch (NumberFormatException ignored) {}
+            } else if (rule.startsWith(">")) {
+                try {
+                    conditions.minHvRank(Double.parseDouble(rule.substring(1).trim()));
+                } catch (NumberFormatException ignored) {}
+            } else if (rule.startsWith("<")) {
+                try {
+                    conditions.maxHvRank(Double.parseDouble(rule.substring(1).trim()));
+                } catch (NumberFormatException ignored) {}
             }
         }
     }

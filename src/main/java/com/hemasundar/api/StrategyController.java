@@ -516,10 +516,9 @@ public class StrategyController {
         
         if (request.getHvPeriod() != null)
             condBuilder.hvPeriod(request.getHvPeriod());
-        if (request.getMinHvRank() != null)
-            condBuilder.minHvRank(request.getMinHvRank());
-        if (request.getMaxHvRank() != null)
-            condBuilder.maxHvRank(request.getMaxHvRank());
+        if (request.getHistoricalVolatilityRules() != null && !request.getHistoricalVolatilityRules().isEmpty()) {
+            strategiesConfigLoader.applyHistoricalVolatilityRules(request.getHistoricalVolatilityRules(), condBuilder);
+        }
 
         com.hemasundar.technical.ScreenerConfig screenerConfig = com.hemasundar.technical.ScreenerConfig.builder()
                 .screenerType(screenerType)
@@ -558,10 +557,8 @@ public class StrategyController {
             requestParams.put("lookbackDays", request.getLookbackDays());
         if (request.getHvPeriod() != null)
             requestParams.put("hvPeriod", request.getHvPeriod());
-        if (request.getMinHvRank() != null)
-            requestParams.put("minHvRank", request.getMinHvRank());
-        if (request.getMaxHvRank() != null)
-            requestParams.put("maxHvRank", request.getMaxHvRank());
+        if (request.getHistoricalVolatilityRules() != null)
+            requestParams.put("historicalVolatilityRules", request.getHistoricalVolatilityRules());
 
         CompletableFuture.runAsync(() -> {
             executionService.startGlobalExecution("Custom Screener: " + screenerConfig.getName());

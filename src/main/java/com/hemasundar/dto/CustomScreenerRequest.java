@@ -51,11 +51,8 @@ public class CustomScreenerRequest {
     /** Rolling period (in days) for Historical Volatility calculation. */
     Integer hvPeriod;
 
-    /** Minimum Historical Volatility Rank (percentile). */
-    Double minHvRank;
-
-    /** Maximum Historical Volatility Rank (percentile). */
-    Double maxHvRank;
+    /** List of historical volatility rules, e.g., ">= 25" */
+    List<String> historicalVolatilityRules;
 
     /** Minimum drop % — used for PRICE_DROP and HIGH_52W_DROP screeners. */
     Double minDropPercent;

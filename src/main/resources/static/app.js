@@ -1249,7 +1249,12 @@ function renderTechFiltersGrid(technicalFilters) {
         if (Array.isArray(val)) {
             parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${val.join(', ')}</span></div>`);
         } else if (val && typeof val === 'object') {
-            const condStr = val.condition ? (typeof val.condition === 'object' ? JSON.stringify(val.condition) : val.condition) : '';
+            let condStr = '';
+            if (val.conditions && Array.isArray(val.conditions)) {
+                condStr = val.conditions.join(', ');
+            } else if (val.condition) {
+                condStr = typeof val.condition === 'object' ? JSON.stringify(val.condition) : val.condition;
+            }
             parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${condStr || '—'}</span></div>`);
         } else {
             parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${val || '—'}</span></div>`);
@@ -2454,7 +2459,7 @@ async function executeCustom() {
 
         if (!technicalFilters[filterKey]) technicalFilters[filterKey] = {};
 
-        if ((filterKey === 'SIMPLE_MOVING_AVERAGE' || filterKey === 'VOLUME') && fieldKey === 'rules') {
+        if ((filterKey === 'SIMPLE_MOVING_AVERAGE' || filterKey === 'VOLUME' || filterKey === 'HISTORICAL_VOLATILITY') && fieldKey === 'rules') {
             // configured as an object with an array of condition strings
             technicalFilters[filterKey] = { conditions: rawVal.split(',').map(s => s.trim()).filter(Boolean) };
         } else if (fieldKey === 'condition') {
@@ -3262,8 +3267,9 @@ function loadScreenerTemplateParams(screenerJson) {
         if (maRules && maRules.conditions) maRules = maRules.conditions;
         setVal('sc-movingAverageRules', maRules && Array.isArray(maRules) ? maRules.join(', ') : maRules || '');
         setVal('sc-hvPeriod', extractField('HISTORICAL_VOLATILITY', 'config', 'period'));
-        setVal('sc-hvMinRank', extractField('HISTORICAL_VOLATILITY', 'condition', 'minRank'));
-        setVal('sc-hvMaxRank', extractField('HISTORICAL_VOLATILITY', 'condition', 'maxRank'));
+        let hvRules = extractField('HISTORICAL_VOLATILITY', 'root');
+        if (hvRules && hvRules.conditions) hvRules = hvRules.conditions;
+        setVal('sc-hvRules', hvRules && Array.isArray(hvRules) ? hvRules.join(', ') : hvRules || '');
 
         showToast('Template filters loaded!');
     } catch (e) {
@@ -3320,8 +3326,7 @@ function loadScreenerFiltersFromResult(paramsJson, event) {
 
         setVal('sc-movingAverageRules', params.movingAverageRules ? params.movingAverageRules.join(', ') : '');
         setVal('sc-hvPeriod',           params.hvPeriod);
-        setVal('sc-hvMinRank',          params.minHvRank);
-        setVal('sc-hvMaxRank',          params.maxHvRank);
+        setVal('sc-hvRules',            params.historicalVolatilityRules ? params.historicalVolatilityRules.join(', ') : '');
 
         // Scroll up to the form so the user can see the populated fields
         const firstCard = document.querySelector('.main-content .card');
@@ -3371,10 +3376,8 @@ async function executeCustomScreener() {
     
     const hvPeriodRaw = document.getElementById('sc-hvPeriod') ? document.getElementById('sc-hvPeriod').value : '';
     const hvPeriod = hvPeriodRaw ? parseInt(hvPeriodRaw) : null;
-    const minHvRankRaw = document.getElementById('sc-hvMinRank') ? document.getElementById('sc-hvMinRank').value : '';
-    const minHvRank = minHvRankRaw ? parseFloat(minHvRankRaw) : null;
-    const maxHvRankRaw = document.getElementById('sc-hvMaxRank') ? document.getElementById('sc-hvMaxRank').value : '';
-    const maxHvRank = maxHvRankRaw ? parseFloat(maxHvRankRaw) : null;
+    const hvRulesRaw = document.getElementById('sc-hvRules') ? document.getElementById('sc-hvRules').value : '';
+    const historicalVolatilityRules = hvRulesRaw ? hvRulesRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
 
     const payload = {
         screenerType: type,
@@ -3390,8 +3393,7 @@ async function executeCustomScreener() {
         minDropPercent,
         lookbackDays,
         hvPeriod,
-        minHvRank,
-        maxHvRank
+        historicalVolatilityRules
     };
 
     // Strip nulls/false to keep the payload clean
