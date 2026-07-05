@@ -499,8 +499,9 @@ public class StrategyController {
             } catch (Exception ignored) {
             }
         }
-        if (request.getMinVolume() != null)
-            condBuilder.minVolume(request.getMinVolume());
+        if (request.getVolumeRules() != null && !request.getVolumeRules().isEmpty()) {
+            strategiesConfigLoader.applyVolumeRules(request.getVolumeRules(), condBuilder);
+        }
         
         com.hemasundar.technical.TechnicalIndicators.TechnicalIndicatorsBuilder indicatorsBuilder = com.hemasundar.technical.TechnicalIndicators.createDefaults().toBuilder();
         
@@ -547,8 +548,8 @@ public class StrategyController {
             requestParams.put("maxRsi", request.getMaxRsi());
         if (request.getBollingerCondition() != null)
             requestParams.put("bollingerCondition", request.getBollingerCondition());
-        if (request.getMinVolume() != null)
-            requestParams.put("minVolume", request.getMinVolume());
+        if (request.getVolumeRules() != null)
+            requestParams.put("volumeRules", request.getVolumeRules());
         if (request.getMovingAverageRules() != null)
             requestParams.put("movingAverageRules", request.getMovingAverageRules());
         if (request.getMinDropPercent() != null)

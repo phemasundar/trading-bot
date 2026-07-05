@@ -29,7 +29,7 @@
                 "config": "default",
                 "condition": "LOWER_BAND"
             },
-            "VOLUME": { "conditions": [ { "type": "MIN_VOLUME", "min": 1000000 } ] },
+            "VOLUME": { "conditions": [ ">= 1000000" ] },
             "HISTORICAL_VOLATILITY": {
                 "config": {
                     "period": 20
@@ -48,7 +48,7 @@
                 "config": "default",
                 "condition": "UPPER_BAND"
             },
-            "VOLUME": { "conditions": [ { "type": "MIN_VOLUME", "min": 1000000 } ] },
+            "VOLUME": { "conditions": [ ">= 1000000" ] },
             "HISTORICAL_VOLATILITY": {
                 "config": {
                     "period": 20
@@ -656,7 +656,7 @@
                     "config": "default",
                     "condition": "LOWER_BAND"
                 },
-                "VOLUME": { "conditions": [ { "type": "MIN_VOLUME", "min": 1000000 } ] }
+                "VOLUME": { "conditions": [ ">= 1000000" ] }
             }
         },
         {
@@ -675,10 +675,7 @@
                 },
                 "VOLUME": {
                     "conditions": [
-                        {
-                            "type": "MIN_VOLUME",
-                            "min": 1000000
-                        }
+                        ">= 1000000"
                     ]
                 }
             }
@@ -696,10 +693,7 @@
                 },
                 "VOLUME": {
                     "conditions": [
-                        {
-                            "type": "MIN_VOLUME",
-                            "min": 1000000
-                        }
+                        ">= 1000000"
                     ]
                 }
             }
@@ -714,7 +708,7 @@
                     "config": "default",
                     "condition": "OVERSOLD"
                 },
-                "VOLUME": { "conditions": [ { "type": "MIN_VOLUME", "min": 1000000 } ] }
+                "VOLUME": { "conditions": [ ">= 1000000" ] }
             }
         },
         {
@@ -727,7 +721,7 @@
                     "config": "default",
                     "condition": "LOWER_BAND"
                 },
-                "VOLUME": { "conditions": [ { "type": "MIN_VOLUME", "min": 1000000 } ] }
+                "VOLUME": { "conditions": [ ">= 1000000" ] }
             }
         },
         {

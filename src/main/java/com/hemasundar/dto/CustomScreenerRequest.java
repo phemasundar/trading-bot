@@ -42,8 +42,8 @@ public class CustomScreenerRequest {
     /** Bollinger condition: LOWER_BAND | UPPER_BAND */
     String bollingerCondition;
 
-    /** Minimum volume threshold (shares). */
-    Long minVolume;
+    /** List of volume rules, e.g., ">= 1000000" or "SMA20 >= SMA50 * 90%" */
+    List<String> volumeRules;
 
     /** List of moving average rules, e.g., "PRICE_ABOVE_SMA50" */
     List<String> movingAverageRules;

@@ -2454,8 +2454,8 @@ async function executeCustom() {
 
         if (!technicalFilters[filterKey]) technicalFilters[filterKey] = {};
 
-        if (filterKey === 'SIMPLE_MOVING_AVERAGE' && fieldKey === 'rules') {
-            // SIMPLE_MOVING_AVERAGE is configured as an object with an array of condition strings
+        if ((filterKey === 'SIMPLE_MOVING_AVERAGE' || filterKey === 'VOLUME') && fieldKey === 'rules') {
+            // configured as an object with an array of condition strings
             technicalFilters[filterKey] = { conditions: rawVal.split(',').map(s => s.trim()).filter(Boolean) };
         } else if (fieldKey === 'condition') {
             if (typeof technicalFilters[filterKey].condition === 'object') {
@@ -3247,7 +3247,13 @@ function loadScreenerTemplateParams(screenerJson) {
         setVal('sc-bollingerCondition', extractField('BOLLINGER_BAND', 'condition'));
         const volConditions = extractField('VOLUME', 'conditions');
         if (volConditions && Array.isArray(volConditions) && volConditions.length > 0) {
-            setVal('sc-minVolume', volConditions[0].min);
+            const rulesStrs = volConditions.map(vc => {
+                if (typeof vc === 'string') return vc;
+                if (vc.type === 'MIN_VOLUME') return `>= ${vc.min}`;
+                if (vc.type === 'SMA_COMPARISON') return `SMA${vc.volumeShortSmaPeriod || 20} >= SMA${vc.volumeLongSmaPeriod || 50} * ${vc.volumeThresholdPercent || 90}%`;
+                return '';
+            }).filter(Boolean);
+            setVal('sc-volumeRules', rulesStrs.join(', '));
         }
         setVal('sc-minDropPercent', extractField('PRICE_DROP', 'config', 'minDropPercent'));
         setVal('sc-lookbackDays', extractField('PRICE_DROP', 'config', 'lookbackDays'));
@@ -3308,7 +3314,7 @@ function loadScreenerFiltersFromResult(paramsJson, event) {
         setVal('sc-minRsi',             params.minRsi);
         setVal('sc-maxRsi',             params.maxRsi);
         setVal('sc-bollingerCondition', params.bollingerCondition);
-        setVal('sc-minVolume',          params.minVolume);
+        setVal('sc-volumeRules',        params.volumeRules ? params.volumeRules.join(', ') : '');
         setVal('sc-minDropPercent',     params.minDropPercent);
         setVal('sc-lookbackDays',       params.lookbackDays);
 
@@ -3353,8 +3359,8 @@ async function executeCustomScreener() {
     }
 
     const bollingerCondition = document.getElementById('sc-bollingerCondition').value || null;
-    const minVolumeRaw      = document.getElementById('sc-minVolume').value;
-    const minVolume         = minVolumeRaw ? parseInt(minVolumeRaw) : null;
+    const volumeRulesRaw    = document.getElementById('sc-volumeRules').value;
+    const volumeRules       = volumeRulesRaw ? volumeRulesRaw.split(',').map(s => s.trim()).filter(Boolean) : null;
     const minDropRaw        = document.getElementById('sc-minDropPercent').value;
     const minDropPercent    = minDropRaw ? parseFloat(minDropRaw) : null;
     const lookbackRaw       = document.getElementById('sc-lookbackDays').value;
@@ -3379,7 +3385,7 @@ async function executeCustomScreener() {
         minRsi,
         maxRsi,
         bollingerCondition,
-        minVolume,
+        volumeRules,
         movingAverageRules,
         minDropPercent,
         lookbackDays,

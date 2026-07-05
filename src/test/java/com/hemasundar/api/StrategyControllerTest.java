@@ -439,7 +439,7 @@ public class StrategyControllerTest {
                 .alias("My scan")
                 .rsiCondition("OVERSOLD")
                 .bollingerCondition("LOWER_BAND")
-                .minVolume(100000L)
+                .volumeRules(java.util.List.of(">= 100000"))
                 .movingAverageRules(java.util.List.of(
                         "PRICE_BELOW_SMA20",
                         "PRICE_BELOW_SMA50",
