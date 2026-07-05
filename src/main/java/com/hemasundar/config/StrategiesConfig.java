@@ -13,15 +13,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-
 /**
  * Root POJO for strategies-config.json with all nested configuration classes.
  * Contains all options strategies, technical screeners, and reusable technical
  * indicator config definitions.
  *
  * <h2>Technical Filter Format</h2>
- * Both options strategies and technical screeners use the same {@code technicalFilters}
+ * Both options strategies and technical screeners use the same
+ * {@code technicalFilters}
  * map structure:
+ * 
  * <pre>
  * "technicalFilters": {
  *     "RSI": {
@@ -37,6 +38,7 @@ import java.util.Map;
  *     "PRICE_DROP": { "config": { "minDropPercent": 5.0, "lookbackDays": 5 } }
  * }
  * </pre>
+ * 
  * Alternatively, {@code technicalFilters} on a strategy entry may be a string
  * reference to a named preset in the root {@code technicalFilters} map
  * (e.g. {@code "technicalFilters": "oversold"}).
@@ -62,7 +64,9 @@ public class StrategiesConfig {
      * Bollinger configs carry Bollinger fields, etc. Referenced by name
      * from a filter entry's {@code "config"} field.
      *
-     * <p>Example JSON:
+     * <p>
+     * Example JSON:
+     * 
      * <pre>
      * "technicalIndicatorConfigs": {
      *     "defaultRSI": { "period": 14, "oversoldThreshold": 30.0, "overboughtThreshold": 70.0 },
@@ -126,9 +130,10 @@ public class StrategiesConfig {
          * Technical filters for this strategy.
          * May be:
          * <ul>
-         *   <li>A {@code String} — name of a preset in the root {@code technicalFilters} map</li>
-         *   <li>A {@code Map<String, Object>} — inline filter definition</li>
-         *   <li>{@code null} — no technical filter applied</li>
+         * <li>A {@code String} — name of a preset in the root {@code technicalFilters}
+         * map</li>
+         * <li>A {@code Map<String, Object>} — inline filter definition</li>
+         * <li>{@code null} — no technical filter applied</li>
          * </ul>
          */
         private Object technicalFilters;
@@ -164,7 +169,8 @@ public class StrategiesConfig {
         /**
          * Technical filters for this screener. Uses the same format as
          * {@link StrategyEntry#technicalFilters} — a {@code Map<String, Object>}
-         * with keys like "RSI", "BOLLINGER_BAND", "VOLUME", "SIMPLE_MOVING_AVERAGE", "PRICE_DROP".
+         * with keys like "RSI", "BOLLINGER_BAND", "VOLUME", "SIMPLE_MOVING_AVERAGE",
+         * "PRICE_DROP".
          */
         private Map<String, Object> technicalFilters;
     }
@@ -177,7 +183,9 @@ public class StrategiesConfig {
      * POJO for an RSI filter entry within a {@code technicalFilters} map.
      * Key: {@code "RSI"}.
      *
-     * <p>Example JSON:
+     * <p>
+     * Example JSON:
+     * 
      * <pre>
      * "RSI": {
      *     "config": "defaultRSI",
@@ -190,7 +198,8 @@ public class StrategiesConfig {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class RSIFilterEntry {
         /**
-         * Either a string reference (e.g. "default") to a named {@code TechnicalIndicatorConfigEntry},
+         * Either a string reference (e.g. "default") to a named
+         * {@code TechnicalIndicatorConfigEntry},
          * or an inline {@code RSIConfigParams} object.
          */
         private Object config;
@@ -210,10 +219,14 @@ public class StrategiesConfig {
     }
 
     /**
-     * POJO for inline RSI indicator params (used when {@code "config"} is an object, not a string ref).
-     * Also used when deserializing a named RSI config entry from {@code technicalIndicatorConfigs}.
+     * POJO for inline RSI indicator params (used when {@code "config"} is an
+     * object, not a string ref).
+     * Also used when deserializing a named RSI config entry from
+     * {@code technicalIndicatorConfigs}.
      *
-     * <p>Named config example:
+     * <p>
+     * Named config example:
+     * 
      * <pre>
      * "defaultRSI": { "period": 14, "oversoldThreshold": 30.0, "overboughtThreshold": 70.0 }
      * </pre>
@@ -231,7 +244,9 @@ public class StrategiesConfig {
      * POJO for a Bollinger Band filter entry within a {@code technicalFilters} map.
      * Key: {@code "BOLLINGER_BAND"}.
      *
-     * <p>Example JSON:
+     * <p>
+     * Example JSON:
+     * 
      * <pre>
      * "BOLLINGER_BAND": {
      *     "config": "defaultBollingerBand",
@@ -254,7 +269,9 @@ public class StrategiesConfig {
      * POJO for inline or named Bollinger Band indicator params.
      * Field names match the expected JSON for a named Bollinger config entry:
      *
-     * <p>Named config example:
+     * <p>
+     * Named config example:
+     * 
      * <pre>
      * "defaultBollingerBand": { "bollingerPeriod": 20, "bollingerStdDev": 2.0 }
      * </pre>
@@ -271,7 +288,9 @@ public class StrategiesConfig {
      * POJO for a Volume filter entry within a {@code technicalFilters} map.
      * Key: {@code "VOLUME"}.
      *
-     * <p>Example JSON:
+     * <p>
+     * Example JSON:
+     * 
      * <pre>
      * "VOLUME": { "config": { "min": 1000000 } }
      * </pre>
@@ -310,9 +329,10 @@ public class StrategiesConfig {
      * Key: {@code "SIMPLE_MOVING_AVERAGE"}.
      *
      * Example:
+     * 
      * <pre>
      * "SIMPLE_MOVING_AVERAGE": {
-     *     "condition": "PRICE >= SMA50, SMA50 >= SMA200"
+     *     "conditions": ["PRICE >= SMA50", "SMA50 >= SMA200"]
      * }
      * </pre>
      */
@@ -349,7 +369,9 @@ public class StrategiesConfig {
      * POJO for a Price Drop filter entry within a {@code technicalFilters} map.
      * Key: {@code "PRICE_DROP"}.
      *
-     * <p>Example JSON:
+     * <p>
+     * Example JSON:
+     * 
      * <pre>
      * "PRICE_DROP": { "config": { "minDropPercent": 5.0, "lookbackDays": 5 } }
      * </pre>
@@ -373,10 +395,13 @@ public class StrategiesConfig {
     }
 
     /**
-     * POJO for a Historical Volatility filter entry within a {@code technicalFilters} map.
+     * POJO for a Historical Volatility filter entry within a
+     * {@code technicalFilters} map.
      * Key: {@code "HISTORICAL_VOLATILITY"}.
      *
-     * <p>Example JSON:
+     * <p>
+     * Example JSON:
+     * 
      * <pre>
      * "HISTORICAL_VOLATILITY": { "condition": { "min": 25.0 } }
      * </pre>
