@@ -16,7 +16,7 @@ public enum ScreenerType {
     RSI_BB_BEARISH_CROSSOVER("RSI BB Bearish Crossover"),
     RSI_OVERSOLD("RSI Oversold"),
     BB_LOWER("Bollinger Band Lower"),
-    BELOW_200_DAY_MA("Below 200 Day MA"),
+    BELOW_200_DAY_SMA("Below 200 Day SMA"),
     PRICE_DROP("Price Drop"),
     HIGH_52W_DROP("52-Week High Drop");
 

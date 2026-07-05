@@ -306,7 +306,7 @@ public class StrategiesConfigLoader {
 
     /**
      * Builds a {@link TechnicalFilterChain} from a {@code technicalFilters} map.
-     * Keys: "RSI", "BOLLINGER_BAND", "VOLUME", "MOVING_AVERAGE", "PRICE_DROP".
+     * Keys: "RSI", "BOLLINGER_BAND", "VOLUME", "SIMPLE_MOVING_AVERAGE", "PRICE_DROP".
      */
     public TechnicalFilterChain parseTechnicalFilters(Map<String, Object> filtersMap) {
         return buildFilterChainFromMap(filtersMap, java.util.Collections.emptyMap());
@@ -335,7 +335,7 @@ public class StrategiesConfigLoader {
                     case "BOLLINGER_BAND" ->
                         applyBollingerFilter(rawEntry, indicatorConfigs, indicatorsBuilder, conditionsBuilder);
                     case "VOLUME" -> applyVolumeFilter(rawEntry, conditionsBuilder);
-                    case "MOVING_AVERAGE" -> applyMovingAverageFilters(rawEntry, indicatorsBuilder, conditionsBuilder);
+                    case "SIMPLE_MOVING_AVERAGE" -> applyMovingAverageFilters(rawEntry, indicatorsBuilder, conditionsBuilder);
                     case "PRICE_DROP" -> applyPriceDropFilter(rawEntry, conditionsBuilder);
                     case "HISTORICAL_VOLATILITY" -> applyHistoricalVolatilityFilter(rawEntry, conditionsBuilder);
                     default -> log.warn("Unknown technicalFilters key '{}' — skipping", key);
@@ -479,7 +479,7 @@ public class StrategiesConfigLoader {
         } else if (rawEntry instanceof String) {
             rules.add((String) rawEntry);
         } else {
-            log.warn("Invalid MOVING_AVERAGE config format. Expected string or list of strings.");
+            log.warn("Invalid SIMPLE_MOVING_AVERAGE config format. Expected string or list of strings.");
             return;
         }
 
@@ -524,7 +524,7 @@ public class StrategiesConfigLoader {
                 smaConds.add(sc);
                 continue;
             }
-            log.warn("Unrecognized MOVING_AVERAGE rule: {}", rule);
+            log.warn("Unrecognized SIMPLE_MOVING_AVERAGE rule: {}", rule);
         }
 
         TechFilterConditions builtConds = conditions.build();

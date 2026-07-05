@@ -399,7 +399,7 @@
                         "max": 65
                     }
                 },
-                "MOVING_AVERAGE": [
+                "SIMPLE_MOVING_AVERAGE": [
                     "PRICE_ABOVE_SMA50",
                     "SMA50_ABOVE_SMA200"
                 ],
@@ -693,12 +693,12 @@
             }
         },
         {
-            "alias": "Below 200 Day MA",
+            "alias": "Below 200 Day SMA",
             "enabled": true,
-            "screenerType": "BELOW_200_DAY_MA",
+            "screenerType": "BELOW_200_DAY_SMA",
             "securitiesFile": "top100, portfolio, tracking, 2026",
             "technicalFilters": {
-                "MOVING_AVERAGE": [
+                "SIMPLE_MOVING_AVERAGE": [
                     "PRICE_BELOW_SMA200"
                 ],
                 "VOLUME": {

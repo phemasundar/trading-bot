@@ -78,11 +78,11 @@ The Config Viewer (`config.html`) and Execute Strategy template cards now also c
 
 ## Refactor: Simplify Moving Average Configuration to Shorthand Strings (2026-07-03)
 
-Redesigned the `MOVING_AVERAGE` JSON schema in `strategies-config.json` to replace the verbose nested object format with a clean, easy-to-read array of shorthand string expressions.
+Redesigned the `SIMPLE_MOVING_AVERAGE` JSON schema in `strategies-config.json` to replace the verbose nested object format with a clean, easy-to-read array of shorthand string expressions.
 
 ### Schema Changes
 - Eliminated `config`, `condition`, `priceConditions`, and `smaConditions` objects entirely.
-- `MOVING_AVERAGE` now directly accepts a JSON array of string rules.
+- `SIMPLE_MOVING_AVERAGE` now directly accepts a JSON array of string rules.
 - Supported patterns: `PRICE_ABOVE_SMA<period>`, `PRICE_BELOW_SMA<period>`, `SMA<period1>_ABOVE_SMA<period2>`, `SMA<period1>_BELOW_SMA<period2>`.
 - Example: `["PRICE_ABOVE_SMA50", "SMA50_ABOVE_SMA200"]`
 
@@ -91,7 +91,7 @@ Redesigned the `MOVING_AVERAGE` JSON schema in `strategies-config.json` to repla
 |---|---|
 | **`StrategiesConfig.java`** | Deleted unused nested POJOs: `MovingAverageFilterEntry`, `MovingAverageConfigParams`, `MovingAverageCondition`. |
 | **`StrategiesConfigLoader.java`** | Updated `applyMovingAverageFilters` to process a `List<String>`. Uses Regex matching to natively parse string expressions into `PriceCondition` and `SmaCondition` engines. |
-| **`strategies-config.json`** | Migrated `MOVING_AVERAGE` blocks across all screeners and strategies to the new intuitive string list format. |
+| **`strategies-config.json`** | Migrated `SIMPLE_MOVING_AVERAGE` blocks across all screeners and strategies to the new intuitive string list format. |
 
 ---
 ## Refactor: Dynamic Moving Average Configuration (2026-07-03)
@@ -139,7 +139,7 @@ Refactored the `technicalFilter` flat-object format in `strategies-config.json` 
 }
 ```
 
-Each filter type (`RSI`, `BOLLINGER_BAND`, `VOLUME`, `MOVING_AVERAGE`, `PRICE_DROP`) has:
+Each filter type (`RSI`, `BOLLINGER_BAND`, `VOLUME`, `SIMPLE_MOVING_AVERAGE`, `PRICE_DROP`) has:
 - **`config`**: either a string reference to a named entry in `technicalIndicatorConfigs`, or an inline object with indicator parameters.
 - **`condition`**: the filter condition to apply (e.g. `BULLISH_CROSSOVER`, `LOWER_BAND`).
 

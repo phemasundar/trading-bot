@@ -21,8 +21,8 @@ import com.hemasundar.config.StrategiesConfig.Position;
  *         .rsiCondition(RSICondition.BULLISH_CROSSOVER) // RSI crossed from <30 to >=30
  *         .bollingerCondition(BollingerCondition.LOWER_BAND) // Price at lower band
  *         .priceConditions(List.of(
- *             new PriceCondition() {{ setPeriod(20); setPosition(Position.BELOW); }}, // Price below MA(20)
- *             new PriceCondition() {{ setPeriod(50); setPosition(Position.BELOW); }}  // Price below MA(50)
+ *             new PriceCondition() {{ setPeriod(20); setPosition(Position.BELOW); }}, // Price below SMA(20)
+ *             new PriceCondition() {{ setPeriod(50); setPosition(Position.BELOW); }}  // Price below SMA(50)
  *         ))
  *         .minVolume(1_000_000L) // Minimum 1M shares
  *         .build();
@@ -144,7 +144,7 @@ public class TechFilterConditions {
             for (PriceCondition condition : priceConditions) {
                 sb.append("Price ")
                   .append(condition.getPosition() == Position.ABOVE ? ">" : "<")
-                  .append(" MA")
+                  .append(" SMA")
                   .append(condition.getPeriod())
                   .append(" | ");
             }
@@ -152,11 +152,11 @@ public class TechFilterConditions {
         
         if (smaConditions != null) {
             for (SmaCondition condition : smaConditions) {
-                sb.append("MA")
+                sb.append("SMA")
                   .append(condition.getPeriod1())
                   .append(" ")
                   .append(condition.getPosition() == Position.ABOVE ? ">" : "<")
-                  .append(" MA")
+                  .append(" SMA")
                   .append(condition.getPeriod2())
                   .append(" | ");
             }

@@ -8,7 +8,7 @@ import org.ta4j.core.indicators.helpers.ClosePriceIndicator;
 
 /**
  * Moving Average technical filter.
- * Can be configured for any period (e.g., 20-day, 50-day MA).
+ * Can be configured for any period (e.g., 20-day, 50-day SMA).
  */
 @Data
 @Builder
@@ -22,7 +22,7 @@ public class MovingAverageFilter implements TechnicalFilter {
      * @param series The price data series
      * @return Current SMA value
      */
-    public double getCurrentMA(BarSeries series) {
+    public double getCurrentSMA(BarSeries series) {
         ClosePriceIndicator closePrice = new ClosePriceIndicator(series);
         SMAIndicator sma = new SMAIndicator(closePrice, period);
         return sma.getValue(series.getEndIndex()).doubleValue();
@@ -42,30 +42,30 @@ public class MovingAverageFilter implements TechnicalFilter {
      * Checks if current price is below the moving average.
      *
      * @param series The price data series
-     * @return true if price < MA
+     * @return true if price < SMA
      */
-    public boolean isPriceBelowMA(BarSeries series) {
-        return getCurrentPrice(series) < getCurrentMA(series);
+    public boolean isPriceBelowSMA(BarSeries series) {
+        return getCurrentPrice(series) < getCurrentSMA(series);
     }
 
     /**
      * Checks if current price is above the moving average.
      *
      * @param series The price data series
-     * @return true if price > MA
+     * @return true if price > SMA
      */
-    public boolean isPriceAboveMA(BarSeries series) {
-        return getCurrentPrice(series) > getCurrentMA(series);
+    public boolean isPriceAboveSMA(BarSeries series) {
+        return getCurrentPrice(series) > getCurrentSMA(series);
     }
 
     @Override
     public boolean evaluate(BarSeries series) {
-        // Default evaluation: returns true if price is below MA (bearish signal)
-        return isPriceBelowMA(series);
+        // Default evaluation: returns true if price is below SMA (bearish signal)
+        return isPriceBelowSMA(series);
     }
 
     @Override
     public String getFilterName() {
-        return String.format("MA(%d)", period);
+        return String.format("SMA(%d)", period);
     }
 }

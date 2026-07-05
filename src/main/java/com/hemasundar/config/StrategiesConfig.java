@@ -33,7 +33,7 @@ import java.util.Map;
  *         "condition": "LOWER_BAND"
  *     },
  *     "VOLUME": { "config": { "min": 1000000 } },
- *     "MOVING_AVERAGE": { "config": { "requirePriceBelowMA200": true } },
+ *     "SIMPLE_MOVING_AVERAGE": { "config": { "requirePriceBelowMA200": true } },
  *     "PRICE_DROP": { "config": { "minDropPercent": 5.0, "lookbackDays": 5 } }
  * }
  * </pre>
@@ -164,7 +164,7 @@ public class StrategiesConfig {
         /**
          * Technical filters for this screener. Uses the same format as
          * {@link StrategyEntry#technicalFilters} — a {@code Map<String, Object>}
-         * with keys like "RSI", "BOLLINGER_BAND", "VOLUME", "MOVING_AVERAGE", "PRICE_DROP".
+         * with keys like "RSI", "BOLLINGER_BAND", "VOLUME", "SIMPLE_MOVING_AVERAGE", "PRICE_DROP".
          */
         private Map<String, Object> technicalFilters;
     }
@@ -307,11 +307,11 @@ public class StrategiesConfig {
 
     /**
      * POJO for a Moving Average filter entry within a {@code technicalFilters} map.
-     * Key: {@code "MOVING_AVERAGE"}.
+     * Key: {@code "SIMPLE_MOVING_AVERAGE"}.
      *
      * Example:
      * <pre>
-     * "MOVING_AVERAGE": [
+     * "SIMPLE_MOVING_AVERAGE": [
      *     "PRICE_ABOVE_SMA50",
      *     "SMA50_ABOVE_SMA200"
      * ]

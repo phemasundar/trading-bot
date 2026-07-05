@@ -120,11 +120,11 @@ public class TechnicalScreener {
                     .append(String.format("%.2f", bollingerUpper)).append(")\n");
 
             // Moving Averages Section - Condensed summary
-            sb.append("  📊 MAs: ");
+            sb.append("  📊 SMAs: ");
             if (maValues != null && !maValues.isEmpty()) {
                 List<String> maStrings = new ArrayList<>();
                 maValues.forEach((period, value) -> {
-                    maStrings.add(String.format("MA%d($%.2f)", period, value));
+                    maStrings.add(String.format("SMA%d($%.2f)", period, value));
                 });
                 sb.append(String.join(", ", maStrings));
             } else {
@@ -157,7 +157,7 @@ public class TechnicalScreener {
             StringBuilder maOutput = new StringBuilder();
             if (maValues != null && !maValues.isEmpty()) {
                 maValues.forEach((period, value) -> {
-                    maOutput.append(String.format("║   MA(%d): %-13.2f %32s ║\n", period, value, ""));
+                    maOutput.append(String.format("║   SMA(%d): %-13.2f %32s ║\n", period, value, ""));
                 });
             } else {
                 maOutput.append("║   None configured                                        ║\n");
@@ -288,7 +288,7 @@ public class TechnicalScreener {
         if (indicators.getMaFilters() != null) {
             Map<Integer, Double> maValues = new HashMap<>();
             for (Map.Entry<Integer, MovingAverageFilter> entry : indicators.getMaFilters().entrySet()) {
-                maValues.put(entry.getKey(), entry.getValue().getCurrentMA(series));
+                maValues.put(entry.getKey(), entry.getValue().getCurrentSMA(series));
             }
             builder.maValues(maValues);
         }
@@ -349,7 +349,7 @@ public class TechnicalScreener {
                 return false;
         }
 
-        // MA conditions dynamically evaluated
+        // SMA conditions dynamically evaluated
         if (conditions.getPriceConditions() != null) {
             for (PriceCondition condition : conditions.getPriceConditions()) {
                 Double maVal = result.getMaValues().get(condition.getPeriod());
