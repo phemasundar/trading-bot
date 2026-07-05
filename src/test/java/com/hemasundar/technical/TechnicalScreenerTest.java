@@ -48,7 +48,7 @@ public class TechnicalScreenerTest {
                 .thenReturn(null);
 
         TechnicalIndicators indicators = TechnicalIndicators.builder().build();
-        TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("AAPL", indicators, 20);
+        TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("AAPL", indicators, null);
 
         assertNull(result);
     }
@@ -61,7 +61,7 @@ public class TechnicalScreenerTest {
                 .thenReturn(response);
 
         TechnicalIndicators indicators = TechnicalIndicators.builder().build();
-        TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("TSLA", indicators, 20);
+        TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("TSLA", indicators, null);
 
         assertNull(result);
     }
@@ -80,7 +80,7 @@ public class TechnicalScreenerTest {
                 )))
                 .build();
 
-        TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("MSFT", indicators, 20);
+        TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("MSFT", indicators, null);
 
         assertNotNull(result);
         assertEquals(result.getSymbol(), "MSFT");
@@ -100,6 +100,7 @@ public class TechnicalScreenerTest {
 
         TechFilterConditions conditions = TechFilterConditions.builder()
                 .minVolume(500L)
+                .volumeCondition(VolumeCondition.MIN_VOLUME)
                 .build();
 
         TechnicalFilterChain chain = TechnicalFilterChain.of(indicators, conditions);
@@ -122,6 +123,7 @@ public class TechnicalScreenerTest {
         // Require massive volume
         TechFilterConditions conditions = TechFilterConditions.builder()
                 .minVolume(10_000_000L)
+                .volumeCondition(VolumeCondition.MIN_VOLUME)
                 .build();
 
         TechnicalFilterChain chain = TechnicalFilterChain.of(indicators, conditions);
@@ -151,7 +153,7 @@ public class TechnicalScreenerTest {
                 .volumeFilter(VolumeFilter.builder().build())
                 .build();
 
-        TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("TEST", indicators, 20);
+        TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("TEST", indicators, null);
         
         assertNotNull(result);
         assertEquals(result.getSymbol(), "TEST");

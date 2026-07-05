@@ -15,7 +15,7 @@ public class MovingAverageFilterTest {
     public void testMAProperties() {
         MovingAverageFilter ma20 = MovingAverageFilter.builder().period(20).build();
         assertEquals(ma20.getPeriod(), 20);
-        assertEquals(ma20.getFilterName(), "MA(20)");
+        assertEquals(ma20.getFilterName(), "SMA(20)");
     }
 
     @Test
@@ -31,28 +31,28 @@ public class MovingAverageFilterTest {
         MovingAverageFilter ma5 = MovingAverageFilter.builder().period(5).build();
 
         // MA is 100, Price is 100
-        assertEquals(ma5.getCurrentMA(series), 100.0);
+        assertEquals(ma5.getCurrentSMA(series), 100.0);
         assertEquals(ma5.getCurrentPrice(series), 100.0);
-        assertFalse(ma5.isPriceBelowMA(series));
-        assertFalse(ma5.isPriceAboveMA(series));
+        assertFalse(ma5.isPriceBelowSMA(series));
+        assertFalse(ma5.isPriceAboveSMA(series));
 
         // Add a bar at 110
         series.addBar(now.plusDays(6), 110, 110, 110, 110, 1000);
         // New MA(5) = (100+100+100+100+110)/5 = 102
-        assertEquals(ma5.getCurrentMA(series), 102.0);
+        assertEquals(ma5.getCurrentSMA(series), 102.0);
         assertEquals(ma5.getCurrentPrice(series), 110.0);
-        assertTrue(ma5.isPriceAboveMA(series));
-        assertFalse(ma5.isPriceBelowMA(series));
+        assertTrue(ma5.isPriceAboveSMA(series));
+        assertFalse(ma5.isPriceBelowSMA(series));
 
         // Add a bar at 80
         series.addBar(now.plusDays(7), 80, 80, 80, 80, 1000);
         // New MA(5) = (100+100+100+110+80)/5 = 98
-        assertEquals(ma5.getCurrentMA(series), 98.0);
+        assertEquals(ma5.getCurrentSMA(series), 98.0);
         assertEquals(ma5.getCurrentPrice(series), 80.0);
-        assertTrue(ma5.isPriceBelowMA(series));
-        assertFalse(ma5.isPriceAboveMA(series));
+        assertTrue(ma5.isPriceBelowSMA(series));
+        assertFalse(ma5.isPriceAboveSMA(series));
 
-        // evaluate returns isPriceBelowMA
+        // evaluate returns isPriceBelowSMA
         assertTrue(ma5.evaluate(series));
     }
 }

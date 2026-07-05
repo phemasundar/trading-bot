@@ -114,7 +114,7 @@ public class OptionsStrategyFilter {
      * Structured technical filter configuration used during execution.
      * Serialized into the filterConfig JSON blob so the UI can restore
      * technical filter form fields when "Load Filters" is clicked.
-     * Keys: "RSI", "BOLLINGER_BAND", "VOLUME", "HISTORICAL_VOLATILITY", "PRICE_DROP", "MOVING_AVERAGE".
+     * Keys: "RSI", "BOLLINGER_BAND", "VOLUME", "HISTORICAL_VOLATILITY", "PRICE_DROP", "SIMPLE_MOVING_AVERAGE".
      */
     private java.util.Map<String, Object> technicalFilters;
 

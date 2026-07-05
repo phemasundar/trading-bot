@@ -21,8 +21,8 @@ import com.hemasundar.config.StrategiesConfig.Position;
  *         .rsiCondition(RSICondition.BULLISH_CROSSOVER) // RSI crossed from <30 to >=30
  *         .bollingerCondition(BollingerCondition.LOWER_BAND) // Price at lower band
  *         .priceConditions(List.of(
- *             new PriceCondition() {{ setPeriod(20); setPosition(Position.BELOW); }}, // Price below MA(20)
- *             new PriceCondition() {{ setPeriod(50); setPosition(Position.BELOW); }}  // Price below MA(50)
+ *             new PriceCondition() {{ setPeriod(20); setPosition(Position.BELOW); }}, // Price below SMA(20)
+ *             new PriceCondition() {{ setPeriod(50); setPosition(Position.BELOW); }}  // Price below SMA(50)
  *         ))
  *         .minVolume(1_000_000L) // Minimum 1M shares
  *         .build();
@@ -57,6 +57,21 @@ public class TechFilterConditions {
      * Set to 0 or null to disable volume check.
      */
     private final Long minVolume;
+
+    /**
+     * Maximum volume threshold.
+     */
+    private final Long maxVolume;
+
+    /**
+     * Volume condition (e.g. MIN_VOLUME, STABLE_OR_EXPANDING).
+     */
+    private final VolumeCondition volumeCondition;
+
+    // Parameters for volume STABLE_OR_EXPANDING condition
+    private final Integer volumeShortSmaPeriod;
+    private final Integer volumeLongSmaPeriod;
+    private final Double volumeThresholdPercent;
 
     /**
      * Dynamic conditions for comparing price to SMA.
@@ -129,7 +144,7 @@ public class TechFilterConditions {
             for (PriceCondition condition : priceConditions) {
                 sb.append("Price ")
                   .append(condition.getPosition() == Position.ABOVE ? ">" : "<")
-                  .append(" MA")
+                  .append(" SMA")
                   .append(condition.getPeriod())
                   .append(" | ");
             }
@@ -137,17 +152,33 @@ public class TechFilterConditions {
         
         if (smaConditions != null) {
             for (SmaCondition condition : smaConditions) {
-                sb.append("MA")
+                sb.append("SMA")
                   .append(condition.getPeriod1())
                   .append(" ")
                   .append(condition.getPosition() == Position.ABOVE ? ">" : "<")
-                  .append(" MA")
+                  .append(" SMA")
                   .append(condition.getPeriod2())
                   .append(" | ");
             }
         }
-        if (minVolume != null && minVolume > 0) {
-            sb.append(String.format("Volume >= %,d | ", minVolume));
+        if (volumeCondition != null) {
+            switch (volumeCondition) {
+                case MIN_VOLUME:
+                    if (minVolume != null) sb.append(String.format("Volume >= %,d | ", minVolume));
+                    break;
+                case MAX_VOLUME:
+                    if (maxVolume != null) sb.append(String.format("Volume <= %,d | ", maxVolume));
+                    break;
+                case RANGE_VOLUME:
+                    if (minVolume != null && maxVolume != null) sb.append(String.format("Volume %,d - %,d | ", minVolume, maxVolume));
+                    break;
+                case SMA_COMPARISON:
+                    sb.append(String.format("Volume SMA%d >= SMA%d * %.0f%% | ", 
+                        volumeShortSmaPeriod != null ? volumeShortSmaPeriod : 20, 
+                        volumeLongSmaPeriod != null ? volumeLongSmaPeriod : 50, 
+                        volumeThresholdPercent != null ? volumeThresholdPercent : 90.0));
+                    break;
+            }
         }
         if (minHvRank != null) {
             sb.append(String.format("HV(%d) Rank >= %.1f | ", hvPeriod, minHvRank));

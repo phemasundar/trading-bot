@@ -1,5 +1,42 @@
 # Project Updates
 
+## Feature: Display Tech Indicators on Trade Details UI (2026-07-04)
+
+Added the ability to display technical analysis indicators calculated during strategy execution in the Options Dashboard. When a user clicks any trade row, the details panel now includes a "Tech Indicators" section if technical filters were applied.
+
+### End-to-End Implementation
+- **Backend Model**: Added a `techIndicators` string field to `Trade.java` to store the formatted technical indicators summary.
+- **Backend Execution**: Modified `StrategyExecutionService.executeStrategy()` to capture the `ScreeningResult` map from `TechnicalScreener.screenStocks()`. After creating the `StrategyResult`, it iterates over the generated `Trade` objects and injects the `formattedSummary` from the corresponding `ScreeningResult`.
+- **Frontend App**: Updated the HTML rendering in `app.js` to parse `data-tech-indicators` from the trade rows. If this data is present, the detail panel injected by `initTradeRowClicks()` now renders a new `▶ {Symbol} — Tech Indicators` block containing the indicators.
+
+### Architecture
+| File | Change |
+|---|---|
+| **`Trade.java`** | Added `techIndicators` field. |
+| **`StrategyExecutionService.java`** | Captured `ScreeningResult` from screener and populated `techIndicators` on `Trade` objects. |
+| **`app.js`** | Enhanced `trade-row` template to include `data-tech-indicators`. Added UI rendering block in `initTradeRowClicks()`. |
+
+## Feature: Volume Technical Filter Refactoring (2026-07-04)
+
+Refactored the Volume Technical Filter to support more robust conditions including an Enum-based filtering strategy. The `min` and `max` parameters have been moved out of `config` into a `condition` object.
+
+### New Features & Improvements
+- **Volume Condition Logic**: Introduced `VolumeCondition` Enum to support `MIN_VOLUME`, `MAX_VOLUME`, `RANGE_VOLUME`, and `STABLE_OR_EXPANDING`.
+- **Dynamic Configuration**: The config json structure now maps `min` and `max` limits to the condition object, separating what gets calculated (config) from the thresholds (condition).
+- **Stable or Expanding Filtering**: Added support for validating volume expansion using moving averages (`Volume_SMA20 >= Volume_SMA50 * 90%`). The SMA periods and threshold are configurable.
+
+
+### Architecture
+| File | Change |
+|---|---|
+| **`VolumeCondition.java`** | [NEW] Enum representing the supported condition types for volume. |
+| **`StrategiesConfig.java`** | Added `VolumeFilterConditionParams` and redefined `VolumeConfigParams` with SMA properties for stable volume validation. |
+| **`TechFilterConditions.java`** | Added `volumeCondition` and SMA fields. Updated the `getSummary()` display logic. |
+| **`TechnicalScreener.java`** | Adjusted screening conditions to dynamically parse Enum-based checks. Propagated SMA generation capabilities inside `analyzeStock()` using ta4j's `VolumeIndicator` and `SMAIndicator`. |
+| **`StrategiesConfigLoader.java`** | Changed JSON mapping schema to process Enum structures seamlessly. |
+| **`strategies-config.json`** | Migrated `VOLUME` properties away from the legacy format across all nested screeners. |
+| **`TechnicalScreenerTest.java`** | Passed `TechFilterConditions` downstream inside test evaluations to correspond with updated `analyzeStock()` signature. |
+
 ## Feature: Custom RSI Range Filtering (2026-07-04)
 
 Added the ability for users to specify custom `minRsi` and `maxRsi` range values when filtering stocks using the Technical Screener and Execute Strategy flows.
@@ -57,11 +94,11 @@ The Config Viewer (`config.html`) and Execute Strategy template cards now also c
 
 ## Refactor: Simplify Moving Average Configuration to Shorthand Strings (2026-07-03)
 
-Redesigned the `MOVING_AVERAGE` JSON schema in `strategies-config.json` to replace the verbose nested object format with a clean, easy-to-read array of shorthand string expressions.
+Redesigned the `SIMPLE_MOVING_AVERAGE` JSON schema in `strategies-config.json` to replace the verbose nested object format with a clean, easy-to-read array of shorthand string expressions.
 
 ### Schema Changes
 - Eliminated `config`, `condition`, `priceConditions`, and `smaConditions` objects entirely.
-- `MOVING_AVERAGE` now directly accepts a JSON array of string rules.
+- `SIMPLE_MOVING_AVERAGE` now directly accepts a JSON array of string rules.
 - Supported patterns: `PRICE_ABOVE_SMA<period>`, `PRICE_BELOW_SMA<period>`, `SMA<period1>_ABOVE_SMA<period2>`, `SMA<period1>_BELOW_SMA<period2>`.
 - Example: `["PRICE_ABOVE_SMA50", "SMA50_ABOVE_SMA200"]`
 
@@ -70,7 +107,7 @@ Redesigned the `MOVING_AVERAGE` JSON schema in `strategies-config.json` to repla
 |---|---|
 | **`StrategiesConfig.java`** | Deleted unused nested POJOs: `MovingAverageFilterEntry`, `MovingAverageConfigParams`, `MovingAverageCondition`. |
 | **`StrategiesConfigLoader.java`** | Updated `applyMovingAverageFilters` to process a `List<String>`. Uses Regex matching to natively parse string expressions into `PriceCondition` and `SmaCondition` engines. |
-| **`strategies-config.json`** | Migrated `MOVING_AVERAGE` blocks across all screeners and strategies to the new intuitive string list format. |
+| **`strategies-config.json`** | Migrated `SIMPLE_MOVING_AVERAGE` blocks across all screeners and strategies to the new intuitive string list format. |
 
 ---
 ## Refactor: Dynamic Moving Average Configuration (2026-07-03)
@@ -118,7 +155,7 @@ Refactored the `technicalFilter` flat-object format in `strategies-config.json` 
 }
 ```
 
-Each filter type (`RSI`, `BOLLINGER_BAND`, `VOLUME`, `MOVING_AVERAGE`, `PRICE_DROP`) has:
+Each filter type (`RSI`, `BOLLINGER_BAND`, `VOLUME`, `SIMPLE_MOVING_AVERAGE`, `PRICE_DROP`) has:
 - **`config`**: either a string reference to a named entry in `technicalIndicatorConfigs`, or an inline object with indicator parameters.
 - **`condition`**: the filter condition to apply (e.g. `BULLISH_CROSSOVER`, `LOWER_BAND`).
 

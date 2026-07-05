@@ -543,7 +543,7 @@ function buildScreenerTable(results, cardId = null) {
             ${th('volume', 'Volume')}
             ${th('rsi', 'RSI')}
             <th>BB (L-U)</th>
-            ${th('ma200', 'MA 200')}
+            ${th('ma200', 'SMA 200')}
             ${th('ma100', 'MA 100')}
             ${th('ma50', 'MA 50')}
             ${th('ma20', 'MA 20')}
@@ -730,8 +730,8 @@ function buildTradeTable(trades, cardId = null) {
             : `<span class="text-danger">-$${Math.abs(credit).toFixed(2)}</span>`;
 
         const detailsEscaped = escapeAttr(t.tradeDetails || '');
+        const techIndicatorsAttr = t.techIndicators ? escapeAttr(t.techIndicators) : '';
         const sym = t.symbol || '';
-        // Store per-leg optionData from the option chain API for the detail panel
         const legsOptionData = (t.legs || []).map(l => ({ action: l.action, optionType: l.optionType, optionData: l.optionData || null }));
         const legsAttr = escapeAttr(JSON.stringify(legsOptionData));
 
@@ -741,7 +741,7 @@ function buildTradeTable(trades, cardId = null) {
             rorCagr = (Math.pow(1.0 + rawRoR, 365.0 / t.dte) - 1.0) * 100.0;
         }
 
-        html += `<tr class="trade-row" data-details="${detailsEscaped}" data-legs-option-data="${legsAttr}" data-symbol="${escapeAttr(sym)}">
+        html += `<tr class="trade-row" data-details="${detailsEscaped}" data-tech-indicators="${techIndicatorsAttr}" data-legs-option-data="${legsAttr}" data-symbol="${escapeAttr(sym)}">
             <td><strong>${sym}</strong></td>
             <td class="text-mono">$${(t.underlyingPrice || 0).toFixed(2)}</td>
             <td class="today-perf" data-symbol="${escapeAttr(sym)}"><span class="text-muted">--</span></td>
@@ -1109,6 +1109,8 @@ function initTradeRowClicks() {
         const details = row.dataset.details;
         if (!details) return;
 
+        const techIndicators = row.dataset.techIndicators;
+
         row.classList.add('selected');
 
         const symbol = row.querySelector('td strong')?.textContent || '';
@@ -1129,6 +1131,12 @@ function initTradeRowClicks() {
                         ▶ ${symbol} — Trade Details
                     </div>
                     <pre class="trade-detail-body">${decodeAttr(details)}</pre>
+                    ${techIndicators ? `
+                    <div class="trade-detail-header" style="margin-top: 15px;">
+                        ▶ ${symbol} — Tech Indicators
+                    </div>
+                    <pre class="trade-detail-body">${decodeAttr(techIndicators)}</pre>
+                    ` : ''}
                     ${legsOptionData ? renderOptionDataTable(legsOptionData) : ''}
                     <div class="iv-data-panel" style="margin-top: 10px; font-family: var(--font-mono); font-size: 0.85rem; padding: 8px; background: var(--bg-alt); border-radius: 4px; border: 1px solid var(--border);">
                         <span class="text-muted">Loading Volatility Data...</span>
@@ -1227,7 +1235,7 @@ function renderFilterGrid(cfg) {
 
 /**
  * Renders a technicalFilters map (from strategies-config.json) as a readable subsection.
- * technicalFilters can be a string (preset name), an array (MOVING_AVERAGE rules), or a map of filter configs.
+ * technicalFilters can be a string (preset name), an array (SIMPLE_MOVING_AVERAGE rules), or a map of filter configs.
  */
 function renderTechFiltersGrid(technicalFilters) {
     if (!technicalFilters) return '';
@@ -2316,7 +2324,7 @@ function fillTechFiltersForm(techFilters) {
     if (!techFilters || typeof techFilters !== 'object') return;
 
     for (const [filterKey, val] of Object.entries(techFilters)) {
-        if (filterKey === 'MOVING_AVERAGE') {
+        if (filterKey === 'SIMPLE_MOVING_AVERAGE') {
             const rules = Array.isArray(val) ? val.join(', ') : val;
             const el = document.querySelector(`[data-tech-filter="${filterKey}"][data-tech-field="rules"]`);
             if (el) el.value = rules;
@@ -2445,8 +2453,8 @@ async function executeCustom() {
 
         if (!technicalFilters[filterKey]) technicalFilters[filterKey] = {};
 
-        if (filterKey === 'MOVING_AVERAGE' && fieldKey === 'rules') {
-            // MOVING_AVERAGE is a plain array of rule strings
+        if (filterKey === 'SIMPLE_MOVING_AVERAGE' && fieldKey === 'rules') {
+            // SIMPLE_MOVING_AVERAGE is a plain array of rule strings
             technicalFilters[filterKey] = rawVal.split(',').map(s => s.trim()).filter(Boolean);
         } else if (fieldKey === 'condition') {
             if (typeof technicalFilters[filterKey].condition === 'object') {
@@ -3233,7 +3241,7 @@ function loadScreenerTemplateParams(screenerJson) {
         setVal('sc-minDropPercent', extractField('PRICE_DROP', 'config', 'minDropPercent'));
         setVal('sc-lookbackDays', extractField('PRICE_DROP', 'config', 'lookbackDays'));
 
-        const maRules = extractField('MOVING_AVERAGE', 'root');
+        const maRules = extractField('SIMPLE_MOVING_AVERAGE', 'root');
         setVal('sc-movingAverageRules', maRules && Array.isArray(maRules) ? maRules.join(', ') : '');
         setVal('sc-hvPeriod', extractField('HISTORICAL_VOLATILITY', 'config', 'period'));
         setVal('sc-hvMinRank', extractField('HISTORICAL_VOLATILITY', 'condition', 'minRank'));
