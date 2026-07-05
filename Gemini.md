@@ -1,5 +1,21 @@
 # Project Updates
 
+## Feature: Display Tech Indicators on Trade Details UI (2026-07-04)
+
+Added the ability to display technical analysis indicators calculated during strategy execution in the Options Dashboard. When a user clicks any trade row, the details panel now includes a "Tech Indicators" section if technical filters were applied.
+
+### End-to-End Implementation
+- **Backend Model**: Added a `techIndicators` string field to `Trade.java` to store the formatted technical indicators summary.
+- **Backend Execution**: Modified `StrategyExecutionService.executeStrategy()` to capture the `ScreeningResult` map from `TechnicalScreener.screenStocks()`. After creating the `StrategyResult`, it iterates over the generated `Trade` objects and injects the `formattedSummary` from the corresponding `ScreeningResult`.
+- **Frontend App**: Updated the HTML rendering in `app.js` to parse `data-tech-indicators` from the trade rows. If this data is present, the detail panel injected by `initTradeRowClicks()` now renders a new `▶ {Symbol} — Tech Indicators` block containing the indicators.
+
+### Architecture
+| File | Change |
+|---|---|
+| **`Trade.java`** | Added `techIndicators` field. |
+| **`StrategyExecutionService.java`** | Captured `ScreeningResult` from screener and populated `techIndicators` on `Trade` objects. |
+| **`app.js`** | Enhanced `trade-row` template to include `data-tech-indicators`. Added UI rendering block in `initTradeRowClicks()`. |
+
 ## Feature: Volume Technical Filter Refactoring (2026-07-04)
 
 Refactored the Volume Technical Filter to support more robust conditions including an Enum-based filtering strategy. The `min` and `max` parameters have been moved out of `config` into a `condition` object.

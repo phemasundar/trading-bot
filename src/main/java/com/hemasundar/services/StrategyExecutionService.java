@@ -3,10 +3,7 @@ package com.hemasundar.services;
 import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.config.StrategiesConfigLoader;
-import com.hemasundar.dto.AlertMessages;
-import com.hemasundar.dto.ExecutionAlert;
-import com.hemasundar.dto.ExecutionResult;
-import com.hemasundar.dto.StrategyResult;
+import com.hemasundar.dto.*;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionsConfig;
 import com.hemasundar.options.models.TradeSetup;
@@ -30,7 +27,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
-import com.hemasundar.dto.ExecutionLogEntry;
 
 /**
  * Service layer for executing trading strategies.
@@ -365,6 +361,8 @@ public class StrategyExecutionService {
 
         List<String> securities = config.getSecurities();
 
+        Map<String, TechnicalScreener.ScreeningResult> techResultsMap = new HashMap<>();
+
         // Apply technical filter if configured
         if (config.hasTechnicalFilter()) {
             BiConsumer<String, String> alertCallback = (symbol, errorMsg) -> {
@@ -375,6 +373,11 @@ public class StrategyExecutionService {
 
             List<TechnicalScreener.ScreeningResult> screeningResults = technicalScreener.screenStocks(
                     securities, config.getTechnicalFilterChain(), alertCallback);
+            
+            for (TechnicalScreener.ScreeningResult sr : screeningResults) {
+                techResultsMap.put(sr.getSymbol(), sr);
+            }
+            
             securities = screeningResults.stream()
                     .map(TechnicalScreener.ScreeningResult::getSymbol)
                     .collect(Collectors.toList());
@@ -402,6 +405,16 @@ public class StrategyExecutionService {
 
         StrategyResult result = StrategyResult.fromTrades(config.getName(), allTrades, executionTime,
                 config.getFilter(), config.getDescriptionFile());
+
+        // Attach technical indicators to trades
+        if (!techResultsMap.isEmpty()) {
+            for (Trade trade : result.getTrades()) {
+                TechnicalScreener.ScreeningResult sr = techResultsMap.get(trade.getSymbol());
+                if (sr != null) {
+                    trade.setTechIndicators(sr.getFormattedSummary());
+                }
+            }
+        }
 
         // Send to Telegram using pre-formatted Trade DTOs
         if (!allTrades.isEmpty()) {

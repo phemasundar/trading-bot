@@ -112,6 +112,11 @@ public class Trade {
     private String tradeDetails;
 
     /**
+     * Technical indicators summary calculated during strategy execution.
+     */
+    private String techIndicators;
+
+    /**
      * Converts a TradeSetup (strategy output) to a Trade DTO.
      * Shared by StrategyExecutionService and SampleTestNG (TestNG).
      *

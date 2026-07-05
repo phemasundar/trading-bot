@@ -730,8 +730,8 @@ function buildTradeTable(trades, cardId = null) {
             : `<span class="text-danger">-$${Math.abs(credit).toFixed(2)}</span>`;
 
         const detailsEscaped = escapeAttr(t.tradeDetails || '');
+        const techIndicatorsAttr = t.techIndicators ? escapeAttr(t.techIndicators) : '';
         const sym = t.symbol || '';
-        // Store per-leg optionData from the option chain API for the detail panel
         const legsOptionData = (t.legs || []).map(l => ({ action: l.action, optionType: l.optionType, optionData: l.optionData || null }));
         const legsAttr = escapeAttr(JSON.stringify(legsOptionData));
 
@@ -741,7 +741,7 @@ function buildTradeTable(trades, cardId = null) {
             rorCagr = (Math.pow(1.0 + rawRoR, 365.0 / t.dte) - 1.0) * 100.0;
         }
 
-        html += `<tr class="trade-row" data-details="${detailsEscaped}" data-legs-option-data="${legsAttr}" data-symbol="${escapeAttr(sym)}">
+        html += `<tr class="trade-row" data-details="${detailsEscaped}" data-tech-indicators="${techIndicatorsAttr}" data-legs-option-data="${legsAttr}" data-symbol="${escapeAttr(sym)}">
             <td><strong>${sym}</strong></td>
             <td class="text-mono">$${(t.underlyingPrice || 0).toFixed(2)}</td>
             <td class="today-perf" data-symbol="${escapeAttr(sym)}"><span class="text-muted">--</span></td>
@@ -1109,6 +1109,8 @@ function initTradeRowClicks() {
         const details = row.dataset.details;
         if (!details) return;
 
+        const techIndicators = row.dataset.techIndicators;
+
         row.classList.add('selected');
 
         const symbol = row.querySelector('td strong')?.textContent || '';
@@ -1129,6 +1131,12 @@ function initTradeRowClicks() {
                         ▶ ${symbol} — Trade Details
                     </div>
                     <pre class="trade-detail-body">${decodeAttr(details)}</pre>
+                    ${techIndicators ? `
+                    <div class="trade-detail-header" style="margin-top: 15px;">
+                        ▶ ${symbol} — Tech Indicators
+                    </div>
+                    <pre class="trade-detail-body">${decodeAttr(techIndicators)}</pre>
+                    ` : ''}
                     ${legsOptionData ? renderOptionDataTable(legsOptionData) : ''}
                     <div class="iv-data-panel" style="margin-top: 10px; font-family: var(--font-mono); font-size: 0.85rem; padding: 8px; background: var(--bg-alt); border-radius: 4px; border: 1px solid var(--border);">
                         <span class="text-muted">Loading Volatility Data...</span>
