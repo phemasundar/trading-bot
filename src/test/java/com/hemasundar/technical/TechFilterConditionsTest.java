@@ -53,7 +53,7 @@ public class TechFilterConditionsTest {
         Assert.assertNotNull(summary);
         Assert.assertTrue(summary.contains("RSI: OVERSOLD"));
         Assert.assertTrue(summary.contains("BB: LOWER_BAND"));
-        Assert.assertTrue(summary.contains("Price < MA20"));
+        Assert.assertTrue(summary.contains("Price < SMA20"));
         Assert.assertTrue(summary.contains("Volume >= 1,000,000"));
     }
 

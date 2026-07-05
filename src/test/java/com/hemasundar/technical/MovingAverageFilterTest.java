@@ -15,7 +15,7 @@ public class MovingAverageFilterTest {
     public void testMAProperties() {
         MovingAverageFilter ma20 = MovingAverageFilter.builder().period(20).build();
         assertEquals(ma20.getPeriod(), 20);
-        assertEquals(ma20.getFilterName(), "MA(20)");
+        assertEquals(ma20.getFilterName(), "SMA(20)");
     }
 
     @Test
