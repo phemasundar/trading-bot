@@ -281,7 +281,7 @@ public class StrategiesConfig {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class VolumeFilterEntry {
         private VolumeConfigParams config;
-        private Object condition;
+        private Object conditions;
     }
 
     @Data
@@ -311,13 +311,17 @@ public class StrategiesConfig {
      *
      * Example:
      * <pre>
-     * "SIMPLE_MOVING_AVERAGE": [
-     *     "PRICE_ABOVE_SMA50",
-     *     "SMA50_ABOVE_SMA200"
-     * ]
+     * "SIMPLE_MOVING_AVERAGE": {
+     *     "condition": "PRICE >= SMA50, SMA50 >= SMA200"
+     * }
      * </pre>
      */
-
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class MovingAverageFilterEntry {
+        private Object conditions;
+    }
 
     @Data
     @NoArgsConstructor
