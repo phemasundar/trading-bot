@@ -281,6 +281,16 @@ public class StrategiesConfig {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class VolumeFilterEntry {
         private VolumeConfigParams config;
+        private Object condition;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class VolumeFilterConditionParams {
+        private com.hemasundar.technical.VolumeCondition type;
+        private Long min;
+        private Long max;
     }
 
     /**
@@ -290,7 +300,9 @@ public class StrategiesConfig {
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class VolumeConfigParams {
-        private long min = 0;
+        private Integer shortSmaPeriod = 20;
+        private Integer longSmaPeriod = 50;
+        private Double thresholdPercent = 90.0;
     }
 
     /**

@@ -59,6 +59,21 @@ public class TechFilterConditions {
     private final Long minVolume;
 
     /**
+     * Maximum volume threshold.
+     */
+    private final Long maxVolume;
+
+    /**
+     * Volume condition (e.g. MIN_VOLUME, STABLE_OR_EXPANDING).
+     */
+    private final VolumeCondition volumeCondition;
+
+    // Parameters for volume STABLE_OR_EXPANDING condition
+    private final Integer volumeShortSmaPeriod;
+    private final Integer volumeLongSmaPeriod;
+    private final Double volumeThresholdPercent;
+
+    /**
      * Dynamic conditions for comparing price to SMA.
      */
     @Builder.Default
@@ -146,8 +161,24 @@ public class TechFilterConditions {
                   .append(" | ");
             }
         }
-        if (minVolume != null && minVolume > 0) {
-            sb.append(String.format("Volume >= %,d | ", minVolume));
+        if (volumeCondition != null) {
+            switch (volumeCondition) {
+                case MIN_VOLUME:
+                    if (minVolume != null) sb.append(String.format("Volume >= %,d | ", minVolume));
+                    break;
+                case MAX_VOLUME:
+                    if (maxVolume != null) sb.append(String.format("Volume <= %,d | ", maxVolume));
+                    break;
+                case RANGE_VOLUME:
+                    if (minVolume != null && maxVolume != null) sb.append(String.format("Volume %,d - %,d | ", minVolume, maxVolume));
+                    break;
+                case SMA_COMPARISON:
+                    sb.append(String.format("Volume SMA%d >= SMA%d * %.0f%% | ", 
+                        volumeShortSmaPeriod != null ? volumeShortSmaPeriod : 20, 
+                        volumeLongSmaPeriod != null ? volumeLongSmaPeriod : 50, 
+                        volumeThresholdPercent != null ? volumeThresholdPercent : 90.0));
+                    break;
+            }
         }
         if (minHvRank != null) {
             sb.append(String.format("HV(%d) Rank >= %.1f | ", hvPeriod, minHvRank));

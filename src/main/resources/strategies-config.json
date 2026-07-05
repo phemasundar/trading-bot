@@ -30,7 +30,8 @@
                 "condition": "LOWER_BAND"
             },
             "VOLUME": {
-                "config": {
+                "condition": {
+                    "type": "MIN_VOLUME",
                     "min": 1000000
                 }
             },
@@ -53,7 +54,8 @@
                 "condition": "UPPER_BAND"
             },
             "VOLUME": {
-                "config": {
+                "condition": {
+                    "type": "MIN_VOLUME",
                     "min": 1000000
                 }
             },
@@ -400,7 +402,10 @@
                 "MOVING_AVERAGE": [
                     "PRICE_ABOVE_SMA50",
                     "SMA50_ABOVE_SMA200"
-                ]
+                ],
+                "VOLUME": {
+                    "condition": "SMA20 >= SMA50 * 90%"
+                }
             },
             "greeks": {
                 "delta": "positive",
@@ -658,7 +663,8 @@
                     "condition": "LOWER_BAND"
                 },
                 "VOLUME": {
-                    "config": {
+                    "condition": {
+                        "type": "MIN_VOLUME",
                         "min": 1000000
                     }
                 }
@@ -679,7 +685,8 @@
                     "condition": "UPPER_BAND"
                 },
                 "VOLUME": {
-                    "config": {
+                    "condition": {
+                        "type": "MIN_VOLUME",
                         "min": 1000000
                     }
                 }
@@ -695,7 +702,8 @@
                     "PRICE_BELOW_SMA200"
                 ],
                 "VOLUME": {
-                    "config": {
+                    "condition": {
+                        "type": "MIN_VOLUME",
                         "min": 1000000
                     }
                 }
@@ -712,7 +720,8 @@
                     "condition": "OVERSOLD"
                 },
                 "VOLUME": {
-                    "config": {
+                    "condition": {
+                        "type": "MIN_VOLUME",
                         "min": 1000000
                     }
                 }
@@ -729,7 +738,8 @@
                     "condition": "LOWER_BAND"
                 },
                 "VOLUME": {
-                    "config": {
+                    "condition": {
+                        "type": "MIN_VOLUME",
                         "min": 1000000
                     }
                 }

@@ -15,24 +15,32 @@ import lombok.extern.log4j.Log4j2;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Loads strategy and screener configurations from strategies-config.json.
- * Provides POJO-based parsing for both options strategies and technical screeners.
+ * Provides POJO-based parsing for both options strategies and technical
+ * screeners.
  *
  * <h2>technicalFilters resolution</h2>
  * Both strategies and screeners use the same {@code technicalFilters} format.
  * On a strategy entry {@code technicalFilters} may be:
  * <ul>
- *   <li>A {@code String} — name of a preset in the root {@code technicalFilters} map</li>
- *   <li>A {@code Map<String, Object>} — inline filter definition</li>
+ * <li>A {@code String} — name of a preset in the root {@code technicalFilters}
+ * map</li>
+ * <li>A {@code Map<String, Object>} — inline filter definition</li>
  * </ul>
- * On a screener entry {@code technicalFilters} is always a {@code Map<String, Object>}.
+ * On a screener entry {@code technicalFilters} is always a
+ * {@code Map<String, Object>}.
  *
- * <p>Each filter entry's {@code "config"} field may be:
+ * <p>
+ * Each filter entry's {@code "config"} field may be:
  * <ul>
- *   <li>A {@code String} — name of a named indicator config in {@code technicalIndicatorConfigs}</li>
- *   <li>An inline object — deserialized directly to the appropriate config POJO</li>
+ * <li>A {@code String} — name of a named indicator config in
+ * {@code technicalIndicatorConfigs}</li>
+ * <li>An inline object — deserialized directly to the appropriate config
+ * POJO</li>
  * </ul>
  */
 @Log4j2
@@ -44,7 +52,8 @@ public class StrategiesConfigLoader {
 
     /**
      * Fetcher for dynamic Wikipedia index constituents (SPY, QQQ).
-     * Called lazily — only when a strategy references SPY or QQQ and is about to run.
+     * Called lazily — only when a strategy references SPY or QQQ and is about to
+     * run.
      */
     private final WikipediaSecuritiesFetcher wikipediaFetcher;
 
@@ -98,7 +107,8 @@ public class StrategiesConfigLoader {
             // Convert each enabled strategy entry to OptionsConfig
             for (StrategyEntry entry : rootConfig.getEnabledStrategies()) {
                 try {
-                    OptionsConfig config = convertToOptionsConfig(entry, securitiesMap, presetFilters, indicatorConfigs);
+                    OptionsConfig config = convertToOptionsConfig(entry, securitiesMap, presetFilters,
+                            indicatorConfigs);
                     if (config != null) {
                         configs.add(config);
                     }
@@ -271,8 +281,8 @@ public class StrategiesConfigLoader {
      * Resolves {@code technicalFilters} on a strategy entry into a map.
      * The value may be:
      * <ul>
-     *   <li>A {@code String} — preset name; looked up in {@code presetFilters}</li>
-     *   <li>A {@code Map<String, Object>} — inline filter definition</li>
+     * <li>A {@code String} — preset name; looked up in {@code presetFilters}</li>
+     * <li>A {@code Map<String, Object>} — inline filter definition</li>
      * </ul>
      */
     @SuppressWarnings("unchecked")
@@ -306,10 +316,13 @@ public class StrategiesConfigLoader {
             Map<String, Object> filtersMap,
             Map<String, Object> indicatorConfigs) {
 
-        // Pre-populate with default indicators so UI/Telegram receive full context for all screeners,
-        // even if not explicitly defined in the strategy-config. Explicitly defined ones will overwrite these.
-        TechnicalIndicators.TechnicalIndicatorsBuilder indicatorsBuilder = TechnicalIndicators.createDefaults().toBuilder();
-                
+        // Pre-populate with default indicators so UI/Telegram receive full context for
+        // all screeners,
+        // even if not explicitly defined in the strategy-config. Explicitly defined
+        // ones will overwrite these.
+        TechnicalIndicators.TechnicalIndicatorsBuilder indicatorsBuilder = TechnicalIndicators.createDefaults()
+                .toBuilder();
+
         TechFilterConditions.TechFilterConditionsBuilder conditionsBuilder = TechFilterConditions.builder();
 
         if (filtersMap != null) {
@@ -319,7 +332,8 @@ public class StrategiesConfigLoader {
 
                 switch (key) {
                     case "RSI" -> applyRsiFilter(rawEntry, indicatorConfigs, indicatorsBuilder, conditionsBuilder);
-                    case "BOLLINGER_BAND" -> applyBollingerFilter(rawEntry, indicatorConfigs, indicatorsBuilder, conditionsBuilder);
+                    case "BOLLINGER_BAND" ->
+                        applyBollingerFilter(rawEntry, indicatorConfigs, indicatorsBuilder, conditionsBuilder);
                     case "VOLUME" -> applyVolumeFilter(rawEntry, conditionsBuilder);
                     case "MOVING_AVERAGE" -> applyMovingAverageFilters(rawEntry, indicatorsBuilder, conditionsBuilder);
                     case "PRICE_DROP" -> applyPriceDropFilter(rawEntry, conditionsBuilder);
@@ -333,7 +347,7 @@ public class StrategiesConfigLoader {
     }
 
     // ─────────────────────────────────────────────────────────
-    //  Per-filter-type application helpers
+    // Per-filter-type application helpers
     // ─────────────────────────────────────────────────────────
 
     private void applyRsiFilter(
@@ -356,7 +370,8 @@ public class StrategiesConfigLoader {
             if (conditionObj instanceof String strCond) {
                 conditions.rsiCondition(com.hemasundar.technical.RSICondition.valueOf(strCond));
             } else {
-                StrategiesConfig.RSIFilterConditionParams params = JavaUtils.convertValue(conditionObj, StrategiesConfig.RSIFilterConditionParams.class);
+                StrategiesConfig.RSIFilterConditionParams params = JavaUtils.convertValue(conditionObj,
+                        StrategiesConfig.RSIFilterConditionParams.class);
                 if (params != null) {
                     if (params.getType() != null) {
                         conditions.rsiCondition(params.getType());
@@ -395,9 +410,59 @@ public class StrategiesConfigLoader {
             Object rawEntry,
             TechFilterConditions.TechFilterConditionsBuilder conditions) {
 
-        VolumeFilterEntry entry = JavaUtils.convertValue(rawEntry, VolumeFilterEntry.class);
-        if (entry.getConfig() != null && entry.getConfig().getMin() > 0) {
-            conditions.minVolume(entry.getConfig().getMin());
+        StrategiesConfig.VolumeFilterEntry entry = JavaUtils.convertValue(rawEntry,
+                StrategiesConfig.VolumeFilterEntry.class);
+
+        // Handle config for SMA periods/threshold
+        StrategiesConfig.VolumeConfigParams cfg = null;
+        if (entry.getConfig() != null) {
+            // Because previous JSON config had "min": 1000000 inside "config", we can map
+            // it to our new ConfigParams
+            // Wait, Jackson mapping handles ignoring unknown. Let's map it safely.
+            cfg = entry.getConfig();
+        } else {
+            cfg = new StrategiesConfig.VolumeConfigParams();
+        }
+        conditions.volumeShortSmaPeriod(cfg.getShortSmaPeriod());
+        conditions.volumeLongSmaPeriod(cfg.getLongSmaPeriod());
+        conditions.volumeThresholdPercent(cfg.getThresholdPercent());
+
+        Object conditionObj = entry.getCondition();
+        if (conditionObj != null) {
+            if (conditionObj instanceof String strCond) {
+                Pattern pattern = Pattern.compile("SMA(\\d+)\\s*>=\\s*SMA(\\d+)\\s*\\*\\s*(\\d+(?:\\.\\d+)?)%");
+                Matcher matcher = pattern.matcher(strCond);
+                if (matcher.matches()) {
+                    conditions.volumeCondition(com.hemasundar.technical.VolumeCondition.SMA_COMPARISON);
+                    conditions.volumeShortSmaPeriod(Integer.parseInt(matcher.group(1)));
+                    conditions.volumeLongSmaPeriod(Integer.parseInt(matcher.group(2)));
+                    conditions.volumeThresholdPercent(Double.parseDouble(matcher.group(3)));
+                } else if (strCond.startsWith(">=")) {
+                    try {
+                        long minVol = Long.parseLong(strCond.substring(2).trim().replace(",", ""));
+                        conditions.volumeCondition(com.hemasundar.technical.VolumeCondition.MIN_VOLUME);
+                        conditions.minVolume(minVol);
+                    } catch (NumberFormatException e) {
+                        conditions.volumeCondition(com.hemasundar.technical.VolumeCondition.valueOf(strCond));
+                    }
+                } else {
+                    conditions.volumeCondition(com.hemasundar.technical.VolumeCondition.valueOf(strCond));
+                }
+            } else {
+                StrategiesConfig.VolumeFilterConditionParams params = JavaUtils.convertValue(conditionObj,
+                        StrategiesConfig.VolumeFilterConditionParams.class);
+                if (params != null) {
+                    if (params.getType() != null) {
+                        conditions.volumeCondition(params.getType());
+                    }
+                    if (params.getMin() != null) {
+                        conditions.minVolume(params.getMin());
+                    }
+                    if (params.getMax() != null) {
+                        conditions.maxVolume(params.getMax());
+                    }
+                }
+            }
         }
     }
 
@@ -419,7 +484,8 @@ public class StrategiesConfigLoader {
         }
 
         java.util.Map<Integer, MovingAverageFilter> existingMaFilters = indicators.build().getMaFilters();
-        java.util.Map<Integer, MovingAverageFilter> maFilters = new java.util.HashMap<>(existingMaFilters != null ? existingMaFilters : java.util.Map.of());
+        java.util.Map<Integer, MovingAverageFilter> maFilters = new HashMap<>(
+                existingMaFilters != null ? existingMaFilters : Map.of());
 
         List<PriceCondition> priceConds = new ArrayList<>();
         List<SmaCondition> smaConds = new ArrayList<>();
@@ -434,7 +500,7 @@ public class StrategiesConfigLoader {
                 StrategiesConfig.Position pos = StrategiesConfig.Position.valueOf(pMatcher.group(1));
                 int period = Integer.parseInt(pMatcher.group(2));
                 maFilters.putIfAbsent(period, MovingAverageFilter.builder().period(period).build());
-                
+
                 PriceCondition pc = new PriceCondition();
                 pc.setPeriod(period);
                 pc.setPosition(pos);
@@ -447,7 +513,7 @@ public class StrategiesConfigLoader {
                 int p1 = Integer.parseInt(sMatcher.group(1));
                 StrategiesConfig.Position pos = StrategiesConfig.Position.valueOf(sMatcher.group(2));
                 int p2 = Integer.parseInt(sMatcher.group(3));
-                
+
                 maFilters.putIfAbsent(p1, MovingAverageFilter.builder().period(p1).build());
                 maFilters.putIfAbsent(p2, MovingAverageFilter.builder().period(p2).build());
 
@@ -464,13 +530,15 @@ public class StrategiesConfigLoader {
         TechFilterConditions builtConds = conditions.build();
         if (!priceConds.isEmpty()) {
             List<PriceCondition> existingPriceConds = builtConds.getPriceConditions();
-            if (existingPriceConds != null) priceConds.addAll(0, existingPriceConds);
+            if (existingPriceConds != null)
+                priceConds.addAll(0, existingPriceConds);
             conditions.priceConditions(priceConds);
         }
 
         if (!smaConds.isEmpty()) {
             List<SmaCondition> existingSmaConds = builtConds.getSmaConditions();
-            if (existingSmaConds != null) smaConds.addAll(0, existingSmaConds);
+            if (existingSmaConds != null)
+                smaConds.addAll(0, existingSmaConds);
             conditions.smaConditions(smaConds);
         }
 
@@ -492,7 +560,8 @@ public class StrategiesConfigLoader {
             Object rawEntry,
             TechFilterConditions.TechFilterConditionsBuilder conditions) {
 
-        StrategiesConfig.HistoricalVolatilityFilterEntry entry = JavaUtils.convertValue(rawEntry, StrategiesConfig.HistoricalVolatilityFilterEntry.class);
+        StrategiesConfig.HistoricalVolatilityFilterEntry entry = JavaUtils.convertValue(rawEntry,
+                StrategiesConfig.HistoricalVolatilityFilterEntry.class);
         if (entry != null) {
             if (entry.getConfig() != null && entry.getConfig().getPeriod() != null) {
                 conditions.hvPeriod(entry.getConfig().getPeriod());
@@ -509,20 +578,23 @@ public class StrategiesConfigLoader {
     }
 
     // ─────────────────────────────────────────────────────────
-    //  Type-specific indicator config resolution
+    // Type-specific indicator config resolution
     // ─────────────────────────────────────────────────────────
 
     /**
-     * Resolves an RSI filter entry's {@code "config"} field to {@link RSIConfigParams}.
+     * Resolves an RSI filter entry's {@code "config"} field to
+     * {@link RSIConfigParams}.
      * <ul>
-     *   <li>String → look up by name in {@code indicatorConfigs}, deserialize as {@link RSIConfigParams}</li>
-     *   <li>Object (inline) → deserialize directly as {@link RSIConfigParams}</li>
-     *   <li>null → return defaults (period=14, oversold=30, overbought=70)</li>
+     * <li>String → look up by name in {@code indicatorConfigs}, deserialize as
+     * {@link RSIConfigParams}</li>
+     * <li>Object (inline) → deserialize directly as {@link RSIConfigParams}</li>
+     * <li>null → return defaults (period=14, oversold=30, overbought=70)</li>
      * </ul>
      */
     private RSIConfigParams resolveRSIConfig(Object configValue, Map<String, Object> indicatorConfigs) {
         RSIConfigParams defaults = new RSIConfigParams();
-        if (configValue == null) return defaults;
+        if (configValue == null)
+            return defaults;
         if (configValue instanceof String refName) {
             Object named = indicatorConfigs.get(refName);
             if (named == null) {
@@ -534,10 +606,12 @@ public class StrategiesConfigLoader {
                 if (namedMap.containsKey("RSI")) {
                     named = namedMap.get("RSI");
                 } else {
-                    throw new IllegalArgumentException("Named config '" + refName + "' does not contain an 'RSI' configuration block.");
+                    throw new IllegalArgumentException(
+                            "Named config '" + refName + "' does not contain an 'RSI' configuration block.");
                 }
             } else {
-                throw new IllegalArgumentException("Named config '" + refName + "' is invalid. It must be a JSON object containing configuration blocks.");
+                throw new IllegalArgumentException("Named config '" + refName
+                        + "' is invalid. It must be a JSON object containing configuration blocks.");
             }
             RSIConfigParams resolved = JavaUtils.convertValue(named, RSIConfigParams.class);
             return resolved != null ? resolved : defaults;
@@ -547,31 +621,38 @@ public class StrategiesConfigLoader {
     }
 
     /**
-     * Resolves a Bollinger filter entry's {@code "config"} field to {@link BollingerConfigParams}.
+     * Resolves a Bollinger filter entry's {@code "config"} field to
+     * {@link BollingerConfigParams}.
      * <ul>
-     *   <li>String → look up by name in {@code indicatorConfigs}, deserialize as {@link BollingerConfigParams}</li>
-     *   <li>Object (inline) → deserialize directly as {@link BollingerConfigParams}</li>
-     *   <li>null → return defaults (bollingerPeriod=20, bollingerStdDev=2.0)</li>
+     * <li>String → look up by name in {@code indicatorConfigs}, deserialize as
+     * {@link BollingerConfigParams}</li>
+     * <li>Object (inline) → deserialize directly as
+     * {@link BollingerConfigParams}</li>
+     * <li>null → return defaults (bollingerPeriod=20, bollingerStdDev=2.0)</li>
      * </ul>
      */
     private BollingerConfigParams resolveBollingerConfig(Object configValue, Map<String, Object> indicatorConfigs) {
         BollingerConfigParams defaults = new BollingerConfigParams();
-        if (configValue == null) return defaults;
+        if (configValue == null)
+            return defaults;
         if (configValue instanceof String refName) {
             Object named = indicatorConfigs.get(refName);
             if (named == null) {
                 log.warn("technicalIndicatorConfigs reference '{}' not found for Bollinger — using defaults", refName);
                 return defaults;
             }
-            // If the named config is a map, it MUST contain the expected "BOLLINGER_BAND" key wrapper
+            // If the named config is a map, it MUST contain the expected "BOLLINGER_BAND"
+            // key wrapper
             if (named instanceof Map namedMap) {
                 if (namedMap.containsKey("BOLLINGER_BAND")) {
                     named = namedMap.get("BOLLINGER_BAND");
                 } else {
-                    throw new IllegalArgumentException("Named config '" + refName + "' does not contain a 'BOLLINGER_BAND' configuration block.");
+                    throw new IllegalArgumentException(
+                            "Named config '" + refName + "' does not contain a 'BOLLINGER_BAND' configuration block.");
                 }
             } else {
-                throw new IllegalArgumentException("Named config '" + refName + "' is invalid. It must be a JSON object containing configuration blocks.");
+                throw new IllegalArgumentException("Named config '" + refName
+                        + "' is invalid. It must be a JSON object containing configuration blocks.");
             }
             BollingerConfigParams resolved = JavaUtils.convertValue(named, BollingerConfigParams.class);
             return resolved != null ? resolved : defaults;
@@ -581,7 +662,7 @@ public class StrategiesConfigLoader {
     }
 
     // ─────────────────────────────────────────────────────────
-    //  Securities helpers
+    // Securities helpers
     // ─────────────────────────────────────────────────────────
 
     private List<String> parseSecuritiesFromFiles(
@@ -617,7 +698,8 @@ public class StrategiesConfigLoader {
                 continue;
             }
 
-            log.warn("Securities key '{}' not found in static map and is not a recognised dynamic keyword (SPY/QQQ)", key);
+            log.warn("Securities key '{}' not found in static map and is not a recognised dynamic keyword (SPY/QQQ)",
+                    key);
         }
 
         log.debug("Resolved {} unique securities from '{}'", uniqueSecurities.size(), securitiesFile);

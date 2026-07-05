@@ -1,5 +1,26 @@
 # Project Updates
 
+## Feature: Volume Technical Filter Refactoring (2026-07-04)
+
+Refactored the Volume Technical Filter to support more robust conditions including an Enum-based filtering strategy. The `min` and `max` parameters have been moved out of `config` into a `condition` object.
+
+### New Features & Improvements
+- **Volume Condition Logic**: Introduced `VolumeCondition` Enum to support `MIN_VOLUME`, `MAX_VOLUME`, `RANGE_VOLUME`, and `STABLE_OR_EXPANDING`.
+- **Dynamic Configuration**: The config json structure now maps `min` and `max` limits to the condition object, separating what gets calculated (config) from the thresholds (condition).
+- **Stable or Expanding Filtering**: Added support for validating volume expansion using moving averages (`Volume_SMA20 >= Volume_SMA50 * 90%`). The SMA periods and threshold are configurable.
+
+
+### Architecture
+| File | Change |
+|---|---|
+| **`VolumeCondition.java`** | [NEW] Enum representing the supported condition types for volume. |
+| **`StrategiesConfig.java`** | Added `VolumeFilterConditionParams` and redefined `VolumeConfigParams` with SMA properties for stable volume validation. |
+| **`TechFilterConditions.java`** | Added `volumeCondition` and SMA fields. Updated the `getSummary()` display logic. |
+| **`TechnicalScreener.java`** | Adjusted screening conditions to dynamically parse Enum-based checks. Propagated SMA generation capabilities inside `analyzeStock()` using ta4j's `VolumeIndicator` and `SMAIndicator`. |
+| **`StrategiesConfigLoader.java`** | Changed JSON mapping schema to process Enum structures seamlessly. |
+| **`strategies-config.json`** | Migrated `VOLUME` properties away from the legacy format across all nested screeners. |
+| **`TechnicalScreenerTest.java`** | Passed `TechFilterConditions` downstream inside test evaluations to correspond with updated `analyzeStock()` signature. |
+
 ## Feature: Custom RSI Range Filtering (2026-07-04)
 
 Added the ability for users to specify custom `minRsi` and `maxRsi` range values when filtering stocks using the Technical Screener and Execute Strategy flows.

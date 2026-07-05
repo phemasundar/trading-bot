@@ -39,6 +39,7 @@ public class TechFilterConditionsTest {
                 .rsiCondition(RSICondition.OVERSOLD)
                 .bollingerCondition(BollingerCondition.LOWER_BAND)
                 .minVolume(1000000L)
+                .volumeCondition(VolumeCondition.MIN_VOLUME)
                 .priceConditions(java.util.List.of(
                         new com.hemasundar.config.StrategiesConfig.PriceCondition() {{
                             setPeriod(20);
