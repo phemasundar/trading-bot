@@ -54,7 +54,7 @@ public class TelegramUtils {
         Boolean telegramEnabled = telegramConfig.getEnabled();
 
         // If Telegram is disabled, just log to console
-        if (!telegramEnabled) {
+        if (Boolean.FALSE.equals(telegramEnabled) || telegramEnabled == null) {
             log.info("[TELEGRAM DISABLED] Message would be sent:\n{}", message);
             return true;
         }

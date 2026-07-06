@@ -80,7 +80,7 @@ public class ScheduledJobRunnerTest {
         scheduledJobRunner.run();
         
         verifyNoInteractions(ivDataJobService, screenerJobService, schwabTokenGenerator);
-        verify(scheduledJobRunner).exit(0);
+        verify(scheduledJobRunner).exit(1);
     }
 
     @Test
@@ -90,7 +90,7 @@ public class ScheduledJobRunnerTest {
         
         scheduledJobRunner.run();
         
-        // Should catch exception and still exit
-        verify(scheduledJobRunner).exit(0);
+        // Should catch exception and exit with 1
+        verify(scheduledJobRunner).exit(1);
     }
 }

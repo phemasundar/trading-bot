@@ -58,13 +58,11 @@ public class ScreenerJobServiceTest {
         verify(screenerExecutionService, never()).executeScreeners(anySet(), anyList());
     }
 
-    @Test
+    @Test(expectedExceptions = RuntimeException.class)
     public void testRunScheduledScreeners_ExceptionHandling() throws Exception {
         when(strategyExecutionService.getEnabledStrategies()).thenThrow(new RuntimeException("Test exception"));
 
-        // Should not throw exception out, just log it
+        // Should throw exception out
         screenerJobService.runScheduledScreeners();
-
-        verify(screenerExecutionService, never()).getEnabledScreeners();
     }
 }

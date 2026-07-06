@@ -51,37 +51,32 @@ public class IVDataJobService {
         log.info("IV DATA COLLECTION - SETUP");
         log.info("=".repeat(80));
 
-        try {
-            // Load database configuration
-            googleSheetsEnabled = googleSheetsConfig.getEnabled();
-            supabaseEnabled = supabaseConfig.getEnabled();
+        // Load database configuration
+        googleSheetsEnabled = googleSheetsConfig.getEnabled();
+        supabaseEnabled = supabaseConfig.getEnabled();
 
-            if (googleSheetsEnabled) {
-                log.info("✓ Google Sheets service initialized");
-            } else {
-                log.info("✗ Google Sheets disabled");
-            }
-
-            if (supabaseEnabled && supabaseService.isPresent()) {
-                log.info("✓ Supabase service via Spring Bean active");
-            } else {
-                log.info("✗ Supabase disabled or bean not available");
-            }
-
-            if (!googleSheetsEnabled && (!supabaseEnabled || !supabaseService.isPresent())) {
-                log.error("At least one database must be enabled.");
-                return;
-            }
-
-            allSecurities = loadAllSecurities();
-            log.info("Loaded {} unique securities", allSecurities.size());
-
-            executeCollection();
-            sendTelegramSummary();
-
-        } catch (Exception e) {
-            log.error("Failed to initialize or run IV Data Collection", e);
+        if (googleSheetsEnabled) {
+            log.info("✓ Google Sheets service initialized");
+        } else {
+            log.info("✗ Google Sheets disabled");
         }
+
+        if (supabaseEnabled && supabaseService.isPresent()) {
+            log.info("✓ Supabase service via Spring Bean active");
+        } else {
+            log.info("✗ Supabase disabled or bean not available");
+        }
+
+        if (!googleSheetsEnabled && (!supabaseEnabled || !supabaseService.isPresent())) {
+            log.error("At least one database must be enabled.");
+            return;
+        }
+
+        allSecurities = loadAllSecurities();
+        log.info("Loaded {} unique securities", allSecurities.size());
+
+        executeCollection();
+        sendTelegramSummary();
     }
 
     private void executeCollection() {
@@ -155,12 +150,17 @@ public class IVDataJobService {
         }
 
         message.append("\n💾 <b>Databases:</b>\n");
-        if (googleSheetsEnabled) message.append("├ ✅ Google Sheets\n");
-        if (supabaseEnabled) message.append(googleSheetsEnabled ? "└" : "├").append(" ✅ Supabase\n");
-        if (!googleSheetsEnabled && !supabaseEnabled) message.append("└ ❌ None\n");
+        if (googleSheetsEnabled)
+            message.append("├ ✅ Google Sheets\n");
+        if (supabaseEnabled)
+            message.append(googleSheetsEnabled ? "└" : "├").append(" ✅ Supabase\n");
+        if (!googleSheetsEnabled && !supabaseEnabled)
+            message.append("└ ❌ None\n");
 
         message.append("\n📅 Date: <code>").append(java.time.LocalDate.now()).append("</code>");
-        message.append("\n🕐 Time: <code>").append(java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"))).append("</code>");
+        message.append("\n🕐 Time: <code>")
+                .append(java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")))
+                .append("</code>");
 
         telegramUtils.sendMessage(message.toString());
     }
@@ -169,10 +169,12 @@ public class IVDataJobService {
         Set<String> securities = new LinkedHashSet<>();
         File securitiesDir = FilePaths.securitiesDirectory.toFile();
 
-        if (!securitiesDir.exists() || !securitiesDir.isDirectory()) return securities;
+        if (!securitiesDir.exists() || !securitiesDir.isDirectory())
+            return securities;
 
         File[] yamlFiles = securitiesDir.listFiles((dir, name) -> name.endsWith(".yaml"));
-        if (yamlFiles == null) return securities;
+        if (yamlFiles == null)
+            return securities;
 
         Yaml yaml = new Yaml();
         for (File file : yamlFiles) {
@@ -180,7 +182,8 @@ public class IVDataJobService {
                 Map<String, List<String>> yamlData = yaml.load(inputStream);
                 if (yamlData != null && yamlData.containsKey("securities")) {
                     List<String> fileSecurities = yamlData.get("securities");
-                    if (fileSecurities != null) securities.addAll(fileSecurities);
+                    if (fileSecurities != null)
+                        securities.addAll(fileSecurities);
                 }
             } catch (Exception e) {
                 log.error("Error loading securities from {}: {}", file.getName(), e.getMessage());

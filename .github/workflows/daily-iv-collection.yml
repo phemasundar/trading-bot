@@ -34,7 +34,7 @@ jobs:
           echo "Using Service Account for authentication (no credentials.json file needed)"
 
       - name: Run IV Data Collection
-        run: mvn spring-boot:run "-Dspring-boot.run.arguments=--app.job.name=IV_DATA"
+        run: mvn spring-boot:run "-Dspring-boot.run.arguments=--app.job.name=IV_DATA" "-Dtelegram.enabled=true"
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           GOOGLE_SPREADSHEET_ID: ${{ secrets.GOOGLE_SPREADSHEET_ID }}
