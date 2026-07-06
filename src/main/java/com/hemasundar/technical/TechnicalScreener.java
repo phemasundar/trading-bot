@@ -13,6 +13,7 @@ import lombok.extern.log4j.Log4j2;
 import org.ta4j.core.BarSeries;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -78,7 +79,7 @@ public class TechnicalScreener {
          * Used by both the Web UI (click-to-expand) and Telegram alerts.
          * This is the single source of truth for screener result formatting.
          */
-        @JsonIgnore
+        @JsonProperty("formattedSummary")
         public String getFormattedSummary() {
             StringBuilder sb = new StringBuilder();
             sb.append("  💰 Price: $").append(String.format("%.2f", currentPrice)).append("\n");

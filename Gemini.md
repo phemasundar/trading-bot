@@ -1,5 +1,21 @@
 # Project Updates
 
+## Feature: Dynamic Screener Dashboard UI and SMA Indicators (2026-07-06)
+
+Updated the `Screeners Dashboard` to dynamically display technical analysis indicators based on what is calculated by the screener, instead of relying on hardcoded columns for moving averages and other metrics.
+
+### End-to-End Implementation
+- **Backend Model**: Changed `@JsonIgnore` to `@JsonProperty("formattedSummary")` on `getFormattedSummary()` in `TechnicalScreener.java` so that the frontend can access the formatted technical indicators string directly from the screener results.
+- **Frontend App**: Refactored `app.js` (`buildScreenerTable`) to dynamically extract all moving averages calculated from the `maValues` object and render corresponding `SMA {period}` columns on the fly. 
+- **Dynamic Columns**: RSI, Bollinger Bands, and Volume columns now only appear in the table if they are calculated and returned by the backend.
+- **Tech Indicators Click-to-Expand**: Added `data-tech-indicators` to the screener results table. Clicking any row will now inject a detail panel displaying the technical indicators that were calculated during screening.
+
+### Architecture
+| File | Change |
+|---|---|
+| **`TechnicalScreener.java`** | Exposed `formattedSummary` via Jackson `@JsonProperty`. |
+| **`app.js`** | Rewrote `buildScreenerTable` for dynamic column generation based on populated indicators (RSI, BB, Volume, MAs). Linked `formattedSummary` to row clicks for tech indicator previews. |
+
 ## Refactor: Unified Historical Volatility Rules and Custom Execution API (2026-07-05)
 
 Refactored the `HISTORICAL_VOLATILITY` filter configuration to use mathematical condition string expressions (e.g. `>= 25`) instead of complex JSON objects, matching the format used for `VOLUME` and `SIMPLE_MOVING_AVERAGE`. This unified string-array structure was propagated through the frontend UI to the backend controller, allowing users to enter custom rank rules straight from the custom execution interfaces.

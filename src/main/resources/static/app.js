@@ -536,17 +536,29 @@ function buildScreenerTable(results, cardId = null) {
         return `<th class="${cls}" onclick="handleTableSort('${cardId}', '${key}')" title="Sort by ${label}">${label}${arrow}</th>`;
     };
 
+    let hasRsi = false;
+    let hasBb = false;
+    let hasVolume = false;
+    let maPeriodsSet = new Set();
+    
+    for (const r of results) {
+        if (r.rsi && r.rsi !== 0) hasRsi = true;
+        if (r.bollingerLower && r.bollingerLower !== 0) hasBb = true;
+        if (r.volume && r.volume !== 0) hasVolume = true;
+        if (r.maValues) {
+            Object.keys(r.maValues).forEach(k => maPeriodsSet.add(Number(k)));
+        }
+    }
+    const maPeriods = Array.from(maPeriodsSet).sort((a,b)=>b-a);
+
     let html = `<table class="data-table">
         <thead><tr>
             ${th('ticker', 'Ticker')}
             ${th('price', 'Price')}
-            ${th('volume', 'Volume')}
-            ${th('rsi', 'RSI')}
-            <th>BB (L-U)</th>
-            ${th('ma200', 'SMA 200')}
-            ${th('ma100', 'MA 100')}
-            ${th('ma50', 'MA 50')}
-            ${th('ma20', 'MA 20')}
+            ${hasVolume ? th('volume', 'Volume') : ''}
+            ${hasRsi ? th('rsi', 'RSI') : ''}
+            ${hasBb ? '<th>BB (L-U)</th>' : ''}
+            ${maPeriods.map(p => th(`ma_${p}`, `SMA ${p}`)).join('\n            ')}
         </tr></thead><tbody>`;
 
     for (const r of results) {
@@ -559,20 +571,15 @@ function buildScreenerTable(results, cardId = null) {
         const bb = (typeof r.bollingerLower === 'number' && typeof r.bollingerUpper === 'number') 
             ? `${r.bollingerLower.toFixed(1)} - ${r.bollingerUpper.toFixed(1)}` : '-';
         
-        const ma200 = (typeof r.ma200 === 'number' && r.ma200 !== 0) ? r.ma200.toFixed(2) : '-';
-        const ma100 = (typeof r.ma100 === 'number' && r.ma100 !== 0) ? r.ma100.toFixed(2) : '-';
-        const ma50 = (typeof r.ma50 === 'number' && r.ma50 !== 0) ? r.ma50.toFixed(2) : '-';
-        const ma20 = (typeof r.ma20 === 'number' && r.ma20 !== 0) ? r.ma20.toFixed(2) : '-';
-
         // Build detail lines matching Telegram format
         const detailLines = [];
         detailLines.push(`💰 Price: $${(typeof r.currentPrice === 'number') ? r.currentPrice.toFixed(2) : '-'}`);
         detailLines.push(`📊 Volume: ${(typeof r.volume === 'number') ? r.volume.toLocaleString() : '-'}`);
 
         // RSI with previous + status
-        if (typeof r.rsi === 'number') {
+        if (typeof r.rsi === 'number' && r.rsi !== 0) {
             let rsiLine = `📈 RSI: ${r.rsi.toFixed(2)}`;
-            if (typeof r.previousRsi === 'number') rsiLine += ` (prev: ${r.previousRsi.toFixed(2)})`;
+            if (typeof r.previousRsi === 'number' && r.previousRsi !== 0) rsiLine += ` (prev: ${r.previousRsi.toFixed(2)})`;
             if (r.rsiBullishCrossover) rsiLine += ' ⬆️ CROSSOVER';
             else if (r.rsiBearishCrossover) rsiLine += ' ⬇️ CROSSOVER';
             else if (r.rsiOversold) rsiLine += ' 🔴 OVERSOLD';
@@ -581,7 +588,7 @@ function buildScreenerTable(results, cardId = null) {
         }
 
         // Bollinger Bands with position
-        if (typeof r.bollingerLower === 'number') {
+        if (typeof r.bollingerLower === 'number' && r.bollingerLower !== 0) {
             let bbLine = '📉 BB: ';
             if (r.priceTouchingLowerBand) bbLine += `Touching Lower ($${r.bollingerLower.toFixed(2)})`;
             else if (r.priceTouchingUpperBand) bbLine += `Touching Upper ($${r.bollingerUpper.toFixed(2)})`;
@@ -592,10 +599,15 @@ function buildScreenerTable(results, cardId = null) {
         // Moving Averages - above/below summary
         const belowMAs = [];
         const aboveMAs = [];
-        if (typeof r.ma20 === 'number' && r.ma20 !== 0) { r.priceBelowMA20 ? belowMAs.push('MA20') : aboveMAs.push('MA20'); }
-        if (typeof r.ma50 === 'number' && r.ma50 !== 0) { r.priceBelowMA50 ? belowMAs.push('MA50') : aboveMAs.push('MA50'); }
-        if (typeof r.ma100 === 'number' && r.ma100 !== 0) { r.priceBelowMA100 ? belowMAs.push('MA100') : aboveMAs.push('MA100'); }
-        if (typeof r.ma200 === 'number' && r.ma200 !== 0) { r.priceBelowMA200 ? belowMAs.push('MA200') : aboveMAs.push('MA200'); }
+        if (r.maValues) {
+            maPeriods.forEach(p => {
+                const val = r.maValues[p];
+                if (typeof val === 'number' && val !== 0) {
+                    if (r.currentPrice < val) belowMAs.push(`SMA${p}`);
+                    else aboveMAs.push(`SMA${p}`);
+                }
+            });
+        }
         if (belowMAs.length > 0 || aboveMAs.length > 0) {
             let maLine = '📊 MAs: ';
             if (belowMAs.length > 0) maLine += `Below ${belowMAs.join(', ')}`;
@@ -605,17 +617,18 @@ function buildScreenerTable(results, cardId = null) {
         }
 
         const detailStr = escapeAttr(detailLines.join('\n'));
+        const techIndicatorsAttr = r.formattedSummary ? escapeAttr(r.formattedSummary) : '';
 
-        html += `<tr class="trade-row" data-details="${detailStr}">
+        html += `<tr class="trade-row" data-details="${detailStr}" data-tech-indicators="${techIndicatorsAttr}">
             <td><strong class="${typeClass}">${r.symbol || ''}</strong></td>
             <td class="text-mono">${price}</td>
-            <td>${volume}</td>
-            <td>${rsi}</td>
-            <td class="text-muted small">${bb}</td>
-            <td>${ma200}</td>
-            <td>${ma100}</td>
-            <td>${ma50}</td>
-            <td>${ma20}</td>
+            ${hasVolume ? `<td>${volume}</td>` : ''}
+            ${hasRsi ? `<td>${rsi}</td>` : ''}
+            ${hasBb ? `<td class="text-muted small">${bb}</td>` : ''}
+            ${maPeriods.map(p => {
+                const val = r.maValues && r.maValues[p];
+                return `<td>${(typeof val === 'number' && val !== 0) ? val.toFixed(2) : '-'}</td>`;
+            }).join('\n            ')}
         </tr>`;
     }
 
