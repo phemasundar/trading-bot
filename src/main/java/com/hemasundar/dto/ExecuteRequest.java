@@ -1,13 +1,15 @@
 package com.hemasundar.dto;
 
-import lombok.Value;
+import lombok.Data;
 import lombok.Builder;
-import lombok.extern.jackson.Jacksonized;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import java.util.List;
 
-@Value
+@Data
 @Builder(toBuilder = true)
-@Jacksonized
+@NoArgsConstructor
+@AllArgsConstructor
 public class ExecuteRequest {
     private List<Integer> strategyIndices;
     private List<Integer> screenerIndices;

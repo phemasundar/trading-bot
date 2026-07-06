@@ -349,7 +349,7 @@
                 "maxLossLimit": 5000,
                 "longCall": {
                     "minDelta": 0.4,
-                    "minOpenInterest": 100
+                    "minOpenInterest": 10
                 }
             },
             "greeks": {
@@ -377,7 +377,7 @@
                 "maxLossLimit": 5000,
                 "longCall": {
                     "minDelta": 0.4,
-                    "minOpenInterest": 100
+                    "minOpenInterest": 10
                 }
             },
             "technicalFilters": {
@@ -426,7 +426,7 @@
                 "maxLossLimit": 5000,
                 "longCall": {
                     "minDelta": 0.4,
-                    "minOpenInterest": 100
+                    "minOpenInterest": 10
                 }
             },
             "greeks": {
@@ -455,7 +455,7 @@
                 "minCostSavingsPercent": 5,
                 "longCall": {
                     "minDelta": 0.3,
-                    "minOpenInterest": 50
+                    "minOpenInterest": 10
                 },
                 "relaxationPriority1": [
                     "maxCAGRForBreakEven",

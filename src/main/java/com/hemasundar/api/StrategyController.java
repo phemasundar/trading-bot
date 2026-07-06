@@ -478,53 +478,17 @@ public class StrategyController {
                     .body(Map.of("error", "Provide a securities file, inline tickers, or both"));
         }
 
-        // Build TechFilterConditions from request
-        com.hemasundar.technical.TechFilterConditions.TechFilterConditionsBuilder condBuilder = com.hemasundar.technical.TechFilterConditions
-                .builder();
-
-        if (request.getRsiCondition() != null && !request.getRsiCondition().isBlank()) {
-            try {
-                condBuilder.rsiCondition(com.hemasundar.technical.RSICondition.valueOf(request.getRsiCondition()));
-            } catch (Exception ignored) {
-            }
-        }
-        if (request.getMinRsi() != null)
-            condBuilder.minRsi(request.getMinRsi());
-        if (request.getMaxRsi() != null)
-            condBuilder.maxRsi(request.getMaxRsi());
-        if (request.getBollingerCondition() != null && !request.getBollingerCondition().isBlank()) {
-            try {
-                condBuilder.bollingerCondition(
-                        com.hemasundar.technical.BollingerCondition.valueOf(request.getBollingerCondition()));
-            } catch (Exception ignored) {
-            }
-        }
-        if (request.getVolumeRules() != null && !request.getVolumeRules().isEmpty()) {
-            strategiesConfigLoader.applyVolumeRules(request.getVolumeRules(), condBuilder);
-        }
-        
-        com.hemasundar.technical.TechnicalIndicators.TechnicalIndicatorsBuilder indicatorsBuilder = com.hemasundar.technical.TechnicalIndicators.createDefaults().toBuilder();
-        
-        if (request.getMovingAverageRules() != null && !request.getMovingAverageRules().isEmpty()) {
-            strategiesConfigLoader.applyMovingAverageFilters(request.getMovingAverageRules(), indicatorsBuilder, condBuilder);
-        }
-
-        if (request.getMinDropPercent() != null)
-            condBuilder.minDropPercent(request.getMinDropPercent());
-        if (request.getLookbackDays() != null)
-            condBuilder.lookbackDays(request.getLookbackDays());
-        
-        if (request.getHvPeriod() != null)
-            condBuilder.hvPeriod(request.getHvPeriod());
-        if (request.getHistoricalVolatilityRules() != null && !request.getHistoricalVolatilityRules().isEmpty()) {
-            strategiesConfigLoader.applyHistoricalVolatilityRules(request.getHistoricalVolatilityRules(), condBuilder);
+        // Build technical filter chain from request if provided
+        com.hemasundar.technical.TechnicalFilterChain technicalFilterChain = null;
+        if (request.getTechnicalFilters() != null && !request.getTechnicalFilters().isEmpty()) {
+            technicalFilterChain = strategiesConfigLoader.parseTechnicalFilters(request.getTechnicalFilters());
         }
 
         com.hemasundar.technical.ScreenerConfig screenerConfig = com.hemasundar.technical.ScreenerConfig.builder()
                 .screenerType(screenerType)
                 .alias(request.getAlias() != null ? request.getAlias() : screenerType.getDisplayName())
                 .securities(new ArrayList<>(symbolSet))
-                .filterChain(com.hemasundar.technical.TechnicalFilterChain.of(indicatorsBuilder.build(), condBuilder.build()))
+                .filterChain(technicalFilterChain)
                 .build();
 
         log.info("REST: Custom screener {} on {} securities", screenerType.getDisplayName(), symbolSet.size());
@@ -539,26 +503,8 @@ public class StrategyController {
             requestParams.put("securitiesFile", request.getSecuritiesFile());
         if (request.getSecurities() != null)
             requestParams.put("securities", request.getSecurities());
-        if (request.getRsiCondition() != null)
-            requestParams.put("rsiCondition", request.getRsiCondition());
-        if (request.getMinRsi() != null)
-            requestParams.put("minRsi", request.getMinRsi());
-        if (request.getMaxRsi() != null)
-            requestParams.put("maxRsi", request.getMaxRsi());
-        if (request.getBollingerCondition() != null)
-            requestParams.put("bollingerCondition", request.getBollingerCondition());
-        if (request.getVolumeRules() != null)
-            requestParams.put("volumeRules", request.getVolumeRules());
-        if (request.getMovingAverageRules() != null)
-            requestParams.put("movingAverageRules", request.getMovingAverageRules());
-        if (request.getMinDropPercent() != null)
-            requestParams.put("minDropPercent", request.getMinDropPercent());
-        if (request.getLookbackDays() != null)
-            requestParams.put("lookbackDays", request.getLookbackDays());
-        if (request.getHvPeriod() != null)
-            requestParams.put("hvPeriod", request.getHvPeriod());
-        if (request.getHistoricalVolatilityRules() != null)
-            requestParams.put("historicalVolatilityRules", request.getHistoricalVolatilityRules());
+        if (request.getTechnicalFilters() != null)
+            requestParams.put("technicalFilters", request.getTechnicalFilters());
 
         CompletableFuture.runAsync(() -> {
             executionService.startGlobalExecution("Custom Screener: " + screenerConfig.getName());

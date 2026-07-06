@@ -112,80 +112,66 @@
                 <div class="card-header" onclick="this.nextElementSibling.classList.toggle('open'); this.querySelector('.card-arrow').classList.toggle('open')">
                     <h3 style="font-size:0.9rem; margin-bottom:0; color:var(--text-secondary)"><span class="card-arrow open">▶</span> Filter Conditions</h3>
                 </div>
-                <div class="card-content open" style="overflow-x: visible;">
+                <div class="card-content open" style="overflow-x: visible;" id="screener-tech-filters-container">
                     <div class="form-grid">
-
-                        <!-- RSI Condition -->
                         <div class="form-group">
                             <label class="form-label">RSI Condition</label>
-                            <select id="sc-rsiCondition" class="form-select" onchange="document.getElementById('sc-rsi-custom-range-inputs').style.display = this.value === 'CUSTOM_RANGE' ? 'flex' : 'none'">
-                                <option value="">(none)</option>
+                            <select id="execute-rsiCondition" class="form-select" data-tech-filter="RSI" data-tech-field="condition" onchange="document.getElementById('rsi-custom-range-inputs').style.display = this.value === 'CUSTOM_RANGE' ? 'flex' : 'none'">
+                                <option value="">— None —</option>
                                 <option value="OVERSOLD">Oversold (&lt;30)</option>
+                                <option value="BULLISH_CROSSOVER">Bullish Crossover (RSI crossed ↑30)</option>
                                 <option value="OVERBOUGHT">Overbought (&gt;70)</option>
-                                <option value="BULLISH_CROSSOVER">Bullish Crossover (↑30)</option>
-                                <option value="BEARISH_CROSSOVER">Bearish Crossover (↓70)</option>
+                                <option value="BEARISH_CROSSOVER">Bearish Crossover (RSI crossed ↓70)</option>
                                 <option value="CUSTOM_RANGE">Custom Range</option>
                             </select>
                         </div>
-                        <div id="sc-rsi-custom-range-inputs" style="display:none; gap: 1rem; grid-column: span 1;">
+                        <div id="rsi-custom-range-inputs" style="display:none; gap: 1rem; grid-column: span 1;">
                             <div style="flex: 1;">
-                                <label class="form-label">Min RSI *</label>
-                                <input type="number" id="sc-minRsi" class="form-input" placeholder="e.g. 40" step="0.1">
+                                <label class="form-label">Min RSI</label>
+                                <input type="number" id="execute-minRsi" class="form-input" data-tech-filter="RSI" data-tech-field="min" placeholder="e.g. 40" step="0.1">
                             </div>
                             <div style="flex: 1;">
-                                <label class="form-label">Max RSI *</label>
-                                <input type="number" id="sc-maxRsi" class="form-input" placeholder="e.g. 60" step="0.1">
+                                <label class="form-label">Max RSI</label>
+                                <input type="number" id="execute-maxRsi" class="form-input" data-tech-filter="RSI" data-tech-field="max" placeholder="e.g. 60" step="0.1">
                             </div>
                         </div>
-
-                        <!-- Bollinger Condition -->
                         <div class="form-group">
                             <label class="form-label">Bollinger Band Condition</label>
-                            <select id="sc-bollingerCondition" class="form-select">
-                                <option value="">(none)</option>
-                                <option value="LOWER_BAND">Lower Band (oversold zone)</option>
-                                <option value="UPPER_BAND">Upper Band (overbought zone)</option>
+                            <select class="form-select" data-tech-filter="BOLLINGER_BAND" data-tech-field="condition">
+                                <option value="">— None —</option>
+                                <option value="LOWER_BAND">At/below lower band</option>
+                                <option value="UPPER_BAND">At/above upper band</option>
                             </select>
                         </div>
-
-                        <!-- Volume Rules -->
                         <div class="form-group">
                             <label class="form-label">Volume Rules</label>
-                            <input type="text" id="sc-volumeRules" class="form-input" placeholder=">= 500000, SMA20 >= SMA50 * 90%">
+                            <input type="text" class="form-input" data-tech-filter="VOLUME" data-tech-field="rules"
+                                placeholder=">= 1000000, SMA20 >= SMA50 * 90%">
                         </div>
-
-                        <!-- Price Drop fields (shown only for PRICE_DROP / HIGH_52W_DROP) -->
-                        <div class="form-group" id="sc-minDropPercent-group" style="display:none;">
-                            <label class="form-label">Min Drop % *</label>
-                            <input type="number" id="sc-minDropPercent" class="form-input" placeholder="5.0" step="0.1" min="0">
+                        <div class="form-group">
+                            <label class="form-label">HV Period (Days)</label>
+                            <input type="number" class="form-input" data-tech-filter="HISTORICAL_VOLATILITY" data-tech-field="period"
+                                placeholder="20" step="1">
                         </div>
-                        <div class="form-group" id="sc-lookbackDays-group" style="display:none;">
-                            <label class="form-label">Lookback Days (0 = intraday)</label>
-                            <input type="number" id="sc-lookbackDays" class="form-input" placeholder="0" min="0">
+                        <div class="form-group" style="grid-column: span 2">
+                            <label class="form-label">HV Rules</label>
+                            <input type="text" class="form-input" data-tech-filter="HISTORICAL_VOLATILITY" data-tech-field="rules"
+                                placeholder=">= 25, <= 75">
                         </div>
-                    </div>
-
-                    <!-- Moving Average Rules -->
-                    <div style="margin-top: 16px;">
-                        <p style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:10px;">Moving Average Conditions</p>
-                        <div class="form-group" style="grid-column: 1 / -1;">
+                        <div class="form-group">
+                            <label class="form-label">Price Drop Min (%)</label>
+                            <input type="number" class="form-input" data-tech-filter="PRICE_DROP" data-tech-field="minDropPercent"
+                                placeholder="3.0" step="0.5">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Lookback Days (0=intraday)</label>
+                            <input type="number" class="form-input" data-tech-filter="PRICE_DROP" data-tech-field="lookbackDays"
+                                placeholder="0" min="0">
+                        </div>
+                        <div class="form-group" style="grid-column: 1 / -1">
                             <label class="form-label">Moving Average Rules <span style="font-size:0.75rem; color:var(--text-muted);">(comma-separated: PRICE >= SMA50, SMA50 >= SMA200, etc.)</span></label>
-                            <input type="text" id="sc-movingAverageRules" class="form-input" placeholder="PRICE >= SMA50, SMA50 >= SMA200">
-                        </div>
-                    </div>
-
-                    <!-- Historical Volatility -->
-                    <div style="margin-top: 16px;">
-                        <p style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:10px;">Historical Volatility</p>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label class="form-label">HV Period (Days)</label>
-                                <input type="number" id="sc-hvPeriod" class="form-input" placeholder="20" step="1">
-                            </div>
-                            <div class="form-group" style="grid-column: span 2">
-                                <label class="form-label">HV Rules</label>
-                                <input type="text" id="sc-hvRules" class="form-input" placeholder=">= 25, <= 75">
-                            </div>
+                            <input type="text" class="form-input" data-tech-filter="SIMPLE_MOVING_AVERAGE" data-tech-field="rules"
+                                placeholder="PRICE >= SMA50, SMA50 >= SMA200">
                         </div>
                     </div>
                 </div>

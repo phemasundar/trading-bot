@@ -433,21 +433,23 @@ public class StrategyControllerTest {
 
     @Test
     public void testExecuteCustomScreener_Success() throws Exception {
+        java.util.Map<String, Object> techFilters = new java.util.HashMap<>();
+        techFilters.put("RSI", java.util.Map.of("condition", "OVERSOLD"));
+        techFilters.put("BOLLINGER_BAND", java.util.Map.of("condition", "LOWER_BAND"));
+        techFilters.put("VOLUME", java.util.Map.of("conditions", java.util.List.of(">= 100000")));
+        techFilters.put("SIMPLE_MOVING_AVERAGE", java.util.Map.of("conditions", java.util.List.of(
+                "PRICE_BELOW_SMA20",
+                "PRICE_BELOW_SMA50",
+                "PRICE_BELOW_SMA100",
+                "PRICE_BELOW_SMA200"
+        )));
+        techFilters.put("PRICE_DROP", java.util.Map.of("minDropPercent", 5.0, "lookbackDays", 0));
+
         CustomScreenerRequest request = CustomScreenerRequest.builder()
                 .screenerType("RSI_OVERSOLD")
                 .securities("AAPL,MSFT")
                 .alias("My scan")
-                .rsiCondition("OVERSOLD")
-                .bollingerCondition("LOWER_BAND")
-                .volumeRules(java.util.List.of(">= 100000"))
-                .movingAverageRules(java.util.List.of(
-                        "PRICE_BELOW_SMA20",
-                        "PRICE_BELOW_SMA50",
-                        "PRICE_BELOW_SMA100",
-                        "PRICE_BELOW_SMA200"
-                ))
-                .minDropPercent(5.0)
-                .lookbackDays(0)
+                .technicalFilters(techFilters)
                 .build();
 
         when(executionService.isExecutionRunning()).thenReturn(false);

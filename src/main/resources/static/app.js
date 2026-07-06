@@ -2329,12 +2329,14 @@ function fillTechFiltersForm(techFilters) {
     if (!techFilters || typeof techFilters !== 'object') return;
 
     for (const [filterKey, val] of Object.entries(techFilters)) {
-        if (filterKey === 'SIMPLE_MOVING_AVERAGE') {
-            const rules = Array.isArray(val) ? val.join(', ') : (val.conditions || val);
-            const rulesStr = Array.isArray(rules) ? rules.join(', ') : rules;
-            const el = document.querySelector(`[data-tech-filter="${filterKey}"][data-tech-field="rules"]`);
-            if (el) el.value = rulesStr;
-            continue;
+        if (filterKey === 'SIMPLE_MOVING_AVERAGE' || filterKey === 'VOLUME' || filterKey === 'HISTORICAL_VOLATILITY') {
+            if (val.conditions || Array.isArray(val)) {
+                const rules = Array.isArray(val) ? val.join(', ') : (val.conditions || val);
+                const rulesStr = Array.isArray(rules) ? rules.join(', ') : rules;
+                const el = document.querySelector(`[data-tech-filter="${filterKey}"][data-tech-field="rules"]`);
+                if (el) el.value = rulesStr;
+            }
+            if (filterKey === 'SIMPLE_MOVING_AVERAGE') continue;
         }
 
         if (val && typeof val === 'object') {
@@ -2449,50 +2451,13 @@ async function executeCustom() {
         }
     });
 
-    // Collect technical filter inputs (data-tech-filter attributes)
-    const technicalFilters = {};
-    document.querySelectorAll('[data-tech-filter]').forEach(input => {
-        const filterKey = input.dataset.techFilter;  // e.g. "RSI", "HISTORICAL_VOLATILITY"
-        const fieldKey = input.dataset.techField;    // e.g. "condition", "min", "max"
-        const rawVal = (input.tagName === 'SELECT' ? input.value : input.value.trim());
-        if (!rawVal) return;
-
-        if (!technicalFilters[filterKey]) technicalFilters[filterKey] = {};
-
-        if ((filterKey === 'SIMPLE_MOVING_AVERAGE' || filterKey === 'VOLUME' || filterKey === 'HISTORICAL_VOLATILITY') && fieldKey === 'rules') {
-            // configured as an object with an array of condition strings
-            technicalFilters[filterKey] = { conditions: rawVal.split(',').map(s => s.trim()).filter(Boolean) };
-        } else if (fieldKey === 'condition') {
-            if (typeof technicalFilters[filterKey].condition === 'object') {
-                technicalFilters[filterKey].condition.type = rawVal;
-            } else {
-                technicalFilters[filterKey].condition = rawVal;
-            }
-        } else if (fieldKey === 'period') {
-            const num = parseInt(rawVal);
-            if (!isNaN(num)) {
-                if (!technicalFilters[filterKey].config) technicalFilters[filterKey].config = {};
-                technicalFilters[filterKey].config.period = num;
-            }
-        } else if (['min', 'max', 'minDropPercent', 'minRank', 'maxRank'].includes(fieldKey)) {
-            const num = parseFloat(rawVal);
-            if (!isNaN(num)) {
-                if (filterKey === 'VOLUME') {
-                    if (!technicalFilters[filterKey].conditions) {
-                        technicalFilters[filterKey].conditions = [ { type: 'MIN_VOLUME' } ];
-                    }
-                    technicalFilters[filterKey].conditions[0][fieldKey] = num;
-                } else {
-                    if (!technicalFilters[filterKey].condition || typeof technicalFilters[filterKey].condition === 'string') {
-                        const existingType = typeof technicalFilters[filterKey].condition === 'string' ? technicalFilters[filterKey].condition : null;
-                        technicalFilters[filterKey].condition = {};
-                        if (existingType) technicalFilters[filterKey].condition.type = existingType;
-                    }
-                    technicalFilters[filterKey].condition[fieldKey] = num;
-                }
-            }
-        }
-    });
+    let technicalFilters;
+    try {
+        technicalFilters = getTechnicalFiltersFromDOM();
+    } catch (e) {
+        showToast(e.message, 'error');
+        return;
+    }
 
     const body = {
         strategyType: typeEl.value,
@@ -2501,15 +2466,8 @@ async function executeCustom() {
         alias: aliasEl ? aliasEl.value : '',
         maxTradesToSend: 30,
         filter,
-        technicalFilters: Object.keys(technicalFilters).length > 0 ? technicalFilters : undefined
+        technicalFilters
     };
-
-    if (body.technicalFilters && body.technicalFilters.RSI && body.technicalFilters.RSI.condition && body.technicalFilters.RSI.condition.type === 'CUSTOM_RANGE') {
-        if (body.technicalFilters.RSI.condition.min === undefined || body.technicalFilters.RSI.condition.max === undefined) {
-            showToast('Min RSI and Max RSI are mandatory for Custom Range condition.', 'error');
-            return;
-        }
-    }
 
     try {
         const progress = document.getElementById('custom-progress');
@@ -3306,27 +3264,8 @@ function loadScreenerFiltersFromResult(paramsJson, event) {
         const secEl = document.getElementById('screener-securities-input');
         if (secEl) secEl.value = params.securities || '';
 
-        // Condition dropdowns / number inputs
-        const setVal = (id, val) => {
-            const el = document.getElementById(id);
-            if (el) el.value = (val !== undefined && val !== null) ? val : '';
-        };
-        setVal('sc-rsiCondition',       params.rsiCondition);
-        const rsiEl = document.getElementById('sc-rsiCondition');
-        if (rsiEl && typeof rsiEl.onchange === 'function') {
-            rsiEl.onchange();
-        }
-        
-        setVal('sc-minRsi',             params.minRsi);
-        setVal('sc-maxRsi',             params.maxRsi);
-        setVal('sc-bollingerCondition', params.bollingerCondition);
-        setVal('sc-volumeRules',        params.volumeRules ? params.volumeRules.join(', ') : '');
-        setVal('sc-minDropPercent',     params.minDropPercent);
-        setVal('sc-lookbackDays',       params.lookbackDays);
-
-        setVal('sc-movingAverageRules', params.movingAverageRules ? params.movingAverageRules.join(', ') : '');
-        setVal('sc-hvPeriod',           params.hvPeriod);
-        setVal('sc-hvRules',            params.historicalVolatilityRules ? params.historicalVolatilityRules.join(', ') : '');
+        // Fill Technical Filters
+        fillTechFiltersForm(params.technicalFilters);
 
         // Scroll up to the form so the user can see the populated fields
         const firstCard = document.querySelector('.main-content .card');
@@ -3352,48 +3291,21 @@ async function executeCustomScreener() {
         return;
     }
 
-    const rsiCondition      = document.getElementById('sc-rsiCondition').value || null;
-    const minRsiRaw         = document.getElementById('sc-minRsi') ? document.getElementById('sc-minRsi').value : '';
-    const minRsi            = minRsiRaw ? parseFloat(minRsiRaw) : null;
-    const maxRsiRaw         = document.getElementById('sc-maxRsi') ? document.getElementById('sc-maxRsi').value : '';
-    const maxRsi            = maxRsiRaw ? parseFloat(maxRsiRaw) : null;
-
-    if (rsiCondition === 'CUSTOM_RANGE' && (minRsi === null || maxRsi === null)) {
-        showToast('Min RSI and Max RSI are mandatory for Custom Range condition.', 'error');
+    let technicalFilters;
+    try {
+        const container = document.getElementById('screener-tech-filters-container');
+        technicalFilters = getTechnicalFiltersFromDOM(container || document);
+    } catch (e) {
+        showToast(e.message, 'error');
         return;
     }
-
-    const bollingerCondition = document.getElementById('sc-bollingerCondition').value || null;
-    const volumeRulesRaw    = document.getElementById('sc-volumeRules').value;
-    const volumeRules       = volumeRulesRaw ? volumeRulesRaw.split(',').map(s => s.trim()).filter(Boolean) : null;
-    const minDropRaw        = document.getElementById('sc-minDropPercent').value;
-    const minDropPercent    = minDropRaw ? parseFloat(minDropRaw) : null;
-    const lookbackRaw       = document.getElementById('sc-lookbackDays').value;
-    const lookbackDays      = lookbackRaw !== '' ? parseInt(lookbackRaw) : null;
-
-    const maRulesRaw = document.getElementById('sc-movingAverageRules') ? document.getElementById('sc-movingAverageRules').value.trim() : '';
-    const movingAverageRules = maRulesRaw ? maRulesRaw.split(',').map(s => s.trim()).filter(Boolean) : null;
-    
-    const hvPeriodRaw = document.getElementById('sc-hvPeriod') ? document.getElementById('sc-hvPeriod').value : '';
-    const hvPeriod = hvPeriodRaw ? parseInt(hvPeriodRaw) : null;
-    const hvRulesRaw = document.getElementById('sc-hvRules') ? document.getElementById('sc-hvRules').value : '';
-    const historicalVolatilityRules = hvRulesRaw ? hvRulesRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
 
     const payload = {
         screenerType: type,
         alias,
         securitiesFile,
         securities,
-        rsiCondition,
-        minRsi,
-        maxRsi,
-        bollingerCondition,
-        volumeRules,
-        movingAverageRules,
-        minDropPercent,
-        lookbackDays,
-        hvPeriod,
-        historicalVolatilityRules
+        technicalFilters
     };
 
     // Strip nulls/false to keep the payload clean
@@ -3415,6 +3327,69 @@ async function executeCustomScreener() {
         setCustomScreenerBusy(false);
         showToast(e.message, 'error');
     }
+}
+
+/**
+ * Extracts and parses technical filters from data-tech-filter attributes.
+ * Throws an Error if validation fails.
+ * @param {HTMLElement} container - The container element to search within, defaults to document.
+ * @returns {Object|undefined} The parsed technicalFilters object, or undefined if empty.
+ */
+function getTechnicalFiltersFromDOM(container = document) {
+    const technicalFilters = {};
+    container.querySelectorAll('[data-tech-filter]').forEach(input => {
+        const filterKey = input.dataset.techFilter;
+        const fieldKey = input.dataset.techField;
+        const rawVal = (input.tagName === 'SELECT' ? input.value : input.value.trim());
+        if (!rawVal) return;
+
+        if (!technicalFilters[filterKey]) technicalFilters[filterKey] = {};
+
+        if ((filterKey === 'SIMPLE_MOVING_AVERAGE' || filterKey === 'VOLUME' || filterKey === 'HISTORICAL_VOLATILITY') && fieldKey === 'rules') {
+            technicalFilters[filterKey] = { conditions: rawVal.split(',').map(s => s.trim()).filter(Boolean) };
+        } else if (fieldKey === 'condition') {
+            if (typeof technicalFilters[filterKey].condition === 'object') {
+                technicalFilters[filterKey].condition.type = rawVal;
+            } else {
+                technicalFilters[filterKey].condition = rawVal;
+            }
+        } else if (fieldKey === 'period') {
+            const num = parseInt(rawVal);
+            if (!isNaN(num)) {
+                if (!technicalFilters[filterKey].config) technicalFilters[filterKey].config = {};
+                technicalFilters[filterKey].config.period = num;
+            }
+        } else if (['min', 'max', 'minDropPercent', 'lookbackDays', 'minRank', 'maxRank'].includes(fieldKey)) {
+            const num = parseFloat(rawVal);
+            if (!isNaN(num)) {
+                if (filterKey === 'VOLUME') {
+                    if (!technicalFilters[filterKey].conditions) {
+                        technicalFilters[filterKey].conditions = [ { type: 'MIN_VOLUME' } ];
+                    }
+                    technicalFilters[filterKey].conditions[0][fieldKey] = num;
+                } else {
+                    if (!technicalFilters[filterKey].condition || typeof technicalFilters[filterKey].condition === 'string') {
+                        const existingType = typeof technicalFilters[filterKey].condition === 'string' ? technicalFilters[filterKey].condition : null;
+                        technicalFilters[filterKey].condition = {};
+                        if (existingType) technicalFilters[filterKey].condition.type = existingType;
+                    }
+                    technicalFilters[filterKey].condition[fieldKey] = num;
+                }
+            }
+        }
+    });
+
+    if (Object.keys(technicalFilters).length === 0) {
+        return undefined;
+    }
+
+    if (technicalFilters.RSI && technicalFilters.RSI.condition && technicalFilters.RSI.condition.type === 'CUSTOM_RANGE') {
+        if (technicalFilters.RSI.condition.min === undefined || technicalFilters.RSI.condition.max === undefined) {
+            throw new Error('Min RSI and Max RSI are mandatory for Custom Range condition.');
+        }
+    }
+
+    return technicalFilters;
 }
 
 async function loadCustomScreenerResults() {
