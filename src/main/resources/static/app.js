@@ -1249,7 +1249,12 @@ function renderTechFiltersGrid(technicalFilters) {
         if (Array.isArray(val)) {
             parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${val.join(', ')}</span></div>`);
         } else if (val && typeof val === 'object') {
-            const condStr = val.condition ? (typeof val.condition === 'object' ? JSON.stringify(val.condition) : val.condition) : '';
+            let condStr = '';
+            if (val.conditions && Array.isArray(val.conditions)) {
+                condStr = val.conditions.join(', ');
+            } else if (val.condition) {
+                condStr = typeof val.condition === 'object' ? JSON.stringify(val.condition) : val.condition;
+            }
             parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${condStr || '—'}</span></div>`);
         } else {
             parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${val || '—'}</span></div>`);
@@ -2454,8 +2459,8 @@ async function executeCustom() {
 
         if (!technicalFilters[filterKey]) technicalFilters[filterKey] = {};
 
-        if (filterKey === 'SIMPLE_MOVING_AVERAGE' && fieldKey === 'rules') {
-            // SIMPLE_MOVING_AVERAGE is configured as an object with an array of condition strings
+        if ((filterKey === 'SIMPLE_MOVING_AVERAGE' || filterKey === 'VOLUME' || filterKey === 'HISTORICAL_VOLATILITY') && fieldKey === 'rules') {
+            // configured as an object with an array of condition strings
             technicalFilters[filterKey] = { conditions: rawVal.split(',').map(s => s.trim()).filter(Boolean) };
         } else if (fieldKey === 'condition') {
             if (typeof technicalFilters[filterKey].condition === 'object') {
@@ -3247,7 +3252,13 @@ function loadScreenerTemplateParams(screenerJson) {
         setVal('sc-bollingerCondition', extractField('BOLLINGER_BAND', 'condition'));
         const volConditions = extractField('VOLUME', 'conditions');
         if (volConditions && Array.isArray(volConditions) && volConditions.length > 0) {
-            setVal('sc-minVolume', volConditions[0].min);
+            const rulesStrs = volConditions.map(vc => {
+                if (typeof vc === 'string') return vc;
+                if (vc.type === 'MIN_VOLUME') return `>= ${vc.min}`;
+                if (vc.type === 'SMA_COMPARISON') return `SMA${vc.volumeShortSmaPeriod || 20} >= SMA${vc.volumeLongSmaPeriod || 50} * ${vc.volumeThresholdPercent || 90}%`;
+                return '';
+            }).filter(Boolean);
+            setVal('sc-volumeRules', rulesStrs.join(', '));
         }
         setVal('sc-minDropPercent', extractField('PRICE_DROP', 'config', 'minDropPercent'));
         setVal('sc-lookbackDays', extractField('PRICE_DROP', 'config', 'lookbackDays'));
@@ -3256,8 +3267,9 @@ function loadScreenerTemplateParams(screenerJson) {
         if (maRules && maRules.conditions) maRules = maRules.conditions;
         setVal('sc-movingAverageRules', maRules && Array.isArray(maRules) ? maRules.join(', ') : maRules || '');
         setVal('sc-hvPeriod', extractField('HISTORICAL_VOLATILITY', 'config', 'period'));
-        setVal('sc-hvMinRank', extractField('HISTORICAL_VOLATILITY', 'condition', 'minRank'));
-        setVal('sc-hvMaxRank', extractField('HISTORICAL_VOLATILITY', 'condition', 'maxRank'));
+        let hvRules = extractField('HISTORICAL_VOLATILITY', 'root');
+        if (hvRules && hvRules.conditions) hvRules = hvRules.conditions;
+        setVal('sc-hvRules', hvRules && Array.isArray(hvRules) ? hvRules.join(', ') : hvRules || '');
 
         showToast('Template filters loaded!');
     } catch (e) {
@@ -3308,14 +3320,13 @@ function loadScreenerFiltersFromResult(paramsJson, event) {
         setVal('sc-minRsi',             params.minRsi);
         setVal('sc-maxRsi',             params.maxRsi);
         setVal('sc-bollingerCondition', params.bollingerCondition);
-        setVal('sc-minVolume',          params.minVolume);
+        setVal('sc-volumeRules',        params.volumeRules ? params.volumeRules.join(', ') : '');
         setVal('sc-minDropPercent',     params.minDropPercent);
         setVal('sc-lookbackDays',       params.lookbackDays);
 
         setVal('sc-movingAverageRules', params.movingAverageRules ? params.movingAverageRules.join(', ') : '');
         setVal('sc-hvPeriod',           params.hvPeriod);
-        setVal('sc-hvMinRank',          params.minHvRank);
-        setVal('sc-hvMaxRank',          params.maxHvRank);
+        setVal('sc-hvRules',            params.historicalVolatilityRules ? params.historicalVolatilityRules.join(', ') : '');
 
         // Scroll up to the form so the user can see the populated fields
         const firstCard = document.querySelector('.main-content .card');
@@ -3353,8 +3364,8 @@ async function executeCustomScreener() {
     }
 
     const bollingerCondition = document.getElementById('sc-bollingerCondition').value || null;
-    const minVolumeRaw      = document.getElementById('sc-minVolume').value;
-    const minVolume         = minVolumeRaw ? parseInt(minVolumeRaw) : null;
+    const volumeRulesRaw    = document.getElementById('sc-volumeRules').value;
+    const volumeRules       = volumeRulesRaw ? volumeRulesRaw.split(',').map(s => s.trim()).filter(Boolean) : null;
     const minDropRaw        = document.getElementById('sc-minDropPercent').value;
     const minDropPercent    = minDropRaw ? parseFloat(minDropRaw) : null;
     const lookbackRaw       = document.getElementById('sc-lookbackDays').value;
@@ -3365,10 +3376,8 @@ async function executeCustomScreener() {
     
     const hvPeriodRaw = document.getElementById('sc-hvPeriod') ? document.getElementById('sc-hvPeriod').value : '';
     const hvPeriod = hvPeriodRaw ? parseInt(hvPeriodRaw) : null;
-    const minHvRankRaw = document.getElementById('sc-hvMinRank') ? document.getElementById('sc-hvMinRank').value : '';
-    const minHvRank = minHvRankRaw ? parseFloat(minHvRankRaw) : null;
-    const maxHvRankRaw = document.getElementById('sc-hvMaxRank') ? document.getElementById('sc-hvMaxRank').value : '';
-    const maxHvRank = maxHvRankRaw ? parseFloat(maxHvRankRaw) : null;
+    const hvRulesRaw = document.getElementById('sc-hvRules') ? document.getElementById('sc-hvRules').value : '';
+    const historicalVolatilityRules = hvRulesRaw ? hvRulesRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
 
     const payload = {
         screenerType: type,
@@ -3379,13 +3388,12 @@ async function executeCustomScreener() {
         minRsi,
         maxRsi,
         bollingerCondition,
-        minVolume,
+        volumeRules,
         movingAverageRules,
         minDropPercent,
         lookbackDays,
         hvPeriod,
-        minHvRank,
-        maxHvRank
+        historicalVolatilityRules
     };
 
     // Strip nulls/false to keep the payload clean

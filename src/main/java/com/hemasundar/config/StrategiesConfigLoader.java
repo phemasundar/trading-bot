@@ -437,24 +437,7 @@ public class StrategiesConfigLoader {
 
         if (conditionObj != null) {
             if (conditionObj instanceof String strCond) {
-                Pattern pattern = Pattern.compile("SMA(\\d+)\\s*>=\\s*SMA(\\d+)\\s*\\*\\s*(\\d+(?:\\.\\d+)?)%");
-                Matcher matcher = pattern.matcher(strCond);
-                if (matcher.matches()) {
-                    conditions.volumeCondition(com.hemasundar.technical.VolumeCondition.SMA_COMPARISON);
-                    conditions.volumeShortSmaPeriod(Integer.parseInt(matcher.group(1)));
-                    conditions.volumeLongSmaPeriod(Integer.parseInt(matcher.group(2)));
-                    conditions.volumeThresholdPercent(Double.parseDouble(matcher.group(3)));
-                } else if (strCond.startsWith(">=")) {
-                    try {
-                        long minVol = Long.parseLong(strCond.substring(2).trim().replace(",", ""));
-                        conditions.volumeCondition(com.hemasundar.technical.VolumeCondition.MIN_VOLUME);
-                        conditions.minVolume(minVol);
-                    } catch (NumberFormatException e) {
-                        conditions.volumeCondition(com.hemasundar.technical.VolumeCondition.valueOf(strCond));
-                    }
-                } else {
-                    conditions.volumeCondition(com.hemasundar.technical.VolumeCondition.valueOf(strCond));
-                }
+                applyVolumeRules(java.util.Collections.singletonList(strCond), conditions);
             } else {
                 StrategiesConfig.VolumeFilterConditionParams params = JavaUtils.convertValue(conditionObj,
                         StrategiesConfig.VolumeFilterConditionParams.class);
@@ -470,6 +453,29 @@ public class StrategiesConfigLoader {
                     }
                 }
             }
+        }
+    }
+
+    public void applyVolumeRules(List<String> rules, TechFilterConditions.TechFilterConditionsBuilder conditions) {
+        if (rules == null || rules.isEmpty()) return;
+        String strCond = rules.get(0);
+        Pattern pattern = Pattern.compile("SMA(\\d+)\\s*>=\\s*SMA(\\d+)\\s*\\*\\s*(\\d+(?:\\.\\d+)?)%");
+        Matcher matcher = pattern.matcher(strCond);
+        if (matcher.matches()) {
+            conditions.volumeCondition(com.hemasundar.technical.VolumeCondition.SMA_COMPARISON);
+            conditions.volumeShortSmaPeriod(Integer.parseInt(matcher.group(1)));
+            conditions.volumeLongSmaPeriod(Integer.parseInt(matcher.group(2)));
+            conditions.volumeThresholdPercent(Double.parseDouble(matcher.group(3)));
+        } else if (strCond.startsWith(">=")) {
+            try {
+                long minVol = Long.parseLong(strCond.substring(2).trim().replace(",", ""));
+                conditions.volumeCondition(com.hemasundar.technical.VolumeCondition.MIN_VOLUME);
+                conditions.minVolume(minVol);
+            } catch (NumberFormatException e) {
+                conditions.volumeCondition(com.hemasundar.technical.VolumeCondition.valueOf(strCond));
+            }
+        } else {
+            conditions.volumeCondition(com.hemasundar.technical.VolumeCondition.valueOf(strCond));
         }
     }
 
@@ -594,13 +600,32 @@ public class StrategiesConfigLoader {
             if (entry.getConfig() != null && entry.getConfig().getPeriod() != null) {
                 conditions.hvPeriod(entry.getConfig().getPeriod());
             }
-            if (entry.getCondition() != null) {
-                if (entry.getCondition().getMinRank() != null) {
-                    conditions.minHvRank(entry.getCondition().getMinRank());
-                }
-                if (entry.getCondition().getMaxRank() != null) {
-                    conditions.maxHvRank(entry.getCondition().getMaxRank());
-                }
+            if (entry.getConditions() != null && !entry.getConditions().isEmpty()) {
+                applyHistoricalVolatilityRules(entry.getConditions(), conditions);
+            }
+        }
+    }
+
+    public void applyHistoricalVolatilityRules(List<String> rules, TechFilterConditions.TechFilterConditionsBuilder conditions) {
+        if (rules == null || rules.isEmpty()) return;
+        for (String rule : rules) {
+            rule = rule.trim();
+            if (rule.startsWith(">=")) {
+                try {
+                    conditions.minHvRank(Double.parseDouble(rule.substring(2).trim()));
+                } catch (NumberFormatException ignored) {}
+            } else if (rule.startsWith("<=")) {
+                try {
+                    conditions.maxHvRank(Double.parseDouble(rule.substring(2).trim()));
+                } catch (NumberFormatException ignored) {}
+            } else if (rule.startsWith(">")) {
+                try {
+                    conditions.minHvRank(Double.parseDouble(rule.substring(1).trim()));
+                } catch (NumberFormatException ignored) {}
+            } else if (rule.startsWith("<")) {
+                try {
+                    conditions.maxHvRank(Double.parseDouble(rule.substring(1).trim()));
+                } catch (NumberFormatException ignored) {}
             }
         }
     }

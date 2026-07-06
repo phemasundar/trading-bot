@@ -499,8 +499,9 @@ public class StrategyController {
             } catch (Exception ignored) {
             }
         }
-        if (request.getMinVolume() != null)
-            condBuilder.minVolume(request.getMinVolume());
+        if (request.getVolumeRules() != null && !request.getVolumeRules().isEmpty()) {
+            strategiesConfigLoader.applyVolumeRules(request.getVolumeRules(), condBuilder);
+        }
         
         com.hemasundar.technical.TechnicalIndicators.TechnicalIndicatorsBuilder indicatorsBuilder = com.hemasundar.technical.TechnicalIndicators.createDefaults().toBuilder();
         
@@ -515,10 +516,9 @@ public class StrategyController {
         
         if (request.getHvPeriod() != null)
             condBuilder.hvPeriod(request.getHvPeriod());
-        if (request.getMinHvRank() != null)
-            condBuilder.minHvRank(request.getMinHvRank());
-        if (request.getMaxHvRank() != null)
-            condBuilder.maxHvRank(request.getMaxHvRank());
+        if (request.getHistoricalVolatilityRules() != null && !request.getHistoricalVolatilityRules().isEmpty()) {
+            strategiesConfigLoader.applyHistoricalVolatilityRules(request.getHistoricalVolatilityRules(), condBuilder);
+        }
 
         com.hemasundar.technical.ScreenerConfig screenerConfig = com.hemasundar.technical.ScreenerConfig.builder()
                 .screenerType(screenerType)
@@ -547,8 +547,8 @@ public class StrategyController {
             requestParams.put("maxRsi", request.getMaxRsi());
         if (request.getBollingerCondition() != null)
             requestParams.put("bollingerCondition", request.getBollingerCondition());
-        if (request.getMinVolume() != null)
-            requestParams.put("minVolume", request.getMinVolume());
+        if (request.getVolumeRules() != null)
+            requestParams.put("volumeRules", request.getVolumeRules());
         if (request.getMovingAverageRules() != null)
             requestParams.put("movingAverageRules", request.getMovingAverageRules());
         if (request.getMinDropPercent() != null)
@@ -557,10 +557,8 @@ public class StrategyController {
             requestParams.put("lookbackDays", request.getLookbackDays());
         if (request.getHvPeriod() != null)
             requestParams.put("hvPeriod", request.getHvPeriod());
-        if (request.getMinHvRank() != null)
-            requestParams.put("minHvRank", request.getMinHvRank());
-        if (request.getMaxHvRank() != null)
-            requestParams.put("maxHvRank", request.getMaxHvRank());
+        if (request.getHistoricalVolatilityRules() != null)
+            requestParams.put("historicalVolatilityRules", request.getHistoricalVolatilityRules());
 
         CompletableFuture.runAsync(() -> {
             executionService.startGlobalExecution("Custom Screener: " + screenerConfig.getName());

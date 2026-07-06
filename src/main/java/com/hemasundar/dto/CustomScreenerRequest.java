@@ -42,8 +42,8 @@ public class CustomScreenerRequest {
     /** Bollinger condition: LOWER_BAND | UPPER_BAND */
     String bollingerCondition;
 
-    /** Minimum volume threshold (shares). */
-    Long minVolume;
+    /** List of volume rules, e.g., ">= 1000000" or "SMA20 >= SMA50 * 90%" */
+    List<String> volumeRules;
 
     /** List of moving average rules, e.g., "PRICE_ABOVE_SMA50" */
     List<String> movingAverageRules;
@@ -51,11 +51,8 @@ public class CustomScreenerRequest {
     /** Rolling period (in days) for Historical Volatility calculation. */
     Integer hvPeriod;
 
-    /** Minimum Historical Volatility Rank (percentile). */
-    Double minHvRank;
-
-    /** Maximum Historical Volatility Rank (percentile). */
-    Double maxHvRank;
+    /** List of historical volatility rules, e.g., ">= 25" */
+    List<String> historicalVolatilityRules;
 
     /** Minimum drop % — used for PRICE_DROP and HIGH_52W_DROP screeners. */
     Double minDropPercent;

@@ -1,5 +1,47 @@
 # Project Updates
 
+## Refactor: Unified Historical Volatility Rules and Custom Execution API (2026-07-05)
+
+Refactored the `HISTORICAL_VOLATILITY` filter configuration to use mathematical condition string expressions (e.g. `>= 25`) instead of complex JSON objects, matching the format used for `VOLUME` and `SIMPLE_MOVING_AVERAGE`. This unified string-array structure was propagated through the frontend UI to the backend controller, allowing users to enter custom rank rules straight from the custom execution interfaces.
+
+### End-to-End Implementation
+- **Backend Model**: Updated `CustomScreenerRequest` DTO by removing `Double minHvRank` and `Double maxHvRank` and replacing them with `List<String> historicalVolatilityRules`.
+- **Config Loader**: Built `StrategiesConfigLoader.applyHistoricalVolatilityRules()` helper to parse rank bounds out of string expressions (e.g., `>= 25`, `<= 75`).
+- **Backend Execution**: Updated `/api/execute/custom` inside `StrategyController` to process the dynamic `historicalVolatilityRules` string array payload.
+- **Frontend App**: Updated `execute.html` and `execute-screener.html` UI forms, replacing the "HV Min/Max Rank" number fields with "HV Rules" text fields. Updated `app.js` to serialize these rules in the new format and deserialize templates smoothly.
+- **Config**: Migrated all `HISTORICAL_VOLATILITY` JSON properties containing `{"condition": {"minRank": 25}}` into `"conditions": [">= 25"]` across `strategies-config.json`.
+
+### Architecture
+| File | Change |
+|---|---|
+| **`CustomScreenerRequest.java`** | Changed `minHvRank`/`maxHvRank` to `historicalVolatilityRules`. |
+| **`StrategyController.java`** | Updated custom execution mapping to inject `historicalVolatilityRules` directly into the config loader. |
+| **`StrategiesConfigLoader.java`** | Refactored JSON mapping logic to support the string array representation natively via `applyHistoricalVolatilityRules()`. |
+| **`strategies-config.json`** | Stripped verbose nested JSON condition objects and replaced them with `>= {value}` string syntax. |
+| **`app.js`** | Upgraded custom payload mapping logic to process `sc-hvRules` as a comma-separated array. |
+| **`execute.html` / `execute-screener.html`** | Replaced individual `minRank`/`maxRank` inputs with a unified `text` input for rule declarations. |
+
+## Refactor: Unified Volume Technical Rules and Custom Execution API (2026-07-05)
+
+Refactored the `VOLUME` minimum volume threshold configuration to use mathematical condition string expressions (e.g. `>= 1000000`) instead of complex JSON objects, matching the recently refactored `SIMPLE_MOVING_AVERAGE` format. Additionally, this unified array-of-strings structure was propagated through the frontend UI all the way to the backend controller, allowing users to enter custom volume rules (like `>= 500000, SMA20 >= SMA50 * 90%`) straight from the custom execution interfaces.
+
+### End-to-End Implementation
+- **Backend Model**: Updated `CustomScreenerRequest` DTO by removing `Long minVolume` and replacing it with a `List<String> volumeRules`.
+- **Config Loader**: Extracted robust volume parsing logic into a reusable `StrategiesConfigLoader.applyVolumeRules()` helper.
+- **Backend Execution**: Updated `/api/execute/custom` inside `StrategyController` to process the dynamic `volumeRules` string array payload.
+- **Frontend App**: Updated `execute.html` and `execute-screener.html` UI forms, replacing the "Min Volume" number fields with "Volume Rules" text fields. Updated `app.js` to serialize these rules in the new format and deserialize templates smoothly.
+- **Config**: Migrated all `VOLUME` JSON properties containing `{"type": "MIN_VOLUME", "min": 1000000}` into `"conditions": [">= 1000000"]` across `strategies-config.json`.
+
+### Architecture
+| File | Change |
+|---|---|
+| **`CustomScreenerRequest.java`** | Changed `minVolume` to `volumeRules`. |
+| **`StrategyController.java`** | Updated custom execution mapping to inject `volumeRules` directly into the config loader. |
+| **`StrategiesConfigLoader.java`** | Refactored `applyVolumeRules()` out of internal JSON mapping logic to support standalone API calls. |
+| **`strategies-config.json`** | Stripped verbose MIN_VOLUME JSON objects and replaced them with `>= {value}` string syntax. |
+| **`app.js`** | Upgraded custom payload mapping logic to process `sc-volumeRules` as a comma-separated array. |
+| **`execute.html` / `execute-screener.html`** | Replaced `number` input fields with `text` input fields and updated labels. |
+
 ## Refactor: Moving Average Filter Refactoring (2026-07-05)
 
 Refactored the `SIMPLE_MOVING_AVERAGE` configuration to use mathematical condition string expressions similar to the `VOLUME` filter logic instead of enum-like static strings. This improves readability, makes the dynamic nature of SMA periods clearer, and aligns the frontend and backend formatting.
