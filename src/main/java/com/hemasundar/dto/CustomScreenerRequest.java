@@ -1,19 +1,21 @@
 package com.hemasundar.dto;
 
-import lombok.Value;
+import lombok.Data;
 import lombok.Builder;
-import lombok.extern.jackson.Jacksonized;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import java.util.List;
-
+import java.util.Map;
 
 /**
  * Request body for POST /api/execute/custom-screener.
  * Allows the UI to run a one-off technical screener with custom conditions
  * without modifying strategies-config.json.
  */
-@Value
+@Data
 @Builder(toBuilder = true)
-@Jacksonized
+@NoArgsConstructor
+@AllArgsConstructor
 public class CustomScreenerRequest {
 
     /** The screener type enum name, e.g. "RSI_BB_BULLISH_CROSSOVER". */
@@ -28,35 +30,11 @@ public class CustomScreenerRequest {
     /** Inline ticker list, comma-separated, e.g. "AAPL, MSFT". */
     String securities;
 
-    // ── TechFilterConditions fields ──────────────────────────────────────────
+    // ── Technical Filters ──────────────────────────────────────────
 
-    /** RSI condition: OVERSOLD | OVERBOUGHT | BULLISH_CROSSOVER | BEARISH_CROSSOVER | CUSTOM_RANGE */
-    String rsiCondition;
-
-    /** Minimum RSI value for CUSTOM_RANGE condition */
-    Double minRsi;
-
-    /** Maximum RSI value for CUSTOM_RANGE condition */
-    Double maxRsi;
-
-    /** Bollinger condition: LOWER_BAND | UPPER_BAND */
-    String bollingerCondition;
-
-    /** List of volume rules, e.g., ">= 1000000" or "SMA20 >= SMA50 * 90%" */
-    List<String> volumeRules;
-
-    /** List of moving average rules, e.g., "PRICE_ABOVE_SMA50" */
-    List<String> movingAverageRules;
-
-    /** Rolling period (in days) for Historical Volatility calculation. */
-    Integer hvPeriod;
-
-    /** List of historical volatility rules, e.g., ">= 25" */
-    List<String> historicalVolatilityRules;
-
-    /** Minimum drop % — used for PRICE_DROP and HIGH_52W_DROP screeners. */
-    Double minDropPercent;
-
-    /** Look-back days — used for PRICE_DROP screener (0 = intraday). */
-    Integer lookbackDays;
+    /** 
+     * Flexible map of technical filters matching the UI payload structure.
+     * e.g., { "RSI": { "condition": { "type": "OVERSOLD" } }, "VOLUME": { "conditions": [ ">= 1000000" ] } }
+     */
+    java.util.Map<String, Object> technicalFilters;
 }
