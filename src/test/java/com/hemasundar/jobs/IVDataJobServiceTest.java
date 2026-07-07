@@ -5,6 +5,7 @@ import com.hemasundar.config.properties.SupabaseConfig;
 import com.hemasundar.pojos.IVDataPoint;
 import com.hemasundar.services.IVDataCollector;
 import com.hemasundar.services.SupabaseService;
+import com.hemasundar.utils.SchwabApiExecutor;
 import com.hemasundar.utils.TelegramUtils;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -35,6 +36,9 @@ public class IVDataJobServiceTest {
     @Mock
     private IVDataCollector ivDataCollector;
 
+    @Mock
+    private SchwabApiExecutor schwabApiExecutor;
+
     private IVDataJobService ivDataJobService;
 
     @BeforeMethod
@@ -45,7 +49,8 @@ public class IVDataJobServiceTest {
                 supabaseConfig,
                 thinkOrSwinAPIs,
                 telegramUtils,
-                ivDataCollector
+                ivDataCollector,
+                schwabApiExecutor
         );
     }
 
@@ -56,6 +61,12 @@ public class IVDataJobServiceTest {
         IVDataPoint dataPoint = new IVDataPoint();
         dataPoint.setSymbol("AAPL");
         when(ivDataCollector.collectIVDataPoint("AAPL")).thenReturn(dataPoint);
+
+        when(schwabApiExecutor.executeParallel(anyList(), any())).thenAnswer(invocation -> {
+            java.util.List<String> symbols = invocation.getArgument(0);
+            java.util.function.Function<String, IVDataPoint> func = invocation.getArgument(1);
+            return symbols.stream().map(func).toList();
+        });
 
         // Spy on service to mock loadAllSecurities to avoid loading 128 symbols and sleeping
         IVDataJobService spyService = spy(ivDataJobService);
