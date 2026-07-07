@@ -113,9 +113,6 @@ public class IVDataJobService {
             message.append("└ Failed: <code>0</code> 🎉\n");
         }
 
-        message.append("\n💾 <b>Databases:</b>\n");
-        message.append("└").append(" ✅ Supabase\n");
-
         message.append("\n📅 Date: <code>").append(java.time.LocalDate.now()).append("</code>");
         message.append("\n🕐 Time: <code>")
                 .append(java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")))
