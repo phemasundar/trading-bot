@@ -51,8 +51,6 @@ public class IVDataJobServiceTest {
 
     @Test
     public void testRunIVDataCollection_Success() throws Exception {
-        // Mock config
-        when(supabaseConfig.getEnabled()).thenReturn(true);
 
         // Mock data point collection
         IVDataPoint dataPoint = new IVDataPoint();
@@ -69,13 +67,5 @@ public class IVDataJobServiceTest {
         verify(telegramUtils, atLeastOnce()).sendMessage(anyString());
     }
 
-    @Test
-    public void testRunIVDataCollection_NoDatabasesEnabled() {
-        when(supabaseConfig.getEnabled()).thenReturn(false);
 
-        ivDataJobService.runIVDataCollection();
-
-        // Should return early and log error (no collection executed)
-        verify(ivDataCollector, never()).collectIVDataPoint(anyString());
-    }
 }

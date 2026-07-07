@@ -5,22 +5,25 @@
 Updated the `Screeners Dashboard` to dynamically display technical analysis indicators based on what is calculated by the screener, instead of relying on hardcoded columns for moving averages and other metrics.
 
 ### End-to-End Implementation
+
 - **Backend Model**: Changed `@JsonIgnore` to `@JsonProperty("formattedSummary")` on `getFormattedSummary()` in `TechnicalScreener.java` so that the frontend can access the formatted technical indicators string directly from the screener results.
-- **Frontend App**: Refactored `app.js` (`buildScreenerTable`) to dynamically extract all moving averages calculated from the `maValues` object and render corresponding `SMA {period}` columns on the fly. 
+- **Frontend App**: Refactored `app.js` (`buildScreenerTable`) to dynamically extract all moving averages calculated from the `maValues` object and render corresponding `SMA {period}` columns on the fly.
 - **Dynamic Columns**: RSI, Bollinger Bands, and Volume columns now only appear in the table if they are calculated and returned by the backend.
 - **Tech Indicators Click-to-Expand**: Added `data-tech-indicators` to the screener results table. Clicking any row will now inject a detail panel displaying the technical indicators that were calculated during screening.
 
 ### Architecture
-| File | Change |
-|---|---|
-| **`TechnicalScreener.java`** | Exposed `formattedSummary` via Jackson `@JsonProperty`. |
-| **`app.js`** | Rewrote `buildScreenerTable` for dynamic column generation based on populated indicators (RSI, BB, Volume, MAs). Linked `formattedSummary` to row clicks for tech indicator previews. |
+
+| File                         | Change                                                                                                                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`TechnicalScreener.java`** | Exposed `formattedSummary` via Jackson `@JsonProperty`.                                                                                                                               |
+| **`app.js`**                 | Rewrote `buildScreenerTable` for dynamic column generation based on populated indicators (RSI, BB, Volume, MAs). Linked `formattedSummary` to row clicks for tech indicator previews. |
 
 ## Refactor: Unified Historical Volatility Rules and Custom Execution API (2026-07-05)
 
 Refactored the `HISTORICAL_VOLATILITY` filter configuration to use mathematical condition string expressions (e.g. `>= 25`) instead of complex JSON objects, matching the format used for `VOLUME` and `SIMPLE_MOVING_AVERAGE`. This unified string-array structure was propagated through the frontend UI to the backend controller, allowing users to enter custom rank rules straight from the custom execution interfaces.
 
 ### End-to-End Implementation
+
 - **Backend Model**: Updated `CustomScreenerRequest` DTO by removing `Double minHvRank` and `Double maxHvRank` and replacing them with `List<String> historicalVolatilityRules`.
 - **Config Loader**: Built `StrategiesConfigLoader.applyHistoricalVolatilityRules()` helper to parse rank bounds out of string expressions (e.g., `>= 25`, `<= 75`).
 - **Backend Execution**: Updated `/api/execute/custom` inside `StrategyController` to process the dynamic `historicalVolatilityRules` string array payload.
@@ -28,20 +31,22 @@ Refactored the `HISTORICAL_VOLATILITY` filter configuration to use mathematical 
 - **Config**: Migrated all `HISTORICAL_VOLATILITY` JSON properties containing `{"condition": {"minRank": 25}}` into `"conditions": [">= 25"]` across `strategies-config.json`.
 
 ### Architecture
-| File | Change |
-|---|---|
-| **`CustomScreenerRequest.java`** | Changed `minHvRank`/`maxHvRank` to `historicalVolatilityRules`. |
-| **`StrategyController.java`** | Updated custom execution mapping to inject `historicalVolatilityRules` directly into the config loader. |
-| **`StrategiesConfigLoader.java`** | Refactored JSON mapping logic to support the string array representation natively via `applyHistoricalVolatilityRules()`. |
-| **`strategies-config.json`** | Stripped verbose nested JSON condition objects and replaced them with `>= {value}` string syntax. |
-| **`app.js`** | Upgraded custom payload mapping logic to process `sc-hvRules` as a comma-separated array. |
-| **`execute.html` / `execute-screener.html`** | Replaced individual `minRank`/`maxRank` inputs with a unified `text` input for rule declarations. |
+
+| File                                         | Change                                                                                                                    |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **`CustomScreenerRequest.java`**             | Changed `minHvRank`/`maxHvRank` to `historicalVolatilityRules`.                                                           |
+| **`StrategyController.java`**                | Updated custom execution mapping to inject `historicalVolatilityRules` directly into the config loader.                   |
+| **`StrategiesConfigLoader.java`**            | Refactored JSON mapping logic to support the string array representation natively via `applyHistoricalVolatilityRules()`. |
+| **`strategies-config.json`**                 | Stripped verbose nested JSON condition objects and replaced them with `>= {value}` string syntax.                         |
+| **`app.js`**                                 | Upgraded custom payload mapping logic to process `sc-hvRules` as a comma-separated array.                                 |
+| **`execute.html` / `execute-screener.html`** | Replaced individual `minRank`/`maxRank` inputs with a unified `text` input for rule declarations.                         |
 
 ## Refactor: Unified Volume Technical Rules and Custom Execution API (2026-07-05)
 
 Refactored the `VOLUME` minimum volume threshold configuration to use mathematical condition string expressions (e.g. `>= 1000000`) instead of complex JSON objects, matching the recently refactored `SIMPLE_MOVING_AVERAGE` format. Additionally, this unified array-of-strings structure was propagated through the frontend UI all the way to the backend controller, allowing users to enter custom volume rules (like `>= 500000, SMA20 >= SMA50 * 90%`) straight from the custom execution interfaces.
 
 ### End-to-End Implementation
+
 - **Backend Model**: Updated `CustomScreenerRequest` DTO by removing `Long minVolume` and replacing it with a `List<String> volumeRules`.
 - **Config Loader**: Extracted robust volume parsing logic into a reusable `StrategiesConfigLoader.applyVolumeRules()` helper.
 - **Backend Execution**: Updated `/api/execute/custom` inside `StrategyController` to process the dynamic `volumeRules` string array payload.
@@ -49,101 +54,111 @@ Refactored the `VOLUME` minimum volume threshold configuration to use mathematic
 - **Config**: Migrated all `VOLUME` JSON properties containing `{"type": "MIN_VOLUME", "min": 1000000}` into `"conditions": [">= 1000000"]` across `strategies-config.json`.
 
 ### Architecture
-| File | Change |
-|---|---|
-| **`CustomScreenerRequest.java`** | Changed `minVolume` to `volumeRules`. |
-| **`StrategyController.java`** | Updated custom execution mapping to inject `volumeRules` directly into the config loader. |
-| **`StrategiesConfigLoader.java`** | Refactored `applyVolumeRules()` out of internal JSON mapping logic to support standalone API calls. |
-| **`strategies-config.json`** | Stripped verbose MIN_VOLUME JSON objects and replaced them with `>= {value}` string syntax. |
-| **`app.js`** | Upgraded custom payload mapping logic to process `sc-volumeRules` as a comma-separated array. |
-| **`execute.html` / `execute-screener.html`** | Replaced `number` input fields with `text` input fields and updated labels. |
+
+| File                                         | Change                                                                                              |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **`CustomScreenerRequest.java`**             | Changed `minVolume` to `volumeRules`.                                                               |
+| **`StrategyController.java`**                | Updated custom execution mapping to inject `volumeRules` directly into the config loader.           |
+| **`StrategiesConfigLoader.java`**            | Refactored `applyVolumeRules()` out of internal JSON mapping logic to support standalone API calls. |
+| **`strategies-config.json`**                 | Stripped verbose MIN_VOLUME JSON objects and replaced them with `>= {value}` string syntax.         |
+| **`app.js`**                                 | Upgraded custom payload mapping logic to process `sc-volumeRules` as a comma-separated array.       |
+| **`execute.html` / `execute-screener.html`** | Replaced `number` input fields with `text` input fields and updated labels.                         |
 
 ## Refactor: Moving Average Filter Refactoring (2026-07-05)
 
 Refactored the `SIMPLE_MOVING_AVERAGE` configuration to use mathematical condition string expressions similar to the `VOLUME` filter logic instead of enum-like static strings. This improves readability, makes the dynamic nature of SMA periods clearer, and aligns the frontend and backend formatting.
 
 ### End-to-End Implementation
+
 - **Backend Model**: Added `MovingAverageFilterEntry` POJO to handle configuration objects containing `condition` / `conditions` fields.
 - **Config Loader**: Modified `applyMovingAverageFilters` to process condition strings like `PRICE >= SMA50`, `SMA50 >= SMA200` using dynamic regex evaluation that supports `<`, `<=`, `>`, and `>=`.
 - **Frontend App**: Updated `execute.html` and `execute-screener.html` placeholders and inputs. Refactored the payload builder and rendering script in `app.js` to serialize rules into `{"conditions": ["PRICE >= SMA50", "SMA50 >= SMA200"]}` objects instead of string arrays.
 - **Config**: Migrated `SIMPLE_MOVING_AVERAGE` blocks in `strategies-config.json` to the new condition object pattern.
 
 ### Architecture
-| File | Change |
-|---|---|
-| **`StrategiesConfig.java`** | Added `MovingAverageFilterEntry` POJO. |
-| **`StrategiesConfigLoader.java`** | Rewrote `applyMovingAverageFilters()` logic to dynamically evaluate operators and support conditions map/object structure. |
-| **`strategies-config.json`** | Replaced old string arrays with `{ "conditions": ["..."] }` properties. |
-| **`app.js`** | Built dynamic `{ conditions: [...] }` payloads instead of string lists. Modified rule display logic in `renderTechFiltersGrid()` and the Execution/Screener panels. |
-| **`execute.html` / `execute-screener.html`** | Updated `data-tech-field` attributes and label hints to reflect the new operator-based syntax. |
+
+| File                                         | Change                                                                                                                                                              |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`StrategiesConfig.java`**                  | Added `MovingAverageFilterEntry` POJO.                                                                                                                              |
+| **`StrategiesConfigLoader.java`**            | Rewrote `applyMovingAverageFilters()` logic to dynamically evaluate operators and support conditions map/object structure.                                          |
+| **`strategies-config.json`**                 | Replaced old string arrays with `{ "conditions": ["..."] }` properties.                                                                                             |
+| **`app.js`**                                 | Built dynamic `{ conditions: [...] }` payloads instead of string lists. Modified rule display logic in `renderTechFiltersGrid()` and the Execution/Screener panels. |
+| **`execute.html` / `execute-screener.html`** | Updated `data-tech-field` attributes and label hints to reflect the new operator-based syntax.                                                                      |
 
 ## Feature: Display Tech Indicators on Trade Details UI (2026-07-04)
 
 Added the ability to display technical analysis indicators calculated during strategy execution in the Options Dashboard. When a user clicks any trade row, the details panel now includes a "Tech Indicators" section if technical filters were applied.
 
 ### End-to-End Implementation
+
 - **Backend Model**: Added a `techIndicators` string field to `Trade.java` to store the formatted technical indicators summary.
 - **Backend Execution**: Modified `StrategyExecutionService.executeStrategy()` to capture the `ScreeningResult` map from `TechnicalScreener.screenStocks()`. After creating the `StrategyResult`, it iterates over the generated `Trade` objects and injects the `formattedSummary` from the corresponding `ScreeningResult`.
 - **Frontend App**: Updated the HTML rendering in `app.js` to parse `data-tech-indicators` from the trade rows. If this data is present, the detail panel injected by `initTradeRowClicks()` now renders a new `▶ {Symbol} — Tech Indicators` block containing the indicators.
 
 ### Architecture
-| File | Change |
-|---|---|
-| **`Trade.java`** | Added `techIndicators` field. |
-| **`StrategyExecutionService.java`** | Captured `ScreeningResult` from screener and populated `techIndicators` on `Trade` objects. |
-| **`app.js`** | Enhanced `trade-row` template to include `data-tech-indicators`. Added UI rendering block in `initTradeRowClicks()`. |
+
+| File                                | Change                                                                                                               |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **`Trade.java`**                    | Added `techIndicators` field.                                                                                        |
+| **`StrategyExecutionService.java`** | Captured `ScreeningResult` from screener and populated `techIndicators` on `Trade` objects.                          |
+| **`app.js`**                        | Enhanced `trade-row` template to include `data-tech-indicators`. Added UI rendering block in `initTradeRowClicks()`. |
 
 ## Feature: Volume Technical Filter Refactoring (2026-07-04)
 
 Refactored the Volume Technical Filter to support more robust conditions including an Enum-based filtering strategy. The `min` and `max` parameters have been moved out of `config` into a `condition` object.
 
 ### New Features & Improvements
+
 - **Volume Condition Logic**: Introduced `VolumeCondition` Enum to support `MIN_VOLUME`, `MAX_VOLUME`, `RANGE_VOLUME`, and `STABLE_OR_EXPANDING`.
 - **Dynamic Configuration**: The config json structure now maps limits to the condition object, separating what gets calculated (config) from the thresholds. Replaced the single `condition` property with a `conditions` JSON array structure for consistency with SMA.
 - **Stable or Expanding Filtering**: Added support for validating volume expansion using moving averages (`Volume_SMA20 >= Volume_SMA50 * 90%`). The SMA periods and threshold are configurable.
 
-
 ### Architecture
-| File | Change |
-|---|---|
-| **`VolumeCondition.java`** | [NEW] Enum representing the supported condition types for volume. |
-| **`StrategiesConfig.java`** | Added `VolumeFilterConditionParams` and redefined `VolumeConfigParams` with SMA properties for stable volume validation. |
-| **`TechFilterConditions.java`** | Added `volumeCondition` and SMA fields. Updated the `getSummary()` display logic. |
-| **`TechnicalScreener.java`** | Adjusted screening conditions to dynamically parse Enum-based checks. Propagated SMA generation capabilities inside `analyzeStock()` using ta4j's `VolumeIndicator` and `SMAIndicator`. |
-| **`StrategiesConfigLoader.java`** | Changed JSON mapping schema to process Enum structures seamlessly. |
-| **`strategies-config.json`** | Migrated `VOLUME` properties away from the legacy format across all nested screeners. |
-| **`TechnicalScreenerTest.java`** | Passed `TechFilterConditions` downstream inside test evaluations to correspond with updated `analyzeStock()` signature. |
+
+| File                              | Change                                                                                                                                                                                  |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`VolumeCondition.java`**        | [NEW] Enum representing the supported condition types for volume.                                                                                                                       |
+| **`StrategiesConfig.java`**       | Added `VolumeFilterConditionParams` and redefined `VolumeConfigParams` with SMA properties for stable volume validation.                                                                |
+| **`TechFilterConditions.java`**   | Added `volumeCondition` and SMA fields. Updated the `getSummary()` display logic.                                                                                                       |
+| **`TechnicalScreener.java`**      | Adjusted screening conditions to dynamically parse Enum-based checks. Propagated SMA generation capabilities inside `analyzeStock()` using ta4j's `VolumeIndicator` and `SMAIndicator`. |
+| **`StrategiesConfigLoader.java`** | Changed JSON mapping schema to process Enum structures seamlessly.                                                                                                                      |
+| **`strategies-config.json`**      | Migrated `VOLUME` properties away from the legacy format across all nested screeners.                                                                                                   |
+| **`TechnicalScreenerTest.java`**  | Passed `TechFilterConditions` downstream inside test evaluations to correspond with updated `analyzeStock()` signature.                                                                 |
 
 ## Feature: Custom RSI Range Filtering (2026-07-04)
 
 Added the ability for users to specify custom `minRsi` and `maxRsi` range values when filtering stocks using the Technical Screener and Execute Strategy flows.
 
 ### End-to-End Implementation
+
 - **Backend Model**: Updated `CustomScreenerRequest`, `TechFilterConditions`, and `RSICondition` to accept and process `CUSTOM_RANGE` with `minRsi` and `maxRsi`.
 - **Backend Execution**: Updated `TechnicalScreener` logic to evaluate the stock's actual RSI against the `minRsi` and `maxRsi` thresholds when `CUSTOM_RANGE` is provided.
 - **Config Loader**: Modified `StrategiesConfigLoader` and `StrategiesConfig` to parse `condition` from the JSON configurations as an object. This allows strategies like "Tech Moderate LEAP" to statically configure custom ranges.
 - **Frontend App**: Added "Custom Range" to the `RSI Condition` dropdowns in `execute.html` and `execute-screener.html`. Upon selection, secondary inputs for `Min RSI` and `Max RSI` appear. Updated `app.js` to serialize these fields as a complex object properly to the backend.
 
 ### Architecture
-| File | Change |
-|---|---|
-| **`CustomScreenerRequest.java`** | Added `minRsi` and `maxRsi` |
-| **`TechFilterConditions.java`** | Added `minRsi` and `maxRsi`, updated `getSummary()` |
-| **`RSICondition.java`** | Added `CUSTOM_RANGE` enum entry |
-| **`TechnicalScreener.java`** | Added evaluation logic in `meetsAllCriteria()` |
-| **`StrategiesConfigLoader.java`** | Parses `condition` as either string or object (`RSIFilterConditionParams`) |
-| **`StrategiesConfig.java`** | Changed `condition` object type and introduced `RSIFilterConditionParams` |
-| **`StrategyController.java`** | Maps `minRsi` and `maxRsi` to builder and `requestParams` |
-| **`execute.html` & `execute-screener.html`** | Added UI inputs and `onchange` toggle |
-| **`app.js`** | Enhanced payload construction to handle `RSI.condition` as an object and validate mandatory fields |
-| **`strategies-config.json`** | Added custom range configuration for "Tech Moderate LEAP" |
+
+| File                                         | Change                                                                                             |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| **`CustomScreenerRequest.java`**             | Added `minRsi` and `maxRsi`                                                                        |
+| **`TechFilterConditions.java`**              | Added `minRsi` and `maxRsi`, updated `getSummary()`                                                |
+| **`RSICondition.java`**                      | Added `CUSTOM_RANGE` enum entry                                                                    |
+| **`TechnicalScreener.java`**                 | Added evaluation logic in `meetsAllCriteria()`                                                     |
+| **`StrategiesConfigLoader.java`**            | Parses `condition` as either string or object (`RSIFilterConditionParams`)                         |
+| **`StrategiesConfig.java`**                  | Changed `condition` object type and introduced `RSIFilterConditionParams`                          |
+| **`StrategyController.java`**                | Maps `minRsi` and `maxRsi` to builder and `requestParams`                                          |
+| **`execute.html` & `execute-screener.html`** | Added UI inputs and `onchange` toggle                                                              |
+| **`app.js`**                                 | Enhanced payload construction to handle `RSI.condition` as an object and validate mandatory fields |
+| **`strategies-config.json`**                 | Added custom range configuration for "Tech Moderate LEAP"                                          |
 
 ## Feature: Technical Filters in Execute Strategy UI + Filter Details on Dashboard (2026-07-04)
 
 Added full visibility of applied Technical Filters in both the Execute Strategy page and the Options Dashboard Filter Details panel.
 
 ### Issue 1 Fixed: Technical Filters Missing on Execute Strategy Page
+
 Added a dedicated **"Technical Filters"** collapsible card section in `execute.html` with inputs for:
+
 - **RSI Condition** (dropdown: OVERSOLD, BULLISH_CROSSOVER, OVERBOUGHT, BEARISH_CROSSOVER)
 - **Bollinger Band Condition** (dropdown: LOWER_BAND, UPPER_BAND)
 - **Min Volume** (number)
@@ -154,18 +169,21 @@ Added a dedicated **"Technical Filters"** collapsible card section in `execute.h
 The `executeCustom()` function in `app.js` now collects these via `data-tech-filter` / `data-tech-field` attributes and packages them into a `technicalFilters` map in the POST body, sent to `/api/execute/custom`. The backend `StrategyController` already parses this into a `TechnicalFilterChain`.
 
 ### Issue 2 Fixed: Tech Filters Missing from Filter Details
+
 Added `technicalFilterSummary` as a serialized field in `OptionsStrategyFilter`. `StrategyExecutionService.executeStrategy()` now populates this field (via `TechFilterConditions.getSummary()`) before building the `StrategyResult`, so the summary is persisted in the Supabase `filter_config` JSON blob and shown in the **"Filter Details"** section of each strategy card on the Options Dashboard.
 
 ### Config Page + Template Cards
+
 The Config Viewer (`config.html`) and Execute Strategy template cards now also call `renderTechFiltersGrid()` to display the `technicalFilters` block from `strategies-config.json`.
 
 ### Architecture
-| File | Change |
-|---|---|
-| **`execute.html`** | Added "Technical Filters" collapsible card with RSI, BB, Volume, HV, Price Drop, MA rule inputs |
-| **`app.js`** | Added `renderTechFiltersGrid()` helper; updated `executeCustom()` to collect `[data-tech-filter]` inputs; updated `renderFilterGrid()` to render `technicalFilterSummary` prominently; updated `renderConfig()` and `renderStrategyTemplates()` to show `technicalFilters` |
-| **`OptionsStrategyFilter.java`** | Added `technicalFilterSummary` field (serialized into `filterConfig` JSON blob) |
-| **`StrategyExecutionService.java`** | Populates `filter.technicalFilterSummary` from `TechFilterConditions.getSummary()` before building `StrategyResult` |
+
+| File                                | Change                                                                                                                                                                                                                                                                     |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`execute.html`**                  | Added "Technical Filters" collapsible card with RSI, BB, Volume, HV, Price Drop, MA rule inputs                                                                                                                                                                            |
+| **`app.js`**                        | Added `renderTechFiltersGrid()` helper; updated `executeCustom()` to collect `[data-tech-filter]` inputs; updated `renderFilterGrid()` to render `technicalFilterSummary` prominently; updated `renderConfig()` and `renderStrategyTemplates()` to show `technicalFilters` |
+| **`OptionsStrategyFilter.java`**    | Added `technicalFilterSummary` field (serialized into `filterConfig` JSON blob)                                                                                                                                                                                            |
+| **`StrategyExecutionService.java`** | Populates `filter.technicalFilterSummary` from `TechFilterConditions.getSummary()` before building `StrategyResult`                                                                                                                                                        |
 
 ---
 
@@ -174,38 +192,43 @@ The Config Viewer (`config.html`) and Execute Strategy template cards now also c
 Redesigned the `SIMPLE_MOVING_AVERAGE` JSON schema in `strategies-config.json` to replace the verbose nested object format with a clean, easy-to-read array of shorthand string expressions.
 
 ### Schema Changes
+
 - Eliminated `config`, `condition`, `priceConditions`, and `smaConditions` objects entirely.
 - `SIMPLE_MOVING_AVERAGE` now directly accepts a JSON array of string rules.
 - Supported patterns: `PRICE_ABOVE_SMA<period>`, `PRICE_BELOW_SMA<period>`, `SMA<period1>_ABOVE_SMA<period2>`, `SMA<period1>_BELOW_SMA<period2>`.
 - Example: `["PRICE_ABOVE_SMA50", "SMA50_ABOVE_SMA200"]`
 
 ### Architecture
-| File | Change |
-|---|---|
-| **`StrategiesConfig.java`** | Deleted unused nested POJOs: `MovingAverageFilterEntry`, `MovingAverageConfigParams`, `MovingAverageCondition`. |
+
+| File                              | Change                                                                                                                                                                      |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`StrategiesConfig.java`**       | Deleted unused nested POJOs: `MovingAverageFilterEntry`, `MovingAverageConfigParams`, `MovingAverageCondition`.                                                             |
 | **`StrategiesConfigLoader.java`** | Updated `applyMovingAverageFilters` to process a `List<String>`. Uses Regex matching to natively parse string expressions into `PriceCondition` and `SmaCondition` engines. |
-| **`strategies-config.json`** | Migrated `SIMPLE_MOVING_AVERAGE` blocks across all screeners and strategies to the new intuitive string list format. |
+| **`strategies-config.json`**      | Migrated `SIMPLE_MOVING_AVERAGE` blocks across all screeners and strategies to the new intuitive string list format.                                                        |
 
 ---
+
 ## Refactor: Dynamic Moving Average Configuration (2026-07-03)
 
 Refactored the hardcoded Moving Average filters (MA20, MA50, MA100, MA200) into a fully dynamic and configurable system. Users can now filter by arbitrary MA periods and even compare an MA to another MA.
 
 ### How It Works
+
 - Removed hardcoded boolean flags like `requirePriceBelowMA20` from `StrategiesConfig.MovingAverageConfigParams`.
 - Replaced them with lists of `PriceCondition` and `SmaCondition` (e.g., `{ "period": 200, "position": "BELOW" }`).
 - `TechnicalScreener` dynamically calculates any requested MA periods, storing them in a `Map<Integer, Double> maValues`.
 - Conditions are dynamically verified during stock screening.
 
 ### Architecture
-| File | Change |
-|---|---|
-| **`StrategiesConfig.java`** | Added `PriceCondition`, `SmaCondition` list fields to `MovingAverageConfigParams` |
-| **`TechFilterConditions.java`** | Updated to use condition lists; refactored `getSummary()` string building |
-| **`TechnicalIndicators.java`** | Replaced individual MA filters with `Map<Integer, MovingAverageFilter> maFilters` |
-| **`TechnicalScreener.java`** | Dynamically evaluates MAs from lists and logs output |
-| **`CustomScreenerRequest.java`** | Updated API payload structure for the execution endpoint |
-| **`strategies-config.json`** | Migrated `requirePriceBelowMA200` to `"priceConditions": [{ "period": 200, "position": "BELOW" }]` |
+
+| File                             | Change                                                                                             |
+| -------------------------------- | -------------------------------------------------------------------------------------------------- |
+| **`StrategiesConfig.java`**      | Added `PriceCondition`, `SmaCondition` list fields to `MovingAverageConfigParams`                  |
+| **`TechFilterConditions.java`**  | Updated to use condition lists; refactored `getSummary()` string building                          |
+| **`TechnicalIndicators.java`**   | Replaced individual MA filters with `Map<Integer, MovingAverageFilter> maFilters`                  |
+| **`TechnicalScreener.java`**     | Dynamically evaluates MAs from lists and logs output                                               |
+| **`CustomScreenerRequest.java`** | Updated API payload structure for the execution endpoint                                           |
+| **`strategies-config.json`**     | Migrated `requirePriceBelowMA200` to `"priceConditions": [{ "period": 200, "position": "BELOW" }]` |
 
 ---
 
@@ -233,6 +256,7 @@ Refactored the `technicalFilter` flat-object format in `strategies-config.json` 
 ```
 
 Each filter type (`RSI`, `BOLLINGER_BAND`, `VOLUME`, `SIMPLE_MOVING_AVERAGE`, `PRICE_DROP`) has:
+
 - **`config`**: either a string reference to a named entry in `technicalIndicatorConfigs`, or an inline object with indicator parameters.
 - **`condition`**: the filter condition to apply (e.g. `BULLISH_CROSSOVER`, `LOWER_BAND`).
 
@@ -240,14 +264,15 @@ Options strategies can reference a named preset by string: `"technicalFilters": 
 
 ### Architecture
 
-| File | Change |
-|---|---|
-| **`StrategiesConfig.java`** | Replaced flat `TechnicalFilterConfig` + `ScreenerConditionsConfig` with rich typed POJOs: `TechnicalIndicatorConfigEntry`, `RSIFilterEntry`, `BollingerFilterEntry`, `VolumeFilterEntry`, `MovingAverageFilterEntry`, `PriceDropFilterEntry`, plus inline config param classes. |
-| **`StrategiesConfigLoader.java`** | Full rewrite of technical filter parsing. `resolveTechnicalFilterChain()` dispatches by key; `resolveIndicatorConfig()` resolves string refs vs inline objects; `buildFilterChainFromMap()` assembles the `TechnicalFilterChain`. Screeners now share the same parsing path as strategies. |
-| **`strategies-config.json`** | Added `technicalIndicatorConfigs` root block with `"default"` entry. Updated `technicalFilters` presets (`oversold`/`overbought`) to new format. TECH strategy entries now use string preset refs (`"technicalFilters": "oversold"`). All 10 screener entries: renamed `conditions` → `technicalFilters` with typed sub-objects. Removed old `technicalIndicators` root block. |
-| **`StrategiesConfigTest.java`** | Updated to test new `technicalFilters` Map and new POJO classes. |
+| File                              | Change                                                                                                                                                                                                                                                                                                                                                                         |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **`StrategiesConfig.java`**       | Replaced flat `TechnicalFilterConfig` + `ScreenerConditionsConfig` with rich typed POJOs: `TechnicalIndicatorConfigEntry`, `RSIFilterEntry`, `BollingerFilterEntry`, `VolumeFilterEntry`, `MovingAverageFilterEntry`, `PriceDropFilterEntry`, plus inline config param classes.                                                                                                |
+| **`StrategiesConfigLoader.java`** | Full rewrite of technical filter parsing. `resolveTechnicalFilterChain()` dispatches by key; `resolveIndicatorConfig()` resolves string refs vs inline objects; `buildFilterChainFromMap()` assembles the `TechnicalFilterChain`. Screeners now share the same parsing path as strategies.                                                                                     |
+| **`strategies-config.json`**      | Added `technicalIndicatorConfigs` root block with `"default"` entry. Updated `technicalFilters` presets (`oversold`/`overbought`) to new format. TECH strategy entries now use string preset refs (`"technicalFilters": "oversold"`). All 10 screener entries: renamed `conditions` → `technicalFilters` with typed sub-objects. Removed old `technicalIndicators` root block. |
+| **`StrategiesConfigTest.java`**   | Updated to test new `technicalFilters` Map and new POJO classes.                                                                                                                                                                                                                                                                                                               |
 
 ### Key Design Decisions
+
 - `config` and `condition` are deliberately separate: `config` = how to compute the indicator; `condition` = what signal to look for.
 - `config` can be omitted entirely and defaults (RSI 14, BB 20/2.0) are applied automatically.
 - `technicalFilters` root presets act as named, reusable bundles of filter+condition definitions, referenced by string from any strategy entry.
@@ -260,21 +285,23 @@ Options strategies can reference a named preset by string: `"technicalFilters": 
 Implemented parallel pre-fetching (pre-warming) for `PriceHistory` API calls during Technical Screener execution to minimize duplicate requests and lower latency, mirroring the pattern used for option chains.
 
 ### How It Works
+
 - Created `AbstractApiCache<T>`, a base generic cache class containing universal `prewarm(symbols, executor, fetchFunction, alertCallback)` logic.
 - Refactored `OptionChainCache` and `PriceHistoryCache` to extend `AbstractApiCache`.
 - Modified `PriceHistoryCache` to lazy-load and standardized its underlying API call to fetch **1 year of daily data** universally across all technical modules (e.g. `TechnicalScreener` and `PriceDropScreener`).
-- In `ScreenerExecutionService.executeScreenersInternal()`, all distinct symbols from enabled screeners are aggregated and passed to `PriceHistoryCache.getInstance().prewarm(...)` before sequential screening begins. 
+- In `ScreenerExecutionService.executeScreenersInternal()`, all distinct symbols from enabled screeners are aggregated and passed to `PriceHistoryCache.getInstance().prewarm(...)` before sequential screening begins.
 - Updated screeners to retrieve historical data from the shared cache instead of directly invoking `ThinkOrSwinAPIs`.
 
 ### Architecture
-| File | Change |
-|---|---|
-| **`AbstractApiCache.java`** | [NEW] Provides parallel prewarm functionality and standardizes cache properties (hits, misses, calls). |
-| **`OptionChainCache.java`** | Refactored to extend `AbstractApiCache`, removing duplicated parallel fetch logic. |
-| **`PriceHistoryCache.java`** | Extended `AbstractApiCache`. Added `getHistoricalData(symbol, api, calc)` to act as a unified proxy for 1-year daily history. |
-| **`ScreenerExecutionService.java`** | Collects all unique screener symbols and executes `PriceHistoryCache.getInstance().prewarm()` via `SchwabApiExecutor`. |
-| **`TechnicalScreener.java`** & **`PriceDropScreener.java`** | Updated to retrieve `HistoricalData` via the singleton cache instead of separate direct API calls. |
-| Test Classes | Updated `TechnicalScreenerTest`, `PriceDropScreenerTest`, `ScreenerExecutionServiceTest`, `StrategyExecutionServiceTest`, and `OptionChainCacheTest` to accommodate constructor changes and new cache dependencies. |
+
+| File                                                        | Change                                                                                                                                                                                                              |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`AbstractApiCache.java`**                                 | [NEW] Provides parallel prewarm functionality and standardizes cache properties (hits, misses, calls).                                                                                                              |
+| **`OptionChainCache.java`**                                 | Refactored to extend `AbstractApiCache`, removing duplicated parallel fetch logic.                                                                                                                                  |
+| **`PriceHistoryCache.java`**                                | Extended `AbstractApiCache`. Added `getHistoricalData(symbol, api, calc)` to act as a unified proxy for 1-year daily history.                                                                                       |
+| **`ScreenerExecutionService.java`**                         | Collects all unique screener symbols and executes `PriceHistoryCache.getInstance().prewarm()` via `SchwabApiExecutor`.                                                                                              |
+| **`TechnicalScreener.java`** & **`PriceDropScreener.java`** | Updated to retrieve `HistoricalData` via the singleton cache instead of separate direct API calls.                                                                                                                  |
+| Test Classes                                                | Updated `TechnicalScreenerTest`, `PriceDropScreenerTest`, `ScreenerExecutionServiceTest`, `StrategyExecutionServiceTest`, and `OptionChainCacheTest` to accommodate constructor changes and new cache dependencies. |
 
 ---
 
@@ -283,6 +310,7 @@ Implemented parallel pre-fetching (pre-warming) for `PriceHistory` API calls dur
 Resolved an issue where `429 Too Many Requests` API errors occurring during technical screening (via `ThinkOrSwinAPIs.getPriceHistory()`) were silently swallowed by internal `try-catch` blocks. These errors were missing from the UI entirely.
 
 ### How It Works
+
 - Added an `alertCallback` (`BiConsumer<String, String>`) parameter to `SchwabApiExecutor.executeParallel()`. This executor already possessed the logic to pause and retry `HttpClientErrorException.TooManyRequests` (429) errors.
 - Removed the silent `catch (Exception e) { return null; }` blocks inside the per-symbol lambdas in `TechnicalScreener` and `PriceDropScreener`. Exceptions now successfully bubble up to `SchwabApiExecutor` where the retry mechanism triggers.
 - If the 429 retry fails, or any other fatal exception occurs, `SchwabApiExecutor` now intercepts the error and calls `alertCallback.accept(symbol, errorMessage)`.
@@ -290,12 +318,13 @@ Resolved an issue where `429 Too Many Requests` API errors occurring during tech
 - Refactored `TechnicalScreenerTest`, `PriceDropScreenerTest`, `ScreenerExecutionServiceTest`, and `StrategyExecutionServiceTest` to accommodate the updated method signatures.
 
 ### Architecture
-| File | Change |
-|---|---|
-| **`SchwabApiExecutor.java`** | Added `alertCallback` param to `executeParallel` to capture and surface fatal API errors. |
-| **`TechnicalScreener.java`** | Removed internal `try-catch`; passed `alertCallback` down to executor. |
-| **`PriceDropScreener.java`** | Removed internal `try-catch`; passed `alertCallback` down to executor. |
-| **`StrategyExecutionService.java`** | Passed lambda to `screenStocks()` to route API errors into `FilterLogStore`. |
+
+| File                                | Change                                                                                         |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **`SchwabApiExecutor.java`**        | Added `alertCallback` param to `executeParallel` to capture and surface fatal API errors.      |
+| **`TechnicalScreener.java`**        | Removed internal `try-catch`; passed `alertCallback` down to executor.                         |
+| **`PriceDropScreener.java`**        | Removed internal `try-catch`; passed `alertCallback` down to executor.                         |
+| **`StrategyExecutionService.java`** | Passed lambda to `screenStocks()` to route API errors into `FilterLogStore`.                   |
 | **`ScreenerExecutionService.java`** | Passed lambda to technical and price drop screeners to route API errors into `FilterLogStore`. |
 
 ---
@@ -305,6 +334,7 @@ Resolved an issue where `429 Too Many Requests` API errors occurring during tech
 Optimized and expanded the project's unit testing suite to raise the total instruction coverage to **85.02%**, satisfying the repository target (>85%) without altering any production source code.
 
 ### Improvements & Covered Scenarios
+
 - **`TechFilterConditionsTest.java`**: Added tests for all `RSICondition` and `BollingerCondition` evaluate methods by mocking their dependencies, ensuring 100% test coverage of all technical filter condition rules.
 - **`RSIFilterTest.java`**: Added test case `testEqualsAndHashCodeAndToString` to cover Lombok-generated methods (`equals`, `hashCode`, `toString`, and getters/setters).
 - **`BollingerBandsFilterTest.java`**: Covered Lombox-generated methods and setters.
@@ -314,14 +344,15 @@ Optimized and expanded the project's unit testing suite to raise the total instr
 - **`EarningsCacheManagerTest.java`**: Used reflection to simulate stale cache entry validation.
 
 ### Architecture
-| Test Class | Covered Component | Coverage Status |
-|---|---|---|
-| **`TechFilterConditionsTest`** | `TechFilterConditions`, `RSICondition`, `BollingerCondition` | 100% |
-| **`RSIFilterTest`** | `RSIFilter` | 100% |
-| **`BollingerBandsFilterTest`** | `BollingerBandsFilter` | 100% |
-| **`JavaUtilsTest`** | `JavaUtils` | 100% |
-| **`TokenProviderTest`** | `TokenProvider.TokenData` | 100% |
-| **`EarningsCacheManagerTest`** | `EarningsCacheManager` | Updated |
+
+| Test Class                     | Covered Component                                            | Coverage Status |
+| ------------------------------ | ------------------------------------------------------------ | --------------- |
+| **`TechFilterConditionsTest`** | `TechFilterConditions`, `RSICondition`, `BollingerCondition` | 100%            |
+| **`RSIFilterTest`**            | `RSIFilter`                                                  | 100%            |
+| **`BollingerBandsFilterTest`** | `BollingerBandsFilter`                                       | 100%            |
+| **`JavaUtilsTest`**            | `JavaUtils`                                                  | 100%            |
+| **`TokenProviderTest`**        | `TokenProvider.TokenData`                                    | 100%            |
+| **`EarningsCacheManagerTest`** | `EarningsCacheManager`                                       | Updated         |
 
 ---
 
@@ -330,14 +361,16 @@ Optimized and expanded the project's unit testing suite to raise the total instr
 Resolved an issue where highly liquid tickers (like MU or SPY) with massive option chains would cause the Schwab API Gateway to return a `502 Bad Gateway` (Body buffer overflow) because the JSON response exceeded their internal proxy buffer limits. The previous fallback behavior was to aggressively truncate the response by limiting `strikeCount`, resulting in lost option data.
 
 ### How It Works
+
 - `ThinkOrSwinAPIs.getOptionChain(symbol)` now initially requests the full chain (`contractType=ALL`).
 - If a 502 Body buffer overflow occurs, it catches a custom `BodyBufferOverflowException` and splits the request into two separate parallel-friendly fetches: one for `CALL` and one for `PUT`.
 - The two responses are merged in-memory (`callChain.setPutExpDateMap(...)`), successfully bypassing Schwab's payload size limit without losing any option strikes.
 - The old `strikeCount` reduction logic is preserved purely as a final fail-safe if even the split requests overflow.
 
 ### Architecture
-| File | Change |
-|---|---|
+
+| File                       | Change                                                                                                                                                                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`ThinkOrSwinAPIs.java`** | Added `BodyBufferOverflowException`. Refactored `getOptionChain(symbol)` to catch 502s, perform split `CALL`/`PUT` fetches, merge the `putExpDateMap` into the `CALL` response, and gracefully handle recursive failures. |
 
 ---
@@ -347,6 +380,7 @@ Resolved an issue where highly liquid tickers (like MU or SPY) with massive opti
 Added support for dynamic index constituent lists in `strategies-config.json`. Users can now specify `"SPY"` (S&P 500 ~503 tickers) or `"QQQ"` (Nasdaq-100 ~100 tickers) as `securitiesFile` values just like any static file name.
 
 ### How It Works — Lazy Loading
+
 - Wikipedia fetch happens **only when a strategy that uses SPY/QQQ actually executes** — not at startup or on the `/api/strategies` listing call.
 - `SecuritiesResolver.loadSecuritiesMaps()` returns only static YAML keys. Dynamic keywords are resolved separately.
 - `StrategiesConfigLoader.parseSecuritiesFromFiles()` detects SPY/QQQ at execution time and calls `WikipediaSecuritiesFetcher.fetch(keyword)` lazily. Results are cached 24 h — subsequent runs are instant cache hits.
@@ -354,9 +388,11 @@ Added support for dynamic index constituent lists in `strategies-config.json`. U
 - The error is surfaced to the frontend via HTTP 503 with `error`, `details`, and `hint` fields — **never** silently masking as an auth failure.
 
 ### Error Propagation Fix
+
 The `BearerTokenFilter` catch-all block previously swallowed all `Exception`s (including Wikipedia `IllegalStateException`s) and logged them as `[AUTH ERROR]`, causing a misleading 401 response on page load. Fixed: `IOException` and `ServletException` from business logic are re-thrown; only JWT-specific exceptions are caught as auth errors.
 
 ### Usage in strategies-config.json
+
 ```json
 "securitiesFile": "QQQ"
 "securitiesFile": "SPY, portfolio"
@@ -364,22 +400,24 @@ The `BearerTokenFilter` catch-all block previously swallowed all `Exception`s (i
 ```
 
 ### Architecture
-| File | Change |
-|---|---|
+
+| File                                  | Change                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`WikipediaSecuritiesFetcher.java`** | [NEW] Spring `@Component`. Uses Wikipedia REST API (`action=parse&section=N`) for reliable HTML. Ticker column resolved dynamically from header row — no hardcoded column indices. TOC API used to resolve section number by anchor ID. Normalizes ticker dots to slashes (`BRK.B` → `BRK/B`) to match broker APIs. In-memory 24h cache. |
-| **`SecuritiesResolver.java`** | Reverted to static-only: loads 5 YAML files, no Wikipedia dependency. Dynamic keywords resolved elsewhere. |
-| **`StrategiesConfigLoader.java`** | Injected `WikipediaSecuritiesFetcher`. `parseSecuritiesFromFiles()` lazily calls it for SPY/QQQ keys not found in the static map. |
-| **`BearerTokenFilter.java`** | Fixed catch block: `IOException`/`ServletException` re-thrown; only JWT infrastructure errors caught as auth errors. |
-| **`StrategyController.java`** | `/api/strategies` now catches `IllegalStateException` (Wikipedia failure) and returns HTTP 503 with `error`, `details`, `hint` fields. |
-| **`pom.xml`** | Added `org.jsoup:jsoup:1.18.1` dependency |
-| **`application.properties`** | Added `securities.wiki.cache-hours=24` property |
-| **`SecuritiesResolverTest.java`** | Updated: no Wikipedia mock; tests verify dynamic keys are NOT eagerly loaded. |
+| **`SecuritiesResolver.java`**         | Reverted to static-only: loads 5 YAML files, no Wikipedia dependency. Dynamic keywords resolved elsewhere.                                                                                                                                                                                                                               |
+| **`StrategiesConfigLoader.java`**     | Injected `WikipediaSecuritiesFetcher`. `parseSecuritiesFromFiles()` lazily calls it for SPY/QQQ keys not found in the static map.                                                                                                                                                                                                        |
+| **`BearerTokenFilter.java`**          | Fixed catch block: `IOException`/`ServletException` re-thrown; only JWT infrastructure errors caught as auth errors.                                                                                                                                                                                                                     |
+| **`StrategyController.java`**         | `/api/strategies` now catches `IllegalStateException` (Wikipedia failure) and returns HTTP 503 with `error`, `details`, `hint` fields.                                                                                                                                                                                                   |
+| **`pom.xml`**                         | Added `org.jsoup:jsoup:1.18.1` dependency                                                                                                                                                                                                                                                                                                |
+| **`application.properties`**          | Added `securities.wiki.cache-hours=24` property                                                                                                                                                                                                                                                                                          |
+| **`SecuritiesResolverTest.java`**     | Updated: no Wikipedia mock; tests verify dynamic keys are NOT eagerly loaded.                                                                                                                                                                                                                                                            |
 
 ### Wikipedia Sources
-| Keyword | Index | Table selector | Ticker column |
-|---|---|---|---|
-| `SPY` | S&P 500 | `table#constituents` | Dynamically detected from header row |
-| `QQQ` | Nasdaq-100 | `table#constituents` in "Current components" section | Dynamically detected from header row |
+
+| Keyword | Index      | Table selector                                       | Ticker column                        |
+| ------- | ---------- | ---------------------------------------------------- | ------------------------------------ |
+| `SPY`   | S&P 500    | `table#constituents`                                 | Dynamically detected from header row |
+| `QQQ`   | Nasdaq-100 | `table#constituents` in "Current components" section | Dynamically detected from header row |
 
 ---
 
@@ -388,36 +426,40 @@ The `BearerTokenFilter` catch-all block previously swallowed all `Exception`s (i
 Added four colored Greek exposure pill labels (Δ Delta, Γ Gamma, Θ Theta, V Vega) to every strategy result card on the Options Dashboard and Execute Strategy page. Each pill is color-coded based on the strategy's configured Greek polarity. Also added a standardized Greeks details table (explaining polarity and utility) to the top of all strategy description markdown files.
 
 ### Color Coding
-| Value | Color |
-|---|---|
+
+| Value      | Color             |
+| ---------- | ----------------- |
 | `positive` | Green (`#22c55e`) |
-| `negative` | Red (`#ef4444`) |
-| `neutral` | Muted gray |
+| `negative` | Red (`#ef4444`)   |
+| `neutral`  | Muted gray        |
 
 ### How It Works
+
 Greek polarity is configured in `strategies-config.json` per strategy under a new `"greeks"` object. The data flows through the full stack and is persisted as part of the `filterConfig` JSON blob in Supabase.
 
 ### Architecture
-| File | Change |
-|---|---|
-| **`strategies-config.json`** | Added `"greeks": { "delta": "...", "gamma": "...", "theta": "...", "vega": "..." }` to all 17 option strategy entries |
-| **`StrategiesConfig.StrategyEntry`** | Added `private Map<String, String> greeks` field |
-| **`OptionsConfig.java`** | Added `private final Map<String, String> greeks` field |
-| **`OptionsStrategyFilter.java`** | Added `private java.util.Map<String, String> greeks` field — auto-serialized into the `filterConfig` JSON blob stored in Supabase |
-| **`StrategiesConfigLoader.java`** | Passes `entry.getGreeks()` into both `filter.setGreeks()` and the `OptionsConfig` builder |
-| **`StrategyController.java`** | Adds `greeks` to the `/api/strategies` response map |
-| **`app.js`** | Added `renderGreeksPills()` helper; reads `cfg.greeks` from `filterConfig` and renders pills in `buildResultCard()` |
-| **`style.css`** | Added `.greek-pills`, `.greek-pill`, `.greek-positive`, `.greek-negative`, `.greek-neutral` CSS classes |
+
+| File                                 | Change                                                                                                                            |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| **`strategies-config.json`**         | Added `"greeks": { "delta": "...", "gamma": "...", "theta": "...", "vega": "..." }` to all 17 option strategy entries             |
+| **`StrategiesConfig.StrategyEntry`** | Added `private Map<String, String> greeks` field                                                                                  |
+| **`OptionsConfig.java`**             | Added `private final Map<String, String> greeks` field                                                                            |
+| **`OptionsStrategyFilter.java`**     | Added `private java.util.Map<String, String> greeks` field — auto-serialized into the `filterConfig` JSON blob stored in Supabase |
+| **`StrategiesConfigLoader.java`**    | Passes `entry.getGreeks()` into both `filter.setGreeks()` and the `OptionsConfig` builder                                         |
+| **`StrategyController.java`**        | Adds `greeks` to the `/api/strategies` response map                                                                               |
+| **`app.js`**                         | Added `renderGreeksPills()` helper; reads `cfg.greeks` from `filterConfig` and renders pills in `buildResultCard()`               |
+| **`style.css`**                      | Added `.greek-pills`, `.greek-pill`, `.greek-positive`, `.greek-negative`, `.greek-neutral` CSS classes                           |
 
 ### Greek Conventions by Strategy
-| Strategy | Δ Delta | Γ Gamma | Θ Theta | V Vega |
-|---|---|---|---|---|
+
+| Strategy        | Δ Delta  | Γ Gamma  | Θ Theta  | V Vega   |
+| --------------- | -------- | -------- | -------- | -------- |
 | PCS / Short Put | positive | negative | positive | negative |
-| CCS | negative | negative | positive | negative |
-| Iron Condor | neutral | negative | positive | negative |
-| Long Call LEAP | positive | positive | negative | positive |
-| Bullish BWB | positive | negative | positive | negative |
-| Bullish ZEBRA | positive | positive | negative | positive |
+| CCS             | negative | negative | positive | negative |
+| Iron Condor     | neutral  | negative | positive | negative |
+| Long Call LEAP  | positive | positive | negative | positive |
+| Bullish BWB     | positive | negative | positive | negative |
+| Bullish ZEBRA   | positive | positive | negative | positive |
 
 ---
 
@@ -436,17 +478,19 @@ The `OptionData` object (bid/ask, mark, greeks, IV, open interest, volume, etc.)
 5. **`app.js`** — `buildTradeTable()` stores per-leg `optionData` in a `data-legs-option-data` HTML attribute. `renderOptionDataTable()` (new helper) renders a clean grid showing Symbol, Bid/Ask, Mark, Volume, Open Interest, IV, Greeks (Δ/Γ/Θ/Vega/Rho), Intrinsic/Extrinsic/Time Value, ITM, Strike, DTE, Expiry Date, and 52W High/Low per leg. The section appears between `trade-detail-body` and the IV panel.
 
 ### Notes
+
 - Older Supabase records (pre this change) will show "No option data available (re-run strategy to populate)" per leg since the field was not previously serialized.
 - New executions will immediately show the full option chain contract data.
 
 ### Architecture
-| File | Change |
-|---|---|
-| **`TradeLeg.java`** | Added `optionData` field |
-| **`TradeLegDTO.java`** | Added `optionData` field |
-| **`Trade.java`** | Maps `leg.getOptionData()` in `fromTradeSetup()` |
-| **`ShortPut.java`**, **`PutCreditSpread.java`**, **`CallCreditSpread.java`**, **`ZebraTrade.java`**, **`LongCallLeap.java`**, **`BrokenWingButterfly.java`**, **`IronCondor.java`** | Pass `.optionData(...)` in `TradeLeg` builder |
-| **`app.js`** | Added `renderOptionDataTable()`, updated `buildTradeTable()` and `initTradeRowClicks()` |
+
+| File                                                                                                                                                                                | Change                                                                                  |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| **`TradeLeg.java`**                                                                                                                                                                 | Added `optionData` field                                                                |
+| **`TradeLegDTO.java`**                                                                                                                                                              | Added `optionData` field                                                                |
+| **`Trade.java`**                                                                                                                                                                    | Maps `leg.getOptionData()` in `fromTradeSetup()`                                        |
+| **`ShortPut.java`**, **`PutCreditSpread.java`**, **`CallCreditSpread.java`**, **`ZebraTrade.java`**, **`LongCallLeap.java`**, **`BrokenWingButterfly.java`**, **`IronCondor.java`** | Pass `.optionData(...)` in `TradeLeg` builder                                           |
+| **`app.js`**                                                                                                                                                                        | Added `renderOptionDataTable()`, updated `buildTradeTable()` and `initTradeRowClicks()` |
 
 ---
 
@@ -455,16 +499,18 @@ The `OptionData` object (bid/ask, mark, greeks, IV, open interest, volume, etc.)
 Resolved an issue where the Return on Risk CAGR was only displayed on the Execute Strategy page, but was missing on the local Options Dashboard screen and the static GitHub Pages dashboard screen.
 
 ### Features
+
 - **Local Dashboard Fallback:** Added a client-side calculation fallback to the local `app.js` table rendering. If `returnOnRiskCAGR` is missing from the database record payload (e.g., for older strategy execution runs stored in Supabase), it is computed dynamically on the fly from the raw `returnOnRisk` and `dte` values. This ensures CAGR is always visible on the Options Dashboard screen for all runs.
 - **Sorting Fallback:** Updated the sorting logic (`handleTableSort`) to use the same on-the-fly CAGR calculation so that sorting by the ROR column behaves consistently even on older data.
 - **GitHub Pages Dashboard Support:** Enabled ROR CAGR rendering on the static GitHub Pages dashboard (`docs/app.js`) by updating the `renderROR` helper function to accept and display the CAGR next to the ROR progress bar, with the same dynamic calculation fallback.
 - **Breakeven CAGR on GitHub Pages:** Added Breakeven CAGR support to `renderBreakeven` in `docs/app.js` to match the local app.
 
 ### Architecture
-| File | Change |
-|---|---|
-| **`src/main/resources/static/app.js`** | Added on-the-fly fallback calculation for ROR CAGR in `buildTradeTable` and `handleTableSort` |
-| **`docs/app.js`** | Updated `createTradeGrid` to calculate/pass CAGR to `renderROR`, fixed `colspan` to `8` in details row, added CAGR rendering in `renderROR` and `renderBreakeven` |
+
+| File                                   | Change                                                                                                                                                            |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`src/main/resources/static/app.js`** | Added on-the-fly fallback calculation for ROR CAGR in `buildTradeTable` and `handleTableSort`                                                                     |
+| **`docs/app.js`**                      | Updated `createTradeGrid` to calculate/pass CAGR to `renderROR`, fixed `colspan` to `8` in details row, added CAGR rendering in `renderROR` and `renderBreakeven` |
 
 ---
 
@@ -473,32 +519,37 @@ Resolved an issue where the Return on Risk CAGR was only displayed on the Execut
 Updated the frontend and backend to natively compute, display, and sort by the Return on Risk CAGR alongside the raw ROR percentage.
 
 ### Features
+
 - **Backend Metric & Serialization:** Added `getReturnOnRiskCAGR()` as a default method to the `TradeSetup` interface, computing annualized CAGR for every trade based on its Days to Expiration (DTE). Added the `returnOnRiskCAGR` field to the `Trade` DTO class and mapped it in `Trade.fromTradeSetup(TradeSetup, String)` to guarantee the metric is serialized inside the Supabase JSON payload and API responses.
 - **UI Display:** The "ROR%" column now explicitly displays the raw return percentage followed by the annualized CAGR in brackets (e.g., `12.5% (150.0% CAGR)`).
 - **Intelligent Sorting:** Clicking the "ROR%" column header will now prioritize sorting by the `returnOnRiskCAGR` metric if available, seamlessly falling back to `maxReturnOnRiskPercentage` or `returnOnRisk` for strategy setups missing this data (e.g. 0 DTE or missing max loss values).
 
 ### Architecture
-| File | Change |
-|---|---|
-| **`TradeSetup.java`** | Added `default Double getReturnOnRiskCAGR()` calculating `((1 + rawRoR)^(365/DTE)) - 1` |
-| **`Trade.java`** | Declared `private Double returnOnRiskCAGR` field and set `.returnOnRiskCAGR(setup.getReturnOnRiskCAGR())` in `fromTradeSetup` builder |
-| **`app.js`** | Updated table rendering inside `buildTradeTable()` to format the ROR cell with the new dual metric, and updated `handleTableSort()` to sort using `returnOnRiskCAGR` |
+
+| File                  | Change                                                                                                                                                               |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`TradeSetup.java`** | Added `default Double getReturnOnRiskCAGR()` calculating `((1 + rawRoR)^(365/DTE)) - 1`                                                                              |
+| **`Trade.java`**      | Declared `private Double returnOnRiskCAGR` field and set `.returnOnRiskCAGR(setup.getReturnOnRiskCAGR())` in `fromTradeSetup` builder                                |
+| **`app.js`**          | Updated table rendering inside `buildTradeTable()` to format the ROR cell with the new dual metric, and updated `handleTableSort()` to sort using `returnOnRiskCAGR` |
 
 ## Bug Fix: Short Put Strategy Filters Ignored on Custom Execution (2026-06-04)
 
 Fixed a bug where leg-specific filters (e.g., `maxDelta`, `minDelta`) for the **Short Put** strategy were silently ignored when executing from the Execute Strategy screen (Custom Execution), and subsequently failed to populate when clicking "Load Filters" on the execution result card.
 
 ### Root Cause
+
 When executing a predefined strategy from the Dashboard, `StrategiesConfigLoader` uses `filterType: "CreditSpreadFilter"` explicitly from the JSON to instantiate a `CreditSpreadFilter` object, which natively includes the `shortLeg` field.
 
 However, Custom Executions via `POST /api/execute/custom` use `FilterParser.buildFilter()` which instantiates the filter object based on a `switch` block evaluating the `StrategyType`. The `SHORT_PUT` enum was completely missing from this switch statement. Consequently, the parser fell back to instantiating the base `OptionsStrategyFilter`, which does **not** have a `shortLeg` nested object. The short leg constraints were silently discarded during deserialization, resulting in the strategy running with no short leg filter constraints, and no short leg data saved to the Supabase JSON payload for UI reloading.
 
 ### Fix
+
 Added `case SHORT_PUT:` to the `CreditSpreadFilter` block in `FilterParser.java`. `SHORT_PUT` custom executions now correctly instantiate a `CreditSpreadFilter`, properly mapping the `shortLeg` constraints to the model for execution and persistence.
 
 ### Architecture
-| File | Change |
-|---|---|
+
+| File                    | Change                                                                           |
+| ----------------------- | -------------------------------------------------------------------------------- |
 | **`FilterParser.java`** | Added `case SHORT_PUT:` inside `buildFilter()` to map it to `CreditSpreadFilter` |
 
 ---
@@ -508,17 +559,19 @@ Added `case SHORT_PUT:` to the `CreditSpreadFilter` block in `FilterParser.java`
 Added `minReturnOnRiskCAGR`, a new common strategy filter that annualizes the raw Return-on-Risk metric based on the trade's Days to Expiration (DTE). This allows users to filter trades by a standard annualized yield percentage (CAGR).
 
 ### Formula
+
 `CAGR = ((profit / maxLoss + 1)^(365 / DTE) - 1) * 100`
 
 ### Architecture
-| File | Change |
-|---|---|
-| **`OptionsStrategyFilter.java`** | Added `minReturnOnRiskCAGR` field and `passesMinReturnOnRiskCAGR(profit, maxLoss, dte)` validation method |
-| **`AbstractTradingStrategy.java`** | Added `commonMinReturnOnRiskCAGRFilter()` generic predicate builder for strategies to use |
-| **`FilterStage.java`** | Added `MIN_RETURN_ON_RISK_CAGR_FILTER` enum constant for logging |
+
+| File                                                                                                                                          | Change                                                                                                                    |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **`OptionsStrategyFilter.java`**                                                                                                              | Added `minReturnOnRiskCAGR` field and `passesMinReturnOnRiskCAGR(profit, maxLoss, dte)` validation method                 |
+| **`AbstractTradingStrategy.java`**                                                                                                            | Added `commonMinReturnOnRiskCAGRFilter()` generic predicate builder for strategies to use                                 |
+| **`FilterStage.java`**                                                                                                                        | Added `MIN_RETURN_ON_RISK_CAGR_FILTER` enum constant for logging                                                          |
 | **`PutCreditSpreadStrategy`**, **`CallCreditSpreadStrategy`**, **`ShortPutStrategy`**, **`BrokenWingButterflyStrategy`**, **`ZebraStrategy`** | Injected the CAGR filter step immediately following the standard `MIN_RETURN_ON_RISK_FILTER` step in the `FilterPipeline` |
-| **`FilterParser.java`** | Extracts `minReturnOnRiskCAGR` from incoming JSON payload |
-| **`app.js`**, **`execute.html`**, **`filter-descriptions.json`** | Added frontend input field, tooltips, and rendering logic |
+| **`FilterParser.java`**                                                                                                                       | Extracts `minReturnOnRiskCAGR` from incoming JSON payload                                                                 |
+| **`app.js`**, **`execute.html`**, **`filter-descriptions.json`**                                                                              | Added frontend input field, tooltips, and rendering logic                                                                 |
 
 ---
 
@@ -530,11 +583,11 @@ Fixed the "Today" column (live daily price change) not rendering in the **Execut
 
 `loadCustomResults()` rendered trade cards via `buildResultCard()` but **never called `fetchAndInjectTodayPerformance`** after rendering. The `--` placeholder cells were created by `buildTradeTable()` inside each card, but no quote fetch was triggered to fill them.
 
-| Function | Called `fetchAndInjectTodayPerformance`? |
-|---|---|
-| `loadOptionsResults()` (Options Dashboard) | ✅ |
-| `loadResults()` (Execute page — predefined strategies) | ✅ |
-| **`loadCustomResults()` (Execute page — custom run)** | ❌ **Missing — now fixed** |
+| Function                                               | Called `fetchAndInjectTodayPerformance`? |
+| ------------------------------------------------------ | ---------------------------------------- |
+| `loadOptionsResults()` (Options Dashboard)             | ✅                                       |
+| `loadResults()` (Execute page — predefined strategies) | ✅                                       |
+| **`loadCustomResults()` (Execute page — custom run)**  | ❌ **Missing — now fixed**               |
 
 ### Fix
 
@@ -542,8 +595,8 @@ Added `fetchAndInjectTodayPerformance(container)` after the card-render loop in 
 
 ### Architecture
 
-| File | Change |
-|---|---|
+| File         | Change                                                                                                   |
+| ------------ | -------------------------------------------------------------------------------------------------------- |
 | **`app.js`** | Added `fetchAndInjectTodayPerformance(container)` call in `loadCustomResults()` after cards are rendered |
 
 ---
@@ -554,11 +607,11 @@ Extended the parallel option chain cache pre-warm (Track A from Performance Phas
 
 ### Gap Found
 
-| Execution path | Pre-warm? |
-|---|---|
-| Dashboard → Run All (`POST /api/execute` → `executeStrategies()`) | ✅ Already had Track A |
-| Execute page → Custom Run (`POST /api/execute/custom` → `executeCustomStrategy()`) | ❌ **Missing** — no pre-warm |
-| Execute-Screener page → (`POST /api/execute/custom-screener`) | N/A — screeners don't use option chains |
+| Execution path                                                                     | Pre-warm?                               |
+| ---------------------------------------------------------------------------------- | --------------------------------------- |
+| Dashboard → Run All (`POST /api/execute` → `executeStrategies()`)                  | ✅ Already had Track A                  |
+| Execute page → Custom Run (`POST /api/execute/custom` → `executeCustomStrategy()`) | ❌ **Missing** — no pre-warm            |
+| Execute-Screener page → (`POST /api/execute/custom-screener`)                      | N/A — screeners don't use option chains |
 
 ### Fix
 
@@ -567,13 +620,14 @@ Added the same parallel pre-warm block to `executeCustomStrategy()` in `Strategy
 ### Impact
 
 For a typical custom execution of, say, 15 symbols without a technical filter:
+
 - **Before**: ~15 × 300 ms = 4.5 s sequential option chain fetching
 - **After**: ≈300 ms (limited by slowest symbol)
 
 ### Architecture
 
-| File | Change |
-|---|---|
+| File                                | Change                                                                                                                             |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | **`StrategyExecutionService.java`** | Added `cache.prewarm(symbolsToPrewarm, schwabApiExecutor)` block in `executeCustomStrategy()` before `executeStrategy()` is called |
 
 ---
@@ -597,6 +651,7 @@ Inside `AbstractTradingStrategy.findTrades()`, `checkHistoricalVolatility()` (~3
 ### New: `SchwabApiExecutor.java` [NEW]
 
 `com.hemasundar.utils` — Spring singleton wrapping a `FixedThreadPool`. Provides:
+
 - **`executeParallel(symbols, apiCall)`**: Submits one task per symbol, waits for all, returns results in order; nulls for failures.
 - **Automatic 429 retry**: Sleeps `schwab.api.rate-limit-pause-ms` (default 60 s) on rate-limit errors and retries once.
 - **Configurable thread count**: `schwab.api.parallel-threads` (default 8) tuned for Schwab's 120 req/min rate limit.
@@ -604,15 +659,15 @@ Inside `AbstractTradingStrategy.findTrades()`, `checkHistoricalVolatility()` (~3
 
 ### Architecture
 
-| File | Change |
-|---|---|
-| **`SchwabApiExecutor.java`** | [NEW] — bounded parallel executor |
-| **`OptionChainCache.java`** | Added `prewarm()` + made `apiCallCount` an `AtomicInteger` for thread-safety |
-| **`StrategyExecutionService.java`** | Injected `SchwabApiExecutor`, added pre-warm phase before strategy loop |
-| **`TechnicalScreener.java`** | Injected `SchwabApiExecutor`, `screenStocks()` loop parallelized |
-| **`PriceDropScreener.java`** | Injected `SchwabApiExecutor`, `screenMultiDayDrop()` loop parallelized |
-| **`AbstractTradingStrategy.java`** | `checkHistoricalVolatility()` + `resolveIVRank()` fired as parallel CompletableFutures |
-| **`application1.properties`** | Added `schwab.api.parallel-threads=8`, `schwab.api.rate-limit-pause-ms=60000` |
+| File                                | Change                                                                                 |
+| ----------------------------------- | -------------------------------------------------------------------------------------- |
+| **`SchwabApiExecutor.java`**        | [NEW] — bounded parallel executor                                                      |
+| **`OptionChainCache.java`**         | Added `prewarm()` + made `apiCallCount` an `AtomicInteger` for thread-safety           |
+| **`StrategyExecutionService.java`** | Injected `SchwabApiExecutor`, added pre-warm phase before strategy loop                |
+| **`TechnicalScreener.java`**        | Injected `SchwabApiExecutor`, `screenStocks()` loop parallelized                       |
+| **`PriceDropScreener.java`**        | Injected `SchwabApiExecutor`, `screenMultiDayDrop()` loop parallelized                 |
+| **`AbstractTradingStrategy.java`**  | `checkHistoricalVolatility()` + `resolveIVRank()` fired as parallel CompletableFutures |
+| **`application1.properties`**       | Added `schwab.api.parallel-threads=8`, `schwab.api.rate-limit-pause-ms=60000`          |
 
 ### UI Fix: Execution Time in Expanded Card
 
@@ -630,23 +685,24 @@ The `⏱ Strategy ran in X.Xs` badge is now shown **inside the expanded card con
 Added a dedicated, zero-noise performance timing system that writes to a separate `logs/trading-bot-perf.log` file. Output is completely isolated from the main log — enable/disable by changing the logger level in `logback-spring.xml` (no code changes needed).
 
 **Architecture:**
+
 - **`PerformanceLogger.java`** [NEW]: `com.hemasundar.utils` — static utility with `log(phase, symbol, ms)`, `log(phase, ms)`, `header(label)`, and `section(label)` methods. Uses a dedicated SLF4J logger routed exclusively to the PERF appenders.
 - **`logback-spring.xml`** [MODIFIED]: Added `PERF_FILE` rolling file appender (`logs/trading-bot-perf.log`) and `PERF_CONSOLE` appender, wired only to `com.hemasundar.utils.PerformanceLogger` with `additivity="false"`. To disable all PERF output: set level to `OFF`.
 
 **10 instrumented timing points:**
 
-| # | File | What's Timed |
-|---|---|---|
-| 1 | `OptionChainCache` | `getOptionChain` API call latency per symbol |
-| 2 | `OptionChainCache` | Cache hit (0 ms) vs. miss detection |
-| 3 | `StrategyExecutionService` | `strategy.findTrades()` pure CPU computation per symbol |
-| 4 | `StrategyExecutionService` | Total wall time per strategy |
-| 5 | `AbstractTradingStrategy` | `getYearlyPriceHistory` for Historical Volatility filter |
-| 6 | `AbstractTradingStrategy` | Supabase IV Rank lookup per symbol |
-| 7 | `TechnicalScreener` | Full `analyzeStock()` wall time per symbol |
-| 8 | `TechnicalScreener` | `getYearlyPriceHistory` inside `analyzeStock()` |
-| 9 | `PriceDropScreener` | `getPriceHistory` per symbol in `screenMultiDayDrop()` |
-| 10 | `StrategyExecutionService` | Total end-to-end execution wall time |
+| #   | File                       | What's Timed                                             |
+| --- | -------------------------- | -------------------------------------------------------- |
+| 1   | `OptionChainCache`         | `getOptionChain` API call latency per symbol             |
+| 2   | `OptionChainCache`         | Cache hit (0 ms) vs. miss detection                      |
+| 3   | `StrategyExecutionService` | `strategy.findTrades()` pure CPU computation per symbol  |
+| 4   | `StrategyExecutionService` | Total wall time per strategy                             |
+| 5   | `AbstractTradingStrategy`  | `getYearlyPriceHistory` for Historical Volatility filter |
+| 6   | `AbstractTradingStrategy`  | Supabase IV Rank lookup per symbol                       |
+| 7   | `TechnicalScreener`        | Full `analyzeStock()` wall time per symbol               |
+| 8   | `TechnicalScreener`        | `getYearlyPriceHistory` inside `analyzeStock()`          |
+| 9   | `PriceDropScreener`        | `getPriceHistory` per symbol in `screenMultiDayDrop()`   |
+| 10  | `StrategyExecutionService` | Total end-to-end execution wall time                     |
 
 **Modified files:** `OptionChainCache.java`, `StrategyExecutionService.java`, `AbstractTradingStrategy.java`, `TechnicalScreener.java`, `PriceDropScreener.java`
 
@@ -657,6 +713,7 @@ All result cards on the Options Dashboard, Execute Strategy page, Screeners Dash
 **Example:** `Last run: 3m ago · Trades: 4 · ⏱ 12.3s`
 
 **Architecture:**
+
 - **`app.js`** [MODIFIED]:
   - `formatDuration(ms)` [NEW]: Converts ms to human-readable `412ms` / `5.3s` / `2.1m`. Returns `null` for zero/falsy so cards with no timing data show nothing.
   - `buildResultCard()`: Card stats now appends `· ⏱ ${formatDuration(result.executionTimeMs)}` when available.
@@ -669,13 +726,16 @@ All result cards on the Options Dashboard, Execute Strategy page, Screeners Dash
 Resolved a **critical Supabase security advisory** (`rls_disabled_in_public`) detected on the `trading-bot-iv-data` project. The `public.custom_screener_results` table was publicly accessible (anyone with the project URL could read, edit, and delete all data) because Row-Level Security was not enabled when the table was created in the Custom Screener Persistence feature.
 
 ### Root Cause
+
 When `custom_screener_results` was introduced (2026-05-22), the Supabase migration did not include `ENABLE ROW LEVEL SECURITY`. All other tables (`iv_data`, `strategy_executions`, `latest_strategy_results`, `custom_execution_results`, `latest_screener_results`) already had RLS enabled with matching policies.
 
 ### Fix Applied
+
 - **RLS Enabled**: `ALTER TABLE public.custom_screener_results ENABLE ROW LEVEL SECURITY;`
 - **Policy Created**: `"Allow service role full access"` — `FOR ALL` with `USING (true) / WITH CHECK (true)`, matching the identical policy on `custom_execution_results`. The Spring backend uses the `service_role` key which is server-side only and never exposed to the browser.
 
 ### Architecture
+
 - **`enable_rls_custom_screener_results.sql`** [NEW]: Migration file documenting and reproducing the fix for source control tracking.
 - **Supabase `custom_screener_results`** [MODIFIED]: RLS enabled + `"Allow service role full access"` policy applied directly via MCP.
 
@@ -686,6 +746,7 @@ When `custom_screener_results` was introduced (2026-05-22), the Supabase migrati
 Added two new pre-configured technical screeners—"1-Month Drop" and "3-Month Drop"—to the technical screeners dashboard and execute screener workflows, implementing dynamic price history fetching and elegant monthly labels for a premium user experience.
 
 ### Features
+
 - **New Screener Templates**:
   - **1-Month Drop**: Set to filter for stocks down **>= 10%** over **21 trading days** (standard trading month).
   - **3-Month Drop**: Set to filter for stocks down **>= 15%** over **63 trading days** (standard 3 trading months).
@@ -697,6 +758,7 @@ Added two new pre-configured technical screeners—"1-Month Drop" and "3-Month D
   Added comprehensive unit test suites checking that lookback periods invoke the Price History API with the correct duration parameter and output matching premium monthly tags.
 
 ### Architecture
+
 - **`strategies-config.json`** [MODIFIED]: Added the "1-Month Drop" and "3-Month Drop" config definitions under `technicalScreeners`.
 - **`PriceDropScreener.java`** [MODIFIED]: Implemented the adaptive `monthsNeeded` lookup logic and the premium `dropType` tag overrides inside `screenMultiDayDrop`.
 - **`PriceDropScreenerTest.java`** [MODIFIED]: Added two new unit tests `testScreenMultiDayDrop_1Month_Match` and `testScreenMultiDayDrop_3Month_Match` confirming correct mocks, durations, and labels.
@@ -706,10 +768,12 @@ Added two new pre-configured technical screeners—"1-Month Drop" and "3-Month D
 Appended the configured `securitiesFile` suffix to option strategy checkbox labels on the Options Dashboard and the Execute Strategy page, aligning the checkbox display with the trade result cards' naming conventions for a clean and cohesive user experience.
 
 ### Features
+
 - **Checkbox Suffix Concatenation**: Formats options strategy checkboxes dynamically as `Alias - <securitiesFile>` (e.g. `Short Put - portfolio`) in both the Options Dashboard and the Execute Strategy pages when `securitiesFile` is present in the configuration.
 - **Unified Tooltip & Description Reference**: Passes the same concatenated name to info modals and help overlays, keeping user guides and description references consistent.
 
 ### Architecture
+
 - **`app.js`** [MODIFIED]: Enhanced `loadOptionsStrategies()` and `loadStrategies()` to format checkbox label text and description info modals as `displayName = name + " - " + securitiesFile` when `securitiesFile` is configured.
 
 ## JWT Verification Clock Skew Resilience (2026-06-01)
@@ -717,9 +781,11 @@ Appended the configured `securitiesFile` suffix to option strategy checkbox labe
 Implemented clock skew tolerance in `BearerTokenFilter` to prevent unexpected authentication errors when client and server clocks are slightly out of sync.
 
 ### Features
+
 - **10-Second Clock Skew Leeway**: Added a 10-second leeway window to the JWT verification pipeline. This fully resolves issues where tokens are rejected with a `"Token can't be used before X"` error due to minor sub-second time discrepancies between the client's device and the Supabase auth server.
 
 ### Architecture
+
 - **`BearerTokenFilter.java`** [MODIFIED]: Updated the verifier builder at `doFilter()` to include `.acceptLeeway(10)` before verification.
 
 ## UI Display Suffix: Alias + Securities File (2026-06-01)
@@ -727,11 +793,13 @@ Implemented clock skew tolerance in `BearerTokenFilter` to prevent unexpected au
 Modified the display of options strategy result blocks on the Options Dashboard (`/index.html`) and the Execute Strategy page (`/execute.html`) to append the active `securitiesFile` suffix to the strategy alias in the UI, while keeping the database representation clean (storing just the `alias` to avoid stale data clutter when configurations change).
 
 ### Features
+
 - **UI Concatenation**: Options strategy result blocks are now rendered with the suffix ` - <securitiesFile>` (e.g. `Short-Term PCS - Portfolio`) dynamically in the UI.
 - **Database Cleanliness**: Restores the database's `strategy_name` representation to the clean, base alias configured in `strategies-config.json`. This eliminates the stale/dangling execution block issue when a user updates `securitiesFile` in the configuration without renaming the alias.
 - **Predefined Options Strategy Enrichment**: Automatically passes the configured `securitiesFile` into the `filterConfig` object of predefined strategies during configuration load, so that it is natively saved and returned by the backend.
 
 ### Architecture
+
 - **`StrategiesConfigLoader.java`** [MODIFIED]: Enhanced the `convertToOptionsConfig` pipeline to copy `securitiesFile` (and inline `securities` if present) from the strategy configuration block into the parsed `OptionsStrategyFilter` model so it is persisted to Supabase as part of `filterConfig`.
 - **`strategies-config.json`** [MODIFIED]: Cleaned up all 15 options strategy aliases by removing the manually appended `- <securitiesFile>` suffixes, standardizing them to clean base aliases (e.g. `Short Put`, `Short-Term PCS`).
 - **`app.js`** [MODIFIED]:
@@ -742,6 +810,7 @@ Modified the display of options strategy result blocks on the Options Dashboard 
 Implemented a robust adaptive retry loop in `ThinkOrSwinAPIs.getOptionChain(symbol)` to handle `502 Body buffer overflow` (`protocol.http.TooBigBody`) errors on highly liquid symbols like QQQ.
 
 ### Features
+
 - **Unbounded Default Fetching**: By default, no `strikeCount` parameter is sent to the Schwab API, fetching the full option chain payload.
 - **Adaptive Decremental Retry**: Upon encountering a `502` HTTP status with a `"Body buffer overflow"` payload:
   1. The client falls back and applies `strikeCount = 200` on the first retry.
@@ -749,6 +818,7 @@ Implemented a robust adaptive retry loop in `ThinkOrSwinAPIs.getOptionChain(symb
 - **Fail-Safe Threshold**: If `strikeCount` falls below `50` (i.e. `0` after decrementing from `50`), the client terminates retries and throws the original Schwab API error.
 
 ### Architecture
+
 - **`ThinkOrSwinAPIs.java`** [MODIFIED]: Implemented a retry loop inside `getOptionChain(symbol)` that manages `strikeCount` adaptively and handles the specific 502 error payload.
 - **`ThinkOrSwinAPIsTest.java`** [MODIFIED]: Added unit tests:
   - `testGetOptionChain_RetryOnce_Success()`
@@ -2844,7 +2914,7 @@ Added Supabase as a database option for storing daily Implied Volatility (IV) da
 ### Database Configuration
 
 ```properties
-supabase_enabled=true
+
 
 # Supabase Configuration
 supabase_url=https://YOUR_PROJECT_ID.supabase.co
@@ -2913,10 +2983,6 @@ The code automatically works in GitHub Actions without `test.properties`:
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 
-Optional environment variables:
-
-- `SUPABASE_ENABLED` (default: false)
-
 ### Recent Fixes (2026-02-03)
 
 **UPSERT Logic:**
@@ -2924,9 +2990,6 @@ Fixed 409 duplicate key error by adding PostgREST `on_conflict` parameter to pro
 
 **Logging:**
 Changed database save operations from DEBUG to INFO level for better visibility.
-
-**GitHub Actions:**
-Added `SUPABASE_ENABLED` environment variable to workflow for full control over database selection in CI/CD.
 
 ## MaxLossLimit Filter Fix for LONG_CALL_LEAP (2026-02-07)
 

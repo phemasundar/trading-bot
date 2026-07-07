@@ -26,11 +26,6 @@ supabase.url=${SUPABASE_URL:https://snjbkdqbmlmwjllnoyqy.supabase.co}
 supabase.anon-key=${SUPABASE_ANON_KEY:sb_publishable_I_po8XQs4sqyPfahn50Zjw_HlHCp17U}
 supabase.service-role-key=${SUPABASE_SERVICE_ROLE_KEY:eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNuamJrZHFibWxtd2psbG5veXF5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDE3NTI0MCwiZXhwIjoyMDg1NzUxMjQwfQ.AV3IoPdcPjPTPmeJL2fT5oPhtm7UPqiV6oXdLEx8qdU}
 
-## Google Sheets Configuration
-google.sheets.spreadsheet-id=${GOOGLE_SPREADSHEET_ID:1SOoK_IGW3TVZlYQ_uYyIjSAUBTzh_tvk5qJghzTBLgA}
-google.sheets.enabled=${GOOGLE_SHEETS_ENABLED:true}
-supabase.enabled=${SUPABASE_ENABLED:true}
-
 ## Allowed user emails (comma-separated)
 allowed.emails=${ALLOWED_EMAILS:p.hemasundar@gmail.com}
 

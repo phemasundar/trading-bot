@@ -230,8 +230,7 @@ You need two values from Supabase:
 2. Add these lines at the end:
 
 ```properties
-# Database Configuration for IV Data Collection
-supabase_enabled=true
+
 
 # Supabase Configuration
 supabase_url=https://YOUR_PROJECT_ID.supabase.co

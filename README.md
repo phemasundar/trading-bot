@@ -87,11 +87,7 @@ The bot can automatically collect and store daily Implied Volatility (IV) data f
 
 - **Supabase**: Store data in a PostgreSQL database (see `SUPABASE_SETUP_GUIDE.md`)
 
-Database can be enabled and configured via `test.properties`:
 
-```properties
-# Database Configuration for IV Data Collection
-supabase_enabled=false
 
 # Supabase Credentials (if enabled)
 supabase_url=https://YOUR_PROJECT_ID.supabase.co

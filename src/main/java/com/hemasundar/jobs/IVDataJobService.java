@@ -34,7 +34,7 @@ public class IVDataJobService {
     private final IVDataCollector ivDataCollector;
     private Set<String> allSecurities;
 
-    private Boolean supabaseEnabled;
+
 
     private int successCount = 0;
     private int failCount = 0;
@@ -45,17 +45,10 @@ public class IVDataJobService {
         log.info("IV DATA COLLECTION - SETUP");
         log.info("=".repeat(80));
 
-        // Load database configuration
-        supabaseEnabled = supabaseConfig.getEnabled();
-
-        if (supabaseEnabled && supabaseService.isPresent()) {
+        if (supabaseService.isPresent()) {
             log.info("✓ Supabase service via Spring Bean active");
         } else {
-            log.info("✗ Supabase disabled or bean not available");
-        }
-
-        if (!supabaseEnabled || !supabaseService.isPresent()) {
-            log.error("At least one database must be enabled.");
+            log.error("✗ Supabase bean not available");
             return;
         }
 
@@ -83,7 +76,7 @@ public class IVDataJobService {
                 }
 
                 if (dataPoint != null) {
-                    if (supabaseEnabled && supabaseService.isPresent()) {
+                    if (supabaseService.isPresent()) {
                         supabaseService.get().upsertIVData(dataPoint);
                         log.info("[{}] ✓ Saved to Supabase", symbol);
                     }
@@ -124,10 +117,7 @@ public class IVDataJobService {
         }
 
         message.append("\n💾 <b>Databases:</b>\n");
-        if (supabaseEnabled)
-            message.append("├").append(" ✅ Supabase\n");
-        if (!supabaseEnabled)
-            message.append("└ ❌ None\n");
+        message.append("└").append(" ✅ Supabase\n");
 
         message.append("\n📅 Date: <code>").append(java.time.LocalDate.now()).append("</code>");
         message.append("\n🕐 Time: <code>")
