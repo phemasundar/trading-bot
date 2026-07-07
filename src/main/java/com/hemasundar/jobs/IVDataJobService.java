@@ -1,10 +1,8 @@
 package com.hemasundar.jobs;
 
 import com.hemasundar.apis.ThinkOrSwinAPIs;
-import com.hemasundar.config.properties.GoogleSheetsConfig;
 import com.hemasundar.config.properties.SupabaseConfig;
 import com.hemasundar.pojos.IVDataPoint;
-import com.hemasundar.services.GoogleSheetsService;
 import com.hemasundar.services.IVDataCollector;
 import com.hemasundar.services.SupabaseService;
 import com.hemasundar.utils.FilePaths;
@@ -28,18 +26,14 @@ public class IVDataJobService {
     private final Optional<SupabaseService> supabaseService;
 
     private final SupabaseConfig supabaseConfig;
-    private final GoogleSheetsConfig googleSheetsConfig;
 
     private final ThinkOrSwinAPIs thinkOrSwinAPIs;
 
     private final TelegramUtils telegramUtils;
 
     private final IVDataCollector ivDataCollector;
-
-    private final GoogleSheetsService sheetsService;
     private Set<String> allSecurities;
 
-    private Boolean googleSheetsEnabled;
     private Boolean supabaseEnabled;
 
     private int successCount = 0;
@@ -52,14 +46,7 @@ public class IVDataJobService {
         log.info("=".repeat(80));
 
         // Load database configuration
-        googleSheetsEnabled = googleSheetsConfig.getEnabled();
         supabaseEnabled = supabaseConfig.getEnabled();
-
-        if (googleSheetsEnabled) {
-            log.info("✓ Google Sheets service initialized");
-        } else {
-            log.info("✗ Google Sheets disabled");
-        }
 
         if (supabaseEnabled && supabaseService.isPresent()) {
             log.info("✓ Supabase service via Spring Bean active");
@@ -67,7 +54,7 @@ public class IVDataJobService {
             log.info("✗ Supabase disabled or bean not available");
         }
 
-        if (!googleSheetsEnabled && (!supabaseEnabled || !supabaseService.isPresent())) {
+        if (!supabaseEnabled || !supabaseService.isPresent()) {
             log.error("At least one database must be enabled.");
             return;
         }
@@ -96,11 +83,6 @@ public class IVDataJobService {
                 }
 
                 if (dataPoint != null) {
-                    if (googleSheetsEnabled && sheetsService != null) {
-                        sheetsService.appendIVData(dataPoint);
-                        log.info("[{}] ✓ Saved to Google Sheets", symbol);
-                    }
-
                     if (supabaseEnabled && supabaseService.isPresent()) {
                         supabaseService.get().upsertIVData(dataPoint);
                         log.info("[{}] ✓ Saved to Supabase", symbol);
@@ -116,14 +98,6 @@ public class IVDataJobService {
             } catch (Exception e) {
                 log.error("[{}] CRITICAL ERROR: {}", symbol, e.getMessage());
                 failCount++;
-            }
-        }
-
-        if (googleSheetsEnabled && sheetsService != null) {
-            try {
-                sheetsService.reorderSheets(new ArrayList<>(allSecurities));
-            } catch (IOException e) {
-                log.error("Failed to reorder sheets: {}", e.getMessage());
             }
         }
     }
@@ -150,11 +124,9 @@ public class IVDataJobService {
         }
 
         message.append("\n💾 <b>Databases:</b>\n");
-        if (googleSheetsEnabled)
-            message.append("├ ✅ Google Sheets\n");
         if (supabaseEnabled)
-            message.append(googleSheetsEnabled ? "└" : "├").append(" ✅ Supabase\n");
-        if (!googleSheetsEnabled && !supabaseEnabled)
+            message.append("├").append(" ✅ Supabase\n");
+        if (!supabaseEnabled)
             message.append("└ ❌ None\n");
 
         message.append("\n📅 Date: <code>").append(java.time.LocalDate.now()).append("</code>");

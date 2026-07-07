@@ -1,10 +1,8 @@
 package com.hemasundar.jobs;
 
 import com.hemasundar.apis.ThinkOrSwinAPIs;
-import com.hemasundar.config.properties.GoogleSheetsConfig;
 import com.hemasundar.config.properties.SupabaseConfig;
 import com.hemasundar.pojos.IVDataPoint;
-import com.hemasundar.services.GoogleSheetsService;
 import com.hemasundar.services.IVDataCollector;
 import com.hemasundar.services.SupabaseService;
 import com.hemasundar.utils.TelegramUtils;
@@ -29,9 +27,6 @@ public class IVDataJobServiceTest {
     private SupabaseConfig supabaseConfig;
 
     @Mock
-    private GoogleSheetsConfig googleSheetsConfig;
-
-    @Mock
     private ThinkOrSwinAPIs thinkOrSwinAPIs;
 
     @Mock
@@ -39,9 +34,6 @@ public class IVDataJobServiceTest {
 
     @Mock
     private IVDataCollector ivDataCollector;
-    
-    @Mock
-    private GoogleSheetsService googleSheetsService;
 
     private IVDataJobService ivDataJobService;
 
@@ -51,20 +43,16 @@ public class IVDataJobServiceTest {
         ivDataJobService = new IVDataJobService(
                 Optional.of(supabaseService),
                 supabaseConfig,
-                googleSheetsConfig,
                 thinkOrSwinAPIs,
                 telegramUtils,
-                ivDataCollector,
-                googleSheetsService
+                ivDataCollector
         );
     }
 
     @Test
     public void testRunIVDataCollection_Success() throws Exception {
         // Mock config
-        when(googleSheetsConfig.getEnabled()).thenReturn(false);
         when(supabaseConfig.getEnabled()).thenReturn(true);
-        when(googleSheetsConfig.getSpreadsheetId()).thenReturn("test-id");
 
         // Mock data point collection
         IVDataPoint dataPoint = new IVDataPoint();
@@ -83,7 +71,6 @@ public class IVDataJobServiceTest {
 
     @Test
     public void testRunIVDataCollection_NoDatabasesEnabled() {
-        when(googleSheetsConfig.getEnabled()).thenReturn(false);
         when(supabaseConfig.getEnabled()).thenReturn(false);
 
         ivDataJobService.runIVDataCollection();
