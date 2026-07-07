@@ -29,7 +29,7 @@ Supabase is an open-source Firebase alternative that provides:
 
 **Why use it for IV data?**
 - ✅ Free tier: 500 MB database, 2 GB bandwidth/month (sufficient for IV data)
-- ✅ PostgreSQL: Superior querying and analytics compared to Google Sheets
+- ✅ PostgreSQL: Superior querying and analytics
 - ✅ REST API: Easy to integrate with Java
 - ✅ Automatic indexes and constraints
 - ✅ Built-in dashboard for viewing data
@@ -231,7 +231,6 @@ You need two values from Supabase:
 
 ```properties
 # Database Configuration for IV Data Collection
-google_sheets_enabled=true
 supabase_enabled=true
 
 # Supabase Configuration
@@ -457,7 +456,7 @@ Now you can run the IV data collection test:
 mvn test -DsuiteXmlFile=iv-data-collection.xml
 ```
 
-The test will automatically save data to both Google Sheets (if enabled) and Supabase!
+The test will automatically save data to Supabase!
 
 ---
 

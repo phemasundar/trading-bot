@@ -85,14 +85,12 @@ The bot can automatically collect and store daily Implied Volatility (IV) data f
 
 **Supported Databases:**
 
-- **Google Sheets**: Store data in a Google Spreadsheet (see `SETUP_GUIDE.md`)
 - **Supabase**: Store data in a PostgreSQL database (see `SUPABASE_SETUP_GUIDE.md`)
 
-Both databases can be enabled simultaneously or individually configured via `test.properties`:
+Database can be enabled and configured via `test.properties`:
 
 ```properties
 # Database Configuration for IV Data Collection
-google_sheets_enabled=true
 supabase_enabled=false
 
 # Supabase Credentials (if enabled)
@@ -112,7 +110,6 @@ This automated test runs daily (recommended via cron/scheduler) to collect ATM I
 
 For detailed setup instructions:
 
-- Google Sheets: See `SETUP_GUIDE.md`
 - Supabase Database: See `SUPABASE_SETUP_GUIDE.md` (Updated for Service Role Key security)
 - Authentication (Used for dashboard login): See `AUTH_SETUP_GUIDE.md`
 
@@ -767,7 +764,7 @@ mvn clean test
 ## Technology Stack & Architecture
 
 - **Core**: Java 17, Spring Boot 3.2.2
-- **Persistence**: Supabase (PostgreSQL), Google Sheets API
+- **Persistence**: Supabase (PostgreSQL)
 - **Market Data**: Charles Schwab Market Data API
 - **Architecture**: Domain-Driven Design (DDD) with Constructor-based Dependency Injection
 - **Testing**: TestNG, Mockito, JaCoCo (85% Coverage Gate)
@@ -783,5 +780,5 @@ mvn clean test
 - Jackson - JSON/YAML processing
 - ta4j-core - Technical analysis library (RSI, Bollinger Bands, etc.)
 - **Logback** - Logging framework (via `spring-boot-starter-logging`)
-- Google Sheets API - For IV data storage in Google Sheets
+
 - **java-jwt** (Auth0) - JWT verification for Supabase Auth tokens

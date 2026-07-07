@@ -2827,12 +2827,10 @@ Fixed variance calculation to use **sample variance (N-1)** instead of populatio
 
 ## Supabase Integration for IV Data Collection (2026-02-03)
 
-Added Supabase as an additional database option alongside Google Sheets for storing daily Implied Volatility (IV) data.
+Added Supabase as a database option for storing daily Implied Volatility (IV) data.
 
 ### Features
 
-- **Dual Database Support**: Both Google Sheets and Supabase can run simultaneously
-- **Enable/Disable Configuration**: Individual database control via `test.properties`
 - **Automatic Connection Testing**: Supabase connection verified during setup
 - **Retry Logic**: Exponential backoff for rate limiting and transient errors
 - **Environment Variable Support**: CI/CD-friendly configuration
@@ -2840,18 +2838,15 @@ Added Supabase as an additional database option alongside Google Sheets for stor
 ### Architecture
 
 - **SupabaseService**: REST API client using OkHttp
-- **Dual-Write Logic**: `IVDataCollectionTest` saves to all enabled databases
 - **UPSERT Support**: Supabase automatically handles duplicate entries (symbol + date)
 - **Telegram Notifications**: Summary shows which databases were used
 
 ### Database Configuration
 
 ```properties
-# Enable/disable individual databases (at least one must be enabled)
-google_sheets_enabled=true
-supabase_enabled=false
+supabase_enabled=true
 
-# Supabase Configuration (required if supabase_enabled=true)
+# Supabase Configuration
 supabase_url=https://YOUR_PROJECT_ID.supabase.co
 supabase_anon_key=YOUR_PUBLISHABLE_KEY
 ```
@@ -2882,7 +2877,7 @@ CREATE TABLE public.iv_data (
 
 ### Files Modified
 
-- `IVDataCollectionTest.java`: Added dual-database support with enable/disable flags
+- `IVDataCollectionTest.java`: Added database support
 - `test.properties`: Added database configuration options
 - `pom.xml`: Added OkHttp dependency
 - `README.md`: Added IV Data Tracking section
@@ -2890,11 +2885,10 @@ CREATE TABLE public.iv_data (
 
 ### Benefits
 
-- **PostgreSQL Power**: Superior querying and analytics vs Google Sheets
+- **PostgreSQL Power**: Superior querying and analytics
 - **Free Tier**: 500MB database, 2GB bandwidth/month
 - **Auto-Generated REST API**: Easy integration with Java
 - **Built-in Dashboard**: View and query data via Supabase web interface
-- **Backup/Redundancy**: Run both databases simultaneously for data redundancy
 
 ### Setup Instructions
 
@@ -2916,14 +2910,11 @@ The code automatically works in GitHub Actions without `test.properties`:
 
 **GitHub Secrets Required:**
 
-- `GOOGLE_SPREADSHEET_ID` (if Google Sheets enabled)
-- `GOOGLE_SERVICE_ACCOUNT_JSON` (if Google Sheets enabled)
-- `SUPABASE_URL` (if Supabase enabled)
-- `SUPABASE_ANON_KEY` (if Supabase enabled)
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
 
 Optional environment variables:
 
-- `GOOGLE_SHEETS_ENABLED` (default: true)
 - `SUPABASE_ENABLED` (default: false)
 
 ### Recent Fixes (2026-02-03)
@@ -2935,7 +2926,7 @@ Fixed 409 duplicate key error by adding PostgREST `on_conflict` parameter to pro
 Changed database save operations from DEBUG to INFO level for better visibility.
 
 **GitHub Actions:**
-Added `GOOGLE_SHEETS_ENABLED` and `SUPABASE_ENABLED` environment variables to workflow for full control over database selection in CI/CD.
+Added `SUPABASE_ENABLED` environment variable to workflow for full control over database selection in CI/CD.
 
 ## MaxLossLimit Filter Fix for LONG_CALL_LEAP (2026-02-07)
 
