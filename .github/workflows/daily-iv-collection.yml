@@ -29,21 +29,14 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
-      - name: Setup Google Sheets credentials
-        run: |
-          echo "Using Service Account for authentication (no credentials.json file needed)"
-
       - name: Run IV Data Collection
         run: mvn spring-boot:run "-Dspring-boot.run.arguments=--app.job.name=IV_DATA"
         env:
           TELEGRAM_ENABLED: 'true'
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-          GOOGLE_SPREADSHEET_ID: ${{ secrets.GOOGLE_SPREADSHEET_ID }}
-          GOOGLE_SHEETS_ENABLED: ${{ vars.GOOGLE_SHEETS_ENABLED }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SUPABASE_ENABLED: ${{ vars.SUPABASE_ENABLED }}
+
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
           APP_KEY: ${{ secrets.APP_KEY }}
           APP_SECRET: ${{ secrets.APP_SECRET }}

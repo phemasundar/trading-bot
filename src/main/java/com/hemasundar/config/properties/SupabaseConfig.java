@@ -8,7 +8,6 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "supabase")
 @Data
 public class SupabaseConfig {
-    private Boolean enabled;
     private String url;
     private String anonKey;
     private String serviceRoleKey;

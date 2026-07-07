@@ -1,12 +1,11 @@
 package com.hemasundar.jobs;
 
 import com.hemasundar.apis.ThinkOrSwinAPIs;
-import com.hemasundar.config.properties.GoogleSheetsConfig;
 import com.hemasundar.config.properties.SupabaseConfig;
 import com.hemasundar.pojos.IVDataPoint;
-import com.hemasundar.services.GoogleSheetsService;
 import com.hemasundar.services.IVDataCollector;
 import com.hemasundar.services.SupabaseService;
+import com.hemasundar.utils.SchwabApiExecutor;
 import com.hemasundar.utils.TelegramUtils;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -29,9 +28,6 @@ public class IVDataJobServiceTest {
     private SupabaseConfig supabaseConfig;
 
     @Mock
-    private GoogleSheetsConfig googleSheetsConfig;
-
-    @Mock
     private ThinkOrSwinAPIs thinkOrSwinAPIs;
 
     @Mock
@@ -39,9 +35,9 @@ public class IVDataJobServiceTest {
 
     @Mock
     private IVDataCollector ivDataCollector;
-    
+
     @Mock
-    private GoogleSheetsService googleSheetsService;
+    private SchwabApiExecutor schwabApiExecutor;
 
     private IVDataJobService ivDataJobService;
 
@@ -51,25 +47,26 @@ public class IVDataJobServiceTest {
         ivDataJobService = new IVDataJobService(
                 Optional.of(supabaseService),
                 supabaseConfig,
-                googleSheetsConfig,
                 thinkOrSwinAPIs,
                 telegramUtils,
                 ivDataCollector,
-                googleSheetsService
+                schwabApiExecutor
         );
     }
 
     @Test
     public void testRunIVDataCollection_Success() throws Exception {
-        // Mock config
-        when(googleSheetsConfig.getEnabled()).thenReturn(false);
-        when(supabaseConfig.getEnabled()).thenReturn(true);
-        when(googleSheetsConfig.getSpreadsheetId()).thenReturn("test-id");
 
         // Mock data point collection
         IVDataPoint dataPoint = new IVDataPoint();
         dataPoint.setSymbol("AAPL");
         when(ivDataCollector.collectIVDataPoint("AAPL")).thenReturn(dataPoint);
+
+        when(schwabApiExecutor.executeParallel(anyList(), any())).thenAnswer(invocation -> {
+            java.util.List<String> symbols = invocation.getArgument(0);
+            java.util.function.Function<String, IVDataPoint> func = invocation.getArgument(1);
+            return symbols.stream().map(func).toList();
+        });
 
         // Spy on service to mock loadAllSecurities to avoid loading 128 symbols and sleeping
         IVDataJobService spyService = spy(ivDataJobService);
@@ -81,14 +78,5 @@ public class IVDataJobServiceTest {
         verify(telegramUtils, atLeastOnce()).sendMessage(anyString());
     }
 
-    @Test
-    public void testRunIVDataCollection_NoDatabasesEnabled() {
-        when(googleSheetsConfig.getEnabled()).thenReturn(false);
-        when(supabaseConfig.getEnabled()).thenReturn(false);
 
-        ivDataJobService.runIVDataCollection();
-
-        // Should return early and log error (no collection executed)
-        verify(ivDataCollector, never()).collectIVDataPoint(anyString());
-    }
 }
