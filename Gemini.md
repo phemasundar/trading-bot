@@ -1,5 +1,28 @@
 # Project Updates
 
+## Refactor: Centralized Math Formatted Condition Parsing (2026-07-08)
+
+Refactored all math-formatted filtering conditions (e.g. `>= 20.0`, `< 5`) to use a centralized parsing and evaluation strategy via native Java `BiPredicate`. This eliminates redundant reflection-heavy logic and standardizes rule parsing across historical volatility and price drop screeners.
+
+### End-to-End Implementation
+
+- **Backend Model**: Built `RelationalOperator` enum mapping relational operators to functional evaluations, and a `NumericRule` wrapper POJO containing the operator and value.
+- **Config Loader**: Created `ConditionParserUtil.java` to parse and return these `NumericRule` instances. Extracted scalar values in `TechFilterConditions` to dynamically loaded `List<NumericRule> hvRules` and `List<NumericRule> priceDropRules`.
+- **Backend Execution**: Upgraded `PriceDropScreener` and `TechnicalScreener` to iterate through the loaded lists of numeric rules natively.
+- **Tests**: Adjusted test methods and mock services to utilize the refactored dynamic `NumericRule` structure.
+
+### Architecture
+
+| File                                | Change                                                                                                               |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **`RelationalOperator.java`**       | Defined operator logic natively without reflection using `BiPredicate<Double, Double>`.                                 |
+| **`NumericRule.java`**              | POJO combining `RelationalOperator` and a comparative double value.                                                  |
+| **`ConditionParserUtil.java`**      | Reusable parsing utility for numeric rules mapped from string configurations.                                        |
+| **`TechFilterConditions.java`**     | Refactored scalar min/max values to dynamic `List<NumericRule>`.                                                     |
+| **`StrategiesConfigLoader.java`**   | Delegated logic mapping rule configuration to `ConditionParserUtil`.                                                 |
+| **`PriceDropScreener.java`**        | Transitioned from receiving scalar values to resolving rules from a `List<NumericRule>`.                                |
+| **`TechnicalScreener.java`**        | Evaluated bounds iteratively via `NumericRule.evaluate()`.                                                           |
+
 ## Feature: Daily IV Data Collection supports Dynamic Index Securities (2026-07-08)
 
 Updated the `Daily IV Data Collection` job to dynamically fetch and process constituent stocks from `SPY` and `QQQ` index lists via `WikipediaSecuritiesFetcher`, aligning it with the capabilities already supported by Strategy Executions.

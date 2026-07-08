@@ -95,7 +95,7 @@ public class ScreenerExecutionServiceTest {
                 .filterChain(com.hemasundar.technical.TechnicalFilterChain.of(com.hemasundar.technical.TechnicalIndicators.builder().build(), com.hemasundar.technical.TechFilterConditions.builder().build()))
                 .build();
 
-        when(priceDropScreener.screenPriceDrop(anyList(), anyDouble(), anyInt(), any()))
+        when(priceDropScreener.screenPriceDrop(anyList(), anyList(), anyInt(), any()))
                 .thenReturn(List.of(TechnicalScreener.ScreeningResult.builder().symbol("AAPL").build()));
 
         screenerExecutionService.executeScreeners(Set.of(0), List.of(config));
@@ -113,7 +113,7 @@ public class ScreenerExecutionServiceTest {
                 .filterChain(com.hemasundar.technical.TechnicalFilterChain.of(com.hemasundar.technical.TechnicalIndicators.builder().build(), com.hemasundar.technical.TechFilterConditions.builder().build()))
                 .build();
 
-        when(priceDropScreener.screen52WeekHighDrop(anyList(), anyDouble(), any()))
+        when(priceDropScreener.screen52WeekHighDrop(anyList(), anyList(), any()))
                 .thenReturn(List.of(TechnicalScreener.ScreeningResult.builder().symbol("TSLA").build()));
 
         screenerExecutionService.executeScreeners(Set.of(0), List.of(config));
@@ -145,7 +145,7 @@ public class ScreenerExecutionServiceTest {
                 .build();
         Map<String, Object> requestParams = Map.of("alias", "Custom Screener Test");
 
-        when(priceDropScreener.screenPriceDrop(anyList(), anyDouble(), anyInt(), any()))
+        when(priceDropScreener.screenPriceDrop(anyList(), anyList(), anyInt(), any()))
                 .thenReturn(List.of(TechnicalScreener.ScreeningResult.builder().symbol("AAPL").build()));
 
         screenerExecutionService.executeCustomScreener(config, requestParams);

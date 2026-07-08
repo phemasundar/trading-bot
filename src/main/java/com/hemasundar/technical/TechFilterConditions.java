@@ -86,9 +86,10 @@ public class TechFilterConditions {
     private final List<SmaCondition> smaConditions = new ArrayList<>();
 
     /**
-     * Minimum drop percentage for PRICE_DROP and HIGH_52W_DROP screeners.
+     * Rules for PRICE_DROP and HIGH_52W_DROP screeners (e.g. >= 10.0).
      */
-    private final Double minDropPercent;
+    @Builder.Default
+    private final List<NumericRule> priceDropRules = new ArrayList<>();
 
     /**
      * Rolling period (in days) for Historical Volatility calculation.
@@ -97,16 +98,11 @@ public class TechFilterConditions {
     private final Integer hvPeriod = 20;
 
     /**
-     * Minimum Historical Volatility Rank (percentile).
-     * Example: 25.0 means current rolling HV must be >= the 25th percentile of the past year.
+     * Rules for Historical Volatility Rank (percentile).
+     * Example: >= 25.0 means current rolling HV must be >= the 25th percentile of the past year.
      */
-    private final Double minHvRank;
-
-    /**
-     * Maximum Historical Volatility Rank (percentile).
-     * Example: 35.0 means current rolling HV must be <= the 35th percentile of the past year.
-     */
-    private final Double maxHvRank;
+    @Builder.Default
+    private final List<NumericRule> hvRules = new ArrayList<>();
 
     /**
      * Number of trading days to look back for PRICE_DROP screener.
@@ -180,11 +176,15 @@ public class TechFilterConditions {
                     break;
             }
         }
-        if (minHvRank != null) {
-            sb.append(String.format("HV(%d) Rank >= %.1f | ", hvPeriod, minHvRank));
+        if (hvRules != null) {
+            for (NumericRule rule : hvRules) {
+                sb.append(String.format("HV(%d) Rank %s | ", hvPeriod, rule.toString()));
+            }
         }
-        if (maxHvRank != null) {
-            sb.append(String.format("HV(%d) Rank <= %.1f | ", hvPeriod, maxHvRank));
+        if (priceDropRules != null) {
+            for (NumericRule rule : priceDropRules) {
+                sb.append(String.format("Price Drop %s%% | ", rule.toString()));
+            }
         }
 
         if (sb.length() == 0)

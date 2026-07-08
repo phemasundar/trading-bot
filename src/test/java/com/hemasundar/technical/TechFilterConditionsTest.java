@@ -18,7 +18,7 @@ public class TechFilterConditionsTest {
                         }}
                 ))
 
-                .minDropPercent(5.5)
+                .priceDropRules(java.util.List.of(new com.hemasundar.technical.NumericRule(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL, 5.5)))
                 .lookbackDays(10)
                 .build();
 
@@ -29,7 +29,7 @@ public class TechFilterConditionsTest {
         Assert.assertEquals(1, conditions.getPriceConditions().size());
         Assert.assertEquals(20, conditions.getPriceConditions().get(0).getPeriod());
         Assert.assertEquals(com.hemasundar.config.StrategiesConfig.Position.BELOW, conditions.getPriceConditions().get(0).getPosition());
-        Assert.assertEquals(conditions.getMinDropPercent(), 5.5, 0.01);
+        Assert.assertEquals(conditions.getPriceDropRules().get(0).getValue(), 5.5, 0.01);
         Assert.assertEquals(conditions.getLookbackDays(), Integer.valueOf(10));
     }
 

@@ -125,14 +125,18 @@ public class ScreenerExecutionService {
                 screenerResults = switch (screenerConfig.getScreenerType()) {
                     case PRICE_DROP -> {
                         TechFilterConditions cond = screenerConfig.getConditions();
-                        double minDrop = cond.getMinDropPercent() != null ? cond.getMinDropPercent() : 5.0;
+                        List<com.hemasundar.technical.NumericRule> dropRules = cond.getPriceDropRules() != null && !cond.getPriceDropRules().isEmpty() 
+                            ? cond.getPriceDropRules() 
+                            : java.util.List.of(new com.hemasundar.technical.NumericRule(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL, 5.0));
                         int days = cond.getLookbackDays() != null ? cond.getLookbackDays() : 0;
-                        yield priceDropScreener.screenPriceDrop(securitiesToScan, minDrop, days, alertCallback);
+                        yield priceDropScreener.screenPriceDrop(securitiesToScan, dropRules, days, alertCallback);
                     }
                     case HIGH_52W_DROP -> {
                         TechFilterConditions cond = screenerConfig.getConditions();
-                        double minDrop = cond.getMinDropPercent() != null ? cond.getMinDropPercent() : 20.0;
-                        yield priceDropScreener.screen52WeekHighDrop(securitiesToScan, minDrop, alertCallback);
+                        List<com.hemasundar.technical.NumericRule> dropRules = cond.getPriceDropRules() != null && !cond.getPriceDropRules().isEmpty() 
+                            ? cond.getPriceDropRules() 
+                            : java.util.List.of(new com.hemasundar.technical.NumericRule(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL, 20.0));
+                        yield priceDropScreener.screen52WeekHighDrop(securitiesToScan, dropRules, alertCallback);
                     }
                     default -> {
                         yield technicalScreener.screenStocks(securitiesToScan, screenerConfig.getFilterChain(), alertCallback);
