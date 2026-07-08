@@ -7,6 +7,7 @@ import com.hemasundar.services.IVDataCollector;
 import com.hemasundar.services.SupabaseService;
 import com.hemasundar.utils.SchwabApiExecutor;
 import com.hemasundar.utils.TelegramUtils;
+import com.hemasundar.utils.WikipediaSecuritiesFetcher;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.testng.annotations.BeforeMethod;
@@ -39,6 +40,9 @@ public class IVDataJobServiceTest {
     @Mock
     private SchwabApiExecutor schwabApiExecutor;
 
+    @Mock
+    private WikipediaSecuritiesFetcher wikipediaFetcher;
+
     private IVDataJobService ivDataJobService;
 
     @BeforeMethod
@@ -50,7 +54,8 @@ public class IVDataJobServiceTest {
                 thinkOrSwinAPIs,
                 telegramUtils,
                 ivDataCollector,
-                schwabApiExecutor
+                schwabApiExecutor,
+                wikipediaFetcher
         );
     }
 

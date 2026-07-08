@@ -1,5 +1,21 @@
 # Project Updates
 
+## Feature: Daily IV Data Collection supports Dynamic Index Securities (2026-07-08)
+
+Updated the `Daily IV Data Collection` job to dynamically fetch and process constituent stocks from `SPY` and `QQQ` index lists via `WikipediaSecuritiesFetcher`, aligning it with the capabilities already supported by Strategy Executions.
+
+### End-to-End Implementation
+
+- **Backend Model**: Injected `WikipediaSecuritiesFetcher` into `IVDataJobService.java`.
+- **Job Execution**: Updated `loadAllSecurities()` in `IVDataJobService.java` to explicitly fetch `SPY` and `QQQ` stocks and add them to the core `allSecurities` collection alongside the statically loaded `.yaml` configurations.
+- **Tests**: Mocked `WikipediaSecuritiesFetcher` dependency in `IVDataJobServiceTest.java`.
+
+### Architecture
+
+| File                         | Change                                                                                                                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`IVDataJobService.java`** | Injected `WikipediaSecuritiesFetcher` and explicitly fetched `SPY` and `QQQ` constituents into `loadAllSecurities()`.                                                                                                                               |
+| **`IVDataJobServiceTest.java`**                 | Updated constructor mocking to accommodate the new dependency. |
 ## Feature: Dynamic Screener Dashboard UI and SMA Indicators (2026-07-06)
 
 Updated the `Screeners Dashboard` to dynamically display technical analysis indicators based on what is calculated by the screener, instead of relying on hardcoded columns for moving averages and other metrics.

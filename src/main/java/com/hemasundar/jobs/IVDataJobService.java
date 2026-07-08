@@ -8,6 +8,7 @@ import com.hemasundar.services.SupabaseService;
 import com.hemasundar.utils.FilePaths;
 import com.hemasundar.utils.SchwabApiExecutor;
 import com.hemasundar.utils.TelegramUtils;
+import com.hemasundar.utils.WikipediaSecuritiesFetcher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,8 @@ public class IVDataJobService {
     private final IVDataCollector ivDataCollector;
 
     private final SchwabApiExecutor schwabApiExecutor;
+
+    private final WikipediaSecuritiesFetcher wikipediaFetcher;
 
     private Set<String> allSecurities;
 
@@ -123,6 +126,21 @@ public class IVDataJobService {
 
     Set<String> loadAllSecurities() {
         Set<String> securities = new LinkedHashSet<>();
+        
+        try {
+            log.info("Fetching SPY securities for IV Data Collection...");
+            securities.addAll(wikipediaFetcher.fetch("SPY"));
+        } catch (Exception e) {
+            log.error("Error loading SPY securities: {}", e.getMessage());
+        }
+
+        try {
+            log.info("Fetching QQQ securities for IV Data Collection...");
+            securities.addAll(wikipediaFetcher.fetch("QQQ"));
+        } catch (Exception e) {
+            log.error("Error loading QQQ securities: {}", e.getMessage());
+        }
+
         File securitiesDir = FilePaths.securitiesDirectory.toFile();
 
         if (!securitiesDir.exists() || !securitiesDir.isDirectory())
