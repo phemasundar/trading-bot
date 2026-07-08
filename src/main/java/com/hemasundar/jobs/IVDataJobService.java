@@ -44,6 +44,7 @@ public class IVDataJobService {
     private int successCount = 0;
     private int failCount = 0;
     private int totalCount = 0;
+    private List<String> failedSymbols = new ArrayList<>();
 
     public void runIVDataCollection() {
         log.info("=".repeat(80));
@@ -68,6 +69,7 @@ public class IVDataJobService {
         totalCount = allSecurities.size();
         successCount = 0;
         failCount = 0;
+        failedSymbols = new ArrayList<>();
 
         List<String> symbolList = new ArrayList<>(allSecurities);
         List<IVDataPoint> results = schwabApiExecutor.executeParallel(
@@ -91,6 +93,7 @@ public class IVDataJobService {
                 successCount++;
             } else {
                 failCount++;
+                failedSymbols.add(symbol);
             }
         }
     }
@@ -112,6 +115,8 @@ public class IVDataJobService {
 
         if (failCount > 0) {
             message.append("└ Failed: <code>").append(failCount).append("</code>\n");
+            message.append("\n❌ <b>Failed Symbols:</b>\n");
+            message.append("<code>").append(String.join(", ", failedSymbols)).append("</code>\n");
         } else {
             message.append("└ Failed: <code>0</code> 🎉\n");
         }
