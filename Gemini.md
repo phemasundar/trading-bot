@@ -3195,3 +3195,34 @@ Both workflows now:
 - **Development Testing**: Scheduled runs test the latest development code
 - **Early Detection**: Issues are caught in develop before merging to main
 - **No CI Noise**: Workflows only run on schedule, not on every push
+
+## Refactor: Unified Price Drop Technical Rules and Custom Execution API (2026-07-07)
+
+Refactored the `PRICE_DROP` minimum drop threshold configuration to use mathematical condition string expressions (e.g. `>= 5.0`) instead of complex nested config objects, matching the formatting for `VOLUME`, `SIMPLE_MOVING_AVERAGE`, and `HISTORICAL_VOLATILITY`. The array-of-strings structure was propagated through the frontend UI and backend execution logic.
+
+### End-to-End Implementation
+
+- **Backend Model**: Updated `StrategiesConfig.PriceDropFilterEntry` by removing `minDropPercent` from its `config` object and introducing a `List<String> conditions` array to hold the mathematical expressions.
+- **Config Loader**: Modified `StrategiesConfigLoader` to support processing math syntax rules (e.g. `>= 3`) by introducing `applyPriceDropRules()`.
+- **Frontend App**: Updated `execute.html` and `execute-screener.html` UI forms, replacing the "Price Drop Min (%)" number fields with "Price Drop Rules" text fields. Updated `app.js` to serialize these rules in the unified array format (`{"conditions": [">= 3.0"]}`) when pushing payloads to the execution APIs. Also ensured that the HTML form inputs maintain unique IDs for dynamic template reloading (`sc-priceDropRules`).
+- **Config**: Migrated all `PRICE_DROP` JSON properties containing `{"config": {"minDropPercent": 5}}` into `"conditions": [">= 5"]` across `strategies-config.json`. (Note: `lookbackDays` remains explicitly in the `config` payload since it dictates the execution mode).
+
+### Architecture
+
+| File                                         | Change                                                                                                 |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| **`StrategiesConfig.java`**                  | Moved `minDropPercent` from `PriceDropConfigParams` to a unified `conditions` list on the filter entry.|
+| **`StrategiesConfigLoader.java`**            | Built `applyPriceDropRules()` to extract the numerical percentage from standard `>= X` operators.      |
+| **`StrategyControllerTest.java`**            | Updated custom mock payloads to match the new `conditions` map representation.                         |
+| **`strategies-config.json`**                 | Stripped nested `minDropPercent` properties in favor of the uniform `"conditions": [">= 5"]` syntax.   |
+| **`app.js`**                                 | Updated custom payload mapping and template initialization to process `PRICE_DROP` string rules.       |
+| **`execute.html` / `execute-screener.html`** | Replaced `number` input fields with `text` input fields and added missing `id` attributes.             |
+
+## Bugfix: Tech Filter Math Syntax Error Handling (2026-07-07)
+
+Fixed an issue where invalid mathematical condition string expressions (e.g. invalid numbers like `>= abc`) were silently ignored or swallowed during configuration parsing. 
+
+### End-to-End Implementation
+
+- **Backend Model**: Updated `StrategiesConfigLoader` methods (`applyPriceDropRules`, `applyVolumeRules`, and `applyHistoricalVolatilityRules`) to properly throw `IllegalArgumentException` instead of swallowing `NumberFormatException` when users supply malformed numbers in technical filters.
+- **Backend Execution**: Updated `/execute/custom` and `/execute/custom-screener` inside `StrategyController` to explicitly catch `IllegalArgumentException` thrown during `parseTechnicalFilters()` and return a 400 Bad Request to the frontend containing the precise error message (e.g. `Invalid number format in PRICE_DROP rule: >= abc`).

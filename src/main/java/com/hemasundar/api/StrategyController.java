@@ -414,8 +414,11 @@ public class StrategyController {
                     "message",
                     "Custom execution started: " + type.getDisplayName() + " on " + symbols.size() + " securities"));
         } catch (IllegalArgumentException e) {
+            String errorMsg = e.getMessage() != null && e.getMessage().contains("No enum constant")
+                    ? "Invalid strategy type: " + request.getStrategyType()
+                    : e.getMessage();
             return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Invalid strategy type: " + request.getStrategyType()));
+                    .body(Map.of("error", errorMsg));
         }
     }
 
@@ -480,8 +483,12 @@ public class StrategyController {
 
         // Build technical filter chain from request if provided
         com.hemasundar.technical.TechnicalFilterChain technicalFilterChain = null;
-        if (request.getTechnicalFilters() != null && !request.getTechnicalFilters().isEmpty()) {
-            technicalFilterChain = strategiesConfigLoader.parseTechnicalFilters(request.getTechnicalFilters());
+        try {
+            if (request.getTechnicalFilters() != null && !request.getTechnicalFilters().isEmpty()) {
+                technicalFilterChain = strategiesConfigLoader.parseTechnicalFilters(request.getTechnicalFilters());
+            }
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
 
         com.hemasundar.technical.ScreenerConfig screenerConfig = com.hemasundar.technical.ScreenerConfig.builder()

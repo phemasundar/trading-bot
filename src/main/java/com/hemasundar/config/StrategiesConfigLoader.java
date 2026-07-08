@@ -472,7 +472,7 @@ public class StrategiesConfigLoader {
                 conditions.volumeCondition(com.hemasundar.technical.VolumeCondition.MIN_VOLUME);
                 conditions.minVolume(minVol);
             } catch (NumberFormatException e) {
-                conditions.volumeCondition(com.hemasundar.technical.VolumeCondition.valueOf(strCond));
+                throw new IllegalArgumentException("Invalid number format in VOLUME rule: " + strCond);
             }
         } else {
             conditions.volumeCondition(com.hemasundar.technical.VolumeCondition.valueOf(strCond));
@@ -585,8 +585,26 @@ public class StrategiesConfigLoader {
 
         PriceDropFilterEntry entry = JavaUtils.convertValue(rawEntry, PriceDropFilterEntry.class);
         if (entry.getConfig() != null) {
-            conditions.minDropPercent(entry.getConfig().getMinDropPercent());
             conditions.lookbackDays(entry.getConfig().getLookbackDays());
+        }
+        if (entry.getConditions() != null) {
+            applyPriceDropRules(entry.getConditions(), conditions);
+        }
+    }
+
+    public void applyPriceDropRules(List<String> rules, TechFilterConditions.TechFilterConditionsBuilder conditions) {
+        if (rules == null || rules.isEmpty()) return;
+        for (String strCond : rules) {
+            if (strCond.startsWith(">=")) {
+                try {
+                    double minDrop = Double.parseDouble(strCond.substring(2).trim());
+                    conditions.minDropPercent(minDrop);
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Invalid number format in PRICE_DROP rule: " + strCond);
+                }
+            } else {
+                throw new IllegalArgumentException("Invalid operator in PRICE_DROP rule: " + strCond);
+            }
         }
     }
 
@@ -613,19 +631,29 @@ public class StrategiesConfigLoader {
             if (rule.startsWith(">=")) {
                 try {
                     conditions.minHvRank(Double.parseDouble(rule.substring(2).trim()));
-                } catch (NumberFormatException ignored) {}
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Invalid number format in HISTORICAL_VOLATILITY rule: " + rule);
+                }
             } else if (rule.startsWith("<=")) {
                 try {
                     conditions.maxHvRank(Double.parseDouble(rule.substring(2).trim()));
-                } catch (NumberFormatException ignored) {}
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Invalid number format in HISTORICAL_VOLATILITY rule: " + rule);
+                }
             } else if (rule.startsWith(">")) {
                 try {
                     conditions.minHvRank(Double.parseDouble(rule.substring(1).trim()));
-                } catch (NumberFormatException ignored) {}
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Invalid number format in HISTORICAL_VOLATILITY rule: " + rule);
+                }
             } else if (rule.startsWith("<")) {
                 try {
                     conditions.maxHvRank(Double.parseDouble(rule.substring(1).trim()));
-                } catch (NumberFormatException ignored) {}
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Invalid number format in HISTORICAL_VOLATILITY rule: " + rule);
+                }
+            } else {
+                throw new IllegalArgumentException("Invalid operator in HISTORICAL_VOLATILITY rule: " + rule);
             }
         }
     }

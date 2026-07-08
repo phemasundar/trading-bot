@@ -3103,7 +3103,7 @@ function onScreenerTypeChange() {
     const meta = SCREENER_TYPE_META[type];
 
     // Toggle drop-specific fields
-    const dropGroup = document.getElementById('sc-minDropPercent-group');
+    const dropGroup = document.getElementById('sc-priceDropRules-group');
     const lookbackGroup = document.getElementById('sc-lookbackDays-group');
     if (dropGroup) dropGroup.style.display = (meta && meta.hasDrop) ? '' : 'none';
     if (lookbackGroup) lookbackGroup.style.display = (meta && meta.hasLookback) ? '' : 'none';
@@ -3231,7 +3231,9 @@ function loadScreenerTemplateParams(screenerJson) {
             }).filter(Boolean);
             setVal('sc-volumeRules', rulesStrs.join(', '));
         }
-        setVal('sc-minDropPercent', extractField('PRICE_DROP', 'config', 'minDropPercent'));
+        let pdRules = extractField('PRICE_DROP', 'root');
+        if (pdRules && pdRules.conditions) pdRules = pdRules.conditions;
+        setVal('sc-priceDropRules', pdRules && Array.isArray(pdRules) ? pdRules.join(', ') : pdRules || '');
         setVal('sc-lookbackDays', extractField('PRICE_DROP', 'config', 'lookbackDays'));
 
         let maRules = extractField('SIMPLE_MOVING_AVERAGE', 'root');
@@ -3358,7 +3360,7 @@ function getTechnicalFiltersFromDOM(container = document) {
 
         if (!technicalFilters[filterKey]) technicalFilters[filterKey] = {};
 
-        if ((filterKey === 'SIMPLE_MOVING_AVERAGE' || filterKey === 'VOLUME' || filterKey === 'HISTORICAL_VOLATILITY') && fieldKey === 'rules') {
+        if ((filterKey === 'SIMPLE_MOVING_AVERAGE' || filterKey === 'VOLUME' || filterKey === 'HISTORICAL_VOLATILITY' || filterKey === 'PRICE_DROP') && fieldKey === 'rules') {
             technicalFilters[filterKey] = { conditions: rawVal.split(',').map(s => s.trim()).filter(Boolean) };
         } else if (fieldKey === 'condition') {
             if (typeof technicalFilters[filterKey].condition === 'object') {
@@ -3372,7 +3374,7 @@ function getTechnicalFiltersFromDOM(container = document) {
                 if (!technicalFilters[filterKey].config) technicalFilters[filterKey].config = {};
                 technicalFilters[filterKey].config.period = num;
             }
-        } else if (['min', 'max', 'minDropPercent', 'lookbackDays', 'minRank', 'maxRank'].includes(fieldKey)) {
+        } else if (['min', 'max', 'lookbackDays', 'minRank', 'maxRank'].includes(fieldKey)) {
             const num = parseFloat(rawVal);
             if (!isNaN(num)) {
                 if (filterKey === 'VOLUME') {
