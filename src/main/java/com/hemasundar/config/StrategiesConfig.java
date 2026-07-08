@@ -381,6 +381,7 @@ public class StrategiesConfig {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class PriceDropFilterEntry {
         private PriceDropConfigParams config;
+        private List<String> conditions;
     }
 
     /**
@@ -390,7 +391,6 @@ public class StrategiesConfig {
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class PriceDropConfigParams {
-        private Double minDropPercent;
         private Integer lookbackDays;
     }
 

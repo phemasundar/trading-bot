@@ -443,7 +443,7 @@ public class StrategyControllerTest {
                 "PRICE_BELOW_SMA100",
                 "PRICE_BELOW_SMA200"
         )));
-        techFilters.put("PRICE_DROP", java.util.Map.of("minDropPercent", 5.0, "lookbackDays", 0));
+        techFilters.put("PRICE_DROP", java.util.Map.of("conditions", java.util.List.of(">= 5.0"), "config", java.util.Map.of("lookbackDays", 0)));
 
         CustomScreenerRequest request = CustomScreenerRequest.builder()
                 .screenerType("RSI_OVERSOLD")

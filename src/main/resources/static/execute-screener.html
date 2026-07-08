@@ -158,14 +158,14 @@
                             <input type="text" class="form-input" data-tech-filter="HISTORICAL_VOLATILITY" data-tech-field="rules"
                                 placeholder=">= 25, <= 75">
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Price Drop Min (%)</label>
-                            <input type="number" class="form-input" data-tech-filter="PRICE_DROP" data-tech-field="minDropPercent"
-                                placeholder="3.0" step="0.5">
+                        <div class="form-group" id="sc-priceDropRules-group">
+                            <label class="form-label">Price Drop Rules</label>
+                            <input type="text" id="sc-priceDropRules" class="form-input" data-tech-filter="PRICE_DROP" data-tech-field="rules"
+                                placeholder=">= 3.0">
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" id="sc-lookbackDays-group">
                             <label class="form-label">Lookback Days (0=intraday)</label>
-                            <input type="number" class="form-input" data-tech-filter="PRICE_DROP" data-tech-field="lookbackDays"
+                            <input type="number" id="sc-lookbackDays" class="form-input" data-tech-filter="PRICE_DROP" data-tech-field="lookbackDays"
                                 placeholder="0" min="0">
                         </div>
                         <div class="form-group" style="grid-column: 1 / -1">
