@@ -13,6 +13,7 @@ import com.hemasundar.utils.VolatilityCalculator;
 import com.hemasundar.cache.PriceHistoryCache;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -67,7 +68,7 @@ public class ScreenerExecutionService {
     }
 
     private void executeScreenersInternal(Set<Integer> screenerIndices, List<ScreenerConfig> allScreeners, boolean isCustom, Map<String, Object> requestParams) {
-        if (screenerIndices == null || screenerIndices.isEmpty() || allScreeners == null) {
+        if (CollectionUtils.isEmpty(screenerIndices) || allScreeners == null) {
             log.info("No screener indices provided, skipping technical screeners");
             return;
         }
@@ -105,7 +106,7 @@ public class ScreenerExecutionService {
 
             // Get securities from config
             List<String> securitiesToScan = screenerConfig.getSecurities();
-            if (securitiesToScan == null || securitiesToScan.isEmpty()) {
+            if (CollectionUtils.isEmpty(securitiesToScan)) {
                 strategyExecutionService.addAlert(ExecutionAlert.Severity.WARNING,
                         String.format(AlertMessages.SRC_SCREENER_FMT, screenerConfig.getName()),
                         AlertMessages.NO_SECURITIES_CONFIGURED);
@@ -125,14 +126,18 @@ public class ScreenerExecutionService {
                 screenerResults = switch (screenerConfig.getScreenerType()) {
                     case PRICE_DROP -> {
                         TechFilterConditions cond = screenerConfig.getConditions();
-                        double minDrop = cond.getMinDropPercent() != null ? cond.getMinDropPercent() : 5.0;
+                        List<com.hemasundar.technical.NumericRule> dropRules = cond.getPriceDropRules() != null && !cond.getPriceDropRules().isEmpty() 
+                            ? cond.getPriceDropRules() 
+                            : java.util.List.of(new com.hemasundar.technical.NumericRule(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL, 5.0));
                         int days = cond.getLookbackDays() != null ? cond.getLookbackDays() : 0;
-                        yield priceDropScreener.screenPriceDrop(securitiesToScan, minDrop, days, alertCallback);
+                        yield priceDropScreener.screenPriceDrop(securitiesToScan, dropRules, days, alertCallback);
                     }
                     case HIGH_52W_DROP -> {
                         TechFilterConditions cond = screenerConfig.getConditions();
-                        double minDrop = cond.getMinDropPercent() != null ? cond.getMinDropPercent() : 20.0;
-                        yield priceDropScreener.screen52WeekHighDrop(securitiesToScan, minDrop, alertCallback);
+                        List<com.hemasundar.technical.NumericRule> dropRules = cond.getPriceDropRules() != null && !cond.getPriceDropRules().isEmpty() 
+                            ? cond.getPriceDropRules() 
+                            : java.util.List.of(new com.hemasundar.technical.NumericRule(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL, 20.0));
+                        yield priceDropScreener.screen52WeekHighDrop(securitiesToScan, dropRules, alertCallback);
                     }
                     default -> {
                         yield technicalScreener.screenStocks(securitiesToScan, screenerConfig.getFilterChain(), alertCallback);

@@ -6,6 +6,7 @@ import com.hemasundar.options.models.OptionType;
 import com.hemasundar.pojos.IVDataPoint;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.apache.commons.collections4.MapUtils;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -123,7 +124,7 @@ public class IVDataCollector {
         Map<String, List<OptionChainResponse.OptionData>> callMap = chain
                 .getOptionDataForASpecificExpiryDate(OptionType.CALL, expiryDate);
 
-        if (callMap == null || callMap.isEmpty()) {
+        if (MapUtils.isEmpty(callMap)) {
             return null;
         }
 
@@ -150,7 +151,7 @@ public class IVDataCollector {
         Map<String, List<OptionChainResponse.OptionData>> optionMap = chain
                 .getOptionDataForASpecificExpiryDate(optionType, expiryDate);
 
-        if (optionMap == null || optionMap.isEmpty()) {
+        if (MapUtils.isEmpty(optionMap)) {
             return null;
         }
 

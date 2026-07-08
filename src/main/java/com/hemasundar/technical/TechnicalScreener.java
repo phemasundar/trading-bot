@@ -398,16 +398,15 @@ public class TechnicalScreener {
             if (!volumeMet) return false;
         }
 
-        // Historical Volatility Rank condition
-        if (conditions.getMinHvRank() != null) {
-            if (result.getHistoricalVolatilityRank() != null && result.getHistoricalVolatilityRank() < conditions.getMinHvRank()) {
-                return false;
+        // Historical Volatility Rank conditions
+        if (conditions.getHvRules() != null && !conditions.getHvRules().isEmpty()) {
+            if (result.getHistoricalVolatilityRank() == null) {
+                return false; // Cannot evaluate rules without a rank
             }
-        }
-        
-        if (conditions.getMaxHvRank() != null) {
-            if (result.getHistoricalVolatilityRank() != null && result.getHistoricalVolatilityRank() > conditions.getMaxHvRank()) {
-                return false;
+            for (com.hemasundar.technical.NumericRule rule : conditions.getHvRules()) {
+                if (!rule.evaluate(result.getHistoricalVolatilityRank())) {
+                    return false;
+                }
             }
         }
 

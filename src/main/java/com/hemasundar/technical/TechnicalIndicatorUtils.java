@@ -2,6 +2,7 @@ package com.hemasundar.technical;
 
 import com.hemasundar.pojos.PriceHistoryResponse;
 import lombok.experimental.UtilityClass;
+import org.apache.commons.collections4.CollectionUtils;
 import org.ta4j.core.BarSeries;
 import org.ta4j.core.BaseBarSeriesBuilder;
 import org.ta4j.core.indicators.RSIIndicator;
@@ -34,7 +35,7 @@ public class TechnicalIndicatorUtils {
     public static BarSeries buildBarSeries(String symbol, PriceHistoryResponse response) {
         BarSeries series = new BaseBarSeriesBuilder().withName(symbol).build();
 
-        if (response == null || response.getCandles() == null || response.getCandles().isEmpty()) {
+        if (response == null || CollectionUtils.isEmpty(response.getCandles())) {
             return series;
         }
 

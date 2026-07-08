@@ -3,6 +3,7 @@ package com.hemasundar.cache;
 import com.hemasundar.utils.SchwabApiExecutor;
 import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
+import org.apache.commons.collections4.CollectionUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -38,7 +39,7 @@ public abstract class AbstractApiCache<T> {
      * @param alertCallback Callback for surfacing errors (can be null)
      */
     public void prewarm(List<String> symbols, SchwabApiExecutor executor, Function<String, T> fetchFunction, BiConsumer<String, String> alertCallback) {
-        if (symbols == null || symbols.isEmpty()) {
+        if (CollectionUtils.isEmpty(symbols)) {
             return;
         }
 

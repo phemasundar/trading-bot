@@ -11,6 +11,7 @@ import com.hemasundar.options.models.ZebraTrade;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.CollectionUtils;
 
+import org.apache.commons.collections4.MapUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -42,7 +43,7 @@ public class ZebraStrategy extends AbstractTradingStrategy {
         Map<String, List<OptionData>> callMap = chain.getOptionDataForASpecificExpiryDate(
                 OptionType.CALL, expiryDate);
 
-        if (callMap == null || callMap.isEmpty())
+        if (MapUtils.isEmpty(callMap))
             return new ArrayList<>();
 
         // Extract leg filters

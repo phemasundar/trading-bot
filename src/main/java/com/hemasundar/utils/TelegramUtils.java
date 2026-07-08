@@ -8,6 +8,8 @@ import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -104,7 +106,7 @@ public class TelegramUtils {
      * @param result The strategy result containing trades with pre-formatted details
      */
     public void sendTradeAlerts(StrategyResult result) {
-        if (result == null || result.getTrades() == null || result.getTrades().isEmpty()) {
+        if (result == null || CollectionUtils.isEmpty(result.getTrades())) {
             return;
         }
 
@@ -148,7 +150,7 @@ public class TelegramUtils {
      */
     public void sendTechnicalScreenerAlert(String screenerName,
             List<TechnicalScreener.ScreeningResult> results) {
-        if (results == null || results.isEmpty()) {
+        if (CollectionUtils.isEmpty(results)) {
             return;
         }
 
@@ -261,7 +263,7 @@ public class TelegramUtils {
      * Formats expiry date from ISO format to readable format.
      */
     private static String formatExpiryDate(String isoDate) {
-        if (isoDate == null || isoDate.isEmpty()) {
+        if (StringUtils.isBlank(isoDate)) {
             return "Unknown";
         }
         return isoDate.length() >= 10 ? isoDate.substring(0, 10) : isoDate;

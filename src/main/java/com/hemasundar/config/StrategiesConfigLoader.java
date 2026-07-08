@@ -8,6 +8,8 @@ import com.hemasundar.technical.*;
 import com.hemasundar.utils.FilePaths;
 import com.hemasundar.utils.JavaUtils;
 import com.hemasundar.utils.WikipediaSecuritiesFetcher;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -457,7 +459,7 @@ public class StrategiesConfigLoader {
     }
 
     public void applyVolumeRules(List<String> rules, TechFilterConditions.TechFilterConditionsBuilder conditions) {
-        if (rules == null || rules.isEmpty()) return;
+        if (CollectionUtils.isEmpty(rules)) return;
         String strCond = rules.get(0);
         Pattern pattern = Pattern.compile("SMA(\\d+)\\s*>=\\s*SMA(\\d+)\\s*\\*\\s*(\\d+(?:\\.\\d+)?)%");
         Matcher matcher = pattern.matcher(strCond);
@@ -593,19 +595,12 @@ public class StrategiesConfigLoader {
     }
 
     public void applyPriceDropRules(List<String> rules, TechFilterConditions.TechFilterConditionsBuilder conditions) {
-        if (rules == null || rules.isEmpty()) return;
+        if (CollectionUtils.isEmpty(rules)) return;
+        List<com.hemasundar.technical.NumericRule> priceDropRules = new java.util.ArrayList<>();
         for (String strCond : rules) {
-            if (strCond.startsWith(">=")) {
-                try {
-                    double minDrop = Double.parseDouble(strCond.substring(2).trim());
-                    conditions.minDropPercent(minDrop);
-                } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException("Invalid number format in PRICE_DROP rule: " + strCond);
-                }
-            } else {
-                throw new IllegalArgumentException("Invalid operator in PRICE_DROP rule: " + strCond);
-            }
+            priceDropRules.add(com.hemasundar.utils.ConditionParserUtil.parseNumericRule(strCond));
         }
+        conditions.priceDropRules(priceDropRules);
     }
 
     private void applyHistoricalVolatilityFilter(
@@ -625,37 +620,12 @@ public class StrategiesConfigLoader {
     }
 
     public void applyHistoricalVolatilityRules(List<String> rules, TechFilterConditions.TechFilterConditionsBuilder conditions) {
-        if (rules == null || rules.isEmpty()) return;
+        if (CollectionUtils.isEmpty(rules)) return;
+        List<com.hemasundar.technical.NumericRule> hvRules = new java.util.ArrayList<>();
         for (String rule : rules) {
-            rule = rule.trim();
-            if (rule.startsWith(">=")) {
-                try {
-                    conditions.minHvRank(Double.parseDouble(rule.substring(2).trim()));
-                } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException("Invalid number format in HISTORICAL_VOLATILITY rule: " + rule);
-                }
-            } else if (rule.startsWith("<=")) {
-                try {
-                    conditions.maxHvRank(Double.parseDouble(rule.substring(2).trim()));
-                } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException("Invalid number format in HISTORICAL_VOLATILITY rule: " + rule);
-                }
-            } else if (rule.startsWith(">")) {
-                try {
-                    conditions.minHvRank(Double.parseDouble(rule.substring(1).trim()));
-                } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException("Invalid number format in HISTORICAL_VOLATILITY rule: " + rule);
-                }
-            } else if (rule.startsWith("<")) {
-                try {
-                    conditions.maxHvRank(Double.parseDouble(rule.substring(1).trim()));
-                } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException("Invalid number format in HISTORICAL_VOLATILITY rule: " + rule);
-                }
-            } else {
-                throw new IllegalArgumentException("Invalid operator in HISTORICAL_VOLATILITY rule: " + rule);
-            }
+            hvRules.add(com.hemasundar.utils.ConditionParserUtil.parseNumericRule(rule));
         }
+        conditions.hvRules(hvRules);
     }
 
     // ─────────────────────────────────────────────────────────
@@ -750,7 +720,7 @@ public class StrategiesConfigLoader {
             String securitiesFile,
             Map<String, List<String>> securitiesMap) {
 
-        if (securitiesFile == null || securitiesFile.trim().isEmpty()) {
+        if (StringUtils.isBlank(securitiesFile)) {
             return List.of();
         }
 

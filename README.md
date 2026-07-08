@@ -28,7 +28,7 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
 
 - **Greek Exposure Pill Labels**: Every strategy card on the Options Dashboard displays four colored Greek indicator pills — Δ (Delta), Γ (Gamma), Θ (Theta), V (Vega) — color-coded green for positive exposure, red for negative, and gray for neutral. Greek polarity is configured per strategy in `strategies-config.json` and flows through the full stack, persisted as part of the `filterConfig` JSON in Supabase.
 
-- **Robust Architecture**: Full Spring Dependency Injection (DI) system with standardized constructor-based bean management (via Lombok `@RequiredArgsConstructor`) for guaranteed initialization and enhanced testability. Strictly immutable Data Transfer Objects (DTOs) and standardized service layers ensure thread-safe concurrent execution and a clean, maintainable codebase.
+- **Robust Architecture**: Full Spring Dependency Injection (DI) system with standardized constructor-based bean management (via Lombok `@RequiredArgsConstructor`) for guaranteed initialization and enhanced testability. Strictly immutable Data Transfer Objects (DTOs) and standardized service layers ensure thread-safe concurrent execution. Extensive use of Lombok annotations (e.g. `@Data`, `@Builder`, `@ToString`) and Apache Commons utilities (e.g. `CollectionUtils`, `StringUtils`) eliminates boilerplate code and ensures resilient null/empty evaluations.
 
 ## Prerequisites
 
