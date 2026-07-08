@@ -4,6 +4,7 @@ import com.hemasundar.options.strategies.AbstractTradingStrategy;
 import com.hemasundar.technical.TechnicalFilterChain;
 import lombok.Builder;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -82,7 +83,7 @@ public class OptionsConfig {
      * name.
      */
     public String getName() {
-        return (alias != null && !alias.isBlank())
+        return StringUtils.isNotBlank(alias)
                 ? alias
                 : strategy.getStrategyType().toString();
     }

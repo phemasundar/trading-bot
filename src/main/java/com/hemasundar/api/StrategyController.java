@@ -17,6 +17,7 @@ import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.pojos.MarketHoursResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -648,7 +649,7 @@ public class StrategyController {
 
     private boolean isWithinWindows(java.time.OffsetDateTime now,
             java.util.List<MarketHoursResponse.TimeWindow> windows) {
-        if (windows == null || windows.isEmpty())
+        if (CollectionUtils.isEmpty(windows))
             return false;
         for (MarketHoursResponse.TimeWindow w : windows) {
             try {

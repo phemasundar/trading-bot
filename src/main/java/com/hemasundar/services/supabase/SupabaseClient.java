@@ -10,6 +10,7 @@ import lombok.extern.log4j.Log4j2;
 import java.io.IOException;
 
 import com.hemasundar.config.properties.SupabaseConfig;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 /**
@@ -27,10 +28,10 @@ public class SupabaseClient {
         String url = supabaseConfig.getUrl();
         String key = supabaseConfig.getServiceRoleKey();
 
-        if (url == null || url.isEmpty()) {
+        if (StringUtils.isBlank(url)) {
             log.warn("Supabase project URL is null or empty. Supabase features may be disabled.");
         }
-        if (key == null || key.isEmpty()) {
+        if (StringUtils.isBlank(key)) {
             log.warn("Supabase API key is null or empty. Supabase features may be disabled.");
         }
 

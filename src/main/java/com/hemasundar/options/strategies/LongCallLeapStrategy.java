@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.MapUtils;
 import org.springframework.stereotype.Component;
 
 import com.hemasundar.apis.FinnHubAPIs;
@@ -63,7 +65,7 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
         // Step 3: Progressive relaxation
         java.util.List<String> relaxationOrder = getRelaxationPriority(filter);
 
-        if (relaxationOrder == null || relaxationOrder.isEmpty()) {
+        if (CollectionUtils.isEmpty(relaxationOrder)) {
             // No relaxation configured - return whatever strict results we found
             log.info("[{}] No relaxationPriority configured. Returning {} strict trades (target was {})",
                     chain.getSymbol(), strictTrades.size(), topN);
@@ -95,7 +97,7 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
         Map<String, List<OptionChainResponse.OptionData>> callMap = chain.getOptionDataForASpecificExpiryDate(
                 OptionType.CALL, expiryDate);
 
-        if (callMap == null || callMap.isEmpty())
+        if (MapUtils.isEmpty(callMap))
             return new ArrayList<>();
 
         // Flatten the map to get all calls for this expiry
@@ -296,7 +298,7 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
             sortOrder = leapFilter.getSortPriority();
         }
         
-        if (sortOrder == null || sortOrder.isEmpty()) {
+        if (CollectionUtils.isEmpty(sortOrder)) {
             sortOrder = getDefaultSortPriority();
         }
 

@@ -2,6 +2,7 @@ package com.hemasundar.utils;
 
 import com.hemasundar.technical.NumericRule;
 import com.hemasundar.technical.RelationalOperator;
+import org.apache.commons.lang3.StringUtils;
 
 public class ConditionParserUtil {
 
@@ -10,7 +11,7 @@ public class ConditionParserUtil {
      * Order of RelationalOperator enum matters here (e.g. ">=" evaluated before ">").
      */
     public static NumericRule parseNumericRule(String rule) {
-        if (rule == null || rule.trim().isEmpty()) {
+        if (StringUtils.isBlank(rule)) {
             return null;
         }
         rule = rule.trim();

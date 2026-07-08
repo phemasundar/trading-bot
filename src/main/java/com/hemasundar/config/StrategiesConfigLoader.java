@@ -8,6 +8,8 @@ import com.hemasundar.technical.*;
 import com.hemasundar.utils.FilePaths;
 import com.hemasundar.utils.JavaUtils;
 import com.hemasundar.utils.WikipediaSecuritiesFetcher;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -457,7 +459,7 @@ public class StrategiesConfigLoader {
     }
 
     public void applyVolumeRules(List<String> rules, TechFilterConditions.TechFilterConditionsBuilder conditions) {
-        if (rules == null || rules.isEmpty()) return;
+        if (CollectionUtils.isEmpty(rules)) return;
         String strCond = rules.get(0);
         Pattern pattern = Pattern.compile("SMA(\\d+)\\s*>=\\s*SMA(\\d+)\\s*\\*\\s*(\\d+(?:\\.\\d+)?)%");
         Matcher matcher = pattern.matcher(strCond);
@@ -593,7 +595,7 @@ public class StrategiesConfigLoader {
     }
 
     public void applyPriceDropRules(List<String> rules, TechFilterConditions.TechFilterConditionsBuilder conditions) {
-        if (rules == null || rules.isEmpty()) return;
+        if (CollectionUtils.isEmpty(rules)) return;
         List<com.hemasundar.technical.NumericRule> priceDropRules = new java.util.ArrayList<>();
         for (String strCond : rules) {
             priceDropRules.add(com.hemasundar.utils.ConditionParserUtil.parseNumericRule(strCond));
@@ -618,7 +620,7 @@ public class StrategiesConfigLoader {
     }
 
     public void applyHistoricalVolatilityRules(List<String> rules, TechFilterConditions.TechFilterConditionsBuilder conditions) {
-        if (rules == null || rules.isEmpty()) return;
+        if (CollectionUtils.isEmpty(rules)) return;
         List<com.hemasundar.technical.NumericRule> hvRules = new java.util.ArrayList<>();
         for (String rule : rules) {
             hvRules.add(com.hemasundar.utils.ConditionParserUtil.parseNumericRule(rule));
@@ -718,7 +720,7 @@ public class StrategiesConfigLoader {
             String securitiesFile,
             Map<String, List<String>> securitiesMap) {
 
-        if (securitiesFile == null || securitiesFile.trim().isEmpty()) {
+        if (StringUtils.isBlank(securitiesFile)) {
             return List.of();
         }
 

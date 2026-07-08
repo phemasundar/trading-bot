@@ -14,6 +14,7 @@ import com.hemasundar.services.FilterLogStore;
 import com.hemasundar.services.SupabaseService;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.MapUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,7 +52,7 @@ public class ShortPutStrategy extends AbstractTradingStrategy {
         Map<String, List<OptionData>> putMap = chain.getOptionDataForASpecificExpiryDate(
                 OptionType.PUT, expiryDate);
 
-        if (putMap == null || putMap.isEmpty()) {
+        if (MapUtils.isEmpty(putMap)) {
             return new ArrayList<>();
         }
 

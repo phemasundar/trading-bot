@@ -7,6 +7,7 @@ import lombok.extern.log4j.Log4j2;
 
 import java.util.List;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Component;
 
 /**
@@ -34,7 +35,7 @@ public class VolatilityCalculator {
      * @return HV Rank (0.0 to 100.0), or null if calculation fails
      */
     public Double calculateHvRank(PriceHistoryResponse priceHistory, int period) {
-        if (priceHistory == null || priceHistory.getCandles() == null || priceHistory.getCandles().isEmpty()) {
+        if (priceHistory == null || CollectionUtils.isEmpty(priceHistory.getCandles())) {
             log.warn("Cannot calculate volatility rank: price history is null or empty");
             return null;
         }

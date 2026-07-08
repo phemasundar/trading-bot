@@ -10,9 +10,12 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import lombok.ToString;
 
 @Data
 @Log4j2
+@NoArgsConstructor
+@ToString(of = {"symbol", "underlyingPrice"})
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class OptionChainResponse {
     public String symbol;
@@ -36,9 +39,6 @@ public class OptionChainResponse {
     // Nested Map keys: Strike Price String (e.g., "110.0")
     public Map<ExpirationDateKey, Map<String, List<OptionData>>> callExpDateMap;
     public Map<ExpirationDateKey, Map<String, List<OptionData>>> putExpDateMap;
-
-    public OptionChainResponse() {
-    }
 
     public Map<String, List<OptionChainResponse.OptionData>> getOptionDataForASpecificExpiryDate(OptionType optionType,
             String targetExpiryDate) {
@@ -133,11 +133,6 @@ public class OptionChainResponse {
         }
     }
 
-    @Override
-    public String toString() {
-        return "OptionChainResponse(symbol=" + symbol + ", underlyingPrice=" + underlyingPrice + ")";
-    }
-
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -162,26 +157,10 @@ public class OptionChainResponse {
         public String toString() {
             return date + ":" + daysToExpiry;
         }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o)
-                return true;
-            if (o == null || getClass() != o.getClass())
-                return false;
-            ExpirationDateKey that = (ExpirationDateKey) o;
-            return daysToExpiry == that.daysToExpiry && (date != null ? date.equals(that.date) : that.date == null);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = date != null ? date.hashCode() : 0;
-            result = 31 * result + daysToExpiry;
-            return result;
-        }
     }
 
     @Data
+    @ToString(of = {"symbol", "mark"})
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class OptionData {
         public String putCall;
@@ -237,31 +216,19 @@ public class OptionChainResponse {
         public boolean mini;
         public boolean nonStandard;
 
-        public OptionData() {
-        }
-
         public double getAbsDelta() {
             return Math.abs(this.getDelta());
-        }
-
-        @Override
-        public String toString() {
-            return "OptionData(symbol=" + symbol + ", mark=" + mark + ")";
         }
     }
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
+    @ToString(of = {"symbol"})
     public static class OptionDeliverable {
         public String symbol;
         public String assetType;
         public int deliverableUnits;
         public String currencyType;
-
-        @Override
-        public String toString() {
-            return "OptionDeliverable(symbol=" + symbol + ")";
-        }
     }
 }

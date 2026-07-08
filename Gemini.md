@@ -1,5 +1,24 @@
 # Project Updates
 
+## Refactor: Lombok Integration and Apache Commons Standardization (2026-07-08)
+
+Refactored boilerplate code across the project by integrating Lombok annotations and standardized null/empty checks using Apache Commons utilities.
+
+### End-to-End Implementation
+
+- **Lombok Integration**: Replaced manual getters, setters, constructors, `toString`, `equals`, and `hashCode` methods with Lombok annotations (`@Data`, `@NoArgsConstructor`, `@AllArgsConstructor`, `@ToString`) across model and configuration POJOs.
+- **Apache Commons Standardization**: Replaced manual string and collection null/empty checks with `StringUtils.isBlank()` from `org.apache.commons.lang3` and `CollectionUtils.isEmpty()` from `org.apache.commons.collections4`. This improves readability and robustness against null pointers.
+
+### Architecture
+
+| File                                | Change                                                                                                               |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **`OptionChainResponse.java`**      | Replaced custom getters, empty constructors, `toString()`, `equals()`, and `hashCode()` with Lombok `@Data`, `@NoArgsConstructor`, and `@ToString`. |
+| **`ScreenerConfig.java` / `OptionsConfig.java`** | Standardized inline string checks (`alias != null && !alias.isEmpty()`) with `StringUtils.isNotBlank(alias)`. |
+| **`TelegramUtils.java`** | Replaced manual null/empty checks on trade results and strings with `CollectionUtils.isEmpty()` and `StringUtils.isBlank()`. |
+| **`StrategiesConfigLoader.java`** | Swapped out list emptiness validations during rule parsing to utilize `CollectionUtils.isEmpty()`. |
+| **Multiple Strategy and Service classes** | Replaced pattern `obj == null || obj.isEmpty()` with `CollectionUtils.isEmpty(obj)`. |
+
 ## Refactor: Centralized Math Formatted Condition Parsing (2026-07-08)
 
 Refactored all math-formatted filtering conditions (e.g. `>= 20.0`, `< 5`) to use a centralized parsing and evaluation strategy via native Java `BiPredicate`. This eliminates redundant reflection-heavy logic and standardizes rule parsing across historical volatility and price drop screeners.

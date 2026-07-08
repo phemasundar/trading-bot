@@ -13,6 +13,7 @@ import com.hemasundar.utils.VolatilityCalculator;
 import com.hemasundar.cache.PriceHistoryCache;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -67,7 +68,7 @@ public class ScreenerExecutionService {
     }
 
     private void executeScreenersInternal(Set<Integer> screenerIndices, List<ScreenerConfig> allScreeners, boolean isCustom, Map<String, Object> requestParams) {
-        if (screenerIndices == null || screenerIndices.isEmpty() || allScreeners == null) {
+        if (CollectionUtils.isEmpty(screenerIndices) || allScreeners == null) {
             log.info("No screener indices provided, skipping technical screeners");
             return;
         }
@@ -105,7 +106,7 @@ public class ScreenerExecutionService {
 
             // Get securities from config
             List<String> securitiesToScan = screenerConfig.getSecurities();
-            if (securitiesToScan == null || securitiesToScan.isEmpty()) {
+            if (CollectionUtils.isEmpty(securitiesToScan)) {
                 strategyExecutionService.addAlert(ExecutionAlert.Severity.WARNING,
                         String.format(AlertMessages.SRC_SCREENER_FMT, screenerConfig.getName()),
                         AlertMessages.NO_SECURITIES_CONFIGURED);

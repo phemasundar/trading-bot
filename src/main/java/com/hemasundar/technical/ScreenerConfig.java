@@ -2,6 +2,7 @@ package com.hemasundar.technical;
 
 import lombok.Builder;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Configuration for a technical stock screener.
@@ -56,6 +57,6 @@ public class ScreenerConfig {
      * Gets the display name from the alias if present, otherwise screener type.
      */
     public String getName() {
-        return (alias != null && !alias.trim().isEmpty()) ? alias : screenerType.toString();
+        return StringUtils.isNotBlank(alias) ? alias : screenerType.toString();
     }
 }
