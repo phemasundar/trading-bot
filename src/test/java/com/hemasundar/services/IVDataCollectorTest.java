@@ -58,6 +58,22 @@ public class IVDataCollectorTest {
     }
 
     @Test
+    public void testCollectIVDataPoint_NoOptionsAvailable_ZeroUnderlyingPrice() {
+        // Mirrors the actual Schwab response for non-optionable stocks like NVR:
+        // status SUCCESS, underlyingPrice 0.0, empty call/put maps.
+        String symbol = "NVR";
+        OptionChainResponse mockChain = StrategyTestUtils.createMockChain(symbol, 0.0);
+
+        when(thinkOrSwinAPIs.getOptionChain(symbol)).thenReturn(mockChain);
+
+        IVDataPoint result = ivDataCollector.collectIVDataPoint(symbol);
+
+        assertNotNull(result);
+        assertEquals(result.getSymbol(), symbol);
+        assertTrue(result.isNoOptions());
+    }
+
+    @Test
     public void testCollectIVDataPoint_NoExpiryInRange() {
         String symbol = "AAPL";
         OptionChainResponse mockChain = StrategyTestUtils.createMockChain(symbol, 150.0);

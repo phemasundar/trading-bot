@@ -40,7 +40,7 @@ public class IVDataCollector {
 
             // Get option chain
             OptionChainResponse chain = thinkOrSwinAPIs.getOptionChain(symbol);
-            if (chain == null || chain.getUnderlyingPrice() <= 0) {
+            if (chain == null) {
                 log.warn("[{}] Invalid option chain response", symbol);
                 return null;
             }
@@ -55,6 +55,10 @@ public class IVDataCollector {
             }
 
             double underlyingPrice = chain.getUnderlyingPrice();
+            if (underlyingPrice <= 0) {
+                log.warn("[{}] Invalid underlying price in option chain response", symbol);
+                return null;
+            }
 
             // Find expiry date near target DTE
             String targetExpiry = findTargetExpiry(chain);
