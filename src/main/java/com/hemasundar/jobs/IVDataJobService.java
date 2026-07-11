@@ -43,8 +43,10 @@ public class IVDataJobService {
 
     private int successCount = 0;
     private int failCount = 0;
+    private int skipCount = 0;
     private int totalCount = 0;
     private List<String> failedSymbols = new ArrayList<>();
+    private List<String> skippedSymbols = new ArrayList<>();
 
     public void runIVDataCollection() {
         log.info("=".repeat(80));
@@ -69,7 +71,9 @@ public class IVDataJobService {
         totalCount = allSecurities.size();
         successCount = 0;
         failCount = 0;
+        skipCount = 0;
         failedSymbols = new ArrayList<>();
+        skippedSymbols = new ArrayList<>();
 
         List<String> symbolList = new ArrayList<>(allSecurities);
         List<IVDataPoint> results = schwabApiExecutor.executeParallel(
@@ -81,7 +85,11 @@ public class IVDataJobService {
             String symbol = symbolList.get(i);
             IVDataPoint dataPoint = results.get(i);
 
-            if (dataPoint != null) {
+            if (dataPoint != null && dataPoint.isNoOptions()) {
+                log.info("[{}] ⏭ Skipped - no options available", symbol);
+                skipCount++;
+                skippedSymbols.add(symbol);
+            } else if (dataPoint != null) {
                 if (supabaseService.isPresent()) {
                     try {
                         supabaseService.get().upsertIVData(dataPoint);
@@ -113,12 +121,21 @@ public class IVDataJobService {
         }
         message.append("\n");
 
+        if (skipCount > 0) {
+            message.append("├ Skipped (no options): <code>").append(skipCount).append("</code>\n");
+        }
+
         if (failCount > 0) {
             message.append("└ Failed: <code>").append(failCount).append("</code>\n");
             message.append("\n❌ <b>Failed Symbols:</b>\n");
             message.append("<code>").append(String.join(", ", failedSymbols)).append("</code>\n");
         } else {
             message.append("└ Failed: <code>0</code> 🎉\n");
+        }
+
+        if (skipCount > 0) {
+            message.append("\n⏭ <b>Skipped Symbols (no options):</b>\n");
+            message.append("<code>").append(String.join(", ", skippedSymbols)).append("</code>\n");
         }
 
         message.append("\n📅 Date: <code>").append(java.time.LocalDate.now()).append("</code>");

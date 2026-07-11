@@ -45,6 +45,15 @@ public class IVDataCollector {
                 return null;
             }
 
+            // Symbol is valid but has no listed options (e.g. NVR)
+            if (!chain.hasOptions()) {
+                log.info("[{}] No options available - skipping", symbol);
+                return IVDataPoint.builder()
+                        .symbol(symbol)
+                        .noOptions(true)
+                        .build();
+            }
+
             double underlyingPrice = chain.getUnderlyingPrice();
 
             // Find expiry date near target DTE
@@ -91,6 +100,7 @@ public class IVDataCollector {
                     .expiryDate(targetExpiry)
                     .strike(atmStrike)
                     .underlyingPrice(underlyingPrice)
+                    .noOptions(false)
                     .build();
 
         } catch (Exception e) {
