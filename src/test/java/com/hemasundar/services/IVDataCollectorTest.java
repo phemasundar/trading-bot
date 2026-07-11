@@ -43,10 +43,27 @@ public class IVDataCollectorTest {
     }
 
     @Test
+    public void testCollectIVDataPoint_NoOptionsAvailable() {
+        String symbol = "NVR";
+        OptionChainResponse mockChain = StrategyTestUtils.createMockChain(symbol, 150.0);
+        // No options added, so the symbol is not optionable
+
+        when(thinkOrSwinAPIs.getOptionChain(symbol)).thenReturn(mockChain);
+
+        IVDataPoint result = ivDataCollector.collectIVDataPoint(symbol);
+
+        assertNotNull(result);
+        assertEquals(result.getSymbol(), symbol);
+        assertTrue(result.isNoOptions());
+    }
+
+    @Test
     public void testCollectIVDataPoint_NoExpiryInRange() {
         String symbol = "AAPL";
         OptionChainResponse mockChain = StrategyTestUtils.createMockChain(symbol, 150.0);
-        // No options added, so no expiry in range
+        // Add an option far outside the target DTE range so no valid expiry is found,
+        // but the symbol does have options.
+        StrategyTestUtils.addOption(mockChain, "2027-01-02", 365, 150.0, 4.90, 5.00, 0.50, true);
 
         when(thinkOrSwinAPIs.getOptionChain(symbol)).thenReturn(mockChain);
 

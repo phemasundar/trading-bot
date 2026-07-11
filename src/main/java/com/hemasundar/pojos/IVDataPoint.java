@@ -1,5 +1,6 @@
 package com.hemasundar.pojos;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -56,4 +57,11 @@ public class IVDataPoint {
      * Current underlying stock price
      */
     private Double underlyingPrice;
+
+    /**
+     * True when the symbol has no listed options (e.g. NVR).
+     * Such symbols should be skipped rather than treated as failures.
+     */
+    @JsonIgnore
+    private boolean noOptions;
 }

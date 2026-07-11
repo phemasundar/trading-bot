@@ -105,6 +105,23 @@ public class OptionChainResponse {
     }
 
     /**
+     * Returns true if the response contains at least one option expiration
+     * (either CALL or PUT). A non-null response with empty maps indicates the
+     * symbol is not optionable.
+     */
+    public boolean hasOptions() {
+        return hasOptionsInMap(callExpDateMap) || hasOptionsInMap(putExpDateMap);
+    }
+
+    private boolean hasOptionsInMap(Map<ExpirationDateKey, Map<String, List<OptionData>>> dateMap) {
+        if (dateMap == null || dateMap.isEmpty()) {
+            return false;
+        }
+        return dateMap.values().stream()
+                .anyMatch(strikeMap -> strikeMap != null && !strikeMap.isEmpty());
+    }
+
+    /**
      * Returns all expiry dates where DTE falls within the specified range
      * (inclusive).
      * 
