@@ -90,7 +90,12 @@ public class TechnicalFilterChainTest {
         TechFilterConditions conditions = TechFilterConditions.builder()
                 .rsiCondition(RSICondition.OVERSOLD)
                 .bollingerCondition(BollingerCondition.LOWER_BAND)
-                .minVolume(500000L)
+                .filterExpressions(java.util.List.of(
+                        MathExpression.builder()
+                                .leftVariable("VOLUME")
+                                .operator(RelationalOperator.GREATER_THAN_OR_EQUAL)
+                                .rightVariable("500000")
+                                .build()))
                 .build();
 
         TechnicalFilterChain chain = TechnicalFilterChain.of(indicators, conditions);
@@ -102,7 +107,8 @@ public class TechnicalFilterChainTest {
         Assert.assertEquals(chain.getMaFilters().get(50), ma50);
         Assert.assertEquals(chain.getRsiCondition(), RSICondition.OVERSOLD);
         Assert.assertEquals(chain.getBollingerCondition(), BollingerCondition.LOWER_BAND);
-        Assert.assertEquals(chain.getMinVolume(), 500000L);
+        Assert.assertEquals(1, chain.getConditions().getFilterExpressions().size());
+        Assert.assertEquals("VOLUME", chain.getConditions().getFilterExpressions().get(0).getLeftVariable());
     }
 
     @Test
@@ -133,6 +139,5 @@ public class TechnicalFilterChainTest {
 
         Assert.assertNull(chain.getRsiCondition());
         Assert.assertNull(chain.getBollingerCondition());
-        Assert.assertNull(chain.getMinVolume());
     }
 }

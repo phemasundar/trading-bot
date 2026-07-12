@@ -1265,8 +1265,8 @@ function renderTechFiltersGrid(technicalFilters) {
             let condStr = '';
             if (val.conditions && Array.isArray(val.conditions)) {
                 condStr = val.conditions.join(', ');
-            } else if (val.condition) {
-                condStr = typeof val.condition === 'object' ? JSON.stringify(val.condition) : val.condition;
+            } else if (val.condition !== undefined) {
+                condStr = String(val.condition);
             }
             parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${condStr || '—'}</span></div>`);
         } else {
@@ -3374,7 +3374,7 @@ function getTechnicalFiltersFromDOM(container = document) {
                 if (!technicalFilters[filterKey].config) technicalFilters[filterKey].config = {};
                 technicalFilters[filterKey].config.period = num;
             }
-        } else if (['min', 'max', 'lookbackDays', 'minRank', 'maxRank'].includes(fieldKey)) {
+        } else if (['min', 'max', 'lookbackDays'].includes(fieldKey)) {
             const num = parseFloat(rawVal);
             if (!isNaN(num)) {
                 if (filterKey === 'VOLUME') {

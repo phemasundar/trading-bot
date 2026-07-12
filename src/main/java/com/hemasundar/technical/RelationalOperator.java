@@ -12,6 +12,22 @@ public enum RelationalOperator {
     private final String symbol;
     private final BiPredicate<Double, Double> evaluator;
 
+    /**
+     * Resolves a relational operator from its symbol (e.g. ">=", "<").
+     *
+     * @param symbol operator symbol
+     * @return matching operator
+     * @throws IllegalArgumentException if the symbol is unknown
+     */
+    public static RelationalOperator fromSymbol(String symbol) {
+        for (RelationalOperator op : values()) {
+            if (op.symbol.equals(symbol)) {
+                return op;
+            }
+        }
+        throw new IllegalArgumentException("Unknown relational operator symbol: " + symbol);
+    }
+
     RelationalOperator(String symbol, BiPredicate<Double, Double> evaluator) {
         this.symbol = symbol;
         this.evaluator = evaluator;

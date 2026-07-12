@@ -3,6 +3,8 @@ package com.hemasundar.technical;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
 import com.hemasundar.pojos.QuotesResponse;
 import com.hemasundar.pojos.PriceHistoryResponse;
+import com.hemasundar.technical.MathExpression;
+import com.hemasundar.technical.RelationalOperator;
 import com.hemasundar.utils.SchwabApiExecutor;
 import com.hemasundar.cache.PriceHistoryCache;
 import org.mockito.Mockito;
@@ -61,7 +63,7 @@ public class PriceDropScreenerTest {
         Mockito.when(thinkOrSwinAPIs.getQuotes(anyList())).thenReturn(quotes);
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screenPriceDrop(
-                List.of("AAPL"), List.of(new com.hemasundar.technical.NumericRule(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL, 3.0)), 0, null);
+                List.of("AAPL"), List.of(MathExpression.builder().leftVariable("DROP_PCT").operator(RelationalOperator.GREATER_THAN_OR_EQUAL).rightVariable("3.0").build()), 0, null);
         
         assertEquals(results.size(), 1);
         assertEquals(results.get(0).getSymbol(), "AAPL");
@@ -85,7 +87,7 @@ public class PriceDropScreenerTest {
         Mockito.when(thinkOrSwinAPIs.getQuotes(anyList())).thenReturn(quotes);
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screenPriceDrop(
-                List.of("MSFT"), List.of(new com.hemasundar.technical.NumericRule(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL, 3.0)), 0, null);
+                List.of("MSFT"), List.of(MathExpression.builder().leftVariable("DROP_PCT").operator(RelationalOperator.GREATER_THAN_OR_EQUAL).rightVariable("3.0").build()), 0, null);
         
         assertEquals(results.size(), 0);
     }
@@ -106,7 +108,7 @@ public class PriceDropScreenerTest {
         Mockito.when(thinkOrSwinAPIs.getQuotes(anyList())).thenReturn(quotes);
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screen52WeekHighDrop(
-                List.of("TSLA"), List.of(new com.hemasundar.technical.NumericRule(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL, 15.0)), null);
+                List.of("TSLA"), List.of(MathExpression.builder().leftVariable("DROP_PCT").operator(RelationalOperator.GREATER_THAN_OR_EQUAL).rightVariable("15.0").build()), null);
         
         assertEquals(results.size(), 1);
         assertEquals(results.get(0).getDropPercent(), 20.0, 0.01);
@@ -138,7 +140,7 @@ public class PriceDropScreenerTest {
                 .thenReturn(history);
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screenPriceDrop(
-                List.of("NVDA"), List.of(new com.hemasundar.technical.NumericRule(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL, 5.0)), 5, null);
+                List.of("NVDA"), List.of(MathExpression.builder().leftVariable("DROP_PCT").operator(RelationalOperator.GREATER_THAN_OR_EQUAL).rightVariable("5.0").build()), 5, null);
         
         assertEquals(results.size(), 1);
         assertEquals(results.get(0).getDropPercent(), 10.0, 0.01);
@@ -150,7 +152,7 @@ public class PriceDropScreenerTest {
         Mockito.when(thinkOrSwinAPIs.getQuotes(anyList())).thenThrow(new RuntimeException("API Down"));
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screenPriceDrop(
-                List.of("AAPL"), List.of(new com.hemasundar.technical.NumericRule(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL, 3.0)), 0, null);
+                List.of("AAPL"), List.of(MathExpression.builder().leftVariable("DROP_PCT").operator(RelationalOperator.GREATER_THAN_OR_EQUAL).rightVariable("3.0").build()), 0, null);
         
         assertEquals(results.size(), 0);
     }
@@ -180,7 +182,7 @@ public class PriceDropScreenerTest {
                 .thenReturn(history);
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screenPriceDrop(
-                List.of("AAPL"), List.of(new com.hemasundar.technical.NumericRule(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL, 10.0)), 21, null);
+                List.of("AAPL"), List.of(MathExpression.builder().leftVariable("DROP_PCT").operator(RelationalOperator.GREATER_THAN_OR_EQUAL).rightVariable("10.0").build()), 21, null);
         
         assertEquals(results.size(), 1);
         assertEquals(results.get(0).getDropPercent(), 12.0, 0.01);
@@ -212,7 +214,7 @@ public class PriceDropScreenerTest {
                 .thenReturn(history);
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screenPriceDrop(
-                List.of("MSFT"), List.of(new com.hemasundar.technical.NumericRule(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL, 15.0)), 63, null);
+                List.of("MSFT"), List.of(MathExpression.builder().leftVariable("DROP_PCT").operator(RelationalOperator.GREATER_THAN_OR_EQUAL).rightVariable("15.0").build()), 63, null);
         
         assertEquals(results.size(), 1);
         assertEquals(results.get(0).getDropPercent(), 20.0, 0.01);

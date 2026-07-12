@@ -126,17 +126,13 @@ public class ScreenerExecutionService {
                 screenerResults = switch (screenerConfig.getScreenerType()) {
                     case PRICE_DROP -> {
                         TechFilterConditions cond = screenerConfig.getConditions();
-                        List<com.hemasundar.technical.NumericRule> dropRules = cond.getPriceDropRules() != null && !cond.getPriceDropRules().isEmpty() 
-                            ? cond.getPriceDropRules() 
-                            : java.util.List.of(new com.hemasundar.technical.NumericRule(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL, 5.0));
+                        List<com.hemasundar.technical.MathExpression> dropRules = extractDropExpressions(cond, 5.0);
                         int days = cond.getLookbackDays() != null ? cond.getLookbackDays() : 0;
                         yield priceDropScreener.screenPriceDrop(securitiesToScan, dropRules, days, alertCallback);
                     }
                     case HIGH_52W_DROP -> {
                         TechFilterConditions cond = screenerConfig.getConditions();
-                        List<com.hemasundar.technical.NumericRule> dropRules = cond.getPriceDropRules() != null && !cond.getPriceDropRules().isEmpty() 
-                            ? cond.getPriceDropRules() 
-                            : java.util.List.of(new com.hemasundar.technical.NumericRule(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL, 20.0));
+                        List<com.hemasundar.technical.MathExpression> dropRules = extractDropExpressions(cond, 20.0);
                         yield priceDropScreener.screen52WeekHighDrop(securitiesToScan, dropRules, alertCallback);
                     }
                     default -> {
@@ -188,5 +184,30 @@ public class ScreenerExecutionService {
                         AlertMessages.SAVE_SCREENER_RESULT_FAILED);
             }
         }
+    }
+
+    /**
+     * Extracts DROP_PCT math expressions from the conditions, falling back to a
+     * default threshold expression when none are configured.
+     */
+    private List<com.hemasundar.technical.MathExpression> extractDropExpressions(
+            com.hemasundar.technical.TechFilterConditions cond, double defaultThreshold) {
+
+        List<com.hemasundar.technical.MathExpression> expressions = new java.util.ArrayList<>();
+        if (cond.getFilterExpressions() != null) {
+            for (com.hemasundar.technical.MathExpression expr : cond.getFilterExpressions()) {
+                if ("DROP_PCT".equalsIgnoreCase(expr.getLeftVariable())) {
+                    expressions.add(expr);
+                }
+            }
+        }
+        if (expressions.isEmpty()) {
+            expressions.add(com.hemasundar.technical.MathExpression.builder()
+                    .leftVariable("DROP_PCT")
+                    .operator(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL)
+                    .rightVariable(String.valueOf(defaultThreshold))
+                    .build());
+        }
+        return expressions;
     }
 }

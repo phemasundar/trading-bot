@@ -16,19 +16,27 @@ The Trading Bot uses an "Indentity-as-a-Service" model:
 
 To allow users to sign in with Google, you must create a project in the Google Cloud Console.
 
+> **Why the Supabase project name appears on the Google sign-in screen**
+> The text users see on the Google "Sign in with Google" page is **not controlled by this application code**. It comes from the **Google OAuth consent screen** and the **Supabase Auth provider** configuration. The sections below explain how to replace the raw Supabase project/database name with an alias such as **Trading Bot**.
+>
+> Note: the Supabase project URL and anon key must still be exposed to the frontend (`/api/auth/config`) so the browser can initiate OAuth. This is expected and safe as long as your tables are protected by Row Level Security (RLS).
+
 ### 1.1 Create a New Project
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
 2. Click the project dropdown (top left) and select **New Project**.
 3. Name it `Trading Bot Auth` (or similar) and click **Create**.
 
 ### 1.2 Configure OAuth Consent Screen
+The **App name** here is what Google displays to users on the sign-in page, so use a friendly alias rather than your Supabase project/database name.
+
 1. Navigate to **APIs & Services > OAuth consent screen**.
 2. Select **External** and click **Create**.
 3. Fill in the required app information:
-   - **App name**: `Trading Bot`
+   - **App name**: `Trading Bot` *(this is the alias users will see)*
    - **User support email**: Your email address.
    - **Developer contact info**: Your email address.
 4. Click **Save and Continue** through the Scopes and Test Users screens (you don't need to add specific scopes).
+5. If you have already published the consent screen, you must **publish your changes again** (Google reviews app-name changes before they go live).
 
 ### 1.3 Create OAuth 2.0 Credentials
 1. Navigate to **APIs & Services > Credentials**.

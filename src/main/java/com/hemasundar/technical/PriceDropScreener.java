@@ -7,6 +7,7 @@ import com.hemasundar.pojos.QuotesResponse;
 import com.hemasundar.utils.SchwabApiExecutor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -28,13 +29,12 @@ public class PriceDropScreener {
      * When lookbackDays > 0, uses Price History API to compute multi-day change.
      *
      * @param symbols        List of stock symbols to screen
-     * @param symbols        List of stock symbols to screen
-     * @param dropRules      Rules to evaluate drop percentage against
+     * @param dropRules      Math expression rules to evaluate drop percentage against
      * @param lookbackDays   Number of trading days to look back (0 = intraday)
      * @return List of ScreeningResult for stocks matching the criteria
      */
     public List<TechnicalScreener.ScreeningResult> screenPriceDrop(
-            List<String> symbols, List<com.hemasundar.technical.NumericRule> dropRules, int lookbackDays, BiConsumer<String, String> alertCallback) {
+            List<String> symbols, List<com.hemasundar.technical.MathExpression> dropRules, int lookbackDays, BiConsumer<String, String> alertCallback) {
 
         if (lookbackDays == 0) {
             return screenIntradayDrop(symbols, dropRules, alertCallback);
@@ -47,12 +47,11 @@ public class PriceDropScreener {
      * Screens stocks for drops from their 52-week high.
      *
      * @param symbols        List of stock symbols to screen
-     * @param symbols        List of stock symbols to screen
-     * @param dropRules      Rules to evaluate drop percentage against
+     * @param dropRules      Math expression rules to evaluate drop percentage against
      * @return List of ScreeningResult for stocks matching the criteria
      */
     public List<TechnicalScreener.ScreeningResult> screen52WeekHighDrop(
-            List<String> symbols, List<com.hemasundar.technical.NumericRule> dropRules, BiConsumer<String, String> alertCallback) {
+            List<String> symbols, List<com.hemasundar.technical.MathExpression> dropRules, BiConsumer<String, String> alertCallback) {
 
         List<TechnicalScreener.ScreeningResult> results = new ArrayList<>();
 
@@ -81,18 +80,9 @@ public class PriceDropScreener {
                     }
 
                     double dropPct = ((high52w - currentPrice) / high52w) * 100.0;
-
-                    boolean passes = true;
-                    if (dropRules != null && !dropRules.isEmpty()) {
-                        for (com.hemasundar.technical.NumericRule rule : dropRules) {
-                            if (!rule.evaluate(dropPct)) {
-                                passes = false;
-                                break;
-                            }
-                        }
-                    } else {
-                        passes = false; // Need rules to pass
-                    }
+                    TechnicalScreener.ScreeningResult result = buildResult(symbol, currentPrice, quote.getTotalVolume(),
+                            dropPct, high52w, "52W_HIGH");
+                    boolean passes = evaluateDropRules(dropRules, result);
 
                     if (passes) {
                         results.add(buildResult(symbol, currentPrice, quote.getTotalVolume(),
@@ -118,7 +108,7 @@ public class PriceDropScreener {
      * Screens for intraday price drops using Quotes API netPercentChange.
      */
     private List<TechnicalScreener.ScreeningResult> screenIntradayDrop(
-            List<String> symbols, List<com.hemasundar.technical.NumericRule> dropRules, BiConsumer<String, String> alertCallback) {
+            List<String> symbols, List<com.hemasundar.technical.MathExpression> dropRules, BiConsumer<String, String> alertCallback) {
 
         List<TechnicalScreener.ScreeningResult> results = new ArrayList<>();
 
@@ -144,22 +134,12 @@ public class PriceDropScreener {
 
                     // netPercentChange is negative for drops
                     double dropPct = Math.abs(percentChange);
-                    
-                    boolean passes = true;
-                    if (dropRules != null && !dropRules.isEmpty()) {
-                        for (com.hemasundar.technical.NumericRule rule : dropRules) {
-                            if (!rule.evaluate(dropPct)) {
-                                passes = false;
-                                break;
-                            }
-                        }
-                    } else {
-                        passes = false;
-                    }
+                    TechnicalScreener.ScreeningResult result = buildResult(symbol, currentPrice, quote.getTotalVolume(),
+                            dropPct, closePrice, "INTRADAY");
+                    boolean passes = evaluateDropRules(dropRules, result);
 
                     if (passes) {
-                        results.add(buildResult(symbol, currentPrice, quote.getTotalVolume(),
-                                dropPct, closePrice, "INTRADAY"));
+                        results.add(result);
                         log.info("[{}] Down {}% intraday (${} -> ${})",
                                 symbol, String.format("%.2f", dropPct),
                                 String.format("%.2f", closePrice), String.format("%.2f", currentPrice));
@@ -181,7 +161,7 @@ public class PriceDropScreener {
      * Screens for multi-day price drops using Price History API.
      */
     private List<TechnicalScreener.ScreeningResult> screenMultiDayDrop(
-            List<String> symbols, List<com.hemasundar.technical.NumericRule> dropRules, int lookbackDays, BiConsumer<String, String> alertCallback) {
+            List<String> symbols, List<com.hemasundar.technical.MathExpression> dropRules, int lookbackDays, BiConsumer<String, String> alertCallback) {
 
         log.info("Screening {} symbols for drop rules over {} days (parallel)",
                 symbols.size(), lookbackDays);
@@ -220,33 +200,25 @@ public class PriceDropScreener {
 
                     double dropPct = ((referencePrice - currentPrice) / referencePrice) * 100.0;
 
-                    boolean passes = true;
-                    if (dropRules != null && !dropRules.isEmpty()) {
-                        for (com.hemasundar.technical.NumericRule rule : dropRules) {
-                            if (!rule.evaluate(dropPct)) {
-                                passes = false;
-                                break;
-                            }
-                        }
+                    String dropType;
+                    if (lookbackDays == 21) {
+                        dropType = "1M";
+                    } else if (lookbackDays == 63) {
+                        dropType = "3M";
                     } else {
-                        passes = false;
+                        dropType = lookbackDays + "D";
                     }
 
+                    TechnicalScreener.ScreeningResult result = buildResult(symbol, currentPrice, volume, dropPct,
+                            referencePrice, dropType);
+                    boolean passes = evaluateDropRules(dropRules, result);
+
                     if (passes) {
-                        String dropType;
-                        if (lookbackDays == 21) {
-                            dropType = "1M";
-                        } else if (lookbackDays == 63) {
-                            dropType = "3M";
-                        } else {
-                            dropType = lookbackDays + "D";
-                        }
                         log.info("[{}] Down {}% over {} days (${} -> ${})",
                                 symbol, String.format("%.2f", dropPct), lookbackDays,
                                 String.format("%.2f", referencePrice),
                                 String.format("%.2f", currentPrice));
-                        return buildResult(symbol, currentPrice, volume, dropPct,
-                                referencePrice, dropType);
+                        return result;
                     }
                     return null;
                 }, alertCallback);
@@ -260,6 +232,18 @@ public class PriceDropScreener {
 
         log.info("Multi-day drop screening complete. Found {} stocks matching criteria.", results.size());
         return results;
+    }
+
+    /**
+     * Evaluates drop rules against a built ScreeningResult using the centralized
+     * math expression evaluator.
+     */
+    private boolean evaluateDropRules(List<com.hemasundar.technical.MathExpression> dropRules,
+            TechnicalScreener.ScreeningResult result) {
+        if (CollectionUtils.isEmpty(dropRules)) {
+            return false;
+        }
+        return com.hemasundar.technical.MathExpressionEvaluator.evaluateAll(dropRules, result::getIndicatorValue);
     }
 
     /**
