@@ -3,11 +3,14 @@ package com.hemasundar.utils;
 import com.hemasundar.technical.MathExpression;
 import com.hemasundar.technical.RelationalOperator;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Validate;
+import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 
 /**
  * Parses math-formatted filter strings into {@link MathExpression} objects.
@@ -27,6 +30,7 @@ import java.util.regex.Pattern;
  * caller-supplied left-hand variable. This keeps backward compatibility with
  * existing {@code HISTORICAL_VOLATILITY} and {@code PRICE_DROP} configurations.
  */
+@UtilityClass
 public final class MathExpressionParser {
 
     private static final Pattern SCALED_RIGHT_PATTERN = Pattern.compile(
@@ -34,37 +38,6 @@ public final class MathExpressionParser {
 
     private static final Pattern FULL_EXPRESSION_PATTERN = Pattern.compile(
             "^(\\w+)\\s*(>=|<=|==|>|<)\\s*(.+)$");
-
-    private MathExpressionParser() {
-        // Utility class
-    }
-
-    /**
-     * Parses a simple threshold rule (e.g. {@code ">= 25"}) into a
-     * {@link MathExpression} using the supplied left-hand variable.
-     *
-     * @param rule threshold rule string
-     * @param leftVariable variable name to use on the left-hand side
-     * @return parsed expression, or null if the rule is blank
-     * @throws IllegalArgumentException if the rule cannot be parsed
-     */
-    public static MathExpression parseThresholdRule(String rule, String leftVariable) {
-        if (StringUtils.isBlank(rule)) {
-            return null;
-        }
-        RelationalOperator op = findOperator(rule.trim());
-        if (op == null) {
-            throw new IllegalArgumentException("Invalid operator in rule: " + rule);
-        }
-        String valueStr = rule.substring(op.getSymbol().length()).trim().replace(",", "");
-        validateNumber(valueStr, rule);
-        return MathExpression.builder()
-                .leftVariable(leftVariable)
-                .operator(op)
-                .rightVariable(valueStr)
-                .rightScale(1.0)
-                .build();
-    }
 
     /**
      * Parses a full expression (e.g. {@code "PRICE >= SMA50"}) into a
@@ -97,9 +70,8 @@ public final class MathExpressionParser {
             scale = Double.parseDouble(scaleMatcher.group(2)) / 100.0;
         }
 
-        if (!isVariableOrNumber(rightVariable)) {
-            throw new IllegalArgumentException("Invalid right-hand side in expression: " + expression);
-        }
+        Validate.isTrue(isVariableOrNumber(rightVariable),
+                "Invalid right-hand side in expression: " + expression);
 
         return MathExpression.builder()
                 .leftVariable(left)
@@ -110,61 +82,23 @@ public final class MathExpressionParser {
     }
 
     /**
-     * Parses a list of expressions or threshold rules.
+     * Parses a list of expressions.
      *
      * @param rules list of rule strings
-     * @param defaultLeftVariable variable name used for simple threshold rules
      * @return list of parsed expressions
      */
-    public static List<MathExpression> parseRules(List<String> rules, String defaultLeftVariable) {
+    public static List<MathExpression> parseRules(List<String> rules) {
         List<MathExpression> expressions = new ArrayList<>();
         if (rules == null) {
             return expressions;
         }
         for (String rule : rules) {
-            MathExpression expression = parse(rule, defaultLeftVariable);
+            MathExpression expression = parseExpression(rule);
             if (expression != null) {
                 expressions.add(expression);
             }
         }
         return expressions;
-    }
-
-    /**
-     * Parses a single rule that may be either a full expression or a simple
-     * threshold rule.
-     */
-    public static MathExpression parse(String rule, String defaultLeftVariable) {
-        if (StringUtils.isBlank(rule)) {
-            return null;
-        }
-        String trimmed = rule.trim();
-        // A simple threshold rule starts with an operator (e.g. ">= 25")
-        if (startsWithOperator(trimmed)) {
-            return parseThresholdRule(trimmed, defaultLeftVariable);
-        }
-        return parseExpression(trimmed);
-    }
-
-    private static RelationalOperator findOperator(String rule) {
-        for (RelationalOperator op : RelationalOperator.values()) {
-            if (rule.startsWith(op.getSymbol())) {
-                return op;
-            }
-        }
-        return null;
-    }
-
-    private static boolean startsWithOperator(String rule) {
-        return findOperator(rule) != null;
-    }
-
-    private static void validateNumber(String valueStr, String originalRule) {
-        try {
-            Double.parseDouble(valueStr);
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Invalid number format in rule: " + originalRule, e);
-        }
     }
 
     private static boolean isVariableOrNumber(String value) {

@@ -285,46 +285,6 @@ public class StrategiesConfig {
     }
 
     /**
-     * POJO for a Volume filter entry within a {@code technicalFilters} map.
-     * Key: {@code "VOLUME"}.
-     *
-     * <p>
-     * Example JSON:
-     * 
-     * <pre>
-     * "VOLUME": { "config": { "min": 1000000 } }
-     * </pre>
-     */
-    @Data
-    @NoArgsConstructor
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class VolumeFilterEntry {
-        private VolumeConfigParams config;
-        private Object conditions;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class VolumeFilterConditionParams {
-        private com.hemasundar.technical.VolumeCondition type;
-        private Long min;
-        private Long max;
-    }
-
-    /**
-     * POJO for inline Volume filter params.
-     */
-    @Data
-    @NoArgsConstructor
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class VolumeConfigParams {
-        private Integer shortSmaPeriod = 20;
-        private Integer longSmaPeriod = 50;
-        private Double thresholdPercent = 90.0;
-    }
-
-    /**
      * POJO for a Moving Average filter entry within a {@code technicalFilters} map.
      * Key: {@code "SIMPLE_MOVING_AVERAGE"}.
      *
@@ -343,27 +303,7 @@ public class StrategiesConfig {
         private Object conditions;
     }
 
-    @Data
-    @NoArgsConstructor
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class PriceCondition {
-        private int period;
-        private Position position;
-    }
 
-    @Data
-    @NoArgsConstructor
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class SmaCondition {
-        private int period1;
-        private int period2;
-        private Position position;
-    }
-
-    public enum Position {
-        ABOVE,
-        BELOW
-    }
 
     /**
      * POJO for a Price Drop filter entry within a {@code technicalFilters} map.

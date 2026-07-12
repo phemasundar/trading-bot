@@ -1,6 +1,7 @@
 package com.hemasundar.utils;
 
 import lombok.extern.log4j.Log4j2;
+import org.apache.commons.lang3.Validate;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -240,12 +241,9 @@ public class WikipediaSecuritiesFetcher {
             }
         }
 
-        if (tickers.isEmpty()) {
-            throw new IllegalStateException(
-                    "Parsed 0 tickers from " + keyword + " Wikipedia table " +
-                    "(ticker column header '" + TICKER_HEADER_NAMES + "' found at index " +
-                    tickerColIndex + " but no valid tickers extracted).");
-        }
+        Validate.validState(!tickers.isEmpty(),
+                "Parsed 0 tickers from %s Wikipedia table (ticker column header '%s' found at index %d but no valid tickers extracted).",
+                keyword, TICKER_HEADER_NAMES, tickerColIndex);
 
         log.debug("Extracted {} tickers from {} Wikipedia table (header-resolved column: {})",
                 tickers.size(), keyword, tickerColIndex);
@@ -264,10 +262,8 @@ public class WikipediaSecuritiesFetcher {
     private int findTickerColumnIndex(Element table, String keyword) {
         // Find the first <tr> that is a header row (contains <th> cells)
         Element headerRow = table.selectFirst("tr:has(th)");
-        if (headerRow == null) {
-            throw new IllegalStateException(
-                    "No header row (<tr> with <th> cells) found in " + keyword + " table.");
-        }
+        Validate.validState(headerRow != null,
+                "No header row (<tr> with <th> cells) found in %s table.", keyword);
 
         Elements headers = headerRow.select("th");
         for (int i = 0; i < headers.size(); i++) {

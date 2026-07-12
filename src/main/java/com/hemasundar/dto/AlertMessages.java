@@ -1,13 +1,15 @@
 package com.hemasundar.dto;
 
+
+import lombok.experimental.UtilityClass;
+
 /**
  * Centralized alert message templates for the error handling system.
  * Use {@link String#format} with these templates for dynamic values.
  * Messages are intentionally kept short for mobile readability.
  */
-public final class AlertMessages {
-
-    private AlertMessages() {}
+@UtilityClass
+public class AlertMessages {
 
     // ── Sources ──────────────────────────────────────────────────────────────
 
