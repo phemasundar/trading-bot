@@ -28,11 +28,6 @@ public class OptionChainCache extends AbstractApiCache<OptionChainResponse> {
 
     private final ThinkOrSwinAPIs schwabApi;
 
-    /** @deprecated Use {@link #getApiCallCounter()} */
-    public int getApiCallCount() {
-        return apiCallCounter.get();
-    }
-
     /**
      * Gets the OptionChainResponse for a symbol.
      * If not in cache, fetches from API and caches the result.

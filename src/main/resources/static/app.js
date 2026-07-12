@@ -322,7 +322,7 @@ function buildResultCard(result, badgeText = 'Standard') {
             </div>
             <span class="card-stats">Last run: ${timeAgo(result.updatedAt)} · Trades: ${result.tradesFound || 0}${(() => { const d = formatDuration(result.executionTimeMs); return d ? ` · ⏱ ${d}` : ''; })()}</span>
         </div>
-        <div class="card-params">${formatFilterParams(result.filterConfig)}</div>
+
         ${filterDetailsHtml}
         <div class="card-content" id="content-${cardId}">
             ${buildTradeTable(result.trades || [], cardId)}
@@ -1275,25 +1275,6 @@ function renderTechFiltersGrid(technicalFilters) {
     }
     if (parts.length === 0) return '';
     return `<div class="nested-section"><div class="nested-heading">🔬 Technical Filters</div><div class="config-grid">${parts.join('')}</div></div>`;
-}
-
-function formatFilterParams(filterConfigJson) {
-    if (!filterConfigJson) return '';
-    try {
-        const cfg = typeof filterConfigJson === 'string' ? JSON.parse(filterConfigJson) : filterConfigJson;
-        const parts = [];
-        if (cfg.targetDTE) parts.push(`DTE: ${cfg.targetDTE}`);
-        else if (cfg.minDTE || (cfg.maxDTE && cfg.maxDTE !== 2147483647)) {
-            parts.push(`DTE: ${cfg.minDTE || 0}-${cfg.maxDTE === 2147483647 ? '∞' : cfg.maxDTE}`);
-        }
-        if (cfg.maxUpperBreakevenDelta) parts.push(`Delta < ${cfg.maxUpperBreakevenDelta.toFixed(2)}`);
-        if (cfg.maxLossLimit) parts.push(`Max Loss: <$${cfg.maxLossLimit.toFixed(0)}`);
-        if (cfg.minReturnOnRisk) parts.push(`Min RoR: ${cfg.minReturnOnRisk}%`);
-        if (cfg.minReturnOnRiskCAGR) parts.push(`Min RoR CAGR: ${cfg.minReturnOnRiskCAGR}%`);
-        if (cfg.maxBreakEvenPercentage) parts.push(`Max B/E: ${cfg.maxBreakEvenPercentage.toFixed(1)}%`);
-        if (cfg.maxNetExtrinsicValueToPricePercentage) parts.push(`Max Ext: ${cfg.maxNetExtrinsicValueToPricePercentage.toFixed(1)}%`);
-        return parts.join(', ') || '';
-    } catch { return ''; }
 }
 
 function escapeAttr(str) {

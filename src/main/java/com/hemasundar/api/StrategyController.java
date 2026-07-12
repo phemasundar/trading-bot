@@ -570,15 +570,6 @@ public class StrategyController {
     }
 
     /**
-     * @deprecated Use /api/clear-errors instead. Kept for backward compatibility.
-     */
-    @PostMapping("/clear-error")
-    public ResponseEntity<?> clearLastError() {
-        executionService.clearAlerts();
-        return ResponseEntity.ok(Map.of("cleared", true));
-    }
-
-    /**
      * Cancels a running execution.
      */
     @PostMapping("/cancel")
