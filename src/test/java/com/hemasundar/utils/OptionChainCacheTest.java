@@ -35,12 +35,12 @@ public class OptionChainCacheTest {
         OptionChainResponse result1 = cache.get(symbol);
         assertNotNull(result1);
         assertEquals(result1.getSymbol(), symbol);
-        assertEquals(cache.getApiCallCount(), 1);
+        assertEquals(cache.getApiCallCounter().get(), 1);
         
         // Second call - should return from cache
         OptionChainResponse result2 = cache.get(symbol);
         assertSame(result1, result2);
-        assertEquals(cache.getApiCallCount(), 1);
+        assertEquals(cache.getApiCallCounter().get(), 1);
         
         verify(thinkOrSwinAPIs, times(1)).getOptionChain(symbol);
     }
@@ -64,7 +64,7 @@ public class OptionChainCacheTest {
         cache.get("AAPL"); 
         cache.clear();
         assertEquals(cache.size(), 0);
-        assertEquals(cache.getApiCallCount(), 0);
+        assertEquals(cache.getApiCallCounter().get(), 0);
     }
 
     @Test
@@ -102,7 +102,7 @@ public class OptionChainCacheTest {
 
         assertTrue(cache.isCached(symbol1));
         assertTrue(cache.isCached(symbol2));
-        assertEquals(cache.getApiCallCount(), 2);
+        assertEquals(cache.getApiCallCounter().get(), 2);
     }
 
     @Test
