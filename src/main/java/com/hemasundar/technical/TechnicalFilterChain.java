@@ -96,10 +96,6 @@ public class TechnicalFilterChain {
         return conditions != null ? conditions.getBollingerCondition() : null;
     }
 
-    public Long getMinVolume() {
-        return conditions != null ? conditions.getMinVolume() : null;
-    }
-
     public java.util.Map<Integer, MovingAverageFilter> getMaFilters() {
         return indicators != null ? indicators.getMaFilters() : null;
     }

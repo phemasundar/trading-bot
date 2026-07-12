@@ -99,8 +99,12 @@ public class TechnicalScreenerTest {
                 .build();
 
         TechFilterConditions conditions = TechFilterConditions.builder()
-                .minVolume(500L)
-                .volumeCondition(VolumeCondition.MIN_VOLUME)
+                .filterExpressions(java.util.List.of(
+                        MathExpression.builder()
+                                .leftVariable("VOLUME")
+                                .operator(RelationalOperator.GREATER_THAN_OR_EQUAL)
+                                .rightVariable("500")
+                                .build()))
                 .build();
 
         TechnicalFilterChain chain = TechnicalFilterChain.of(indicators, conditions);
@@ -122,8 +126,12 @@ public class TechnicalScreenerTest {
 
         // Require massive volume
         TechFilterConditions conditions = TechFilterConditions.builder()
-                .minVolume(10_000_000L)
-                .volumeCondition(VolumeCondition.MIN_VOLUME)
+                .filterExpressions(java.util.List.of(
+                        MathExpression.builder()
+                                .leftVariable("VOLUME")
+                                .operator(RelationalOperator.GREATER_THAN_OR_EQUAL)
+                                .rightVariable("10000000")
+                                .build()))
                 .build();
 
         TechnicalFilterChain chain = TechnicalFilterChain.of(indicators, conditions);
@@ -172,24 +180,30 @@ public class TechnicalScreenerTest {
         TechnicalIndicators indicators = TechnicalIndicators.builder()
                 .rsiFilter(RSIFilter.builder().build())
                 .build();
-        
+
         TechFilterConditions conditions = TechFilterConditions.builder()
                 .rsiCondition(RSICondition.OVERSOLD)
+                .filterExpressions(java.util.List.of(
+                        MathExpression.builder()
+                                .leftVariable("RSI")
+                                .operator(RelationalOperator.LESS_THAN)
+                                .rightVariable("30")
+                                .build()))
                 .build();
-        
+
         // This will call analyzeStock which builds result, then meetsAllCriteria
-        List<TechnicalScreener.ScreeningResult> results = 
+        List<TechnicalScreener.ScreeningResult> results =
                 technicalScreener.screenStocks(List.of("T"), TechnicalFilterChain.of(indicators, conditions), null);
         assertNotNull(results);
 
         // Scenario 2: Require Price Below MA200
         conditions = TechFilterConditions.builder()
-                .priceConditions(java.util.List.of(
-                        new com.hemasundar.config.StrategiesConfig.PriceCondition() {{
-                            setPeriod(200);
-                            setPosition(com.hemasundar.config.StrategiesConfig.Position.BELOW);
-                        }}
-                ))
+                .filterExpressions(java.util.List.of(
+                        MathExpression.builder()
+                                .leftVariable("PRICE")
+                                .operator(RelationalOperator.LESS_THAN)
+                                .rightVariable("SMA200")
+                                .build()))
                 .build();
         results = technicalScreener.screenStocks(List.of("T"), TechnicalFilterChain.of(indicators, conditions), null);
         assertNotNull(results);

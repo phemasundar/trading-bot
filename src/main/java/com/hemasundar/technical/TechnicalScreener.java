@@ -20,9 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import com.hemasundar.config.StrategiesConfig.PriceCondition;
-import com.hemasundar.config.StrategiesConfig.SmaCondition;
-import com.hemasundar.config.StrategiesConfig.Position;
+
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.springframework.stereotype.Component;
@@ -61,6 +59,14 @@ public class TechnicalScreener {
         private Double volumeSmaLong;
         @Builder.Default
         private Map<Integer, Double> maValues = new HashMap<>();
+
+        /**
+         * Volume SMA values keyed by period. Populated when volume SMA comparison
+         * conditions are configured.
+         */
+        @Builder.Default
+        private Map<Integer, Double> volumeMaValues = new HashMap<>();
+
         private boolean priceTouchingLowerBand;
         private boolean priceTouchingUpperBand;
         private boolean rsiOversold;
@@ -148,6 +154,70 @@ public class TechnicalScreener {
                 return String.format("%.2fK", volume / 1_000.0);
             }
             return String.valueOf(volume);
+        }
+
+        /**
+         * Resolves a standardized indicator variable name to its numeric value.
+         *
+         * <p>
+         * Supported variable names:
+         * <ul>
+         *   <li>{@code PRICE}, {@code CURRENT_PRICE} — current price</li>
+         *   <li>{@code VOLUME} — current volume</li>
+         *   <li>{@code RSI} — current RSI</li>
+         *   <li>{@code PREVIOUS_RSI} — previous bar RSI</li>
+         *   <li>{@code BB_LOWER}, {@code BB_MIDDLE}, {@code BB_UPPER} —
+         *       Bollinger Bands</li>
+         *   <li>{@code SMA<N>} — simple moving average for period N</li>
+         *   <li>{@code VOLUME_SMA<N>} — volume SMA for period N</li>
+         *   <li>{@code HV_RANK} — historical volatility rank</li>
+         *   <li>{@code DROP_PCT} — price drop percentage</li>
+         * </ul>
+         *
+         * @param variable variable name (case-insensitive)
+         * @return resolved value, or null if unavailable
+         */
+        public Double getIndicatorValue(String variable) {
+            if (variable == null) {
+                return null;
+            }
+            String key = variable.trim().toUpperCase();
+            return switch (key) {
+                case "PRICE", "CURRENT_PRICE" -> currentPrice;
+                case "VOLUME" -> (double) volume;
+                case "RSI" -> rsi;
+                case "PREVIOUS_RSI" -> previousRsi;
+                case "BB_LOWER" -> bollingerLower;
+                case "BB_MIDDLE" -> bollingerMiddle;
+                case "BB_UPPER" -> bollingerUpper;
+                case "HV_RANK" -> historicalVolatilityRank;
+                case "DROP_PCT" -> dropPercent;
+                default -> resolveMappedValue(key);
+            };
+        }
+
+        private Double resolveMappedValue(String key) {
+            if (key.startsWith("SMA")) {
+                Integer period = parsePeriod(key.substring(3));
+                if (period != null && maValues != null) {
+                    return maValues.get(period);
+                }
+            }
+            if (key.startsWith("VOLUME_SMA")) {
+                Integer period = parsePeriod(key.substring(10));
+                if (period != null && volumeMaValues != null) {
+                    return volumeMaValues.get(period);
+                }
+            }
+            return null;
+        }
+
+        private Integer parsePeriod(String suffix) {
+            try {
+                return Integer.parseInt(suffix);
+            } catch (NumberFormatException e) {
+                return null;
+            }
         }
 
         @Override
@@ -303,113 +373,64 @@ public class TechnicalScreener {
             builder.volume(series.getBar(series.getEndIndex()).getVolume().longValue());
         }
 
-        // Volume SMA calculation for SMA_COMPARISON
-        if (conditions != null && conditions.getVolumeCondition() == VolumeCondition.SMA_COMPARISON) {
-            int shortPeriod = conditions.getVolumeShortSmaPeriod() != null ? conditions.getVolumeShortSmaPeriod() : 20;
-            int longPeriod = conditions.getVolumeLongSmaPeriod() != null ? conditions.getVolumeLongSmaPeriod() : 50;
-
-            org.ta4j.core.indicators.helpers.VolumeIndicator volumeInd = new org.ta4j.core.indicators.helpers.VolumeIndicator(series);
-            org.ta4j.core.indicators.SMAIndicator shortSmaInd = new org.ta4j.core.indicators.SMAIndicator(volumeInd, shortPeriod);
-            org.ta4j.core.indicators.SMAIndicator longSmaInd = new org.ta4j.core.indicators.SMAIndicator(volumeInd, longPeriod);
-
-            builder.volumeSmaShort(shortSmaInd.getValue(series.getEndIndex()).doubleValue());
-            builder.volumeSmaLong(longSmaInd.getValue(series.getEndIndex()).doubleValue());
+        // Volume SMA calculation when any VOLUME_SMA<N> expression is configured
+        if (conditions != null && conditions.getFilterExpressions() != null) {
+            java.util.Set<Integer> volumeSmaPeriods = new java.util.LinkedHashSet<>();
+            for (MathExpression expr : conditions.getFilterExpressions()) {
+                Integer p = extractVolumeSmaPeriod(expr.getLeftVariable());
+                if (p != null) {
+                    volumeSmaPeriods.add(p);
+                }
+                p = extractVolumeSmaPeriod(expr.getRightVariable());
+                if (p != null) {
+                    volumeSmaPeriods.add(p);
+                }
+            }
+            if (!volumeSmaPeriods.isEmpty()) {
+                org.ta4j.core.indicators.helpers.VolumeIndicator volumeInd = new org.ta4j.core.indicators.helpers.VolumeIndicator(series);
+                Map<Integer, Double> volumeMaValues = new HashMap<>();
+                for (Integer period : volumeSmaPeriods) {
+                    org.ta4j.core.indicators.SMAIndicator sma = new org.ta4j.core.indicators.SMAIndicator(volumeInd, period);
+                    double value = sma.getValue(series.getEndIndex()).doubleValue();
+                    volumeMaValues.put(period, value);
+                    if (period <= 20) {
+                        builder.volumeSmaShort(value);
+                    }
+                    if (period >= 50) {
+                        builder.volumeSmaLong(value);
+                    }
+                }
+                builder.volumeMaValues(volumeMaValues);
+            }
         }
 
         return builder.build();
     }
 
+    private static Integer extractVolumeSmaPeriod(String variable) {
+        if (variable == null) {
+            return null;
+        }
+        String upper = variable.trim().toUpperCase();
+        if (upper.startsWith("VOLUME_SMA")) {
+            try {
+                return Integer.parseInt(upper.substring(10));
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
     /**
      * Checks if the screening result meets all filter conditions.
+     *
+     * <p>
+     * All conditions are represented as {@link MathExpression} objects and
+     * evaluated centrally via {@link MathExpressionEvaluator}. This removes the
+     * duplication of hardcoded {@code >}/{@code <} checks for each indicator.
      */
     private boolean meetsAllCriteria(ScreeningResult result, TechFilterConditions conditions) {
-        // RSI condition (via enum)
-        if (conditions.getRsiCondition() != null) {
-            boolean rsiMet = switch (conditions.getRsiCondition()) {
-                case OVERSOLD -> result.isRsiOversold();
-                case OVERBOUGHT -> result.isRsiOverbought();
-                case BULLISH_CROSSOVER -> result.isRsiBullishCrossover();
-                case BEARISH_CROSSOVER -> result.isRsiBearishCrossover();
-                case CUSTOM_RANGE -> {
-                    double rsi = result.getRsi();
-                    yield (conditions.getMinRsi() == null || rsi >= conditions.getMinRsi()) &&
-                          (conditions.getMaxRsi() == null || rsi <= conditions.getMaxRsi());
-                }
-            };
-            if (!rsiMet)
-                return false;
-        }
-
-        // Bollinger Band condition (via enum)
-        if (conditions.getBollingerCondition() != null) {
-            boolean bbMet = switch (conditions.getBollingerCondition()) {
-                case LOWER_BAND -> result.isPriceTouchingLowerBand();
-                case UPPER_BAND -> result.isPriceTouchingUpperBand();
-            };
-            if (!bbMet)
-                return false;
-        }
-
-        // SMA conditions dynamically evaluated
-        if (conditions.getPriceConditions() != null) {
-            for (PriceCondition condition : conditions.getPriceConditions()) {
-                Double maVal = result.getMaValues().get(condition.getPeriod());
-                if (maVal == null) return false;
-                if (condition.getPosition() == Position.ABOVE && result.getCurrentPrice() <= maVal) {
-                    return false;
-                }
-                if (condition.getPosition() == Position.BELOW && result.getCurrentPrice() >= maVal) {
-                    return false;
-                }
-            }
-        }
-        
-        if (conditions.getSmaConditions() != null) {
-            for (SmaCondition condition : conditions.getSmaConditions()) {
-                Double maVal1 = result.getMaValues().get(condition.getPeriod1());
-                Double maVal2 = result.getMaValues().get(condition.getPeriod2());
-                if (maVal1 == null || maVal2 == null) return false;
-                if (condition.getPosition() == Position.ABOVE && maVal1 <= maVal2) {
-                    return false;
-                }
-                if (condition.getPosition() == Position.BELOW && maVal1 >= maVal2) {
-                    return false;
-                }
-            }
-        }
-
-        // Volume condition
-        if (conditions.getVolumeCondition() != null) {
-            boolean volumeMet = switch (conditions.getVolumeCondition()) {
-                case MIN_VOLUME -> conditions.getMinVolume() == null || result.getVolume() >= conditions.getMinVolume();
-                case MAX_VOLUME -> conditions.getMaxVolume() == null || result.getVolume() <= conditions.getMaxVolume();
-                case RANGE_VOLUME -> (conditions.getMinVolume() == null || result.getVolume() >= conditions.getMinVolume()) &&
-                                     (conditions.getMaxVolume() == null || result.getVolume() <= conditions.getMaxVolume());
-                case SMA_COMPARISON -> {
-                    Double smaShort = result.getVolumeSmaShort();
-                    Double smaLong = result.getVolumeSmaLong();
-                    if (smaShort == null || smaLong == null) {
-                        yield false;
-                    }
-                    double threshold = (conditions.getVolumeThresholdPercent() != null ? conditions.getVolumeThresholdPercent() : 90.0) / 100.0;
-                    yield smaShort >= smaLong * threshold;
-                }
-            };
-            if (!volumeMet) return false;
-        }
-
-        // Historical Volatility Rank conditions
-        if (conditions.getHvRules() != null && !conditions.getHvRules().isEmpty()) {
-            if (result.getHistoricalVolatilityRank() == null) {
-                return false; // Cannot evaluate rules without a rank
-            }
-            for (com.hemasundar.technical.NumericRule rule : conditions.getHvRules()) {
-                if (!rule.evaluate(result.getHistoricalVolatilityRank())) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
+        return MathExpressionEvaluator.evaluateAll(conditions.getFilterExpressions(), result::getIndicatorValue);
     }
 }

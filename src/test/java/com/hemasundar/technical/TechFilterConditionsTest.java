@@ -10,27 +10,29 @@ public class TechFilterConditionsTest {
         TechFilterConditions conditions = TechFilterConditions.builder()
                 .rsiCondition(RSICondition.OVERSOLD)
                 .bollingerCondition(BollingerCondition.LOWER_BAND)
-                .minVolume(1000000L)
-                .priceConditions(java.util.List.of(
-                        new com.hemasundar.config.StrategiesConfig.PriceCondition() {{
-                            setPeriod(20);
-                            setPosition(com.hemasundar.config.StrategiesConfig.Position.BELOW);
-                        }}
-                ))
-
-                .priceDropRules(java.util.List.of(new com.hemasundar.technical.NumericRule(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL, 5.5)))
+                .filterExpressions(java.util.List.of(
+                        MathExpression.builder()
+                                .leftVariable("VOLUME")
+                                .operator(RelationalOperator.GREATER_THAN_OR_EQUAL)
+                                .rightVariable("1000000")
+                                .build(),
+                        MathExpression.builder()
+                                .leftVariable("PRICE")
+                                .operator(RelationalOperator.LESS_THAN)
+                                .rightVariable("SMA20")
+                                .build(),
+                        MathExpression.builder()
+                                .leftVariable("DROP_PCT")
+                                .operator(RelationalOperator.GREATER_THAN_OR_EQUAL)
+                                .rightVariable("5.5")
+                                .build()))
                 .lookbackDays(10)
                 .build();
 
         Assert.assertEquals(conditions.getRsiCondition(), RSICondition.OVERSOLD);
         Assert.assertEquals(conditions.getBollingerCondition(), BollingerCondition.LOWER_BAND);
-        Assert.assertEquals(conditions.getMinVolume(), Long.valueOf(1000000L));
-        Assert.assertNotNull(conditions.getPriceConditions());
-        Assert.assertEquals(1, conditions.getPriceConditions().size());
-        Assert.assertEquals(20, conditions.getPriceConditions().get(0).getPeriod());
-        Assert.assertEquals(com.hemasundar.config.StrategiesConfig.Position.BELOW, conditions.getPriceConditions().get(0).getPosition());
-        Assert.assertEquals(conditions.getPriceDropRules().get(0).getValue(), 5.5, 0.01);
-        Assert.assertEquals(conditions.getLookbackDays(), Integer.valueOf(10));
+        Assert.assertEquals(3, conditions.getFilterExpressions().size());
+        Assert.assertEquals(Integer.valueOf(10), conditions.getLookbackDays());
     }
 
     @Test
@@ -38,23 +40,25 @@ public class TechFilterConditionsTest {
         TechFilterConditions conditions = TechFilterConditions.builder()
                 .rsiCondition(RSICondition.OVERSOLD)
                 .bollingerCondition(BollingerCondition.LOWER_BAND)
-                .minVolume(1000000L)
-                .volumeCondition(VolumeCondition.MIN_VOLUME)
-                .priceConditions(java.util.List.of(
-                        new com.hemasundar.config.StrategiesConfig.PriceCondition() {{
-                            setPeriod(20);
-                            setPosition(com.hemasundar.config.StrategiesConfig.Position.BELOW);
-                        }}
-                ))
-
+                .filterExpressions(java.util.List.of(
+                        MathExpression.builder()
+                                .leftVariable("VOLUME")
+                                .operator(RelationalOperator.GREATER_THAN_OR_EQUAL)
+                                .rightVariable("1000000")
+                                .build(),
+                        MathExpression.builder()
+                                .leftVariable("PRICE")
+                                .operator(RelationalOperator.LESS_THAN)
+                                .rightVariable("SMA20")
+                                .build()))
                 .build();
 
         String summary = conditions.getSummary();
         Assert.assertNotNull(summary);
         Assert.assertTrue(summary.contains("RSI: OVERSOLD"));
         Assert.assertTrue(summary.contains("BB: LOWER_BAND"));
-        Assert.assertTrue(summary.contains("Price < SMA20"));
-        Assert.assertTrue(summary.contains("Volume >= 1,000,000"));
+        Assert.assertTrue(summary.contains("PRICE < SMA20"));
+        Assert.assertTrue(summary.contains("VOLUME >= 1000000"));
     }
 
     @Test

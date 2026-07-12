@@ -7,6 +7,7 @@ import com.hemasundar.options.strategies.StrategyType;
 import com.hemasundar.technical.*;
 import com.hemasundar.utils.FilePaths;
 import com.hemasundar.utils.JavaUtils;
+import com.hemasundar.utils.MathExpressionParser;
 import com.hemasundar.utils.WikipediaSecuritiesFetcher;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -326,6 +327,7 @@ public class StrategiesConfigLoader {
                 .toBuilder();
 
         TechFilterConditions.TechFilterConditionsBuilder conditionsBuilder = TechFilterConditions.builder();
+        List<com.hemasundar.technical.MathExpression> filterExpressions = new ArrayList<>();
 
         if (filtersMap != null) {
             for (Map.Entry<String, Object> entry : filtersMap.entrySet()) {
@@ -333,18 +335,19 @@ public class StrategiesConfigLoader {
                 Object rawEntry = entry.getValue();
 
                 switch (key) {
-                    case "RSI" -> applyRsiFilter(rawEntry, indicatorConfigs, indicatorsBuilder, conditionsBuilder);
+                    case "RSI" -> applyRsiFilter(rawEntry, indicatorConfigs, indicatorsBuilder, conditionsBuilder, filterExpressions);
                     case "BOLLINGER_BAND" ->
-                        applyBollingerFilter(rawEntry, indicatorConfigs, indicatorsBuilder, conditionsBuilder);
-                    case "VOLUME" -> applyVolumeFilter(rawEntry, conditionsBuilder);
-                    case "SIMPLE_MOVING_AVERAGE" -> applyMovingAverageFilters(rawEntry, indicatorsBuilder, conditionsBuilder);
-                    case "PRICE_DROP" -> applyPriceDropFilter(rawEntry, conditionsBuilder);
-                    case "HISTORICAL_VOLATILITY" -> applyHistoricalVolatilityFilter(rawEntry, conditionsBuilder);
+                        applyBollingerFilter(rawEntry, indicatorConfigs, indicatorsBuilder, conditionsBuilder, filterExpressions);
+                    case "VOLUME" -> applyVolumeFilter(rawEntry, filterExpressions);
+                    case "SIMPLE_MOVING_AVERAGE" -> applyMovingAverageFilters(rawEntry, indicatorsBuilder, filterExpressions);
+                    case "PRICE_DROP" -> applyPriceDropFilter(rawEntry, conditionsBuilder, filterExpressions);
+                    case "HISTORICAL_VOLATILITY" -> applyHistoricalVolatilityFilter(rawEntry, conditionsBuilder, filterExpressions);
                     default -> log.warn("Unknown technicalFilters key '{}' — skipping", key);
                 }
             }
         }
 
+        conditionsBuilder.filterExpressions(filterExpressions);
         return TechnicalFilterChain.of(indicatorsBuilder.build(), conditionsBuilder.build());
     }
 
@@ -356,7 +359,8 @@ public class StrategiesConfigLoader {
             Object rawEntry,
             Map<String, Object> indicatorConfigs,
             TechnicalIndicators.TechnicalIndicatorsBuilder indicators,
-            TechFilterConditions.TechFilterConditionsBuilder conditions) {
+            TechFilterConditions.TechFilterConditionsBuilder conditions,
+            List<com.hemasundar.technical.MathExpression> filterExpressions) {
 
         RSIFilterEntry entry = JavaUtils.convertValue(rawEntry, RSIFilterEntry.class);
         RSIConfigParams cfg = resolveRSIConfig(entry.getConfig(), indicatorConfigs);
@@ -368,22 +372,94 @@ public class StrategiesConfigLoader {
                 .build());
 
         Object conditionObj = entry.getCondition();
-        if (conditionObj != null) {
-            if (conditionObj instanceof String strCond) {
-                conditions.rsiCondition(com.hemasundar.technical.RSICondition.valueOf(strCond));
-            } else {
-                StrategiesConfig.RSIFilterConditionParams params = JavaUtils.convertValue(conditionObj,
-                        StrategiesConfig.RSIFilterConditionParams.class);
-                if (params != null) {
-                    if (params.getType() != null) {
-                        conditions.rsiCondition(params.getType());
-                    }
-                    if (params.getMin() != null) {
-                        conditions.minRsi(params.getMin());
-                    }
-                    if (params.getMax() != null) {
-                        conditions.maxRsi(params.getMax());
-                    }
+        if (conditionObj == null) {
+            return;
+        }
+
+        com.hemasundar.technical.RSICondition rsiCondition = null;
+        Double minRsi = null;
+        Double maxRsi = null;
+
+        if (conditionObj instanceof String strCond) {
+            rsiCondition = com.hemasundar.technical.RSICondition.valueOf(strCond);
+        } else {
+            StrategiesConfig.RSIFilterConditionParams params = JavaUtils.convertValue(conditionObj,
+                    StrategiesConfig.RSIFilterConditionParams.class);
+            if (params != null) {
+                rsiCondition = params.getType();
+                minRsi = params.getMin();
+                maxRsi = params.getMax();
+            }
+        }
+
+        if (rsiCondition == null) {
+            return;
+        }
+
+        conditions.rsiCondition(rsiCondition);
+        if (minRsi != null) conditions.minRsi(minRsi);
+        if (maxRsi != null) conditions.maxRsi(maxRsi);
+
+        addRsiExpressions(filterExpressions, rsiCondition, cfg.getOversoldThreshold(), cfg.getOverboughtThreshold(), minRsi, maxRsi);
+    }
+
+    private void addRsiExpressions(
+            List<com.hemasundar.technical.MathExpression> expressions,
+            com.hemasundar.technical.RSICondition condition,
+            double oversoldThreshold,
+            double overboughtThreshold,
+            Double minRsi,
+            Double maxRsi) {
+
+        switch (condition) {
+            case OVERSOLD -> expressions.add(com.hemasundar.technical.MathExpression.builder()
+                    .leftVariable("RSI")
+                    .operator(com.hemasundar.technical.RelationalOperator.LESS_THAN)
+                    .rightVariable(String.valueOf(oversoldThreshold))
+                    .build());
+            case OVERBOUGHT -> expressions.add(com.hemasundar.technical.MathExpression.builder()
+                    .leftVariable("RSI")
+                    .operator(com.hemasundar.technical.RelationalOperator.GREATER_THAN)
+                    .rightVariable(String.valueOf(overboughtThreshold))
+                    .build());
+            case BULLISH_CROSSOVER -> {
+                expressions.add(com.hemasundar.technical.MathExpression.builder()
+                        .leftVariable("PREVIOUS_RSI")
+                        .operator(com.hemasundar.technical.RelationalOperator.LESS_THAN)
+                        .rightVariable(String.valueOf(oversoldThreshold))
+                        .build());
+                expressions.add(com.hemasundar.technical.MathExpression.builder()
+                        .leftVariable("RSI")
+                        .operator(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL)
+                        .rightVariable(String.valueOf(oversoldThreshold))
+                        .build());
+            }
+            case BEARISH_CROSSOVER -> {
+                expressions.add(com.hemasundar.technical.MathExpression.builder()
+                        .leftVariable("PREVIOUS_RSI")
+                        .operator(com.hemasundar.technical.RelationalOperator.GREATER_THAN)
+                        .rightVariable(String.valueOf(overboughtThreshold))
+                        .build());
+                expressions.add(com.hemasundar.technical.MathExpression.builder()
+                        .leftVariable("RSI")
+                        .operator(com.hemasundar.technical.RelationalOperator.LESS_THAN_OR_EQUAL)
+                        .rightVariable(String.valueOf(overboughtThreshold))
+                        .build());
+            }
+            case CUSTOM_RANGE -> {
+                if (minRsi != null) {
+                    expressions.add(com.hemasundar.technical.MathExpression.builder()
+                            .leftVariable("RSI")
+                            .operator(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL)
+                            .rightVariable(String.valueOf(minRsi))
+                            .build());
+                }
+                if (maxRsi != null) {
+                    expressions.add(com.hemasundar.technical.MathExpression.builder()
+                            .leftVariable("RSI")
+                            .operator(com.hemasundar.technical.RelationalOperator.LESS_THAN_OR_EQUAL)
+                            .rightVariable(String.valueOf(maxRsi))
+                            .build());
                 }
             }
         }
@@ -393,7 +469,8 @@ public class StrategiesConfigLoader {
             Object rawEntry,
             Map<String, Object> indicatorConfigs,
             TechnicalIndicators.TechnicalIndicatorsBuilder indicators,
-            TechFilterConditions.TechFilterConditionsBuilder conditions) {
+            TechFilterConditions.TechFilterConditionsBuilder conditions,
+            List<com.hemasundar.technical.MathExpression> filterExpressions) {
 
         BollingerFilterEntry entry = JavaUtils.convertValue(rawEntry, BollingerFilterEntry.class);
         BollingerConfigParams cfg = resolveBollingerConfig(entry.getConfig(), indicatorConfigs);
@@ -403,31 +480,35 @@ public class StrategiesConfigLoader {
                 .standardDeviations(cfg.getBollingerStdDev())
                 .build());
 
-        if (entry.getCondition() != null) {
-            conditions.bollingerCondition(entry.getCondition());
+        if (entry.getCondition() == null) {
+            return;
+        }
+        conditions.bollingerCondition(entry.getCondition());
+
+        switch (entry.getCondition()) {
+            case LOWER_BAND -> filterExpressions.add(com.hemasundar.technical.MathExpression.builder()
+                    .leftVariable("PRICE")
+                    .operator(com.hemasundar.technical.RelationalOperator.LESS_THAN_OR_EQUAL)
+                    .rightVariable("BB_LOWER")
+                    .build());
+            case UPPER_BAND -> filterExpressions.add(com.hemasundar.technical.MathExpression.builder()
+                    .leftVariable("PRICE")
+                    .operator(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL)
+                    .rightVariable("BB_UPPER")
+                    .build());
         }
     }
 
     private void applyVolumeFilter(
             Object rawEntry,
-            TechFilterConditions.TechFilterConditionsBuilder conditions) {
+            List<com.hemasundar.technical.MathExpression> filterExpressions) {
 
         StrategiesConfig.VolumeFilterEntry entry = JavaUtils.convertValue(rawEntry,
                 StrategiesConfig.VolumeFilterEntry.class);
 
-        // Handle config for SMA periods/threshold
-        StrategiesConfig.VolumeConfigParams cfg = null;
-        if (entry.getConfig() != null) {
-            // Because previous JSON config had "min": 1000000 inside "config", we can map
-            // it to our new ConfigParams
-            // Wait, Jackson mapping handles ignoring unknown. Let's map it safely.
-            cfg = entry.getConfig();
-        } else {
-            cfg = new StrategiesConfig.VolumeConfigParams();
-        }
-        conditions.volumeShortSmaPeriod(cfg.getShortSmaPeriod());
-        conditions.volumeLongSmaPeriod(cfg.getLongSmaPeriod());
-        conditions.volumeThresholdPercent(cfg.getThresholdPercent());
+        StrategiesConfig.VolumeConfigParams cfg = entry.getConfig() != null
+                ? entry.getConfig()
+                : new StrategiesConfig.VolumeConfigParams();
 
         Object conditionsObj = entry.getConditions();
         Object conditionObj = null;
@@ -437,73 +518,120 @@ public class StrategiesConfigLoader {
             conditionObj = conditionsObj;
         }
 
-        if (conditionObj != null) {
-            if (conditionObj instanceof String strCond) {
-                applyVolumeRules(java.util.Collections.singletonList(strCond), conditions);
-            } else {
-                StrategiesConfig.VolumeFilterConditionParams params = JavaUtils.convertValue(conditionObj,
-                        StrategiesConfig.VolumeFilterConditionParams.class);
-                if (params != null) {
-                    if (params.getType() != null) {
-                        conditions.volumeCondition(params.getType());
-                    }
-                    if (params.getMin() != null) {
-                        conditions.minVolume(params.getMin());
-                    }
-                    if (params.getMax() != null) {
-                        conditions.maxVolume(params.getMax());
-                    }
-                }
+        if (conditionObj == null) {
+            return;
+        }
+
+        if (conditionObj instanceof String strCond) {
+            applyVolumeRules(java.util.Collections.singletonList(strCond), filterExpressions,
+                    cfg.getShortSmaPeriod(), cfg.getLongSmaPeriod(), cfg.getThresholdPercent());
+        } else {
+            StrategiesConfig.VolumeFilterConditionParams params = JavaUtils.convertValue(conditionObj,
+                    StrategiesConfig.VolumeFilterConditionParams.class);
+            if (params != null) {
+                addVolumeExpressions(filterExpressions, params.getType(), params.getMin(), params.getMax(),
+                        cfg.getShortSmaPeriod(), cfg.getLongSmaPeriod(), cfg.getThresholdPercent());
             }
         }
     }
 
-    public void applyVolumeRules(List<String> rules, TechFilterConditions.TechFilterConditionsBuilder conditions) {
+    public void applyVolumeRules(List<String> rules,
+            List<com.hemasundar.technical.MathExpression> filterExpressions,
+            Integer defaultShortSmaPeriod,
+            Integer defaultLongSmaPeriod,
+            Double defaultThresholdPercent) {
+
         if (CollectionUtils.isEmpty(rules)) return;
         String strCond = rules.get(0);
         Pattern pattern = Pattern.compile("SMA(\\d+)\\s*>=\\s*SMA(\\d+)\\s*\\*\\s*(\\d+(?:\\.\\d+)?)%");
         Matcher matcher = pattern.matcher(strCond);
         if (matcher.matches()) {
-            conditions.volumeCondition(com.hemasundar.technical.VolumeCondition.SMA_COMPARISON);
-            conditions.volumeShortSmaPeriod(Integer.parseInt(matcher.group(1)));
-            conditions.volumeLongSmaPeriod(Integer.parseInt(matcher.group(2)));
-            conditions.volumeThresholdPercent(Double.parseDouble(matcher.group(3)));
+            int shortPeriod = Integer.parseInt(matcher.group(1));
+            int longPeriod = Integer.parseInt(matcher.group(2));
+            double threshold = Double.parseDouble(matcher.group(3));
+            filterExpressions.add(com.hemasundar.technical.MathExpression.builder()
+                    .leftVariable("VOLUME_SMA" + shortPeriod)
+                    .operator(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL)
+                    .rightVariable("VOLUME_SMA" + longPeriod)
+                    .rightScale(threshold / 100.0)
+                    .build());
         } else if (strCond.startsWith(">=")) {
-            try {
-                long minVol = Long.parseLong(strCond.substring(2).trim().replace(",", ""));
-                conditions.volumeCondition(com.hemasundar.technical.VolumeCondition.MIN_VOLUME);
-                conditions.minVolume(minVol);
-            } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("Invalid number format in VOLUME rule: " + strCond);
-            }
+            filterExpressions.add(MathExpressionParser.parseThresholdRule(strCond, "VOLUME"));
         } else {
-            conditions.volumeCondition(com.hemasundar.technical.VolumeCondition.valueOf(strCond));
+            com.hemasundar.technical.VolumeCondition type = com.hemasundar.technical.VolumeCondition.valueOf(strCond);
+            addVolumeExpressions(filterExpressions, type, null, null,
+                    defaultShortSmaPeriod, defaultLongSmaPeriod, defaultThresholdPercent);
+        }
+    }
+
+    private void addVolumeExpressions(
+            List<com.hemasundar.technical.MathExpression> expressions,
+            com.hemasundar.technical.VolumeCondition type,
+            Long min,
+            Long max,
+            Integer shortSmaPeriod,
+            Integer longSmaPeriod,
+            Double thresholdPercent) {
+
+        if (type == null) {
+            return;
+        }
+        switch (type) {
+            case MIN_VOLUME -> {
+                if (min != null) {
+                    expressions.add(com.hemasundar.technical.MathExpression.builder()
+                            .leftVariable("VOLUME")
+                            .operator(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL)
+                            .rightVariable(String.valueOf(min))
+                            .build());
+                }
+            }
+            case MAX_VOLUME -> {
+                if (max != null) {
+                    expressions.add(com.hemasundar.technical.MathExpression.builder()
+                            .leftVariable("VOLUME")
+                            .operator(com.hemasundar.technical.RelationalOperator.LESS_THAN_OR_EQUAL)
+                            .rightVariable(String.valueOf(max))
+                            .build());
+                }
+            }
+            case RANGE_VOLUME -> {
+                if (min != null) {
+                    expressions.add(com.hemasundar.technical.MathExpression.builder()
+                            .leftVariable("VOLUME")
+                            .operator(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL)
+                            .rightVariable(String.valueOf(min))
+                            .build());
+                }
+                if (max != null) {
+                    expressions.add(com.hemasundar.technical.MathExpression.builder()
+                            .leftVariable("VOLUME")
+                            .operator(com.hemasundar.technical.RelationalOperator.LESS_THAN_OR_EQUAL)
+                            .rightVariable(String.valueOf(max))
+                            .build());
+                }
+            }
+            case SMA_COMPARISON -> {
+                int shortPeriod = shortSmaPeriod != null ? shortSmaPeriod : 20;
+                int longPeriod = longSmaPeriod != null ? longSmaPeriod : 50;
+                double threshold = thresholdPercent != null ? thresholdPercent : 90.0;
+                expressions.add(com.hemasundar.technical.MathExpression.builder()
+                        .leftVariable("VOLUME_SMA" + shortPeriod)
+                        .operator(com.hemasundar.technical.RelationalOperator.GREATER_THAN_OR_EQUAL)
+                        .rightVariable("VOLUME_SMA" + longPeriod)
+                        .rightScale(threshold / 100.0)
+                        .build());
+            }
         }
     }
 
     public void applyMovingAverageFilters(
             Object rawEntry,
             TechnicalIndicators.TechnicalIndicatorsBuilder indicators,
-            TechFilterConditions.TechFilterConditionsBuilder conditions) {
+            List<com.hemasundar.technical.MathExpression> filterExpressions) {
 
-        List<String> rules = new ArrayList<>();
-        if (rawEntry instanceof java.util.Map) {
-            StrategiesConfig.MovingAverageFilterEntry entry = JavaUtils.convertValue(rawEntry, StrategiesConfig.MovingAverageFilterEntry.class);
-            if (entry != null) {
-                Object conds = entry.getConditions();
-                if (conds instanceof List<?> list) {
-                    for (Object obj : list) rules.add(String.valueOf(obj));
-                } else if (conds instanceof String str) {
-                    rules.add(str);
-                }
-            }
-        } else if (rawEntry instanceof List) {
-            for (Object obj : (List<?>) rawEntry) {
-                rules.add(String.valueOf(obj));
-            }
-        } else if (rawEntry instanceof String) {
-            rules.add((String) rawEntry);
-        } else {
+        List<String> rules = extractStringRules(rawEntry);
+        if (rules.isEmpty()) {
             log.warn("Invalid SIMPLE_MOVING_AVERAGE config format.");
             return;
         }
@@ -521,91 +649,100 @@ public class StrategiesConfigLoader {
         java.util.Map<Integer, MovingAverageFilter> maFilters = new HashMap<>(
                 existingMaFilters != null ? existingMaFilters : Map.of());
 
-        List<PriceCondition> priceConds = new ArrayList<>();
-        List<SmaCondition> smaConds = new ArrayList<>();
-
-        java.util.regex.Pattern pricePattern = java.util.regex.Pattern.compile("^PRICE\\s*(>=|>|<=|<)\\s*SMA(\\d+)$");
-        java.util.regex.Pattern smaPattern = java.util.regex.Pattern.compile("^SMA(\\d+)\\s*(>=|>|<=|<)\\s*SMA(\\d+)$");
-
         for (String rule : splitRules) {
-            rule = rule.toUpperCase().trim();
-            java.util.regex.Matcher pMatcher = pricePattern.matcher(rule);
-            if (pMatcher.matches()) {
-                String op = pMatcher.group(1);
-                StrategiesConfig.Position pos = (op.equals(">") || op.equals(">=")) ? StrategiesConfig.Position.ABOVE : StrategiesConfig.Position.BELOW;
-                int period = Integer.parseInt(pMatcher.group(2));
-                maFilters.putIfAbsent(period, MovingAverageFilter.builder().period(period).build());
-
-                PriceCondition pc = new PriceCondition();
-                pc.setPeriod(period);
-                pc.setPosition(pos);
-                priceConds.add(pc);
-                continue;
+            try {
+                com.hemasundar.technical.MathExpression expression = MathExpressionParser.parseExpression(rule);
+                if (expression == null) {
+                    log.warn("Unrecognized SIMPLE_MOVING_AVERAGE rule: {}", rule);
+                    continue;
+                }
+                filterExpressions.add(expression);
+                registerMovingAveragePeriods(expression, maFilters);
+            } catch (IllegalArgumentException e) {
+                log.warn("Unrecognized SIMPLE_MOVING_AVERAGE rule: {}", rule);
             }
-
-            java.util.regex.Matcher sMatcher = smaPattern.matcher(rule);
-            if (sMatcher.matches()) {
-                int p1 = Integer.parseInt(sMatcher.group(1));
-                String op = sMatcher.group(2);
-                StrategiesConfig.Position pos = (op.equals(">") || op.equals(">=")) ? StrategiesConfig.Position.ABOVE : StrategiesConfig.Position.BELOW;
-                int p2 = Integer.parseInt(sMatcher.group(3));
-
-                maFilters.putIfAbsent(p1, MovingAverageFilter.builder().period(p1).build());
-                maFilters.putIfAbsent(p2, MovingAverageFilter.builder().period(p2).build());
-
-                SmaCondition sc = new SmaCondition();
-                sc.setPeriod1(p1);
-                sc.setPeriod2(p2);
-                sc.setPosition(pos);
-                smaConds.add(sc);
-                continue;
-            }
-            log.warn("Unrecognized SIMPLE_MOVING_AVERAGE rule: {}", rule);
-        }
-
-        TechFilterConditions builtConds = conditions.build();
-        if (!priceConds.isEmpty()) {
-            List<PriceCondition> existingPriceConds = builtConds.getPriceConditions();
-            if (existingPriceConds != null)
-                priceConds.addAll(0, existingPriceConds);
-            conditions.priceConditions(priceConds);
-        }
-
-        if (!smaConds.isEmpty()) {
-            List<SmaCondition> existingSmaConds = builtConds.getSmaConditions();
-            if (existingSmaConds != null)
-                smaConds.addAll(0, existingSmaConds);
-            conditions.smaConditions(smaConds);
         }
 
         indicators.maFilters(maFilters);
     }
 
+    private List<String> extractStringRules(Object rawEntry) {
+        List<String> rules = new ArrayList<>();
+        if (rawEntry instanceof java.util.Map) {
+            StrategiesConfig.MovingAverageFilterEntry entry = JavaUtils.convertValue(rawEntry, StrategiesConfig.MovingAverageFilterEntry.class);
+            if (entry != null) {
+                Object conds = entry.getConditions();
+                if (conds instanceof List<?> list) {
+                    for (Object obj : list) rules.add(String.valueOf(obj));
+                } else if (conds instanceof String str) {
+                    rules.add(str);
+                }
+            }
+        } else if (rawEntry instanceof List) {
+            for (Object obj : (List<?>) rawEntry) {
+                rules.add(String.valueOf(obj));
+            }
+        } else if (rawEntry instanceof String) {
+            rules.add((String) rawEntry);
+        }
+        return rules;
+    }
+
+    private void registerMovingAveragePeriods(
+            com.hemasundar.technical.MathExpression expression,
+            java.util.Map<Integer, MovingAverageFilter> maFilters) {
+
+        registerMaFromVariable(expression.getLeftVariable(), maFilters);
+        registerMaFromVariable(expression.getRightVariable(), maFilters);
+    }
+
+    private void registerMaFromVariable(String variable, java.util.Map<Integer, MovingAverageFilter> maFilters) {
+        if (variable == null) {
+            return;
+        }
+        String upper = variable.toUpperCase();
+        if (upper.startsWith("SMA")) {
+            Integer period = parsePeriod(upper.substring(3));
+            if (period != null) {
+                maFilters.putIfAbsent(period, MovingAverageFilter.builder().period(period).build());
+            }
+        }
+    }
+
+    private Integer parsePeriod(String suffix) {
+        try {
+            return Integer.parseInt(suffix);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
     private void applyPriceDropFilter(
             Object rawEntry,
-            TechFilterConditions.TechFilterConditionsBuilder conditions) {
+            TechFilterConditions.TechFilterConditionsBuilder conditions,
+            List<com.hemasundar.technical.MathExpression> filterExpressions) {
 
         PriceDropFilterEntry entry = JavaUtils.convertValue(rawEntry, PriceDropFilterEntry.class);
         if (entry.getConfig() != null) {
             conditions.lookbackDays(entry.getConfig().getLookbackDays());
         }
         if (entry.getConditions() != null) {
-            applyPriceDropRules(entry.getConditions(), conditions);
+            applyPriceDropRules(entry.getConditions(), filterExpressions);
         }
     }
 
-    public void applyPriceDropRules(List<String> rules, TechFilterConditions.TechFilterConditionsBuilder conditions) {
+    public void applyPriceDropRules(List<String> rules,
+            List<com.hemasundar.technical.MathExpression> filterExpressions) {
         if (CollectionUtils.isEmpty(rules)) return;
-        List<com.hemasundar.technical.NumericRule> priceDropRules = new java.util.ArrayList<>();
         for (String strCond : rules) {
-            priceDropRules.add(com.hemasundar.utils.ConditionParserUtil.parseNumericRule(strCond));
+            filterExpressions.add(MathExpressionParser.parseThresholdRule(strCond, "DROP_PCT"));
         }
-        conditions.priceDropRules(priceDropRules);
     }
 
     private void applyHistoricalVolatilityFilter(
             Object rawEntry,
-            TechFilterConditions.TechFilterConditionsBuilder conditions) {
+            TechFilterConditions.TechFilterConditionsBuilder conditions,
+            List<com.hemasundar.technical.MathExpression> filterExpressions) {
 
         StrategiesConfig.HistoricalVolatilityFilterEntry entry = JavaUtils.convertValue(rawEntry,
                 StrategiesConfig.HistoricalVolatilityFilterEntry.class);
@@ -614,18 +751,17 @@ public class StrategiesConfigLoader {
                 conditions.hvPeriod(entry.getConfig().getPeriod());
             }
             if (entry.getConditions() != null && !entry.getConditions().isEmpty()) {
-                applyHistoricalVolatilityRules(entry.getConditions(), conditions);
+                applyHistoricalVolatilityRules(entry.getConditions(), filterExpressions);
             }
         }
     }
 
-    public void applyHistoricalVolatilityRules(List<String> rules, TechFilterConditions.TechFilterConditionsBuilder conditions) {
+    public void applyHistoricalVolatilityRules(List<String> rules,
+            List<com.hemasundar.technical.MathExpression> filterExpressions) {
         if (CollectionUtils.isEmpty(rules)) return;
-        List<com.hemasundar.technical.NumericRule> hvRules = new java.util.ArrayList<>();
         for (String rule : rules) {
-            hvRules.add(com.hemasundar.utils.ConditionParserUtil.parseNumericRule(rule));
+            filterExpressions.add(MathExpressionParser.parseThresholdRule(rule, "HV_RANK"));
         }
-        conditions.hvRules(hvRules);
     }
 
     // ─────────────────────────────────────────────────────────

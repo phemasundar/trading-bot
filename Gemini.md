@@ -1,5 +1,79 @@
 # Project Updates
 
+## Refactor: Removed Backward-Compatibility Legacy Fields (2026-07-12)
+
+Removed legacy code paths that existed only to support older technical filter formats. The single source of truth for filter evaluation is now `MathExpression` + `MathExpressionEvaluator`. The user is the sole operator of this app, so no external backward compatibility is required.
+
+### Removed Fields & Code
+
+- `TechFilterConditions`: removed `minVolume`, `maxVolume`, `volumeCondition`, `volumeShortSmaPeriod`, `volumeLongSmaPeriod`, `volumeThresholdPercent`, `priceConditions`, `smaConditions`, `priceDropRules`, `hvRules`, `minHistoricalVolatility`, `maxHistoricalVolatility`. Retained: `rsiCondition`, `minRsi`, `maxRsi`, `bollingerCondition`, `hvPeriod`, `lookbackDays`, `filterExpressions`.
+- `TechnicalScreener.meetsAllCriteria`: collapsed to a single call to `MathExpressionEvaluator.evaluateAll`. Removed `meetsLegacyCriteria` and the entire fallback chain.
+- `TechnicalFilterChain`: removed the `getMinVolume()` convenience getter.
+- `ScreenerExecutionService.extractDropExpressions`: removed the `priceDropRules` fallback branch; only reads `filterExpressions`.
+- `TechnicalScreener.analyzeStock`: volume SMA calculation is now triggered by the presence of any `VOLUME_SMA<N>` expression in `filterExpressions` (no more `VolumeCondition.SMA_COMPARISON` enum check).
+
+### Tests Updated
+
+- `TechnicalScreenerTest`, `TechFilterConditionsTest`, `TechnicalFilterChainTest`, `PriceDropScreenerTest` rewritten to construct conditions via `MathExpression` and assert against `filterExpressions` directly.
+
+### Architecture
+
+| File | Change |
+|------|--------|
+| **`TechFilterConditions.java`** | Removed legacy fields; kept only filterExpressions + RSI/BB metadata + hvPeriod + lookbackDays. |
+| **`TechnicalScreener.java`** | Replaced `meetsAllCriteria` with a single evaluator call; replaced volume SMA trigger with expression-driven period extraction. |
+| **`TechnicalFilterChain.java`** | Removed `getMinVolume()`. |
+| **`ScreenerExecutionService.java`** | `extractDropExpressions` no longer reads legacy `priceDropRules`. |
+
+## Refactor: Centralized Math Expression Filter Evaluation (2026-07-12)
+
+Replaced the duplicated, indicator-specific `>`/`<` checks (RSI enums, Bollinger enums, SMA regex, volume SMA regex, HV `NumericRule` lists, price drop `NumericRule` lists) with a single `MathExpression` model + `MathExpressionEvaluator`. Every filter condition is parsed into one or more `MathExpression` objects and evaluated against any indicator value provider.
+
+### Core Classes
+
+- **`MathExpression`** — `leftVariable operator rightVariable` with optional `rightScale` (e.g. `VOLUME_SMA20 >= VOLUME_SMA50 * 90%`).
+- **`MathExpressionEvaluator`** — evaluates a list of expressions against a `Function<String, Double>` value provider.
+- **`MathExpressionParser`** — parses strings like `RSI >= 30`, `PRICE >= SMA50`, `VOLUME_SMA20 >= VOLUME_SMA50 * 90%`, and threshold rules like `>= 25`.
+- **`ScreeningResult.getIndicatorValue(String)`** — resolves standardized variable names (`PRICE`, `VOLUME`, `RSI`, `PREVIOUS_RSI`, `BB_LOWER`, `BB_MIDDLE`, `BB_UPPER`, `SMA<N>`, `VOLUME_SMA<N>`, `HV_RANK`, `DROP_PCT`) to numeric values.
+
+### Backend Changes
+
+- `StrategiesConfigLoader`: every `apply*Filter` method now contributes to a single `filterExpressions` list during config parsing.
+- `TechnicalScreener.meetsAllCriteria`: replaced with a one-liner that calls `MathExpressionEvaluator`.
+- `PriceDropScreener`: now accepts and evaluates `List<MathExpression>` instead of `List<NumericRule>`.
+- `ScreenerExecutionService`: extracts `DROP_PCT` expressions from `filterExpressions` and passes them through.
+- `RelationalOperator.fromSymbol(String)` added for parser use.
+
+### RSI / Bollinger Terms Preserved
+
+- `RSI.condition` continues to accept: `BULLISH_CROSSOVER`, `BEARISH_CROSSOVER`, `OVERBOUGHT`, `OVERSOLD`, `CUSTOM_RANGE`.
+- `BOLLINGER_BAND.condition` continues to accept: `LOWER_BAND`, `UPPER_BAND`.
+- Internally these are converted to `MathExpression` objects transparently. No user-facing migration.
+
+### Documentation
+
+- **`.kimchi/docs/math-expression-filters.md`** — full guide with syntax, variables, operators, JSON examples, migration notes, and runtime overview.
+
+### Architecture
+
+| File | Change |
+|------|--------|
+| **`MathExpression.java`** | [NEW] Generic comparison model with optional right-side scaling. |
+| **`MathExpressionEvaluator.java`** | [NEW] Single evaluator for all technical filter conditions. |
+| **`MathExpressionParser.java`** | [NEW] Parses math-formatted filter strings into `MathExpression`. |
+| **`RelationalOperator.java`** | Added `fromSymbol(String)`. |
+| **`TechnicalScreener.java`** | Added `ScreeningResult.getIndicatorValue()`; added `volumeMaValues`; refactored `meetsAllCriteria`. |
+| **`PriceDropScreener.java`** | Now uses `MathExpression` and `MathExpressionEvaluator`. |
+| **`ScreenerExecutionService.java`** | `extractDropExpressions` reads `filterExpressions`. |
+| **`StrategiesConfigLoader.java`** | All `apply*` methods populate `filterExpressions`. |
+| **`TechFilterConditions.java`** | Added `filterExpressions` field and summary rendering. |
+
+### New Unit Tests
+
+- `src/test/java/com/hemasundar/technical/MathExpressionTest.java`
+- `src/test/java/com/hemasundar/technical/MathExpressionEvaluatorTest.java`
+- `src/test/java/com/hemasundar/utils/MathExpressionParserTest.java`
+
 ## Refactor: Lombok Integration and Apache Commons Standardization (2026-07-08)
 
 Refactored boilerplate code across the project by integrating Lombok annotations and standardized null/empty checks using Apache Commons utilities.
