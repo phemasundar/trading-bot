@@ -304,14 +304,6 @@ public class StrategyControllerTest {
     }
 
     @Test
-    public void testClearError_Success() throws Exception {
-        mockMvc.perform(post("/api/clear-error"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.cleared").value(true));
-        verify(executionService).clearAlerts();
-    }
-
-    @Test
     public void testClearErrors_Success() throws Exception {
         mockMvc.perform(post("/api/clear-errors"))
                 .andExpect(status().isOk())
