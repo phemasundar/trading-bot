@@ -7,12 +7,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import com.hemasundar.technical.MathExpression;
+import lombok.experimental.UtilityClass;
 
+@UtilityClass
 public class FilterParser {
-
-    private FilterParser() {
-        // Private constructor for utility class
-    }
 
     public static OptionsStrategyFilter buildFilter(StrategyType type, Map<String, Object> filterMap) {
         OptionsStrategyFilter filter;

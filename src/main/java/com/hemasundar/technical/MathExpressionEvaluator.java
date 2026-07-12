@@ -4,6 +4,10 @@ import org.apache.commons.collections4.CollectionUtils;
 
 import java.util.List;
 import java.util.function.Function;
+import lombok.experimental.UtilityClass;
+import lombok.extern.log4j.Log4j2;
+
+
 
 /**
  * Centralized evaluator for a list of {@link MathExpression} rules.
@@ -25,11 +29,9 @@ import java.util.function.Function;
  * });
  * </pre>
  */
-public final class MathExpressionEvaluator {
-
-    private MathExpressionEvaluator() {
-        // Utility class
-    }
+@Log4j2
+@UtilityClass
+public class MathExpressionEvaluator {
 
     /**
      * Evaluates all expressions against the given value provider.

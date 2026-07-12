@@ -9,14 +9,6 @@ import java.util.List;
 
 public class MathExpressionParserTest {
 
-    @Test
-    public void testParseThresholdRule() {
-        MathExpression expr = MathExpressionParser.parseThresholdRule(">= 25", "HV_RANK");
-        Assert.assertNotNull(expr);
-        Assert.assertEquals(expr.getLeftVariable(), "HV_RANK");
-        Assert.assertEquals(expr.getOperator(), RelationalOperator.GREATER_THAN_OR_EQUAL);
-        Assert.assertEquals(expr.getRightVariable(), "25");
-    }
 
     @Test
     public void testParseExpression_PriceVsSma() {
@@ -63,24 +55,9 @@ public class MathExpressionParserTest {
     }
 
     @Test
-    public void testParseRule_DetectsThreshold() {
-        MathExpression expr = MathExpressionParser.parse(">= 10", "DROP_PCT");
-        Assert.assertNotNull(expr);
-        Assert.assertEquals(expr.getLeftVariable(), "DROP_PCT");
-        Assert.assertEquals(expr.getRightVariable(), "10");
-    }
-
-    @Test
-    public void testParseRule_DetectsFullExpression() {
-        MathExpression expr = MathExpressionParser.parse("PRICE >= SMA50", "DROP_PCT");
-        Assert.assertNotNull(expr);
-        Assert.assertEquals(expr.getLeftVariable(), "PRICE");
-    }
-
-    @Test
     public void testParseRules() {
         List<MathExpression> expressions = MathExpressionParser.parseRules(
-                List.of(">= 25", "<= 75"), "HV_RANK");
+                List.of("HV_RANK >= 25", "HV_RANK <= 75"));
         Assert.assertEquals(expressions.size(), 2);
         Assert.assertEquals(expressions.get(0).getOperator(), RelationalOperator.GREATER_THAN_OR_EQUAL);
         Assert.assertEquals(expressions.get(1).getOperator(), RelationalOperator.LESS_THAN_OR_EQUAL);
@@ -91,15 +68,9 @@ public class MathExpressionParserTest {
         MathExpressionParser.parseExpression("not an expression");
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testParseThresholdRule_InvalidNumber() {
-        MathExpressionParser.parseThresholdRule(">= abc", "HV_RANK");
-    }
-
     @Test
     public void testBlankInput() {
         Assert.assertNull(MathExpressionParser.parseExpression("  "));
-        Assert.assertNull(MathExpressionParser.parseThresholdRule("", "HV_RANK"));
-        Assert.assertTrue(MathExpressionParser.parseRules(null, "HV_RANK").isEmpty());
+        Assert.assertTrue(MathExpressionParser.parseRules(null).isEmpty());
     }
 }

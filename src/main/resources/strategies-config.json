@@ -29,13 +29,13 @@
                 "config": "default",
                 "condition": "LOWER_BAND"
             },
-            "VOLUME": { "conditions": [ ">= 1000000" ] },
+            "VOLUME": { "conditions": [ "VOLUME >= 1000000" ] },
             "HISTORICAL_VOLATILITY": {
                 "config": {
                     "period": 20
                 },
                 "conditions": [
-                    ">= 25"
+                    "HV_RANK >= 25"
                 ]
             }
         },
@@ -48,13 +48,13 @@
                 "config": "default",
                 "condition": "UPPER_BAND"
             },
-            "VOLUME": { "conditions": [ ">= 1000000" ] },
+            "VOLUME": { "conditions": [ "VOLUME >= 1000000" ] },
             "HISTORICAL_VOLATILITY": {
                 "config": {
                     "period": 20
                 },
                 "conditions": [
-                    ">= 25"
+                    "HV_RANK >= 25"
                 ]
             }
         }
@@ -89,7 +89,7 @@
                     "config": {
                         "period": 20
                     },
-                    "conditions": [">= 25"]
+                    "conditions": ["HV_RANK >= 25"]
                 }
             }
         },
@@ -122,7 +122,7 @@
                     "config": {
                         "period": 20
                     },
-                    "conditions": [">= 25"]
+                    "conditions": ["HV_RANK >= 25"]
                 }
             }
         },
@@ -179,7 +179,7 @@
                     "config": {
                         "period": 20
                     },
-                    "conditions": [">= 25"]
+                    "conditions": ["HV_RANK >= 25"]
                 }
             }
         },
@@ -241,7 +241,7 @@
                     "config": {
                         "period": 20
                     },
-                    "conditions": [">= 25"]
+                    "conditions": ["HV_RANK >= 25"]
                 }
             }
         },
@@ -278,7 +278,7 @@
                     "config": {
                         "period": 20
                     },
-                    "conditions": [">= 25"]
+                    "conditions": ["HV_RANK >= 25"]
                 }
             }
         },
@@ -315,7 +315,7 @@
                     "config": {
                         "period": 20
                     },
-                    "conditions": [">= 25"]
+                    "conditions": ["HV_RANK >= 25"]
                 }
             }
         },
@@ -385,7 +385,7 @@
                 },
                 "VOLUME": {
                     "conditions": [
-                        "SMA20 >= SMA50 * 90%"
+                        "VOLUME_SMA20 >= VOLUME_SMA50 * 90%"
                     ]
                 }
             },
@@ -644,7 +644,7 @@
                     "config": "default",
                     "condition": "LOWER_BAND"
                 },
-                "VOLUME": { "conditions": [ ">= 1000000" ] }
+                "VOLUME": { "conditions": [ "VOLUME >= 1000000" ] }
             }
         },
         {
@@ -663,7 +663,7 @@
                 },
                 "VOLUME": {
                     "conditions": [
-                        ">= 1000000"
+                        "VOLUME >= 1000000"
                     ]
                 }
             }
@@ -681,7 +681,7 @@
                 },
                 "VOLUME": {
                     "conditions": [
-                        ">= 1000000"
+                        "VOLUME >= 1000000"
                     ]
                 }
             }
@@ -696,7 +696,7 @@
                     "config": "default",
                     "condition": "OVERSOLD"
                 },
-                "VOLUME": { "conditions": [ ">= 1000000" ] }
+                "VOLUME": { "conditions": [ "VOLUME >= 1000000" ] }
             }
         },
         {
@@ -709,7 +709,7 @@
                     "config": "default",
                     "condition": "LOWER_BAND"
                 },
-                "VOLUME": { "conditions": [ ">= 1000000" ] }
+                "VOLUME": { "conditions": [ "VOLUME >= 1000000" ] }
             }
         },
         {
@@ -720,7 +720,7 @@
             "technicalFilters": {
                 "PRICE_DROP": {
                     "conditions": [
-                        ">= 3"
+                        "DROP_PCT >= 3"
                     ],
                     "config": {
                         "lookbackDays": 0
@@ -736,7 +736,7 @@
             "technicalFilters": {
                 "PRICE_DROP": {
                     "conditions": [
-                        ">= 5"
+                        "DROP_PCT >= 5"
                     ],
                     "config": {
                         "lookbackDays": 5
@@ -752,7 +752,7 @@
             "technicalFilters": {
                 "PRICE_DROP": {
                     "conditions": [
-                        ">= 10"
+                        "DROP_PCT >= 10"
                     ],
                     "config": {
                         "lookbackDays": 21
@@ -768,7 +768,7 @@
             "technicalFilters": {
                 "PRICE_DROP": {
                     "conditions": [
-                        ">= 15"
+                        "DROP_PCT >= 15"
                     ],
                     "config": {
                         "lookbackDays": 63
@@ -784,7 +784,7 @@
             "technicalFilters": {
                 "PRICE_DROP": {
                     "conditions": [
-                        ">= 20"
+                        "DROP_PCT >= 20"
                     ]
                 }
             }
