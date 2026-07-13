@@ -2720,17 +2720,17 @@ async function fetchAndRenderMarketStatus() {
         const optionsColor = statusColor(opt);
 
         statusContainer.innerHTML = `
-            <span class="status-badge" style="border: 1px solid rgba(255, 255, 255, 0.1); color: ${equityColor}">
+            <span class="status-badge" style="border: 1px solid var(--border); color: ${equityColor}">
                 <span class="status-dot" style="background:${equityColor};"></span>
                 Equity: ${statusLabel(eq)}
             </span>
-            <span class="status-badge" style="border: 1px solid rgba(255, 255, 255, 0.1); color: ${optionsColor}">
+            <span class="status-badge" style="border: 1px solid var(--border); color: ${optionsColor}">
                 <span class="status-dot" style="background:${optionsColor};"></span>
                 Options: ${statusLabel(opt)}
             </span>
         `;
     } catch (e) {
-        statusContainer.innerHTML = `<span class="status-badge" style="color: var(--text-muted); border: 1px solid rgba(255, 255, 255, 0.1)">Market Status Offline</span>`;
+        statusContainer.innerHTML = `<span class="status-badge" style="color: var(--text-muted); border: 1px solid var(--border)">Market Status Offline</span>`;
         console.error("Could not fetch market status", e);
         if (typeof checkExecutionStatus === 'function') {
             checkExecutionStatus();

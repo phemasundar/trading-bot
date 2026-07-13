@@ -8,7 +8,8 @@
     <meta name="description" content="Real-time technical screener execution monitor for automated stock screening">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/style.css?v=4">
+    <script src="/theme.js?v=3"></script>
 </head>
 
 <body>
@@ -57,6 +58,14 @@
                     <span class="nav-icon">📋</span>
                     <span>Execution Logs</span>
                 </a>
+            </div>
+
+            <div style="flex: 1;"></div>
+            <div class="sidebar-section" style="border:none; margin-bottom: 0;">
+                <button id="theme-toggle" class="btn btn-ghost" style="width:100%; justify-content:center; gap: 8px;" onclick="toggleTheme()">
+                    <span id="theme-icon">☀️</span>
+                    <span id="theme-text">Light Mode</span>
+                </button>
             </div>
         </nav>
         <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
@@ -115,7 +124,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="/app.js?v=4"></script>
+    <script src="/app.js?v=5"></script>
     <script>
         document.addEventListener('DOMContentLoaded', initScreenerDashboard);
     </script>
