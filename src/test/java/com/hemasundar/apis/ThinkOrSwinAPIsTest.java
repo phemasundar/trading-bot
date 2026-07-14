@@ -34,6 +34,8 @@ public class ThinkOrSwinAPIsTest {
     private TokenProvider tokenProvider;
     @Mock
     private ApiErrorHandler apiErrorHandler;
+    @Mock
+    private com.hemasundar.utils.SchwabApiExecutor schwabApiExecutor;
 
     private ThinkOrSwinAPIs apis;
 
@@ -62,6 +64,7 @@ public class ThinkOrSwinAPIsTest {
         when(sharedMockRequest.formParam(anyString(), (Object) any())).thenReturn(sharedMockRequest);
         when(sharedMockRequest.header(anyString(), any())).thenReturn(sharedMockRequest);
         when(sharedMockRequest.queryParam(anyString(), (Object) any())).thenReturn(sharedMockRequest);
+        when(sharedMockRequest.pathParam(anyString(), any())).thenReturn(sharedMockRequest);
         
         // Stub all HTTP methods to return mockResponse by default
         when(sharedMockRequest.post(anyString())).thenReturn(mockResponse);
@@ -72,7 +75,12 @@ public class ThinkOrSwinAPIsTest {
         when(mockResponse.asPrettyString()).thenReturn("{\"access_token\": \"test-token\", \"expires_in\": 3600}");
 
         when(tokenProvider.getAccessToken()).thenReturn("test-token");
-        apis = new ThinkOrSwinAPIs(tokenProvider, apiErrorHandler);
+        when(schwabApiExecutor.executeWithRetry(anyString(), any())).thenAnswer(invocation -> {
+            java.util.function.Supplier<?> supplier = invocation.getArgument(1);
+            return supplier.get();
+        });
+
+        apis = new ThinkOrSwinAPIs(tokenProvider, apiErrorHandler, schwabApiExecutor);
     }
 
     @AfterMethod

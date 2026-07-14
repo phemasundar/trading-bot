@@ -253,13 +253,20 @@ public class PriceDropScreener {
             String symbol, double currentPrice, long volume,
             double dropPercent, double referencePrice, String dropType) {
 
-        return TechnicalScreener.ScreeningResult.builder()
+        TechnicalScreener.ScreeningResult.ScreeningResultBuilder builder = TechnicalScreener.ScreeningResult.builder()
                 .symbol(symbol)
                 .currentPrice(currentPrice)
                 .volume(volume)
                 .dropPercent(dropPercent)
                 .referencePrice(referencePrice)
-                .dropType(dropType)
-                .build();
+                .dropType(dropType);
+
+        // Fetch Market Cap from QuotesCache (populated during prewarm)
+        QuotesResponse.QuoteData quoteData = com.hemasundar.cache.QuotesCache.getInstance().get(symbol);
+        if (quoteData != null) {
+            builder.marketCapB(quoteData.getMarketCapB());
+        }
+
+        return builder.build();
     }
 }

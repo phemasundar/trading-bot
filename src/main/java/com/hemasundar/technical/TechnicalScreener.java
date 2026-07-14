@@ -1,7 +1,9 @@
 package com.hemasundar.technical;
 
 import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.cache.QuotesCache;
 import com.hemasundar.pojos.PriceHistoryResponse;
+import com.hemasundar.pojos.QuotesResponse;
 import com.hemasundar.utils.SchwabApiExecutor;
 import com.hemasundar.utils.VolatilityCalculator;
 import com.hemasundar.cache.PriceHistoryCache;
@@ -80,6 +82,9 @@ public class TechnicalScreener {
         private double referencePrice;
         private String dropType; // INTRADAY, <N>D (multi-day), 52W_HIGH
 
+        /** Market capitalisation in Billions (sharesOutstanding * lastPrice / 1e9). */
+        private Double marketCapB;
+
         /**
          * Returns a concise plain-text summary of the screening result.
          * Used by both the Web UI (click-to-expand) and Telegram alerts.
@@ -144,6 +149,11 @@ public class TechnicalScreener {
                 sb.append("  📈 HV Rank: ").append(String.format("%.1f", historicalVolatilityRank)).append("\n");
             }
 
+            // Market Cap
+            if (marketCapB != null) {
+                sb.append("  🏢 Mkt Cap: ").append(formatMarketCap(marketCapB)).append("\n");
+            }
+
             return sb.toString();
         }
 
@@ -154,6 +164,15 @@ public class TechnicalScreener {
                 return String.format("%.2fK", volume / 1_000.0);
             }
             return String.valueOf(volume);
+        }
+
+        private String formatMarketCap(double capB) {
+            if (capB >= 1_000.0) {
+                return String.format("$%.2fT", capB / 1_000.0);
+            } else if (capB >= 1.0) {
+                return String.format("$%.2fB", capB);
+            }
+            return String.format("$%.0fM", capB * 1_000.0);
         }
 
         /**
@@ -192,6 +211,7 @@ public class TechnicalScreener {
                 case "BB_UPPER" -> bollingerUpper;
                 case "HV_RANK" -> historicalVolatilityRank;
                 case "DROP_PCT" -> dropPercent;
+                case "MARKET_CAP_B" -> marketCapB;
                 default -> resolveMappedValue(key);
             };
         }
@@ -269,32 +289,33 @@ public class TechnicalScreener {
     }
 
     /**
-     * Screens stocks against the given filter chain.
-     * 
-     * @param symbols     List of stock symbols to screen
-     * @param filterChain Technical filter chain containing indicators and
-     *                    conditions
+     * Screens stocks against the given filter chain and optional fundamental conditions.
+     *
+     * @param symbols                List of stock symbols to screen
+     * @param filterChain            Technical filter chain containing indicators and conditions
+     * @param fundamentalConditions  Optional fundamental conditions (may be null)
      * @return List of screening results for stocks matching all criteria
      */
-    public List<ScreeningResult> screenStocks(List<String> symbols, TechnicalFilterChain filterChain, java.util.function.BiConsumer<String, String> alertCallback) {
+    public List<ScreeningResult> screenStocks(
+            List<String> symbols,
+            TechnicalFilterChain filterChain,
+            FundamentalFilterConditions fundamentalConditions,
+            java.util.function.BiConsumer<String, String> alertCallback) {
         log.info("\n{}", filterChain.getFiltersSummary());
 
-        // ── Parallel execution (Track B) ──
-        // analyzeStock() is pure I/O (getYearlyPriceHistory); each symbol is
-        // independent, so we fan out across all symbols in the thread pool.
         log.info("Screening {} symbols in parallel", symbols.size());
         long screenT0 = System.currentTimeMillis();
-
-        Integer hvPeriod = filterChain.getConditions() != null ? filterChain.getConditions().getHvPeriod() : 20;
 
         List<ScreeningResult> parallelResults = schwabApiExecutor.executeParallel(symbols, symbol -> {
             return analyzeStock(symbol, filterChain.getIndicators(), filterChain.getConditions());
         }, alertCallback);
 
-        // Filter out nulls (errors) and apply conditions on the calling thread
+        // Filter out nulls (errors) and apply all conditions on the calling thread
         List<ScreeningResult> results = new ArrayList<>();
         for (ScreeningResult result : parallelResults) {
-            if (result != null && meetsAllCriteria(result, filterChain.getConditions())) {
+            if (result != null
+                    && meetsAllCriteria(result, filterChain.getConditions())
+                    && meetsFundamentalCriteria(result, fundamentalConditions)) {
                 results.add(result);
                 log.info("\n{}", result);
             }
@@ -302,6 +323,13 @@ public class TechnicalScreener {
 
         log.info("Screening complete. Found {} stocks matching criteria.", results.size());
         return results;
+    }
+
+    /**
+     * Backward-compatible overload without fundamental conditions.
+     */
+    public List<ScreeningResult> screenStocks(List<String> symbols, TechnicalFilterChain filterChain, java.util.function.BiConsumer<String, String> alertCallback) {
+        return screenStocks(symbols, filterChain, null, alertCallback);
     }
 
     /**
@@ -404,6 +432,21 @@ public class TechnicalScreener {
             }
         }
 
+        // Market Cap
+        QuotesResponse.QuoteData quoteData = QuotesCache.getInstance().get(symbol);
+        if (quoteData != null) {
+            Double mcap = quoteData.getMarketCapB();
+            if (mcap != null) {
+                builder.marketCapB(mcap);
+                log.info("Symbol {}: Calculated Market Cap B: {}", symbol, mcap);
+            } else {
+                log.info("Symbol {}: Market Cap data missing in quote", symbol);
+            }
+        } else {
+            log.info("Symbol {}: quoteData is null", symbol);
+        }
+
+
         return builder.build();
     }
 
@@ -423,14 +466,22 @@ public class TechnicalScreener {
     }
 
     /**
-     * Checks if the screening result meets all filter conditions.
-     *
-     * <p>
-     * All conditions are represented as {@link MathExpression} objects and
-     * evaluated centrally via {@link MathExpressionEvaluator}. This removes the
-     * duplication of hardcoded {@code >}/{@code <} checks for each indicator.
+     * Checks if the screening result meets all technical filter conditions.
      */
     private boolean meetsAllCriteria(ScreeningResult result, TechFilterConditions conditions) {
         return MathExpressionEvaluator.evaluateAll(conditions.getFilterExpressions(), result::getIndicatorValue);
+    }
+
+    /**
+     * Checks if the screening result meets all fundamental filter conditions
+     * (e.g. Market Cap). Returns true if {@code fundamentalConditions} is null
+     * or has no expressions.
+     */
+    private boolean meetsFundamentalCriteria(ScreeningResult result, FundamentalFilterConditions fundamentalConditions) {
+        if (fundamentalConditions == null) {
+            return true;
+        }
+        return MathExpressionEvaluator.evaluateAll(
+                fundamentalConditions.getFilterExpressions(), result::getIndicatorValue);
     }
 }

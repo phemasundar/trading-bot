@@ -634,7 +634,7 @@
             "alias": "RSI/BB Bullish Crossover",
             "enabled": true,
             "screenerType": "RSI_BB_BULLISH_CROSSOVER",
-            "securitiesFile": "top100, portfolio, tracking, 2026",
+            "securitiesFile": "top100, portfolio, tracking, 2026, SPY, QQQ",
             "technicalFilters": {
                 "RSI": {
                     "config": "default",
@@ -651,7 +651,7 @@
             "alias": "RSI/BB Bearish Crossover",
             "enabled": true,
             "screenerType": "RSI_BB_BEARISH_CROSSOVER",
-            "securitiesFile": "top100, portfolio, tracking, 2026",
+            "securitiesFile": "top100, portfolio, tracking, 2026, SPY, QQQ",
             "technicalFilters": {
                 "RSI": {
                     "config": "default",
@@ -672,7 +672,7 @@
             "alias": "Below 200 Day SMA",
             "enabled": true,
             "screenerType": "BELOW_200_DAY_SMA",
-            "securitiesFile": "top100, portfolio, tracking, 2026",
+            "securitiesFile": "top100, portfolio, tracking, 2026, SPY, QQQ",
             "technicalFilters": {
                 "SIMPLE_MOVING_AVERAGE": {
                     "conditions": [
@@ -690,7 +690,7 @@
             "alias": "RSI Oversold",
             "enabled": true,
             "screenerType": "RSI_OVERSOLD",
-            "securitiesFile": "top100, portfolio, tracking, 2026",
+            "securitiesFile": "top100, portfolio, tracking, 2026, SPY, QQQ",
             "technicalFilters": {
                 "RSI": {
                     "config": "default",
@@ -703,7 +703,7 @@
             "alias": "BB Lower Band",
             "enabled": true,
             "screenerType": "BB_LOWER",
-            "securitiesFile": "top100, portfolio, tracking, 2026",
+            "securitiesFile": "top100, portfolio, tracking, 2026, SPY, QQQ",
             "technicalFilters": {
                 "BOLLINGER_BAND": {
                     "config": "default",
@@ -716,7 +716,7 @@
             "alias": "Intraday Drop",
             "enabled": true,
             "screenerType": "PRICE_DROP",
-            "securitiesFile": "top100, portfolio, tracking, 2026",
+            "securitiesFile": "top100, portfolio, tracking, 2026, SPY, QQQ",
             "technicalFilters": {
                 "PRICE_DROP": {
                     "conditions": [
@@ -732,7 +732,7 @@
             "alias": "5-Day Drop",
             "enabled": true,
             "screenerType": "PRICE_DROP",
-            "securitiesFile": "top100, portfolio, tracking, 2026",
+            "securitiesFile": "top100, portfolio, tracking, 2026, SPY, QQQ",
             "technicalFilters": {
                 "PRICE_DROP": {
                     "conditions": [
@@ -748,7 +748,7 @@
             "alias": "1-Month Drop",
             "enabled": true,
             "screenerType": "PRICE_DROP",
-            "securitiesFile": "top100, portfolio, tracking, 2026",
+            "securitiesFile": "top100, portfolio, tracking, 2026, SPY, QQQ",
             "technicalFilters": {
                 "PRICE_DROP": {
                     "conditions": [
@@ -764,7 +764,7 @@
             "alias": "3-Month Drop",
             "enabled": true,
             "screenerType": "PRICE_DROP",
-            "securitiesFile": "top100, portfolio, tracking, 2026",
+            "securitiesFile": "top100, portfolio, tracking, 2026, SPY, QQQ",
             "technicalFilters": {
                 "PRICE_DROP": {
                     "conditions": [
@@ -780,11 +780,18 @@
             "enabled": true,
             "alias": "Down from 52W High",
             "screenerType": "HIGH_52W_DROP",
-            "securitiesFile": "top100, portfolio, tracking, 2026",
+            "securitiesFile": "top100, portfolio, tracking, 2026, SPY, QQQ",
             "technicalFilters": {
                 "PRICE_DROP": {
                     "conditions": [
                         "DROP_PCT >= 20"
+                    ]
+                }
+            },
+            "fundamentalFilters": {
+                "MARKET_CAP": {
+                    "conditions": [
+                        "MARKET_CAP_B >= 1"
                     ]
                 }
             }

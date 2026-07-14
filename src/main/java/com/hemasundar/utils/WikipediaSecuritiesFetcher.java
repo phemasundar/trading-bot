@@ -46,7 +46,7 @@ public class WikipediaSecuritiesFetcher {
     // ── Wikipedia page identifiers (Wikipedia REST API page parameter) ──────────
 
     private static final String SP500_PAGE    = "List_of_S%26P_500_companies";
-    private static final String NASDAQ100_PAGE = "Nasdaq-100";
+    private static final String NASDAQ100_PAGE = "List_of_NASDAQ-100_companies";
 
     /**
      * Wikipedia REST API base URL.
@@ -62,7 +62,7 @@ public class WikipediaSecuritiesFetcher {
      * anchor ID, which is far more stable than a section number (section numbers
      * shift whenever new sections are added/removed).
      */
-    private static final String NASDAQ100_COMPONENTS_ANCHOR = "Current_components";
+    private static final String NASDAQ100_COMPONENTS_ANCHOR = "Nasdaq-100_component_stocks";
 
     /**
      * Column header names (case-insensitive) that are recognised as the ticker column.
@@ -169,8 +169,8 @@ public class WikipediaSecuritiesFetcher {
      * dynamically from the header row.
      */
     private List<String> fetchNasdaq100() {
-        // Resolve the section number for "Current_components" via the TOC API, then fetch it.
-        int sectionNumber = resolveSectionNumber(NASDAQ100_PAGE, NASDAQ100_COMPONENTS_ANCHOR);
+        // Resolve the section number for NASDAQ100 via the TOC API, then fetch it.
+        int sectionNumber = resolveSectionNumber(NASDAQ100_PAGE, NASDAQ100_COMPONENTS_ANCHOR, "Current_components", "Components");
         Document doc = fetchWikiApiSection(NASDAQ100_PAGE, String.valueOf(sectionNumber),
                 "QQQ (Nasdaq-100) §" + sectionNumber);
 
@@ -317,7 +317,7 @@ public class WikipediaSecuritiesFetcher {
      * @return section number as a string (e.g., {@code "13"})
      * @throws IllegalStateException if the anchor is not found in the TOC
      */
-    private int resolveSectionNumber(String page, String anchor) {
+    private int resolveSectionNumber(String page, String... anchors) {
         String tocUrl = WIKI_API_URL + "?action=parse&page=" + page + "&prop=tocdata&format=json";
         try {
             org.jsoup.Connection.Response response = Jsoup.connect(tocUrl)
@@ -328,18 +328,25 @@ public class WikipediaSecuritiesFetcher {
 
             String json = response.body();
 
-            // We look for the anchor in the JSON: "linkAnchor":"Current_components"
-            // and then extract the nearby "index":"N" value.
-            String anchorPattern = "\"linkAnchor\":\"" + anchor + "\"";
-            int anchorPos = json.indexOf(anchorPattern);
-            if (anchorPos < 0) {
-                // Try the plain anchor (without "link" prefix)
-                anchorPattern = "\"anchor\":\"" + anchor + "\"";
+            int anchorPos = -1;
+            String matchedAnchor = null;
+
+            for (String anchor : anchors) {
+                String anchorPattern = "\"linkAnchor\":\"" + anchor + "\"";
                 anchorPos = json.indexOf(anchorPattern);
+                if (anchorPos < 0) {
+                    anchorPattern = "\"anchor\":\"" + anchor + "\"";
+                    anchorPos = json.indexOf(anchorPattern);
+                }
+                if (anchorPos >= 0) {
+                    matchedAnchor = anchor;
+                    break;
+                }
             }
+
             if (anchorPos < 0) {
                 throw new IllegalStateException(
-                        "Section anchor '" + anchor + "' not found in Wikipedia TOC for page '" + page + "'.");
+                        "Section anchor(s) " + java.util.Arrays.toString(anchors) + " not found in Wikipedia TOC for page '" + page + "'.");
             }
 
             // Scan backwards from the anchor position to find the "index":"N" for this section entry
@@ -350,15 +357,15 @@ public class WikipediaSecuritiesFetcher {
             int indexKeyPos = snippet.lastIndexOf("\"index\":\"");
             if (indexKeyPos < 0) {
                 throw new IllegalStateException(
-                        "Could not find 'index' field near anchor '" + anchor + "' in TOC JSON.");
+                        "Could not find 'index' field near anchor '" + matchedAnchor + "' in TOC JSON.");
             }
             int valueStart = indexKeyPos + 9; // skip past '"index":"'
             int valueEnd   = snippet.indexOf("\"", valueStart);
             if (valueEnd < 0) {
-                throw new IllegalStateException("Malformed 'index' value in TOC JSON near anchor '" + anchor + "'.");
+                throw new IllegalStateException("Malformed 'index' value in TOC JSON near anchor '" + matchedAnchor + "'.");
             }
             int sectionNumber = Integer.parseInt(snippet.substring(valueStart, valueEnd));
-            log.debug("Resolved '{}' anchor to section number {} on page '{}'", anchor, sectionNumber, page);
+            log.debug("Resolved '{}' anchor to section number {} on page '{}'", matchedAnchor, sectionNumber, page);
             return sectionNumber;
 
         } catch (IOException e) {

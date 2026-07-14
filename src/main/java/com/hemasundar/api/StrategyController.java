@@ -109,7 +109,7 @@ public class StrategyController {
                             "details", e.getMessage(),
                             "hint",    "Wikipedia may be unreachable or the page structure has changed. " +
                                        "Check the application logs for details."));
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Failed to load strategies", e);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Failed to load strategies: " + e.getMessage()));
@@ -137,7 +137,7 @@ public class StrategyController {
             return ResponseEntity.ok()
                     .header("Cache-Control", "no-cache, no-store, must-revalidate")
                     .body(response);
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Failed to load screeners", e);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Failed to load screeners: " + e.getMessage()));
@@ -259,7 +259,7 @@ public class StrategyController {
             return ResponseEntity.ok()
                     .header("Cache-Control", "no-cache, no-store, must-revalidate")
                     .body(securitiesResolver.loadSecuritiesMaps());
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Failed to load securities map", e);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Failed to load securities map: " + e.getMessage()));
