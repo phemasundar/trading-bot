@@ -64,6 +64,7 @@ public class ThinkOrSwinAPIsTest {
         when(sharedMockRequest.formParam(anyString(), (Object) any())).thenReturn(sharedMockRequest);
         when(sharedMockRequest.header(anyString(), any())).thenReturn(sharedMockRequest);
         when(sharedMockRequest.queryParam(anyString(), (Object) any())).thenReturn(sharedMockRequest);
+        when(sharedMockRequest.pathParam(anyString(), any())).thenReturn(sharedMockRequest);
         
         // Stub all HTTP methods to return mockResponse by default
         when(sharedMockRequest.post(anyString())).thenReturn(mockResponse);

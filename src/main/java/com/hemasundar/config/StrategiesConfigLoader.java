@@ -116,6 +116,9 @@ public class StrategiesConfigLoader {
 
             log.info("Loaded {} strategy configurations from {}", configs.size(), configResource);
 
+        } catch (java.io.IOException e) {
+            log.warn("Classpath resource not found: {}", configResource);
+            return java.util.Collections.emptyList();
         } catch (Exception e) {
             throw new RuntimeException("Error loading strategies config from " + configResource, e);
         }
