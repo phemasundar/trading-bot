@@ -539,12 +539,14 @@ function buildScreenerTable(results, cardId = null) {
     let hasRsi = false;
     let hasBb = false;
     let hasVolume = false;
+    let hasMarketCap = false;
     let maPeriodsSet = new Set();
     
     for (const r of results) {
         if (r.rsi && r.rsi !== 0) hasRsi = true;
         if (r.bollingerLower && r.bollingerLower !== 0) hasBb = true;
         if (r.volume && r.volume !== 0) hasVolume = true;
+        if (r.marketCapB != null) hasMarketCap = true;
         if (r.maValues) {
             Object.keys(r.maValues).forEach(k => maPeriodsSet.add(Number(k)));
         }
@@ -555,6 +557,7 @@ function buildScreenerTable(results, cardId = null) {
         <thead><tr>
             ${th('ticker', 'Ticker')}
             ${th('price', 'Price')}
+            ${hasMarketCap ? th('marketCapB', 'Mkt Cap') : ''}
             ${hasVolume ? th('volume', 'Volume') : ''}
             ${hasRsi ? th('rsi', 'RSI') : ''}
             ${hasBb ? '<th>BB (L-U)</th>' : ''}
@@ -622,6 +625,7 @@ function buildScreenerTable(results, cardId = null) {
         html += `<tr class="trade-row" data-details="${detailStr}" data-tech-indicators="${techIndicatorsAttr}">
             <td><strong class="${typeClass}">${r.symbol || ''}</strong></td>
             <td class="text-mono">${price}</td>
+            ${hasMarketCap ? `<td class="text-mono">${r.marketCapB != null ? formatMarketCap(r.marketCapB) : '-'}</td>` : ''}
             ${hasVolume ? `<td>${volume}</td>` : ''}
             ${hasRsi ? `<td>${rsi}</td>` : ''}
             ${hasBb ? `<td class="text-muted small">${bb}</td>` : ''}
@@ -634,6 +638,13 @@ function buildScreenerTable(results, cardId = null) {
 
     html += '</tbody></table>';
     return html;
+}
+
+// ── Shared Market Cap Formatter ──
+
+function formatMarketCap(capB) {
+    if (capB == null) return '-';
+    return `$${capB.toFixed(2)}B`;
 }
 
 // ── Drop Screener Table Builder ──
@@ -649,10 +660,13 @@ function buildDropScreenerTable(results, cardId = null) {
         return `<th class="${cls}" onclick="handleTableSort('${cardId}', '${key}')" title="Sort by ${label}">${label}${arrow}</th>`;
     };
 
+    const hasMarketCapDrop = results.some(r => r.marketCapB != null);
+
     let html = `<table class="data-table">
         <thead><tr>
             ${th('ticker', 'Ticker')}
             ${th('price', 'Current Price')}
+            ${hasMarketCapDrop ? th('marketCapB', 'Mkt Cap') : ''}
             ${th('refPrice', 'Ref Price')}
             ${th('dropPct', 'Drop %')}
             ${th('volume', 'Volume')}
@@ -680,13 +694,15 @@ function buildDropScreenerTable(results, cardId = null) {
             `📉 Drop: ${dropPct}% (${dropType})`,
             `💰 Current: ${price}`,
             `📌 Reference: ${refPrice}`,
-            `📊 Volume: ${(typeof r.volume === 'number') ? r.volume.toLocaleString() : '-'}`
+            `📊 Volume: ${(typeof r.volume === 'number') ? r.volume.toLocaleString() : '-'}`,
+            ...(r.marketCapB != null ? [`🏢 Mkt Cap: ${formatMarketCap(r.marketCapB)}`] : [])
         ];
         const detailStr = escapeAttr(detailLines.join('\n'));
 
         html += `<tr class="trade-row" data-details="${detailStr}">
             <td><strong class="text-danger">${r.symbol || ''}</strong></td>
             <td class="text-mono">${price}</td>
+            ${hasMarketCapDrop ? `<td class="text-mono">${r.marketCapB != null ? formatMarketCap(r.marketCapB) : '-'}</td>` : ''}
             <td class="text-muted text-mono">${refPrice}</td>
             <td><span style="color: ${dropColor}; font-weight: 700;">-${dropPct}%</span></td>
             <td>${volume}</td>
@@ -837,6 +853,10 @@ function handleTableSort(cardId, column) {
                     };
                     valA = getRoRCagr(a);
                     valB = getRoRCagr(b);
+                    break;
+                case 'marketCapB':
+                    valA = a.marketCapB || 0;
+                    valB = b.marketCapB || 0;
                     break;
 
                 // ── Today % performance (trade tables) ──
@@ -1275,6 +1295,25 @@ function renderTechFiltersGrid(technicalFilters) {
     }
     if (parts.length === 0) return '';
     return `<div class="nested-section"><div class="nested-heading">🔬 Technical Filters</div><div class="config-grid">${parts.join('')}</div></div>`;
+}
+
+/**
+ * Renders a fundamentalFilters map as a readable subsection.
+ * Uses the same structure as technicalFilters — an object with keys like
+ * "MARKET_CAP", each containing a {conditions: [...]} array.
+ */
+function renderFundamentalFiltersGrid(fundamentalFilters) {
+    if (!fundamentalFilters || typeof fundamentalFilters !== 'object') return '';
+    const parts = [];
+    for (const [key, val] of Object.entries(fundamentalFilters)) {
+        if (val && typeof val === 'object' && Array.isArray(val.conditions)) {
+            parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${val.conditions.join(', ')}</span></div>`);
+        } else {
+            parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${val || '—'}</span></div>`);
+        }
+    }
+    if (parts.length === 0) return '';
+    return `<div class="nested-section"><div class="nested-heading">📊 Fundamental Filters</div><div class="config-grid">${parts.join('')}</div></div>`;
 }
 
 function escapeAttr(str) {
@@ -2630,6 +2669,7 @@ function renderConfig(config, container, securitiesMaps = {}) {
                 </div>
                 <div class="config-card-body">
                     ${renderTechFiltersGrid(screener.technicalFilters)}
+                    ${renderFundamentalFiltersGrid(screener.fundamentalFilters)}
                     ${screener.securitiesFile ? `<div class="mt-sm"><span class="config-item-label">Securities File</span> <span class="config-item-value">${screener.securitiesFile}</span></div>` : ''}
                     ${screener.securities ? `<div class="mt-sm"><span class="config-item-label">Securities (Inline)</span> <span class="config-item-value">${screener.securities}</span></div>` : ''}
                 </div>`;

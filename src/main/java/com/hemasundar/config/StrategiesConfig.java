@@ -139,6 +139,14 @@ public class StrategiesConfig {
         private Object technicalFilters;
 
         /**
+         * Fundamental filters for this strategy (e.g. Market Cap).
+         * Uses a map with keys like "MARKET_CAP", each containing a
+         * {@code conditions} list of math expressions (in Billions for Market Cap).
+         * e.g. {@code "MARKET_CAP": {"conditions": ["MARKET_CAP_B >= 10"]}}
+         */
+        private Map<String, Object> fundamentalFilters;
+
+        /**
          * Optional Greek exposure map for this strategy.
          * Keys: "delta", "gamma", "theta", "vega".
          * Values: "positive", "negative", or "neutral".
@@ -173,12 +181,46 @@ public class StrategiesConfig {
          * "PRICE_DROP".
          */
         private Map<String, Object> technicalFilters;
+
+        /**
+         * Fundamental filters for this screener (e.g. Market Cap).
+         * Uses the same structure as {@code fundamentalFilters} on
+         * {@link StrategyEntry}: a map with keys like "MARKET_CAP", each
+         * containing a {@code conditions} list of math expressions.
+         * e.g. {@code "MARKET_CAP": {"conditions": ["MARKET_CAP_B >= 10"]}}
+         */
+        private Map<String, Object> fundamentalFilters;
     }
 
     // TechnicalIndicatorConfigEntry removed — configs are now filter-type-specific.
     // RSI configs → deserialize to RSIConfigParams
     // Bollinger configs → deserialize to BollingerConfigParams
     // Both are stored as Object in the technicalIndicatorConfigs map.
+
+    /**
+     * POJO for a fundamental filter entry within a {@code fundamentalFilters} map.
+     * Key: {@code "MARKET_CAP"}.
+     *
+     * <p>
+     * Example JSON:
+     *
+     * <pre>
+     * "MARKET_CAP": {
+     *     "conditions": ["MARKET_CAP_B >= 10"]
+     * }
+     * </pre>
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class FundamentalFilterEntry {
+        /**
+         * List of math expression strings (values in Billions for MARKET_CAP_B).
+         * e.g. {@code "MARKET_CAP_B >= 10"} means market cap must be ≥ $10B.
+         */
+        private List<String> conditions;
+    }
+
     /**
      * POJO for an RSI filter entry within a {@code technicalFilters} map.
      * Key: {@code "RSI"}.

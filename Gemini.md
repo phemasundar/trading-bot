@@ -4,7 +4,7 @@
 
 - **Architecture**: A modular, event-driven Options Trading Bot built on Java and Spring Boot. It executes automated strategies based on dynamic technical indicators and options market data.
 - **Runtime Goals**: Maintain low-latency execution, resilient error handling, and reliable asynchronous processing. Core integrations include the Charles Schwab API for market data/trading, and Supabase for persistent tracking of IV data, execution history, and filter configuration.
-- **Design Philosophy**: High reliability with strict fail-safes. Technical filters, indicator thresholds, and strategy constraints must remain externalized in configuration (e.g. JSON), utilizing dynamic mathematical expression evaluation rather than hardcoded logic.
+- **Design Philosophy**: High reliability with strict fail-safes. Technical and fundamental filters, indicator thresholds, and strategy constraints must remain externalized in configuration (e.g. JSON), utilizing dynamic mathematical expression evaluation rather than hardcoded logic.
 
 ## Coding Standards
 

@@ -46,7 +46,7 @@ public class WikipediaSecuritiesFetcher {
     // ── Wikipedia page identifiers (Wikipedia REST API page parameter) ──────────
 
     private static final String SP500_PAGE    = "List_of_S%26P_500_companies";
-    private static final String NASDAQ100_PAGE = "Nasdaq-100";
+    private static final String NASDAQ100_PAGE = "List_of_NASDAQ-100_companies";
 
     /**
      * Wikipedia REST API base URL.
@@ -62,7 +62,7 @@ public class WikipediaSecuritiesFetcher {
      * anchor ID, which is far more stable than a section number (section numbers
      * shift whenever new sections are added/removed).
      */
-    private static final String NASDAQ100_COMPONENTS_ANCHOR = "Current_components";
+    private static final String NASDAQ100_COMPONENTS_ANCHOR = "Nasdaq-100_component_stocks";
 
     /**
      * Column header names (case-insensitive) that are recognised as the ticker column.

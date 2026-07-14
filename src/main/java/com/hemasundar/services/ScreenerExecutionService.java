@@ -11,6 +11,7 @@ import com.hemasundar.utils.TelegramUtils;
 import com.hemasundar.utils.SchwabApiExecutor;
 import com.hemasundar.utils.VolatilityCalculator;
 import com.hemasundar.cache.PriceHistoryCache;
+import com.hemasundar.cache.QuotesCache;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.CollectionUtils;
@@ -95,6 +96,12 @@ public class ScreenerExecutionService {
             PriceHistoryCache.getInstance().prewarm(allSymbolsToPrewarm, schwabApiExecutor, 
                     symbol -> PriceHistoryCache.getInstance().getHistoricalData(symbol, thinkOrSwinAPIs),
                     prewarmAlertCallback);
+
+            // Prewarm QuotesCache — parallel fetch using single-symbol Quote API
+            log.info("[Prewarm] Starting QuotesCache prewarm for {} symbols", allSymbolsToPrewarm.size());
+            QuotesCache.getInstance().prewarm(allSymbolsToPrewarm, schwabApiExecutor,
+                    symbol -> thinkOrSwinAPIs.getQuote(symbol, null),
+                    prewarmAlertCallback);
         }
 
         for (ScreenerConfig screenerConfig : selectedScreeners) {
@@ -136,7 +143,11 @@ public class ScreenerExecutionService {
                         yield priceDropScreener.screen52WeekHighDrop(securitiesToScan, dropRules, alertCallback);
                     }
                     default -> {
-                        yield technicalScreener.screenStocks(securitiesToScan, screenerConfig.getFilterChain(), alertCallback);
+                        yield technicalScreener.screenStocks(
+                                securitiesToScan,
+                                screenerConfig.getFilterChain(),
+                                screenerConfig.getFundamentalConditions(),
+                                alertCallback);
                     }
                 };
             } catch (Exception e) {

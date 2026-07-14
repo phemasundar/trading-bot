@@ -5,6 +5,7 @@ import com.hemasundar.options.models.*;
 import com.hemasundar.options.strategies.AbstractTradingStrategy;
 import com.hemasundar.options.strategies.StrategyType;
 import com.hemasundar.technical.*;
+import com.hemasundar.technical.FundamentalFilterConditions;
 import com.hemasundar.utils.FilePaths;
 import com.hemasundar.utils.JavaUtils;
 import com.hemasundar.utils.MathExpressionParser;
@@ -106,21 +107,17 @@ public class StrategiesConfigLoader {
 
             // Convert each enabled strategy entry to OptionsConfig
             for (StrategyEntry entry : rootConfig.getEnabledStrategies()) {
-                try {
-                    OptionsConfig config = convertToOptionsConfig(entry, securitiesMap, presetFilters,
-                            indicatorConfigs);
-                    if (config != null) {
-                        configs.add(config);
-                    }
-                } catch (Exception e) {
-                    log.error("Error parsing strategy {}: {}", entry.getStrategyType(), e.getMessage());
+                OptionsConfig config = convertToOptionsConfig(entry, securitiesMap, presetFilters,
+                        indicatorConfigs);
+                if (config != null) {
+                    configs.add(config);
                 }
             }
 
             log.info("Loaded {} strategy configurations from {}", configs.size(), configResource);
 
-        } catch (IOException e) {
-            log.error("Error loading strategies config from {}: {}", configResource, e.getMessage());
+        } catch (Exception e) {
+            throw new RuntimeException("Error loading strategies config from " + configResource, e);
         }
 
         return configs;
@@ -158,20 +155,16 @@ public class StrategiesConfigLoader {
 
             // Convert each enabled screener entry to ScreenerConfig
             for (ScreenerEntry entry : rootConfig.getEnabledScreeners()) {
-                try {
-                    ScreenerConfig config = convertToScreenerConfig(entry, securitiesMap, indicatorConfigs);
-                    if (config != null) {
-                        configs.add(config);
-                    }
-                } catch (Exception e) {
-                    log.error("Error parsing screener {}: {}", entry.getScreenerType(), e.getMessage());
+                ScreenerConfig config = convertToScreenerConfig(entry, securitiesMap, indicatorConfigs);
+                if (config != null) {
+                    configs.add(config);
                 }
             }
 
             log.info("Loaded {} screener configurations from {}", configs.size(), configResource);
 
-        } catch (IOException e) {
-            log.error("Error loading screeners config from {}: {}", configResource, e.getMessage());
+        } catch (Exception e) {
+            throw new RuntimeException("Error loading screeners config from " + configResource, e);
         }
 
         return configs;
@@ -185,6 +178,9 @@ public class StrategiesConfigLoader {
         // Build TechnicalFilterChain from the technicalFilters map
         TechnicalFilterChain filterChain = buildFilterChainFromMap(
                 entry.getTechnicalFilters(), indicatorConfigs);
+
+        // Build FundamentalFilterConditions from the fundamentalFilters map
+        FundamentalFilterConditions fundamentalConditions = parseFundamentalFilters(entry.getFundamentalFilters());
 
         // Get securities list from files (supports comma-separated file names)
         List<String> securities = parseSecuritiesFromFiles(entry.getSecuritiesFile(), securitiesMap);
@@ -207,6 +203,7 @@ public class StrategiesConfigLoader {
                 .alias(entry.getAlias())
                 .securities(securities)
                 .filterChain(filterChain)
+                .fundamentalConditions(fundamentalConditions)
                 .build();
     }
 
@@ -308,6 +305,36 @@ public class StrategiesConfigLoader {
      */
     public TechnicalFilterChain parseTechnicalFilters(Map<String, Object> filtersMap) {
         return buildFilterChainFromMap(filtersMap, java.util.Collections.emptyMap());
+    }
+
+    /**
+     * Builds a {@link FundamentalFilterConditions} from a {@code fundamentalFilters} map.
+     * Keys: "MARKET_CAP". Values: objects with a {@code conditions} list.
+     */
+    public FundamentalFilterConditions parseFundamentalFilters(Map<String, Object> filtersMap) {
+        FundamentalFilterConditions.FundamentalFilterConditionsBuilder builder = FundamentalFilterConditions.builder();
+        List<MathExpression> expressions = new ArrayList<>();
+
+        if (filtersMap != null) {
+            for (Map.Entry<String, Object> entry : filtersMap.entrySet()) {
+                String key = entry.getKey().toUpperCase();
+                Object rawEntry = entry.getValue();
+
+                switch (key) {
+                    case "MARKET_CAP" -> {
+                        StrategiesConfig.FundamentalFilterEntry fe =
+                                JavaUtils.convertValue(rawEntry, StrategiesConfig.FundamentalFilterEntry.class);
+                        if (fe != null && fe.getConditions() != null) {
+                            expressions.addAll(MathExpressionParser.parseRules(fe.getConditions()));
+                        }
+                    }
+                    default -> log.warn("Unknown fundamentalFilters key '{}' — skipping", key);
+                }
+            }
+        }
+
+        builder.filterExpressions(expressions);
+        return builder.build();
     }
 
     private TechnicalFilterChain buildFilterChainFromMap(

@@ -47,6 +47,12 @@ public class ScreenerConfig {
     private final TechnicalFilterChain filterChain;
 
     /**
+     * Fundamental filter conditions (e.g. Market Cap).
+     * Parsed from the {@code fundamentalFilters} block in strategies-config.json.
+     */
+    private final FundamentalFilterConditions fundamentalConditions;
+
+    /**
      * Helper to get conditions from the filter chain.
      */
     public TechFilterConditions getConditions() {

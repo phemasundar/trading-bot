@@ -12,6 +12,7 @@ import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -27,35 +28,37 @@ public class ThinkOrSwinAPIs {
 
     private final TokenProvider tokenProvider;
     private final ApiErrorHandler apiErrorHandler;
+    private final com.hemasundar.utils.SchwabApiExecutor schwabApiExecutor;
 
     /**
      * Fetches quotes for multiple symbols in a single API call.
      */
     public Map<String, QuotesResponse.QuoteData> getQuotes(List<String> symbols, String fields,
             Boolean indicative) {
+        return schwabApiExecutor.executeWithRetry("Quotes API", () -> {
+            String symbolsParam = String.join(",", symbols);
 
-        String symbolsParam = String.join(",", symbols);
+            var requestSpec = RestAssured.given()
+                    .header("accept", "application/json")
+                    .header("Authorization", "Bearer " + tokenProvider.getAccessToken())
+                    .queryParam("symbols", symbolsParam);
 
-        var requestSpec = RestAssured.given()
-                .header("accept", "application/json")
-                .header("Authorization", "Bearer " + tokenProvider.getAccessToken())
-                .queryParam("symbols", symbolsParam);
+            if (fields != null && !fields.isBlank()) {
+                requestSpec.queryParam("fields", fields);
+            }
+            if (indicative != null) {
+                requestSpec.queryParam("indicative", indicative);
+            }
 
-        if (fields != null && !fields.isBlank()) {
-            requestSpec.queryParam("fields", fields);
-        }
-        if (indicative != null) {
-            requestSpec.queryParam("indicative", indicative);
-        }
+            Response response = requestSpec.get("https://api.schwabapi.com/marketdata/v1/quotes");
 
-        Response response = requestSpec.get("https://api.schwabapi.com/marketdata/v1/quotes");
+            if (response.statusCode() != 200) {
+                throw new RuntimeException(
+                        "Quotes API failed: " + response.statusCode() + " - " + response.asString());
+            }
 
-        if (response.statusCode() != 200) {
-            throw new RuntimeException(
-                    "Quotes API failed: " + response.statusCode() + " - " + response.asString());
-        }
-
-        return JavaUtils.convertJsonToMap(response.asString(), QuotesResponse.QuoteData.class);
+            return JavaUtils.convertJsonToMap(response.asString(), QuotesResponse.QuoteData.class);
+        });
     }
 
     /**
@@ -69,31 +72,37 @@ public class ThinkOrSwinAPIs {
      * Fetches quote for a single symbol.
      */
     public QuotesResponse.QuoteData getQuote(String symbol, String fields) {
-        Response response = RestAssured.given()
-                .header("accept", "application/json")
-                .header("Authorization", "Bearer " + tokenProvider.getAccessToken())
-                .queryParam("fields", fields)
-                .get("https://api.schwabapi.com/marketdata/v1/" + symbol + "/quotes");
+        return schwabApiExecutor.executeWithRetry(symbol, () -> {
+            io.restassured.specification.RequestSpecification request = RestAssured.given()
+                    .header("accept", "application/json")
+                    .header("Authorization", "Bearer " + tokenProvider.getAccessToken());
 
-        if (response.statusCode() != 200) {
-            if (response.statusCode() == 400) {
-                apiErrorHandler.handle400Error("Quote API", symbol, response.asString());
-                return null;
+            if (fields != null) {
+                request.queryParam("fields", fields);
             }
-            throw new RuntimeException(
-                    "Quote API failed for " + symbol + ": " + response.statusCode() + " - " + response.asString());
-        }
+            request.pathParam("symbol", symbol);
+            Response response = request.get("https://api.schwabapi.com/marketdata/v1/{symbol}/quotes");
 
-        Map<String, QuotesResponse.QuoteData> result = JavaUtils.convertJsonToMap(response.asString(),
-                QuotesResponse.QuoteData.class);
-        return result.get(symbol);
+            if (response.statusCode() != 200) {
+                if (response.statusCode() == 400 || response.statusCode() == 404) {
+                    apiErrorHandler.handle400Error("Quote API", symbol, response.asString());
+                    return null;
+                }
+                throw new RuntimeException(
+                        "Quote API failed for " + symbol + ": " + response.statusCode() + " - " + response.asString());
+            }
+
+            Map<String, QuotesResponse.QuoteData> result = JavaUtils.convertJsonToMap(response.asString(),
+                    QuotesResponse.QuoteData.class);
+            return result.get(symbol);
+        });
     }
 
     /**
      * Fetches quote for a single symbol with default fields (quote and reference).
      */
     public QuotesResponse.QuoteData getQuote(String symbol) {
-        return getQuote(symbol, "quote,reference");
+        return getQuote(symbol, null);
     }
 
     private static class BodyBufferOverflowException extends Exception {}
@@ -285,13 +294,14 @@ public class ThinkOrSwinAPIs {
     public String getMarketHour(String marketId, String date) {
         var request = RestAssured.given()
                 .header("accept", "application/json")
-                .header("Authorization", "Bearer " + tokenProvider.getAccessToken());
+                .header("Authorization", "Bearer " + tokenProvider.getAccessToken())
+                .pathParam("marketId", marketId);
 
         if (date != null && !date.isBlank()) {
             request.queryParam("date", date);
         }
 
-        Response response = request.get("https://api.schwabapi.com/marketdata/v1/markets/" + marketId);
+        Response response = request.get("https://api.schwabapi.com/marketdata/v1/markets/{marketId}");
 
         if (response.statusCode() != 200) {
             throw new RuntimeException(
@@ -317,10 +327,11 @@ public class ThinkOrSwinAPIs {
             request.queryParam("frequency", frequency);
         }
 
-        Response response = request.get("https://api.schwabapi.com/marketdata/v1/movers/" + indexSymbol);
+        request.pathParam("indexSymbol", indexSymbol);
+        Response response = request.get("https://api.schwabapi.com/marketdata/v1/movers/{indexSymbol}");
 
         if (response.statusCode() != 200) {
-            if (response.statusCode() == 400) {
+            if (response.statusCode() == 400 || response.statusCode() == 404) {
                 apiErrorHandler.handle400Error("Movers API", indexSymbol, response.asString());
                 return null;
             }
@@ -360,10 +371,11 @@ public class ThinkOrSwinAPIs {
      * Fetches basic instrument details by CUSIP identifier.
      */
     public String getInstrumentByCusip(String cusipId) {
-        Response response = RestAssured.given()
+        io.restassured.specification.RequestSpecification request = RestAssured.given()
                 .header("accept", "application/json")
                 .header("Authorization", "Bearer " + tokenProvider.getAccessToken())
-                .get("https://api.schwabapi.com/marketdata/v1/instruments/" + cusipId);
+                .pathParam("cusipId", cusipId);
+        Response response = request.get("https://api.schwabapi.com/marketdata/v1/instruments/{cusipId}");
 
         if (response.statusCode() != 200) {
             if (response.statusCode() == 400) {

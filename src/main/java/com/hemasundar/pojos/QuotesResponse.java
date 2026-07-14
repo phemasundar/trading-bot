@@ -1,5 +1,6 @@
 package com.hemasundar.pojos;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
@@ -49,6 +50,22 @@ public class QuotesResponse {
         private Quote quote;
         private Reference reference;
         private Regular regular;
+
+        /**
+         * Calculates market cap in billions dynamically based on fundamental and quote data.
+         * @return Market cap in billions, or null if required data is missing.
+         */
+        @JsonIgnore
+        public Double getMarketCapB() {
+            if (fundamental != null && quote != null) {
+                Long shares = fundamental.getSharesOutstanding();
+                Double price = quote.getLastPrice();
+                if (shares != null && price != null && shares > 0 && price > 0) {
+                    return (shares * price) / 1_000_000_000.0;
+                }
+            }
+            return null;
+        }
     }
 
     /**

@@ -102,25 +102,29 @@ public class SchwabApiExecutor {
     }
 
     /**
-     * Invokes the API call for a single symbol with one automatic 429 retry.
+     * Executes an API action with one automatic 429 retry after pausing.
      */
-    private <T> T invokeWithRetry(String symbol, Function<String, T> apiCall) {
+    public <T> T executeWithRetry(String identifier, java.util.function.Supplier<T> apiCall) {
         try {
-            return apiCall.apply(symbol);
+            return apiCall.get();
         } catch (Exception e) {
             if (isRateLimitError(e)) {
                 log.warn("[{}] Rate-limited (429) — pausing {}ms then retrying",
-                        symbol, rateLimitPauseMs);
+                        identifier, rateLimitPauseMs);
                 try {
                     Thread.sleep(rateLimitPauseMs);
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                 }
                 // Single retry after pause
-                return apiCall.apply(symbol);
+                return apiCall.get();
             }
             throw e;
         }
+    }
+
+    private <T> T invokeWithRetry(String symbol, Function<String, T> apiCall) {
+        return executeWithRetry(symbol, () -> apiCall.apply(symbol));
     }
 
     private boolean isRateLimitError(Exception e) {
