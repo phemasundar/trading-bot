@@ -57,6 +57,19 @@
                     "HV_RANK >= 25"
                 ]
             }
+        },
+        "ema_cross": {
+            "SIMPLE_MOVING_AVERAGE": {
+                "conditions": [
+                    "SMA50 >= SMA200"
+                ]
+            },
+            "EXP_MOVING_AVERAGE": {
+                "conditions": [
+                    "EMA9 >= EMA21"
+                ]
+            },
+            "VOLUME": { "conditions": [ "VOLUME >= 1000000" ] }
         }
     },
     "optionsStrategies": [

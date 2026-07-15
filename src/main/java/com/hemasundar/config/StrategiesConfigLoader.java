@@ -304,7 +304,7 @@ public class StrategiesConfigLoader {
 
     /**
      * Builds a {@link TechnicalFilterChain} from a {@code technicalFilters} map.
-     * Keys: "RSI", "BOLLINGER_BAND", "VOLUME", "SIMPLE_MOVING_AVERAGE", "PRICE_DROP".
+     * Keys: "RSI", "BOLLINGER_BAND", "VOLUME", "SIMPLE_MOVING_AVERAGE", "EXP_MOVING_AVERAGE", "PRICE_DROP".
      */
     public TechnicalFilterChain parseTechnicalFilters(Map<String, Object> filtersMap) {
         return buildFilterChainFromMap(filtersMap, java.util.Collections.emptyMap());
@@ -367,6 +367,8 @@ public class StrategiesConfigLoader {
                     case "VOLUME" -> applyVolumeFilter(rawEntry, filterExpressions);
                     case "SIMPLE_MOVING_AVERAGE" ->
                             applyMovingAverageFilters(rawEntry, indicatorsBuilder, filterExpressions);
+                    case "EXP_MOVING_AVERAGE" ->
+                            applyExponentialMovingAverageFilters(rawEntry, indicatorsBuilder, filterExpressions);
                     case "PRICE_DROP" -> applyPriceDropFilter(rawEntry, conditionsBuilder, filterExpressions);
                     case "HISTORICAL_VOLATILITY" ->
                             applyHistoricalVolatilityFilter(rawEntry, conditionsBuilder, filterExpressions);
@@ -574,6 +576,43 @@ public class StrategiesConfigLoader {
         indicators.maFilters(maFilters);
     }
 
+    public void applyExponentialMovingAverageFilters(
+            Object rawEntry,
+            TechnicalIndicators.TechnicalIndicatorsBuilder indicators,
+            List<MathExpression> filterExpressions) {
+
+        List<String> rules = extractStringRules(rawEntry);
+        if (rules.isEmpty()) {
+            log.warn("Invalid EXP_MOVING_AVERAGE config format.");
+            return;
+        }
+
+        List<String> splitRules = new ArrayList<>();
+        for (String rule : rules) {
+            for (String part : rule.split(",")) {
+                if (!part.trim().isEmpty()) {
+                    splitRules.add(part.trim());
+                }
+            }
+        }
+
+        java.util.Map<Integer, ExponentialMovingAverageFilter> existingEmaFilters = indicators.build().getEmaFilters();
+        java.util.Map<Integer, ExponentialMovingAverageFilter> emaFilters = new HashMap<>(
+                existingEmaFilters != null ? existingEmaFilters : Map.of());
+
+        for (String rule : splitRules) {
+            MathExpression expression = MathExpressionParser.parseExpression(rule);
+            if (expression == null) {
+                log.warn("Unrecognized EXP_MOVING_AVERAGE rule: {}", rule);
+                continue;
+            }
+            filterExpressions.add(expression);
+            registerExponentialMovingAveragePeriods(expression, emaFilters);
+        }
+
+        indicators.emaFilters(emaFilters);
+    }
+
     private List<String> extractStringRules(Object rawEntry) {
         List<String> rules = new ArrayList<>();
         if (rawEntry instanceof java.util.Map) {
@@ -604,6 +643,14 @@ public class StrategiesConfigLoader {
         registerMaFromVariable(expression.getRightVariable(), maFilters);
     }
 
+    private void registerExponentialMovingAveragePeriods(
+            MathExpression expression,
+            java.util.Map<Integer, ExponentialMovingAverageFilter> emaFilters) {
+
+        registerEmaFromVariable(expression.getLeftVariable(), emaFilters);
+        registerEmaFromVariable(expression.getRightVariable(), emaFilters);
+    }
+
     private void registerMaFromVariable(String variable, java.util.Map<Integer, MovingAverageFilter> maFilters) {
         if (variable == null) {
             return;
@@ -613,6 +660,19 @@ public class StrategiesConfigLoader {
             Integer period = parsePeriod(upper.substring(3));
             if (period != null) {
                 maFilters.putIfAbsent(period, MovingAverageFilter.builder().period(period).build());
+            }
+        }
+    }
+
+    private void registerEmaFromVariable(String variable, java.util.Map<Integer, ExponentialMovingAverageFilter> emaFilters) {
+        if (variable == null) {
+            return;
+        }
+        String upper = variable.toUpperCase();
+        if (upper.startsWith("EMA")) {
+            Integer period = parsePeriod(upper.substring(3));
+            if (period != null) {
+                emaFilters.putIfAbsent(period, ExponentialMovingAverageFilter.builder().period(period).build());
             }
         }
     }

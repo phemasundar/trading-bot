@@ -68,6 +68,9 @@ public class TechnicalFilterChain {
         if (indicators.getMaFilters() != null) {
             list.addAll(indicators.getMaFilters().values());
         }
+        if (indicators.getEmaFilters() != null) {
+            list.addAll(indicators.getEmaFilters().values());
+        }
         if (indicators.getVolumeFilter() != null) {
             list.add(indicators.getVolumeFilter());
         }
@@ -98,6 +101,10 @@ public class TechnicalFilterChain {
 
     public java.util.Map<Integer, MovingAverageFilter> getMaFilters() {
         return indicators != null ? indicators.getMaFilters() : null;
+    }
+
+    public java.util.Map<Integer, ExponentialMovingAverageFilter> getEmaFilters() {
+        return indicators != null ? indicators.getEmaFilters() : null;
     }
 
     /**
