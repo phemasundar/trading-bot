@@ -21,6 +21,10 @@ import java.util.HashMap;
  *             20, MovingAverageFilter.builder().period(20).build(),
  *             50, MovingAverageFilter.builder().period(50).build()
  *         )))
+ *         .emaFilters(new HashMap<>(Map.of(
+ *             9, ExponentialMovingAverageFilter.builder().period(9).build(),
+ *             21, ExponentialMovingAverageFilter.builder().period(21).build()
+ *         )))
  *         .volumeFilter(VolumeFilter.builder().minVolume(1_000_000L).build())
  *         .build();
  * </pre>
@@ -38,6 +42,10 @@ public class TechnicalIndicators {
                         50, MovingAverageFilter.builder().period(50).build(),
                         100, MovingAverageFilter.builder().period(100).build(),
                         200, MovingAverageFilter.builder().period(200).build()
+                )))
+                .emaFilters(new HashMap<>(Map.of(
+                        9, ExponentialMovingAverageFilter.builder().period(9).build(),
+                        21, ExponentialMovingAverageFilter.builder().period(21).build()
                 )))
                 .volumeFilter(VolumeFilter.builder().build())
                 .build();
@@ -58,6 +66,12 @@ public class TechnicalIndicators {
      */
     @Builder.Default
     private final Map<Integer, MovingAverageFilter> maFilters = new HashMap<>();
+
+    /**
+     * Map of Exponential Moving Average filters, keyed by their period (e.g., 9, 21).
+     */
+    @Builder.Default
+    private final Map<Integer, ExponentialMovingAverageFilter> emaFilters = new HashMap<>();
 
     /**
      * Volume filter configuration.

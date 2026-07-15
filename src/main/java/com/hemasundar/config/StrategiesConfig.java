@@ -35,6 +35,7 @@ import java.util.Map;
  *     },
  *     "VOLUME": { "config": { "min": 1000000 } },
  *     "SIMPLE_MOVING_AVERAGE": { "config": { "requirePriceBelowMA200": true } },
+ *     "EXP_MOVING_AVERAGE": { "conditions": [ "EMA9 >= EMA21" ] },
  *     "PRICE_DROP": { "config": { "minDropPercent": 5.0, "lookbackDays": 5 } }
  * }
  * </pre>
@@ -178,7 +179,7 @@ public class StrategiesConfig {
          * Technical filters for this screener. Uses the same format as
          * {@link StrategyEntry#technicalFilters} — a {@code Map<String, Object>}
          * with keys like "RSI", "BOLLINGER_BAND", "VOLUME", "SIMPLE_MOVING_AVERAGE",
-         * "PRICE_DROP".
+         * "EXP_MOVING_AVERAGE", "PRICE_DROP".
          */
         private Map<String, Object> technicalFilters;
 
@@ -342,6 +343,25 @@ public class StrategiesConfig {
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class MovingAverageFilterEntry {
+        private Object conditions;
+    }
+
+    /**
+     * POJO for an Exponential Moving Average filter entry within a {@code technicalFilters} map.
+     * Key: {@code "EXP_MOVING_AVERAGE"}.
+     *
+     * Example:
+     * 
+     * <pre>
+     * "EXP_MOVING_AVERAGE": {
+     *     "conditions": ["PRICE >= EMA9", "EMA9 >= EMA21"]
+     * }
+     * </pre>
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ExponentialMovingAverageFilterEntry {
         private Object conditions;
     }
 

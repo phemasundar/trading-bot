@@ -61,6 +61,8 @@ public class TechnicalScreener {
         private Double volumeSmaLong;
         @Builder.Default
         private Map<Integer, Double> maValues = new HashMap<>();
+        @Builder.Default
+        private Map<Integer, Double> emaValues = new HashMap<>();
 
         /**
          * Volume SMA values keyed by period. Populated when volume SMA comparison
@@ -143,6 +145,17 @@ public class TechnicalScreener {
                 sb.append("None");
             }
             sb.append("\n");
+
+            // Exponential Moving Averages Section
+            if (emaValues != null && !emaValues.isEmpty()) {
+                sb.append("  📈 EMAs: ");
+                List<String> emaStrings = new ArrayList<>();
+                emaValues.forEach((period, value) -> {
+                    emaStrings.add(String.format("EMA%d($%.2f)", period, value));
+                });
+                sb.append(String.join(", ", emaStrings));
+                sb.append("\n");
+            }
 
             // Historical Volatility Rank
             if (historicalVolatilityRank != null) {
@@ -390,6 +403,15 @@ public class TechnicalScreener {
                 maValues.put(entry.getKey(), entry.getValue().getCurrentSMA(series));
             }
             builder.maValues(maValues);
+        }
+
+        // Exponential Moving Averages
+        if (indicators.getEmaFilters() != null) {
+            Map<Integer, Double> emaValues = new HashMap<>();
+            for (Map.Entry<Integer, ExponentialMovingAverageFilter> entry : indicators.getEmaFilters().entrySet()) {
+                emaValues.put(entry.getKey(), entry.getValue().getCurrentEMA(series));
+            }
+            builder.emaValues(emaValues);
         }
 
         // Volume
