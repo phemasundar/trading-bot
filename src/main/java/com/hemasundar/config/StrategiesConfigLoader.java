@@ -204,6 +204,7 @@ public class StrategiesConfigLoader {
         return ScreenerConfig.builder()
                 .screenerType(entry.getScreenerType())
                 .alias(entry.getAlias())
+                .descriptionFile(entry.getDescriptionFile())
                 .securities(securities)
                 .filterChain(filterChain)
                 .fundamentalConditions(fundamentalConditions)
@@ -304,7 +305,7 @@ public class StrategiesConfigLoader {
 
     /**
      * Builds a {@link TechnicalFilterChain} from a {@code technicalFilters} map.
-     * Keys: "RSI", "BOLLINGER_BAND", "VOLUME", "SIMPLE_MOVING_AVERAGE", "EXP_MOVING_AVERAGE", "PRICE_DROP".
+     * Keys: "RSI", "BOLLINGER_BAND", "VOLUME", "SIMPLE_MOVING_AVERAGE", "EXP_MOVING_AVERAGE", "PRICE_DROP", "AVERAGE_TRUE_RANGE".
      */
     public TechnicalFilterChain parseTechnicalFilters(Map<String, Object> filtersMap) {
         return buildFilterChainFromMap(filtersMap, java.util.Collections.emptyMap());
@@ -370,6 +371,8 @@ public class StrategiesConfigLoader {
                     case "EXP_MOVING_AVERAGE" ->
                             applyExponentialMovingAverageFilters(rawEntry, indicatorsBuilder, filterExpressions);
                     case "PRICE_DROP" -> applyPriceDropFilter(rawEntry, conditionsBuilder, filterExpressions);
+                    case "AVERAGE_TRUE_RANGE" ->
+                            applyAverageTrueRangeFilter(rawEntry, indicatorsBuilder, filterExpressions);
                     case "HISTORICAL_VOLATILITY" ->
                             applyHistoricalVolatilityFilter(rawEntry, conditionsBuilder, filterExpressions);
                     default -> log.warn("Unknown technicalFilters key '{}' — skipping", key);
@@ -726,6 +729,26 @@ public class StrategiesConfigLoader {
                                                List<MathExpression> filterExpressions) {
         if (CollectionUtils.isEmpty(rules)) return;
         filterExpressions.addAll(MathExpressionParser.parseRules(rules));
+    }
+
+    private void applyAverageTrueRangeFilter(
+            Object rawEntry,
+            TechnicalIndicators.TechnicalIndicatorsBuilder indicators,
+            List<MathExpression> filterExpressions) {
+        
+        StrategiesConfig.ATRFilterEntry entry = JavaUtils.convertValue(rawEntry, StrategiesConfig.ATRFilterEntry.class);
+        if (entry != null) {
+            if (entry.getConfig() != null) {
+                if (entry.getConfig().getPeriod() != null) {
+                    indicators.atrFilter(AverageTrueRangeFilter.builder().period(entry.getConfig().getPeriod()).build());
+                } else {
+                    log.warn("AVERAGE_TRUE_RANGE config is missing 'period'. ATR filter will not be applied.");
+                }
+            }
+            if (entry.getConditions() != null && !entry.getConditions().isEmpty()) {
+                filterExpressions.addAll(MathExpressionParser.parseRules(entry.getConditions()));
+            }
+        }
     }
 
     // ─────────────────────────────────────────────────────────

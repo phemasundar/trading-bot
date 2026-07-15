@@ -33,8 +33,14 @@ import java.util.regex.Pattern;
 @UtilityClass
 public final class MathExpressionParser {
 
-    private static final Pattern SCALED_RIGHT_PATTERN = Pattern.compile(
+    private static final Pattern SCALED_RIGHT_PATTERN_PCT = Pattern.compile(
             "^(\\w+)\\s*\\*\\s*(\\d+(?:\\.\\d+)?)%$");
+
+    private static final Pattern SCALED_RIGHT_PATTERN_MULT_1 = Pattern.compile(
+            "^(\\w+)\\s*\\*\\s*(\\d+(?:\\.\\d+)?)$"); // VAR * X
+
+    private static final Pattern SCALED_RIGHT_PATTERN_MULT_2 = Pattern.compile(
+            "^(\\d+(?:\\.\\d+)?)\\s*\\*\\s*(\\w+)$"); // X * VAR
 
     private static final Pattern FULL_EXPRESSION_PATTERN = Pattern.compile(
             "^(\\w+)\\s*(>=|<=|==|>|<)\\s*(.+)$");
@@ -64,10 +70,19 @@ public final class MathExpressionParser {
         double scale = 1.0;
         String rightVariable = rightSide;
 
-        Matcher scaleMatcher = SCALED_RIGHT_PATTERN.matcher(rightSide);
-        if (scaleMatcher.matches()) {
-            rightVariable = scaleMatcher.group(1);
-            scale = Double.parseDouble(scaleMatcher.group(2)) / 100.0;
+        Matcher scalePctMatcher = SCALED_RIGHT_PATTERN_PCT.matcher(rightSide);
+        Matcher scaleMult1Matcher = SCALED_RIGHT_PATTERN_MULT_1.matcher(rightSide);
+        Matcher scaleMult2Matcher = SCALED_RIGHT_PATTERN_MULT_2.matcher(rightSide);
+
+        if (scalePctMatcher.matches()) {
+            rightVariable = scalePctMatcher.group(1);
+            scale = Double.parseDouble(scalePctMatcher.group(2)) / 100.0;
+        } else if (scaleMult1Matcher.matches()) {
+            rightVariable = scaleMult1Matcher.group(1);
+            scale = Double.parseDouble(scaleMult1Matcher.group(2));
+        } else if (scaleMult2Matcher.matches()) {
+            scale = Double.parseDouble(scaleMult2Matcher.group(1));
+            rightVariable = scaleMult2Matcher.group(2);
         }
 
         Validate.isTrue(isVariableOrNumber(rightVariable),

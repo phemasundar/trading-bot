@@ -808,6 +808,29 @@
                     ]
                 }
             }
+        },
+        {
+            "enabled": true,
+            "alias": "ATR Screener",
+            "screenerType": "ATR",
+            "descriptionFile": "atr_screener.md",
+            "securitiesFile": "top100, portfolio, tracking, 2026, SPY, QQQ",
+            "technicalFilters": {
+                "AVERAGE_TRUE_RANGE": {
+                    "config": {
+                        "period": 14
+                    },
+                    "conditions": [
+                        "NATR >= 1.5",
+                        "PRICE_DROP_FROM_HIGH_5D >= 2 * ATR"
+                    ]
+                },
+                "VOLUME": {
+                    "conditions": [
+                        "VOLUME >= 1000000"
+                    ]
+                }
+            }
         }
     ]
 }
