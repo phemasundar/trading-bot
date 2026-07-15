@@ -1911,13 +1911,19 @@ async function loadScreenerStrategies() {
         if (screeners.length === 0) {
             screenerContainer.innerHTML = `<span class="text-muted">No screeners configured</span>`;
         } else {
-            screenerContainer.innerHTML = screeners.map(s => `
-                <div class="flex items-center gap-sm" style="margin-bottom: 8px;">
+            screenerContainer.innerHTML = screeners.map(s => {
+                const infoBtn = s.descriptionFile
+                    ? `<button type="button" class="info-btn" style="margin-left: 4px;" onclick="showInfo(event, '${s.descriptionFile}', '${escapeAttr(s.name)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>`
+                    : '';
+                return `
+                <div class="flex items-center" style="margin-bottom: 8px;">
                     <label class="checkbox-label" style="margin: 0;">
                         <input type="checkbox" value="${s.index}" data-type="screener">
                         <span>${s.name}</span>
                     </label>
-                </div>`).join('');
+                    ${infoBtn}
+                </div>`;
+            }).join('');
         }
         const badge = document.getElementById('screener-count-badge');
         if (badge) badge.textContent = `(${screeners.length})`;
@@ -2660,11 +2666,23 @@ function renderConfig(config, container, securitiesMaps = {}) {
         config.technicalScreeners.forEach(screener => {
             const card = document.createElement('div');
             card.className = 'config-card';
+
+            const enabledPill = screener.enabled
+                ? '<span class="pill pill-enabled">Enabled</span>'
+                : '<span class="pill pill-disabled">Disabled</span>';
+
+            const infoBtn = screener.descriptionFile
+                ? `<button type="button" class="info-btn" onclick="showInfo(event, '${screener.descriptionFile}', '${escapeAttr(screener.alias || screener.screenerType)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>`
+                : '';
+
             card.innerHTML = `
                 <div class="config-card-header">
-                    <div class="flex items-center gap-sm">
+                    <div class="flex items-center gap-sm flex-wrap">
                         <span class="card-arrow">▶</span>
                         <strong>${screener.alias || screener.screenerType || 'Screener'}</strong>
+                        ${infoBtn}
+                        <span class="card-badge">${screener.screenerType} <button type="button" class="info-btn" style="font-size: 0.7rem; padding: 0; color: inherit" onclick="showFilterHelp(event, 'screenerType', 'Screener Type')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></span>
+                        ${enabledPill}
                     </div>
                 </div>
                 <div class="config-card-body">
@@ -3185,11 +3203,17 @@ async function renderScreenerTemplates(screenerType) {
 
         const loadBtn = `<button type="button" class="btn btn-primary" style="padding: 2px 8px; font-size: 0.75rem; margin-left: auto;" onclick="loadScreenerTemplateParams('${escapeAttr(JSON.stringify(screener))}')">Load Filters</button>`;
 
+        const infoBtn = screener.descriptionFile
+            ? `<button type="button" class="info-btn" onclick="showInfo(event, '${screener.descriptionFile}', '${escapeAttr(screener.alias || screener.screenerType)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>`
+            : '';
+
         card.innerHTML = `
             <div class="config-card-header">
                 <div class="flex items-center gap-sm flex-wrap" style="width: 100%;">
                     <span class="card-arrow">▶</span>
                     <strong>${screener.alias || screener.screenerType}</strong>
+                    ${infoBtn}
+                    <span class="card-badge">${screener.screenerType} <button type="button" class="info-btn" style="font-size: 0.7rem; padding: 0; color: inherit" onclick="showFilterHelp(event, 'screenerType', 'Screener Type')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></span>
                     <span class="card-badge">${screener.securitiesFile || 'Custom'}</span>
                     ${enabledPill}
                     ${loadBtn}

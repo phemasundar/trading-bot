@@ -36,7 +36,8 @@ import java.util.Map;
  *     "VOLUME": { "config": { "min": 1000000 } },
  *     "SIMPLE_MOVING_AVERAGE": { "config": { "requirePriceBelowMA200": true } },
  *     "EXP_MOVING_AVERAGE": { "conditions": [ "EMA9 >= EMA21" ] },
- *     "PRICE_DROP": { "config": { "minDropPercent": 5.0, "lookbackDays": 5 } }
+ *     "PRICE_DROP": { "config": { "minDropPercent": 5.0, "lookbackDays": 5 } },
+ *     "AVERAGE_TRUE_RANGE": { "config": { "period": 14 } }
  * }
  * </pre>
  * 
@@ -172,6 +173,7 @@ public class StrategiesConfig {
         private boolean enabled = true;
         private String alias;
         private ScreenerType screenerType;
+        private String descriptionFile;
         private String securitiesFile;
         private String securities;
 
@@ -179,7 +181,7 @@ public class StrategiesConfig {
          * Technical filters for this screener. Uses the same format as
          * {@link StrategyEntry#technicalFilters} — a {@code Map<String, Object>}
          * with keys like "RSI", "BOLLINGER_BAND", "VOLUME", "SIMPLE_MOVING_AVERAGE",
-         * "EXP_MOVING_AVERAGE", "PRICE_DROP".
+         * "EXP_MOVING_AVERAGE", "PRICE_DROP", "AVERAGE_TRUE_RANGE".
          */
         private Map<String, Object> technicalFilters;
 
@@ -394,6 +396,35 @@ public class StrategiesConfig {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class PriceDropConfigParams {
         private Integer lookbackDays;
+    }
+
+    /**
+     * POJO for an Average True Range filter entry within a {@code technicalFilters} map.
+     * Key: {@code "AVERAGE_TRUE_RANGE"}.
+     *
+     * <p>
+     * Example JSON:
+     * 
+     * <pre>
+     * "AVERAGE_TRUE_RANGE": { "config": { "period": 14 } }
+     * </pre>
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ATRFilterEntry {
+        private ATRConfigParams config;
+        private List<String> conditions;
+    }
+
+    /**
+     * POJO for inline ATR filter params.
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ATRConfigParams {
+        private Integer period;
     }
 
     /**

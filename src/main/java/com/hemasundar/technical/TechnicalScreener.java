@@ -57,8 +57,11 @@ public class TechnicalScreener {
         private double bollingerLower;
         private double bollingerMiddle;
         private double bollingerUpper;
+        private Double atr;
         private Double volumeSmaShort;
         private Double volumeSmaLong;
+        @Builder.Default
+        private Map<Integer, Double> highValues = new HashMap<>();
         @Builder.Default
         private Map<Integer, Double> maValues = new HashMap<>();
         @Builder.Default
@@ -167,6 +170,11 @@ public class TechnicalScreener {
                 sb.append("  🏢 Mkt Cap: ").append(formatMarketCap(marketCapB)).append("\n");
             }
 
+            // ATR
+            if (atr != null) {
+                sb.append("  📏 ATR: ").append(String.format("%.2f", atr)).append("\n");
+            }
+
             return sb.toString();
         }
 
@@ -202,8 +210,13 @@ public class TechnicalScreener {
          *       Bollinger Bands</li>
          *   <li>{@code SMA<N>} — simple moving average for period N</li>
          *   <li>{@code VOLUME_SMA<N>} — volume SMA for period N</li>
+         *   <li>{@code HIGH_<N>D} — Highest high price of the last N days</li>
+         *   <li>{@code ATR_DROP_FROM_HIGH_<N>D} — Drop from N-day high measured in multiples of ATR</li>
+         *   <li>{@code PRICE_DROP_FROM_HIGH_<N>D} — Dollar drop from N-day high</li>
          *   <li>{@code HV_RANK} — historical volatility rank</li>
          *   <li>{@code DROP_PCT} — price drop percentage</li>
+         *   <li>{@code ATR} — Average True Range</li>
+         *   <li>{@code NATR} — Normalized Average True Range (percentage)</li>
          * </ul>
          *
          * @param variable variable name (case-insensitive)
@@ -225,6 +238,8 @@ public class TechnicalScreener {
                 case "HV_RANK" -> historicalVolatilityRank;
                 case "DROP_PCT" -> dropPercent;
                 case "MARKET_CAP_B" -> marketCapB;
+                case "ATR" -> atr;
+                case "NATR" -> (atr != null && currentPrice > 0) ? (atr / currentPrice) * 100 : null;
                 default -> resolveMappedValue(key);
             };
         }
@@ -240,6 +255,30 @@ public class TechnicalScreener {
                 Integer period = parsePeriod(key.substring(10));
                 if (period != null && volumeMaValues != null) {
                     return volumeMaValues.get(period);
+                }
+            }
+            if (key.startsWith("HIGH_") && key.endsWith("D")) {
+                Integer period = parsePeriod(key.substring(5, key.length() - 1));
+                if (period != null && highValues != null) {
+                    return highValues.get(period);
+                }
+            }
+            if (key.startsWith("ATR_DROP_FROM_HIGH_") && key.endsWith("D")) {
+                Integer period = parsePeriod(key.substring(19, key.length() - 1));
+                if (period != null && highValues != null && atr != null && atr > 0) {
+                    Double high = highValues.get(period);
+                    if (high != null) {
+                        return (high - currentPrice) / atr;
+                    }
+                }
+            }
+            if (key.startsWith("PRICE_DROP_FROM_HIGH_") && key.endsWith("D")) {
+                Integer period = parsePeriod(key.substring(21, key.length() - 1));
+                if (period != null && highValues != null) {
+                    Double high = highValues.get(period);
+                    if (high != null) {
+                        return high - currentPrice;
+                    }
                 }
             }
             return null;
@@ -396,6 +435,11 @@ public class TechnicalScreener {
                     .priceTouchingUpperBand(bb.isPriceTouchingUpperBand(series));
         }
 
+        // ATR
+        if (indicators.getAtrFilter() != null) {
+            builder.atr(indicators.getAtrFilter().getCurrentATR(series));
+        }
+
         // Moving Averages
         if (indicators.getMaFilters() != null) {
             Map<Integer, Double> maValues = new HashMap<>();
@@ -452,6 +496,28 @@ public class TechnicalScreener {
                 }
                 builder.volumeMaValues(volumeMaValues);
             }
+
+            java.util.Set<Integer> highPeriods = new java.util.LinkedHashSet<>();
+            for (MathExpression expr : conditions.getFilterExpressions()) {
+                Integer p = extractHighPeriod(expr.getLeftVariable());
+                if (p != null) {
+                    highPeriods.add(p);
+                }
+                p = extractHighPeriod(expr.getRightVariable());
+                if (p != null) {
+                    highPeriods.add(p);
+                }
+            }
+            if (!highPeriods.isEmpty()) {
+                org.ta4j.core.indicators.helpers.HighPriceIndicator highPrice = new org.ta4j.core.indicators.helpers.HighPriceIndicator(series);
+                Map<Integer, Double> highValuesMap = new HashMap<>();
+                for (Integer period : highPeriods) {
+                    org.ta4j.core.indicators.helpers.HighestValueIndicator highest = new org.ta4j.core.indicators.helpers.HighestValueIndicator(highPrice, period);
+                    double value = highest.getValue(series.getEndIndex()).doubleValue();
+                    highValuesMap.put(period, value);
+                }
+                builder.highValues(highValuesMap);
+            }
         }
 
         // Market Cap
@@ -476,13 +542,34 @@ public class TechnicalScreener {
         if (variable == null) {
             return null;
         }
-        String upper = variable.trim().toUpperCase();
-        if (upper.startsWith("VOLUME_SMA")) {
+        String key = variable.trim().toUpperCase();
+        if (key.startsWith("VOLUME_SMA")) {
             try {
-                return Integer.parseInt(upper.substring(10));
+                return Integer.parseInt(key.substring(10));
             } catch (NumberFormatException e) {
                 return null;
             }
+        }
+        return null;
+    }
+
+    private static Integer extractHighPeriod(String variable) {
+        if (variable == null) {
+            return null;
+        }
+        String key = variable.trim().toUpperCase();
+        try {
+            if (key.startsWith("HIGH_") && key.endsWith("D")) {
+                return Integer.parseInt(key.substring(5, key.length() - 1));
+            }
+            if (key.startsWith("ATR_DROP_FROM_HIGH_") && key.endsWith("D")) {
+                return Integer.parseInt(key.substring(19, key.length() - 1));
+            }
+            if (key.startsWith("PRICE_DROP_FROM_HIGH_") && key.endsWith("D")) {
+                return Integer.parseInt(key.substring(21, key.length() - 1));
+            }
+        } catch (NumberFormatException e) {
+            return null;
         }
         return null;
     }

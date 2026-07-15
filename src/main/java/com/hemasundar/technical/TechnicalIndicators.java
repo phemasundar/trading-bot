@@ -48,6 +48,7 @@ public class TechnicalIndicators {
                         21, ExponentialMovingAverageFilter.builder().period(21).build()
                 )))
                 .volumeFilter(VolumeFilter.builder().build())
+                .atrFilter(AverageTrueRangeFilter.builder().period(14).build())
                 .build();
     }
 
@@ -77,4 +78,9 @@ public class TechnicalIndicators {
      * Volume filter configuration.
      */
     private final VolumeFilter volumeFilter;
+
+    /**
+     * Average True Range (ATR) configuration.
+     */
+    private final AverageTrueRangeFilter atrFilter;
 }

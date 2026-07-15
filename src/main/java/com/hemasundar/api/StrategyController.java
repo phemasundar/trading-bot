@@ -131,6 +131,7 @@ public class StrategyController {
                         map.put("index", i);
                         map.put("name", config.getName());
                         map.put("type", config.getScreenerType().name());
+                        map.put("descriptionFile", config.getDescriptionFile());
                         return map;
                     })
                     .collect(Collectors.toList());

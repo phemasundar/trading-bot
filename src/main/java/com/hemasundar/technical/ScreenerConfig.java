@@ -37,6 +37,11 @@ public class ScreenerConfig {
     private final String alias;
 
     /**
+     * Markdown description file path.
+     */
+    private final String descriptionFile;
+
+    /**
      * List of stock tickers to run the screener against.
      */
     private final java.util.List<String> securities;

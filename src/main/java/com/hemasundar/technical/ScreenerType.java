@@ -18,7 +18,8 @@ public enum ScreenerType {
     BB_LOWER("Bollinger Band Lower"),
     BELOW_200_DAY_SMA("Below 200 Day SMA"),
     PRICE_DROP("Price Drop"),
-    HIGH_52W_DROP("52-Week High Drop");
+    HIGH_52W_DROP("52-Week High Drop"),
+    ATR("Average True Range");
 
     private final String displayName;
 
