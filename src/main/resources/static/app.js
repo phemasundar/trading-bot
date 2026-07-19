@@ -2044,11 +2044,11 @@ function resetDashboardFilter(prefix) {
     const clearBtn = document.getElementById(cfg.clearBtnId);
     const summary = document.getElementById(cfg.summaryId);
 
-    if (colSelect) colSelect.value = '';
-    if (textInput) { textInput.value = ''; textInput.style.display = 'none'; }
+    if (colSelect) colSelect.value = 'ticker';
+    if (textInput) { textInput.value = ''; textInput.style.display = 'inline-block'; }
     if (dateGroup) dateGroup.style.display = 'none';
     if (dateInput) dateInput.value = '';
-    if (searchBtn) searchBtn.style.display = 'none';
+    if (searchBtn) searchBtn.style.display = 'inline-block';
     if (clearBtn) clearBtn.style.display = 'none';
     if (summary) summary.innerHTML = '';
 }
