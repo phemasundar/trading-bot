@@ -8,7 +8,7 @@
     <meta name="description" content="Real-time technical screener execution monitor for automated stock screening">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/style.css?v=4">
+    <link rel="stylesheet" href="/style.css?v=5">
     <script src="/theme.js?v=3"></script>
 </head>
 
@@ -113,6 +113,29 @@
 
             <!-- Screener Results -->
             <h3 style="font-size:1rem; margin-bottom:12px; color:var(--text-secondary)">Latest Technical Screener Results</h3>
+
+            <!-- Results Filter Bar -->
+            <div id="screeners-filter-bar" class="results-filter-bar" style="display:none;">
+                <div class="filter-bar-row">
+                    <select id="screeners-filter-column" class="filter-select" onchange="onFilterColumnChange('screeners')">
+                        <option value="">— Filter by column —</option>
+                        <option value="ticker">Ticker</option>
+                    </select>
+                    <input type="text" id="screeners-filter-text" class="filter-input"
+                           placeholder="e.g. AAPL" style="display:none;"
+                           onkeydown="if(event.key==='Enter') applyDashboardFilter('screeners')" />
+                    <button id="screeners-filter-btn" class="btn btn-primary btn-sm filter-search-btn"
+                            style="display:none;" onclick="applyDashboardFilter('screeners')">
+                        🔍 Search
+                    </button>
+                    <button id="screeners-filter-clear" class="btn btn-ghost btn-sm"
+                            style="display:none;" onclick="clearDashboardFilter('screeners')">
+                        ✕ Clear
+                    </button>
+                </div>
+                <div id="screeners-filter-summary" class="filter-summary-text"></div>
+            </div>
+
             <div id="screener-results-container">
                 <div class="empty-state">
                     <div class="empty-state-icon">🔎</div>
@@ -124,7 +147,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="/app.js?v=5"></script>
+    <script src="/app.js?v=6"></script>
     <script>
         document.addEventListener('DOMContentLoaded', initScreenerDashboard);
     </script>

@@ -1316,9 +1316,7 @@ function renderFundamentalFiltersGrid(fundamentalFilters) {
     return `<div class="nested-section"><div class="nested-heading">📊 Fundamental Filters</div><div class="config-grid">${parts.join('')}</div></div>`;
 }
 
-function escapeAttr(str) {
-    return (str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
+// Note: escapeAttr is defined at the top of the file (line ~162); this was a duplicate — removed.
 
 function escapeHtmlContent(str) {
     return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -1574,21 +1572,27 @@ async function loadOptionsResults() {
     const optionsContainer = document.getElementById('results-container');
     if (!optionsContainer) return;
 
+    // Reset any active filter before re-rendering
+    resetDashboardFilter('options');
+
     try {
         const optionResults = await API.get('/api/results');
 
         optionsContainer.innerHTML = '';
         if (!optionResults || optionResults.length === 0) {
             optionsContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div>No option strategy results yet. Execute a strategy to see results.</div>';
+            hideDashboardFilterBar('options');
         } else {
             for (const r of optionResults) {
                 optionsContainer.appendChild(buildResultCard(r));
             }
             // Inject live today's performance into every trade table
             fetchAndInjectTodayPerformance(optionsContainer);
+            showDashboardFilterBar('options');
         }
     } catch (e) {
         optionsContainer.innerHTML = `<div class="empty-state text-danger">Failed to load results: ${e.message}</div>`;
+        hideDashboardFilterBar('options');
         if (typeof checkExecutionStatus === 'function') {
             checkExecutionStatus();
         }
@@ -1936,18 +1940,353 @@ async function loadScreenerResults() {
     const screenerContainer = document.getElementById('screener-results-container');
     if (!screenerContainer) return;
 
+    // Reset any active filter before re-rendering
+    resetDashboardFilter('screeners');
+
     try {
         const screenerResults = await API.get('/api/results/screeners').catch(() => []);
         screenerContainer.innerHTML = '';
         if (!screenerResults || screenerResults.length === 0) {
             screenerContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔎</div>No technical screener results yet. Execute a screener to see results.</div>';
+            hideDashboardFilterBar('screeners');
         } else {
             for (const r of screenerResults) {
                 screenerContainer.appendChild(buildScreenerCard(r));
             }
+            showDashboardFilterBar('screeners');
         }
     } catch (e) {
         screenerContainer.innerHTML = `<div class="empty-state text-danger">Failed to load screener results: ${e.message}</div>`;
+        hideDashboardFilterBar('screeners');
+    }
+}
+
+// ══════════════════════════════════════
+//  DASHBOARD RESULTS FILTER
+// ══════════════════════════════════════
+
+/**
+ * Configuration for each dashboard's filter bar elements.
+ * prefix: the ID prefix used for filter bar controls (e.g. 'options' → 'options-filter-bar')
+ * containerId: the results container element ID
+ * supportsDate: whether the expiry date filter is available on this dashboard
+ */
+const DASHBOARD_FILTER_CONFIG = {
+    options: {
+        barId: 'options-filter-bar',
+        columnSelectId: 'options-filter-column',
+        textInputId: 'options-filter-text',
+        dateGroupId: 'options-filter-date-group',
+        dateModeId: 'options-filter-date-mode',
+        dateInputId: 'options-filter-date',
+        searchBtnId: 'options-filter-btn',
+        clearBtnId: 'options-filter-clear',
+        summaryId: 'options-filter-summary',
+        containerId: 'results-container',
+        supportsDate: true
+    },
+    screeners: {
+        barId: 'screeners-filter-bar',
+        columnSelectId: 'screeners-filter-column',
+        textInputId: 'screeners-filter-text',
+        dateGroupId: null,
+        dateModeId: null,
+        dateInputId: null,
+        searchBtnId: 'screeners-filter-btn',
+        clearBtnId: 'screeners-filter-clear',
+        summaryId: 'screeners-filter-summary',
+        containerId: 'screener-results-container',
+        supportsDate: false
+    }
+};
+
+/** Shows the filter bar for the given dashboard prefix */
+function showDashboardFilterBar(prefix) {
+    const cfg = DASHBOARD_FILTER_CONFIG[prefix];
+    if (!cfg) return;
+    const bar = document.getElementById(cfg.barId);
+    if (bar) bar.style.display = '';
+}
+
+/** Hides the filter bar for the given dashboard prefix */
+function hideDashboardFilterBar(prefix) {
+    const cfg = DASHBOARD_FILTER_CONFIG[prefix];
+    if (!cfg) return;
+    const bar = document.getElementById(cfg.barId);
+    if (bar) bar.style.display = 'none';
+}
+
+/**
+ * Resets filter bar state without touching the results DOM.
+ * Called before results are re-rendered so the bar starts clean.
+ */
+function resetDashboardFilter(prefix) {
+    const cfg = DASHBOARD_FILTER_CONFIG[prefix];
+    if (!cfg) return;
+
+    const colSelect = document.getElementById(cfg.columnSelectId);
+    const textInput = document.getElementById(cfg.textInputId);
+    const dateGroup = cfg.dateGroupId ? document.getElementById(cfg.dateGroupId) : null;
+    const dateInput = cfg.dateInputId ? document.getElementById(cfg.dateInputId) : null;
+    const searchBtn = document.getElementById(cfg.searchBtnId);
+    const clearBtn = document.getElementById(cfg.clearBtnId);
+    const summary = document.getElementById(cfg.summaryId);
+
+    if (colSelect) colSelect.value = '';
+    if (textInput) { textInput.value = ''; textInput.style.display = 'none'; }
+    if (dateGroup) dateGroup.style.display = 'none';
+    if (dateInput) dateInput.value = '';
+    if (searchBtn) searchBtn.style.display = 'none';
+    if (clearBtn) clearBtn.style.display = 'none';
+    if (summary) summary.innerHTML = '';
+}
+
+/**
+ * Called when the column dropdown changes. Shows the appropriate input
+ * control (text input or date group) and the Search button.
+ * @param {string} prefix - 'options' or 'screeners'
+ */
+function onFilterColumnChange(prefix) {
+    const cfg = DASHBOARD_FILTER_CONFIG[prefix];
+    if (!cfg) return;
+
+    const colSelect = document.getElementById(cfg.columnSelectId);
+    const textInput = document.getElementById(cfg.textInputId);
+    const dateGroup = cfg.dateGroupId ? document.getElementById(cfg.dateGroupId) : null;
+    const searchBtn = document.getElementById(cfg.searchBtnId);
+    const clearBtn = document.getElementById(cfg.clearBtnId);
+    const summary = document.getElementById(cfg.summaryId);
+
+    const selected = colSelect ? colSelect.value : '';
+
+    if (!selected) {
+        // Nothing selected — hide all controls
+        if (textInput) { textInput.value = ''; textInput.style.display = 'none'; }
+        if (dateGroup) dateGroup.style.display = 'none';
+        if (searchBtn) searchBtn.style.display = 'none';
+        if (clearBtn) clearBtn.style.display = 'none';
+        if (summary) summary.innerHTML = '';
+        return;
+    }
+
+    const isDate = (selected === 'expiry');
+
+    if (textInput) {
+        textInput.style.display = isDate ? 'none' : '';
+        if (!isDate) { textInput.value = ''; setTimeout(() => textInput.focus(), 50); }
+    }
+    if (dateGroup) {
+        dateGroup.style.display = isDate ? '' : 'none';
+    }
+    if (searchBtn) searchBtn.style.display = '';
+    if (clearBtn) clearBtn.style.display = 'none';
+    if (summary) summary.innerHTML = '';
+}
+
+/**
+ * Extracts the filterable string value for a trade/screener row object.
+ * @param {Object} item  - The raw data object (trade or screener result)
+ * @param {string} columnKey - 'ticker' | 'expiry'
+ * @returns {string} The string value to filter against (lowercase)
+ */
+function getDashboardItemValue(item, columnKey) {
+    switch (columnKey) {
+        case 'ticker':
+            return (item.symbol || '').toLowerCase();
+        case 'expiry':
+            // expiryDate is an ISO string like "2026-04-17T20:00:00.000+00:00" or "2026-04-17"
+            return (item.expiryDate || '').substring(0, 10); // YYYY-MM-DD
+        default:
+            return '';
+    }
+}
+
+/**
+ * Tests whether a data item matches the current filter.
+ * For 'ticker': case-insensitive substring match.
+ * For 'expiry': compares YYYY-MM-DD against the chosen date, honouring before/after mode.
+ * @param {Object} item
+ * @param {string} columnKey
+ * @param {string} filterValue    - The user-entered value
+ * @param {string} [dateMode]     - 'before' | 'after' (only for expiry)
+ * @returns {boolean}
+ */
+function matchesDashboardFilter(item, columnKey, filterValue, dateMode) {
+    const itemValue = getDashboardItemValue(item, columnKey);
+    if (!itemValue) return false;
+
+    if (columnKey === 'expiry') {
+        if (!filterValue) return false;
+        // Both values are YYYY-MM-DD — lexicographic comparison is safe for ISO dates
+        return dateMode === 'after'
+            ? itemValue >= filterValue
+            : itemValue <= filterValue;
+    }
+
+    // Default: case-insensitive contains
+    return itemValue.includes(filterValue.toLowerCase().trim());
+}
+
+/**
+ * Applies the selected filter across all result cards in the given dashboard.
+ * - Hides rows that do not match (adds .filter-hidden)
+ * - Marks matching rows with .filter-match for a subtle visual highlight
+ * - Auto-expands cards that have ≥ 1 visible row
+ * - Collapses cards where all rows are hidden
+ * - Shows a summary message (e.g. "Found 5 matches across 3 strategies")
+ * @param {string} prefix - 'options' or 'screeners'
+ */
+function applyDashboardFilter(prefix) {
+    const cfg = DASHBOARD_FILTER_CONFIG[prefix];
+    if (!cfg) return;
+
+    const colSelect = document.getElementById(cfg.columnSelectId);
+    const textInput = document.getElementById(cfg.textInputId);
+    const dateInput = cfg.dateInputId ? document.getElementById(cfg.dateInputId) : null;
+    const dateModeSelect = cfg.dateModeId ? document.getElementById(cfg.dateModeId) : null;
+    const clearBtn = document.getElementById(cfg.clearBtnId);
+    const summary = document.getElementById(cfg.summaryId);
+    const container = document.getElementById(cfg.containerId);
+
+    const columnKey = colSelect ? colSelect.value : '';
+    if (!columnKey) {
+        if (summary) summary.innerHTML = '<span class="filter-no-match">Please select a column to filter by.</span>';
+        return;
+    }
+
+    const isDate = (columnKey === 'expiry');
+    const filterValue = isDate
+        ? (dateInput ? dateInput.value : '')
+        : (textInput ? textInput.value.trim() : '');
+
+    if (!filterValue) {
+        if (summary) summary.innerHTML = '<span class="filter-no-match">Please enter a value to search for.</span>';
+        return;
+    }
+
+    const dateMode = dateModeSelect ? dateModeSelect.value : 'before';
+
+    // Walk each card in the results container
+    const cards = container ? container.querySelectorAll('.card') : [];
+    let totalMatches = 0;
+    let cardsWithMatches = 0;
+
+    cards.forEach(card => {
+        const cardId = card.querySelector('.card-header')?.dataset?.target;
+        if (!cardId) return;
+
+        // Get raw data for this card from tradeDataMap
+        const rawData = window.tradeDataMap[cardId];
+        if (!rawData || !Array.isArray(rawData)) return;
+
+        // Build a set of matching indices
+        const matchingSymbols = new Set();
+        rawData.forEach(item => {
+            if (matchesDashboardFilter(item, columnKey, filterValue, dateMode)) {
+                matchingSymbols.add(getDashboardItemValue(item, 'ticker'));
+            }
+        });
+
+        // Apply to rendered rows
+        const rows = card.querySelectorAll('tbody .trade-row');
+        let cardMatchCount = 0;
+
+        rows.forEach(row => {
+            // Determine the item's ticker from the first <td><strong> or data-symbol
+            const sym = (row.dataset.symbol || row.querySelector('td strong')?.textContent || '').toLowerCase();
+
+            // For expiry-based filtering, re-evaluate per row using data attribute
+            let isMatch;
+            if (columnKey === 'expiry') {
+                // Find the raw item by symbol (best effort — may have duplicates, but expiry per symbol is stable)
+                const rawItem = rawData.find(d => (d.symbol || '').toLowerCase() === sym);
+                isMatch = rawItem ? matchesDashboardFilter(rawItem, columnKey, filterValue, dateMode) : false;
+            } else {
+                isMatch = matchingSymbols.has(sym);
+            }
+
+            row.classList.toggle('filter-hidden', !isMatch);
+            row.classList.toggle('filter-match', isMatch);
+            if (isMatch) cardMatchCount++;
+        });
+
+        // Also hide/show any detail panels associated with hidden rows
+        const detailPanels = card.querySelectorAll('.trade-detail-panel');
+        detailPanels.forEach(panel => panel.remove());
+
+        const contentEl = document.getElementById(`content-${cardId}`);
+        const arrowEl = document.getElementById(`arrow-${cardId}`);
+
+        if (cardMatchCount > 0) {
+            // Expand the card so the user can see matches
+            if (contentEl && !contentEl.classList.contains('open')) {
+                contentEl.classList.add('open');
+                if (arrowEl) arrowEl.classList.add('open');
+            }
+            totalMatches += cardMatchCount;
+            cardsWithMatches++;
+        } else {
+            // Collapse cards with no matches
+            if (contentEl) contentEl.classList.remove('open');
+            if (arrowEl) arrowEl.classList.remove('open');
+        }
+    });
+
+    // Show clear button and update summary
+    if (clearBtn) clearBtn.style.display = '';
+    if (summary) {
+        if (totalMatches === 0) {
+            summary.innerHTML = `<span class="filter-no-match">No matches found for "${escapeHtmlContent(filterValue)}".</span>`;
+        } else {
+            const stratWord = cardsWithMatches === 1 ? 'strategy' : 'strategies';
+            summary.innerHTML = `<span class="filter-match-count">${totalMatches} match${totalMatches !== 1 ? 'es' : ''}</span> across <span class="filter-match-count">${cardsWithMatches} ${stratWord}</span>.`;
+        }
+    }
+}
+
+/**
+ * Clears the active filter: restores all hidden rows, removes match highlights,
+ * and collapses ALL cards regardless of their previous open state.
+ * @param {string} prefix - 'options' or 'screeners'
+ */
+function clearDashboardFilter(prefix) {
+    const cfg = DASHBOARD_FILTER_CONFIG[prefix];
+    if (!cfg) return;
+
+    const textInput = document.getElementById(cfg.textInputId);
+    const dateInput = cfg.dateInputId ? document.getElementById(cfg.dateInputId) : null;
+    const clearBtn = document.getElementById(cfg.clearBtnId);
+    const summary = document.getElementById(cfg.summaryId);
+    const container = document.getElementById(cfg.containerId);
+
+    // Clear input values
+    if (textInput) textInput.value = '';
+    if (dateInput) dateInput.value = '';
+    if (clearBtn) clearBtn.style.display = 'none';
+    if (summary) summary.innerHTML = '';
+
+    // Restore all hidden rows and remove match classes
+    if (container) {
+        container.querySelectorAll('.trade-row.filter-hidden').forEach(row => {
+            row.classList.remove('filter-hidden', 'filter-match');
+        });
+        container.querySelectorAll('.trade-row.filter-match').forEach(row => {
+            row.classList.remove('filter-match');
+        });
+
+        // Collapse ALL cards
+        container.querySelectorAll('.card').forEach(card => {
+            const cardId = card.querySelector('.card-header')?.dataset?.target;
+            if (!cardId) return;
+            const contentEl = document.getElementById(`content-${cardId}`);
+            const arrowEl = document.getElementById(`arrow-${cardId}`);
+            if (contentEl) contentEl.classList.remove('open');
+            if (arrowEl) arrowEl.classList.remove('open');
+        });
+
+        // Remove any open detail panels
+        container.querySelectorAll('.trade-detail-panel').forEach(p => p.remove());
+        container.querySelectorAll('.trade-row.selected').forEach(r => r.classList.remove('selected'));
     }
 }
 
