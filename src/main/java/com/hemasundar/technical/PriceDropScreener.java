@@ -261,10 +261,13 @@ public class PriceDropScreener {
                 .referencePrice(referencePrice)
                 .dropType(dropType);
 
-        // Fetch Market Cap from QuotesCache (populated during prewarm)
+        // Fetch Market Cap and Company Name from QuotesCache (populated during prewarm)
         QuotesResponse.QuoteData quoteData = com.hemasundar.cache.QuotesCache.getInstance().get(symbol);
         if (quoteData != null) {
             builder.marketCapB(quoteData.getMarketCapB());
+            if (quoteData.getReference() != null) {
+                builder.companyName(quoteData.getReference().getDescription());
+            }
         }
 
         return builder.build();

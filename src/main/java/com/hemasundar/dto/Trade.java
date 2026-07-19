@@ -28,6 +28,11 @@ public class Trade {
     private String symbol;
 
     /**
+     * Company full name
+     */
+    private String companyName;
+
+    /**
      * Current underlying stock price
      */
     private double underlyingPrice;
@@ -196,7 +201,11 @@ public class Trade {
                     .append("%)");
         }
 
+        com.hemasundar.pojos.QuotesResponse.QuoteData quoteData = com.hemasundar.cache.QuotesCache.getInstance().get(symbol);
+        String compName = (quoteData != null && quoteData.getReference() != null) ? quoteData.getReference().getDescription() : null;
+
         return Trade.builder()
+                .companyName(compName)
                 .symbol(symbol)
                 .underlyingPrice(setup.getCurrentPrice())
                 .expiryDate(setup.getExpiryDate())
