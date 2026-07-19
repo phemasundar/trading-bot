@@ -219,6 +219,11 @@ public class StrategyExecutionService {
                 log.info("Pre-warming option chain cache for {} unique symbols across {} strategies",
                         symbolsToPrewarm.size(), selectedStrategies.size());
                 cache.prewarm(symbolsToPrewarm, schwabApiExecutor);
+                
+                log.info("Pre-warming quotes cache for {} unique symbols", symbolsToPrewarm.size());
+                com.hemasundar.cache.QuotesCache.getInstance().prewarm(symbolsToPrewarm, schwabApiExecutor, 
+                        symbol -> thinkOrSwinAPIs.getQuote(symbol, null),
+                        (sourceContext, errorMsg) -> log.warn("Quotes prewarm error: {}", errorMsg));
             }
 
             // Execute each strategy
@@ -306,6 +311,11 @@ public class StrategyExecutionService {
                     log.info("Pre-warming option chain cache for {} symbols (custom execution)",
                             symbolsToPrewarm.size());
                     cache.prewarm(symbolsToPrewarm, schwabApiExecutor);
+                    
+                    log.info("Pre-warming quotes cache for {} unique symbols (custom execution)", symbolsToPrewarm.size());
+                    com.hemasundar.cache.QuotesCache.getInstance().prewarm(symbolsToPrewarm, schwabApiExecutor, 
+                            symbol -> thinkOrSwinAPIs.getQuote(symbol, null),
+                            (sourceContext, errorMsg) -> log.warn("Quotes prewarm error: {}", errorMsg));
                 }
             }
 

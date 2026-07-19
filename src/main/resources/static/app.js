@@ -511,6 +511,12 @@ function buildScreenerCard(result, isCustom = false) {
     return card;
 }
 
+// ── Formatters ──
+function formatCompanyName(name) {
+    if (!name) return '-';
+    return name.length > 10 ? name.substring(0, 10) + '...' : name;
+}
+
 // ── Screener Table Builder ──
 
 function buildScreenerTable(results, cardId = null) {
@@ -556,6 +562,7 @@ function buildScreenerTable(results, cardId = null) {
     let html = `<table class="data-table">
         <thead><tr>
             ${th('ticker', 'Ticker')}
+            <th>Company</th>
             ${th('price', 'Price')}
             ${hasMarketCap ? th('marketCapB', 'Mkt Cap') : ''}
             ${hasVolume ? th('volume', 'Volume') : ''}
@@ -624,6 +631,7 @@ function buildScreenerTable(results, cardId = null) {
 
         html += `<tr class="trade-row" data-details="${detailStr}" data-tech-indicators="${techIndicatorsAttr}">
             <td><strong class="${typeClass}">${r.symbol || ''}</strong></td>
+            <td><span class="text-muted" title="${r.companyName || ''}">${formatCompanyName(r.companyName)}</span></td>
             <td class="text-mono">${price}</td>
             ${hasMarketCap ? `<td class="text-mono">${r.marketCapB != null ? formatMarketCap(r.marketCapB) : '-'}</td>` : ''}
             ${hasVolume ? `<td>${volume}</td>` : ''}
@@ -665,6 +673,7 @@ function buildDropScreenerTable(results, cardId = null) {
     let html = `<table class="data-table">
         <thead><tr>
             ${th('ticker', 'Ticker')}
+            <th>Company</th>
             ${th('price', 'Current Price')}
             ${hasMarketCapDrop ? th('marketCapB', 'Mkt Cap') : ''}
             ${th('refPrice', 'Ref Price')}
@@ -701,6 +710,7 @@ function buildDropScreenerTable(results, cardId = null) {
 
         html += `<tr class="trade-row" data-details="${detailStr}">
             <td><strong class="text-danger">${r.symbol || ''}</strong></td>
+            <td><span class="text-muted" title="${r.companyName || ''}">${formatCompanyName(r.companyName)}</span></td>
             <td class="text-mono">${price}</td>
             ${hasMarketCapDrop ? `<td class="text-mono">${r.marketCapB != null ? formatMarketCap(r.marketCapB) : '-'}</td>` : ''}
             <td class="text-muted text-mono">${refPrice}</td>
@@ -740,6 +750,7 @@ function buildTradeTable(trades, cardId = null) {
     let html = `<table class="data-table">
         <thead><tr>
             ${th('ticker', 'Ticker')}
+            <th>Company</th>
             <th>Price</th>
             ${th('todayPct', 'Today')}
             <th>Type</th>
@@ -772,6 +783,7 @@ function buildTradeTable(trades, cardId = null) {
 
         html += `<tr class="trade-row" data-details="${detailsEscaped}" data-tech-indicators="${techIndicatorsAttr}" data-legs-option-data="${legsAttr}" data-symbol="${escapeAttr(sym)}">
             <td><strong>${sym}</strong></td>
+            <td><span class="text-muted" title="${t.companyName || ''}">${formatCompanyName(t.companyName)}</span></td>
             <td class="text-mono">$${(t.underlyingPrice || 0).toFixed(2)}</td>
             <td class="today-perf" data-symbol="${escapeAttr(sym)}"><span class="text-muted">--</span></td>
             <td>${formatLegs(t)}</td>

@@ -49,6 +49,7 @@ public class TechnicalScreener {
     @AllArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class ScreeningResult {
+        private String companyName;
         private String symbol;
         private double currentPrice;
         private long volume;
@@ -530,10 +531,12 @@ public class TechnicalScreener {
             } else {
                 log.info("Symbol {}: Market Cap data missing in quote", symbol);
             }
+            if (quoteData.getReference() != null) {
+                builder.companyName(quoteData.getReference().getDescription());
+            }
         } else {
             log.info("Symbol {}: quoteData is null", symbol);
         }
-
 
         return builder.build();
     }

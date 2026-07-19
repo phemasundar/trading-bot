@@ -3963,6 +3963,94 @@
     "STALE_TICKER" : {
       "lastFetched" : "2026-06-04",
       "earnings" : [ ]
+    },
+    "RKLB" : {
+      "lastFetched" : "2026-07-18",
+      "earnings" : [ {
+        "date" : "2027-05-05",
+        "epsActual" : null,
+        "epsEstimate" : "-0.0286",
+        "hour" : "",
+        "quarter" : 1,
+        "revenueActual" : null,
+        "revenueEstimate" : 271722900,
+        "symbol" : "RKLB",
+        "year" : 2027
+      }, {
+        "date" : "2027-02-24",
+        "epsActual" : null,
+        "epsEstimate" : "-0.0586",
+        "hour" : "amc",
+        "quarter" : 4,
+        "revenueActual" : null,
+        "revenueEstimate" : 255529308,
+        "symbol" : "RKLB",
+        "year" : 2026
+      }, {
+        "date" : "2026-11-09",
+        "epsActual" : null,
+        "epsEstimate" : "-0.0682",
+        "hour" : "",
+        "quarter" : 3,
+        "revenueActual" : null,
+        "revenueEstimate" : 240449485,
+        "symbol" : "RKLB",
+        "year" : 2026
+      }, {
+        "date" : "2026-08-05",
+        "epsActual" : null,
+        "epsEstimate" : "-0.076",
+        "hour" : "",
+        "quarter" : 2,
+        "revenueActual" : null,
+        "revenueEstimate" : 236042137,
+        "symbol" : "RKLB",
+        "year" : 2026
+      } ]
+    },
+    "RDDT" : {
+      "lastFetched" : "2026-07-18",
+      "earnings" : [ {
+        "date" : "2027-04-28",
+        "epsActual" : null,
+        "epsEstimate" : "1.3732",
+        "hour" : "",
+        "quarter" : 1,
+        "revenueActual" : null,
+        "revenueEstimate" : 911391420,
+        "symbol" : "RDDT",
+        "year" : 2027
+      }, {
+        "date" : "2027-02-03",
+        "epsActual" : null,
+        "epsEstimate" : "1.7469",
+        "hour" : "amc",
+        "quarter" : 4,
+        "revenueActual" : null,
+        "revenueEstimate" : 1024506186,
+        "symbol" : "RDDT",
+        "year" : 2026
+      }, {
+        "date" : "2026-10-28",
+        "epsActual" : null,
+        "epsEstimate" : "1.2712",
+        "hour" : "",
+        "quarter" : 3,
+        "revenueActual" : null,
+        "revenueEstimate" : 843448077,
+        "symbol" : "RDDT",
+        "year" : 2026
+      }, {
+        "date" : "2026-07-30",
+        "epsActual" : null,
+        "epsEstimate" : "0.9685",
+        "hour" : "",
+        "quarter" : 2,
+        "revenueActual" : null,
+        "revenueEstimate" : 744981612,
+        "symbol" : "RDDT",
+        "year" : 2026
+      } ]
     }
   }
 }

@@ -1350,6 +1350,25 @@ a:hover {
     margin-bottom: 1em;
 }
 
+.markdown-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1em;
+}
+
+.markdown-body th,
+.markdown-body td {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    text-align: left;
+}
+
+.markdown-body th {
+    background: var(--bg-card-hover);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
 /* ── Tooltip Balloon (Speech Balloon) ── */
 .tooltip-balloon {
     position: fixed;
@@ -1922,7 +1941,7 @@ a:hover {
 }
 
 .modal {
-    background: var(--card-bg);
+    background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 32px 28px;
