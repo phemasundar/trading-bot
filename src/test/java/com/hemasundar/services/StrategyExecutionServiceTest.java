@@ -60,6 +60,9 @@ public class StrategyExecutionServiceTest {
 
     @Mock
     private TelegramUtils telegramUtils;
+    
+    @Mock
+    private TechnicalIndicatorPreCalculationService technicalIndicatorPreCalculationService;
 
     private MockedStatic<FilePaths> mockedFilePaths;
     private MockedStatic<JavaUtils> mockedJavaUtils;
@@ -77,7 +80,8 @@ public class StrategyExecutionServiceTest {
                 technicalScreener,
                 volatilityCalculator,
                 strategiesConfigLoader,
-                schwabApiExecutor
+                schwabApiExecutor,
+                technicalIndicatorPreCalculationService
         );
         when(schwabApiExecutor.executeParallel(anyList(), any(), any())).thenAnswer(inv -> {
             List<String> symbols = inv.getArgument(0);

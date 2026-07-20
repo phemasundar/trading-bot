@@ -253,8 +253,16 @@ public class PriceDropScreener {
             String symbol, double currentPrice, long volume,
             double dropPercent, double referencePrice, String dropType) {
 
-        TechnicalScreener.ScreeningResult.ScreeningResultBuilder builder = TechnicalScreener.ScreeningResult.builder()
-                .symbol(symbol)
+        TechnicalScreener.ScreeningResult cachedResult = com.hemasundar.cache.TechnicalIndicatorCache.getInstance().get(symbol);
+        TechnicalScreener.ScreeningResult.ScreeningResultBuilder builder;
+        
+        if (cachedResult != null) {
+            builder = cachedResult.toBuilder();
+        } else {
+            builder = TechnicalScreener.ScreeningResult.builder();
+        }
+
+        builder.symbol(symbol)
                 .currentPrice(currentPrice)
                 .volume(volume)
                 .dropPercent(dropPercent)

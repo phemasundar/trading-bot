@@ -627,7 +627,7 @@ function buildScreenerTable(results, cardId = null) {
         }
 
         const detailStr = escapeAttr(detailLines.join('\n'));
-        const techIndicatorsAttr = r.formattedSummary ? escapeAttr(r.formattedSummary) : '';
+        const techIndicatorsAttr = escapeAttr(r.allTechnicalIndicatorsSummary || r.formattedSummary || '');
 
         html += `<tr class="trade-row" data-details="${detailStr}" data-tech-indicators="${techIndicatorsAttr}">
             <td><strong class="${typeClass}">${r.symbol || ''}</strong></td>
@@ -707,8 +707,9 @@ function buildDropScreenerTable(results, cardId = null) {
             ...(r.marketCapB != null ? [`🏢 Mkt Cap: ${formatMarketCap(r.marketCapB)}`] : [])
         ];
         const detailStr = escapeAttr(detailLines.join('\n'));
+        const techIndicatorsAttr = escapeAttr(r.allTechnicalIndicatorsSummary || r.formattedSummary || '');
 
-        html += `<tr class="trade-row" data-details="${detailStr}">
+        html += `<tr class="trade-row" data-details="${detailStr}" data-tech-indicators="${techIndicatorsAttr}">
             <td><strong class="text-danger">${r.symbol || ''}</strong></td>
             <td><span class="text-muted" title="${r.companyName || ''}">${formatCompanyName(r.companyName)}</span></td>
             <td class="text-mono">${price}</td>

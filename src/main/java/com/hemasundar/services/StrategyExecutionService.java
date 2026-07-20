@@ -46,6 +46,7 @@ public class StrategyExecutionService {
     private final VolatilityCalculator volatilityCalculator;
     private final StrategiesConfigLoader strategiesConfigLoader;
     private final SchwabApiExecutor schwabApiExecutor;
+    private final TechnicalIndicatorPreCalculationService technicalIndicatorPreCalculationService;
 
     // Execution state tracking (visible across page refreshes)
     private final AtomicBoolean executionRunning = new AtomicBoolean(false);
@@ -224,6 +225,17 @@ public class StrategyExecutionService {
                 com.hemasundar.cache.QuotesCache.getInstance().prewarm(symbolsToPrewarm, schwabApiExecutor, 
                         symbol -> thinkOrSwinAPIs.getQuote(symbol, null),
                         (sourceContext, errorMsg) -> log.warn("Quotes prewarm error: {}", errorMsg));
+            }
+
+            // For ALL symbols (including ones used in technical filters), run the technical indicator pre-calculation
+            List<String> allSymbolsAcrossStrategies = selectedStrategies.stream()
+                    .flatMap(c -> c.getSecurities().stream())
+                    .distinct()
+                    .collect(Collectors.toList());
+            
+            if (!allSymbolsAcrossStrategies.isEmpty()) {
+                technicalIndicatorPreCalculationService.preCalculateAll(allSymbolsAcrossStrategies,
+                        (sourceContext, errorMsg) -> log.warn("Technical pre-calc error: {}", errorMsg));
             }
 
             // Execute each strategy
@@ -421,7 +433,7 @@ public class StrategyExecutionService {
             for (Trade trade : result.getTrades()) {
                 TechnicalScreener.ScreeningResult sr = techResultsMap.get(trade.getSymbol());
                 if (sr != null) {
-                    trade.setTechIndicators(sr.getFormattedSummary());
+                    trade.setTechIndicators(sr.getAllTechnicalIndicatorsSummary() != null ? sr.getAllTechnicalIndicatorsSummary() : sr.getFormattedSummary());
                 }
             }
         }
