@@ -27,8 +27,10 @@ public class ScreenerExecutionServiceTest {
     @Mock
     private PriceDropScreener priceDropScreener;
 
-    @InjectMocks
     private ScreenerExecutionService screenerExecutionService;
+
+    @Mock
+    private TechnicalIndicatorPreCalculationService technicalIndicatorPreCalculationService;
 
     @Mock
     private SupabaseService supabaseService;
@@ -68,7 +70,8 @@ public class ScreenerExecutionServiceTest {
                 priceDropScreener,
                 strategiesConfigLoader,
                 schwabApiExecutor,
-                volatilityCalculator
+                volatilityCalculator,
+                technicalIndicatorPreCalculationService
         );
         
         when(schwabApiExecutor.executeParallel(anyList(), any(), any())).thenAnswer(inv -> {

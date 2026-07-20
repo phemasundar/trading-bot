@@ -38,6 +38,7 @@ public class ScreenerExecutionService {
     private final StrategiesConfigLoader strategiesConfigLoader;
     private final SchwabApiExecutor schwabApiExecutor;
     private final VolatilityCalculator volatilityCalculator;
+    private final TechnicalIndicatorPreCalculationService technicalIndicatorPreCalculationService;
 
     /**
      * Loads all enabled technical screeners from strategies-config.json
@@ -102,6 +103,9 @@ public class ScreenerExecutionService {
             QuotesCache.getInstance().prewarm(allSymbolsToPrewarm, schwabApiExecutor,
                     symbol -> thinkOrSwinAPIs.getQuote(symbol, null),
                     prewarmAlertCallback);
+
+            // Pre-calculate indicators universally so screeners/strategies can fetch from cache
+            technicalIndicatorPreCalculationService.preCalculateAll(allSymbolsToPrewarm, prewarmAlertCallback);
         }
 
         for (ScreenerConfig screenerConfig : selectedScreeners) {

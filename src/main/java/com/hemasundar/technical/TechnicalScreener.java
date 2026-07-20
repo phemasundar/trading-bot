@@ -44,7 +44,7 @@ public class TechnicalScreener {
      * Result object containing stock symbol and all technical values.
      */
     @Data
-    @Builder
+    @Builder(toBuilder = true)
     @NoArgsConstructor
     @AllArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -58,6 +58,7 @@ public class TechnicalScreener {
         private double bollingerLower;
         private double bollingerMiddle;
         private double bollingerUpper;
+        private String allTechnicalIndicatorsSummary;
         private Double atr;
         private Double volumeSmaShort;
         private Double volumeSmaLong;
@@ -389,6 +390,53 @@ public class TechnicalScreener {
      * Analyzes a single stock and calculates all technical values.
      */
     public ScreeningResult analyzeStock(String symbol, TechnicalIndicators indicators, TechFilterConditions conditions) {
+        // If a fully populated result is already in cache, use it immediately
+        ScreeningResult cachedResult = com.hemasundar.cache.TechnicalIndicatorCache.getInstance().get(symbol);
+        if (cachedResult != null) {
+            ScreeningResult.ScreeningResultBuilder builder = cachedResult.toBuilder();
+            builder.allTechnicalIndicatorsSummary(cachedResult.getFormattedSummary());
+            
+            // Filter RSI
+            if (indicators.getRsiFilter() == null) {
+                builder.rsi(0.0).previousRsi(0.0).rsiOversold(false).rsiOverbought(false)
+                       .rsiBullishCrossover(false).rsiBearishCrossover(false);
+            }
+            
+            // Filter Bollinger
+            if (indicators.getBollingerFilter() == null) {
+                builder.bollingerLower(0.0).bollingerMiddle(0.0).bollingerUpper(0.0)
+                       .priceTouchingLowerBand(false).priceTouchingUpperBand(false);
+            }
+            
+            // Filter MAs
+            if (indicators.getMaFilters() != null) {
+                java.util.Map<Integer, Double> filteredMa = new java.util.HashMap<>();
+                for (Integer p : indicators.getMaFilters().keySet()) {
+                    if (cachedResult.getMaValues() != null && cachedResult.getMaValues().containsKey(p)) {
+                        filteredMa.put(p, cachedResult.getMaValues().get(p));
+                    }
+                }
+                builder.maValues(filteredMa.isEmpty() ? null : filteredMa);
+            } else {
+                builder.maValues(null);
+            }
+            
+            // Filter EMAs
+            if (indicators.getEmaFilters() != null) {
+                java.util.Map<Integer, Double> filteredEma = new java.util.HashMap<>();
+                for (Integer p : indicators.getEmaFilters().keySet()) {
+                    if (cachedResult.getEmaValues() != null && cachedResult.getEmaValues().containsKey(p)) {
+                        filteredEma.put(p, cachedResult.getEmaValues().get(p));
+                    }
+                }
+                builder.emaValues(filteredEma.isEmpty() ? null : filteredEma);
+            } else {
+                builder.emaValues(null);
+            }
+            
+            return builder.build();
+        }
+
         Integer hvPeriod = conditions != null ? conditions.getHvPeriod() : 20;
         PriceHistoryCache.HistoricalData cachedData = PriceHistoryCache.getInstance().getHistoricalData(symbol, thinkOrSwinAPIs);
         PriceHistoryResponse priceHistory = cachedData != null ? cachedData.getPriceHistory() : null;
