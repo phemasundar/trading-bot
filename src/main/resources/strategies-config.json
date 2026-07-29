@@ -640,6 +640,34 @@
                 "vega": "negative"
             },
             "securitiesFile": "portfolio, tracking, 2026"
+        },
+        {
+            "alias": "Short Strangle",
+            "enabled": true,
+            "strategyType": "SHORT_STRANGLE",
+            "descriptionFile": "short_strangle.md",
+            "filterType": "ShortStrangleFilter",
+            "filter": {
+                "minDTE": 40,
+                "maxDTE": 50,
+                "maxLossLimit": 20000,
+                "minReturnOnRisk": 12,
+                "ignoreEarnings": false,
+                "minIVRank": 50,
+                "putShortLeg": {
+                    "maxDelta": 0.2
+                },
+                "callShortLeg": {
+                    "maxDelta": 0.2
+                }
+            },
+            "greeks": {
+                "delta": "neutral",
+                "gamma": "negative",
+                "theta": "positive",
+                "vega": "negative"
+            },
+            "securitiesFile": "portfolio, 2026, tracking"
         }
     ],
     "technicalScreeners": [

@@ -2362,6 +2362,7 @@ const STRATEGY_TYPES = [
     { value: 'BULLISH_BROKEN_WING_BUTTERFLY', label: 'Bullish Broken Wing Butterfly', group: 'bwb' },
     { value: 'BULLISH_ZEBRA', label: 'Bullish ZEBRA', group: 'zebra' },
     { value: 'SHORT_PUT', label: 'Short Put', group: 'short_put' },
+    { value: 'SHORT_STRANGLE', label: 'Short Strangle', group: 'short_strangle' },
 ];
 
 function getLegFilters(prefix, title) {
@@ -2413,6 +2414,10 @@ const STRATEGY_SPECIFIC_FILTERS = {
     ],
     short_put: [
         ...getLegFilters('shortLeg', 'Short Put Leg'),
+    ],
+    short_strangle: [
+        ...getLegFilters('putShortLeg', 'Short Put Leg'),
+        ...getLegFilters('callShortLeg', 'Short Call Leg'),
     ],
 };
 

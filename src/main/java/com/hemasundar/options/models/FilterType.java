@@ -17,6 +17,7 @@ public enum FilterType {
     LONG_CALL_LEAP("LongCallLeapFilter", LongCallLeapFilter.class),
     BROKEN_WING_BUTTERFLY("BrokenWingButterflyFilter", BrokenWingButterflyFilter.class),
     ZEBRA("ZebraFilter", ZebraFilter.class),
+    SHORT_STRANGLE("ShortStrangleFilter", ShortStrangleFilter.class),
     ;
 
     private final String jsonName;

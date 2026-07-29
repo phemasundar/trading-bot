@@ -15,6 +15,7 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
   - Bullish Broken Wing Butterfly (3-leg directional strategy)
   - Bullish ZEBRA (Zero Extrinsic Back Ratio Spread)
   - **OTM Short Put** (single-leg naked / cash-secured put; configurable delta, DTE, and max loss)
+  - **Short Strangle** (two-leg naked put and call; configurable delta ranges per leg, DTE, and max loss)
 
 - **Technical Screeners**:
   - RSI Bollinger Crossovers (Bullish/Bearish)
