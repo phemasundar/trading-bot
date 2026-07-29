@@ -49,7 +49,7 @@ public class ShortStrangle implements TradeSetup {
 
     @Override
     public double getNetExtrinsicValue() {
-        // Net extrinsic for sold options is their combined extrinsic value (negated if representing flow, but returning positive extrinsic here for filters)
+        // Combined extrinsic value of both sold options
         return (shortPut != null ? shortPut.getExtrinsicValue() : 0) + 
                (shortCall != null ? shortCall.getExtrinsicValue() : 0);
     }

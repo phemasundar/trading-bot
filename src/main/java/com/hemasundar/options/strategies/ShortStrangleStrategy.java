@@ -82,11 +82,6 @@ public class ShortStrangleStrategy extends AbstractTradingStrategy {
         String strategyName = getStrategyName();
         String symbol = chain.getSymbol();
 
-        FilterLogStore.getInstance().logFilter(
-                strategyName, symbol, expiryDate,
-                FilterStage.GENERATED_CANDIDATES.displayName(),
-                putCandidates.size() * callCandidates.size(), putCandidates.size() * callCandidates.size());
-
         // ── Phase 1: Candidate-level filters (before building TradeSetup) ──────
         List<OptionData> survivedPuts = FilterPipeline
                 .<OptionData>forContext(strategyName, symbol, expiryDate)
@@ -118,6 +113,11 @@ public class ShortStrangleStrategy extends AbstractTradingStrategy {
                 combinations.add(new ShortStrangleCandidate(put, call, currentPrice));
             }
         }
+
+        FilterLogStore.getInstance().logFilter(
+                strategyName, symbol, expiryDate,
+                FilterStage.GENERATED_CANDIDATES.displayName(),
+                combinations.size(), combinations.size());
         
         List<ShortStrangleCandidate> survivedCombinations = FilterPipeline
                 .<ShortStrangleCandidate>forContext(strategyName, symbol, expiryDate)
