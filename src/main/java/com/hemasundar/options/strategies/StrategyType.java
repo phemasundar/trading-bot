@@ -29,7 +29,8 @@ public enum StrategyType {
     BULLISH_ZEBRA("Bullish ZEBRA"),
 
     // Short (Naked) Strategies
-    SHORT_PUT("Short Put");
+    SHORT_PUT("Short Put"),
+    SHORT_STRANGLE("Short Strangle");
 
     private final String displayName;
 

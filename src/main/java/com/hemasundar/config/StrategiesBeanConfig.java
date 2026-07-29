@@ -103,4 +103,11 @@ public class StrategiesBeanConfig {
                                              Optional<SupabaseService> supabaseService) {
         return new ShortPutStrategy(StrategyType.SHORT_PUT, finnHubAPIs, thinkOrSwinAPIs, supabaseService);
     }
+
+    @Bean
+    public ShortStrangleStrategy shortStrangleStrategy(FinnHubAPIs finnHubAPIs,
+                                             ThinkOrSwinAPIs thinkOrSwinAPIs,
+                                             Optional<SupabaseService> supabaseService) {
+        return new ShortStrangleStrategy(StrategyType.SHORT_STRANGLE, finnHubAPIs, thinkOrSwinAPIs, supabaseService);
+    }
 }

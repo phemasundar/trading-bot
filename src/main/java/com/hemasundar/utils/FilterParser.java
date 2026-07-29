@@ -39,6 +39,9 @@ public class FilterParser {
             case BULLISH_ZEBRA:
                 filter = new ZebraFilter();
                 break;
+            case SHORT_STRANGLE:
+                filter = new ShortStrangleFilter();
+                break;
             default:
                 filter = new OptionsStrategyFilter();
         }
@@ -96,6 +99,9 @@ public class FilterParser {
         } else if (filter instanceof ZebraFilter zebraFilter) {
             applyLegFilter(filterMap, "shortCall", zebraFilter::setShortCall);
             applyLegFilter(filterMap, "longCall", zebraFilter::setLongCall);
+        } else if (filter instanceof ShortStrangleFilter strangleFilter) {
+            applyLegFilter(filterMap, "putShortLeg", strangleFilter::setPutShortLeg);
+            applyLegFilter(filterMap, "callShortLeg", strangleFilter::setCallShortLeg);
         }
 
         return filter;
