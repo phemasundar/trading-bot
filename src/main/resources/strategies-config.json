@@ -667,7 +667,15 @@
                 "theta": "positive",
                 "vega": "negative"
             },
-            "securitiesFile": "portfolio, 2026, tracking"
+            "securitiesFile": "portfolio, 2026, tracking",
+            "technicalFilters": {
+                "HISTORICAL_VOLATILITY": {
+                    "config": {
+                        "period": 20
+                    },
+                    "conditions": ["HV_RANK >= 25"]
+                }
+            }
         }
     ],
     "technicalScreeners": [
