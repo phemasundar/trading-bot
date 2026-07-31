@@ -405,6 +405,13 @@ public class StrategyExecutionService {
                     .collect(Collectors.toList());
             log.info("[{}] Found {} stocks matching technical criteria: {}",
                     config.getName(), securities.size(), securities);
+
+            // Pre-warm option chain cache in parallel for surviving symbols
+            if (!securities.isEmpty()) {
+                log.info("[{}] Pre-warming option chain cache for {} technical filter survivors",
+                        config.getName(), securities.size());
+                cache.prewarm(securities, schwabApiExecutor);
+            }
         }
 
         // Find trades using the strategy
