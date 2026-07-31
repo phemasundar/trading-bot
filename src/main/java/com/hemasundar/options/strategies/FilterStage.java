@@ -25,6 +25,7 @@ public enum FilterStage {
     MAX_EXTRINSIC_VALUE_FILTER("Max Extrinsic Value Filter"),
     MIN_EXTRINSIC_VALUE_FILTER("Min Extrinsic Value Filter"),
     BREAK_EVEN_FILTER("Break-Even Filter"),
+    EARNINGS_FILTER("Earnings Filter"),
 
     // ── Credit spread strategies (Put & Call) ───────────────────────────────
     POSITIVE_CREDIT_FILTER("Positive Credit Filter"),

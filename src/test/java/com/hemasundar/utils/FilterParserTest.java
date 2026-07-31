@@ -19,7 +19,7 @@ public class FilterParserTest {
         filterMap.put("maxDTE", 60.5); // Test number to int conversion
         filterMap.put("maxLossLimit", 500);
         filterMap.put("minReturnOnRisk", "15");
-        filterMap.put("ignoreEarnings", "true");
+        filterMap.put("earningsFilters", Map.of("conditions", List.of("DAYS_TO_NEXT_EARNINGS >= DTE")));
         filterMap.put("maxTotalDebit", 2.5);
         filterMap.put("maxTotalCredit", "3.0");
         filterMap.put("minTotalCredit", 1.0);
@@ -41,7 +41,9 @@ public class FilterParserTest {
         Assert.assertEquals(filter.getMaxDTE(), 60);
         Assert.assertEquals(filter.getMaxLossLimit(), 500.0);
         Assert.assertEquals(filter.getMinReturnOnRisk(), 15);
-        Assert.assertTrue(filter.isIgnoreEarnings());
+        Assert.assertNotNull(filter.getEarningsFilterExpressions());
+        Assert.assertFalse(filter.getEarningsFilterExpressions().isEmpty());
+        Assert.assertNotNull(filter.getEarningsFilters());
         Assert.assertEquals(filter.getMaxTotalDebit(), 2.5);
         Assert.assertEquals(filter.getMaxTotalCredit(), 3.0);
         Assert.assertEquals(filter.getMinTotalCredit(), 1.0);

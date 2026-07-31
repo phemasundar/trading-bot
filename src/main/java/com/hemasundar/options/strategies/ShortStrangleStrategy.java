@@ -85,20 +85,20 @@ public class ShortStrangleStrategy extends AbstractTradingStrategy {
         // ── Phase 1: Candidate-level filters (before building TradeSetup) ──────
         List<OptionData> survivedPuts = FilterPipeline
                 .<OptionData>forContext(strategyName, symbol, expiryDate)
-                .step(FilterStage.DELTA_FILTER,               deltaFilter(putShortLegFilter))
-                .step(FilterStage.LEG_PREMIUM_FILTER,         legPremiumFilter(putShortLegFilter))
-                .step(FilterStage.VOLUME_FILTER,              volumeFilter(putShortLegFilter))
-                .step(FilterStage.OPEN_INTEREST_FILTER,       openInterestFilter(putShortLegFilter))
-                .step(FilterStage.LEG_VOLATILITY_FILTER,      volatilityFilter(putShortLegFilter))
+                .step("Put " + FilterStage.DELTA_FILTER.displayName(),               deltaFilter(putShortLegFilter))
+                .step("Put " + FilterStage.LEG_PREMIUM_FILTER.displayName(),         legPremiumFilter(putShortLegFilter))
+                .step("Put " + FilterStage.VOLUME_FILTER.displayName(),              volumeFilter(putShortLegFilter))
+                .step("Put " + FilterStage.OPEN_INTEREST_FILTER.displayName(),       openInterestFilter(putShortLegFilter))
+                .step("Put " + FilterStage.LEG_VOLATILITY_FILTER.displayName(),      volatilityFilter(putShortLegFilter))
                 .run(putCandidates);
                 
         List<OptionData> survivedCalls = FilterPipeline
                 .<OptionData>forContext(strategyName, symbol, expiryDate)
-                .step(FilterStage.DELTA_FILTER,               deltaFilter(callShortLegFilter))
-                .step(FilterStage.LEG_PREMIUM_FILTER,         legPremiumFilter(callShortLegFilter))
-                .step(FilterStage.VOLUME_FILTER,              volumeFilter(callShortLegFilter))
-                .step(FilterStage.OPEN_INTEREST_FILTER,       openInterestFilter(callShortLegFilter))
-                .step(FilterStage.LEG_VOLATILITY_FILTER,      volatilityFilter(callShortLegFilter))
+                .step("Call " + FilterStage.DELTA_FILTER.displayName(),               deltaFilter(callShortLegFilter))
+                .step("Call " + FilterStage.LEG_PREMIUM_FILTER.displayName(),         legPremiumFilter(callShortLegFilter))
+                .step("Call " + FilterStage.VOLUME_FILTER.displayName(),              volumeFilter(callShortLegFilter))
+                .step("Call " + FilterStage.OPEN_INTEREST_FILTER.displayName(),       openInterestFilter(callShortLegFilter))
+                .step("Call " + FilterStage.LEG_VOLATILITY_FILTER.displayName(),      volatilityFilter(callShortLegFilter))
                 .run(callCandidates);
 
         List<ShortStrangleCandidate> combinations = new ArrayList<>();

@@ -3883,9 +3883,9 @@
       } ]
     },
     "TEST_TICKER" : {
-      "lastFetched" : "2026-07-19",
+      "lastFetched" : "2026-07-30",
       "earnings" : [ {
-        "date" : "2026-07-24",
+        "date" : "2026-08-04",
         "epsActual" : null,
         "epsEstimate" : null,
         "hour" : null,
@@ -3941,7 +3941,7 @@
       } ]
     },
     "STALE_TICKER" : {
-      "lastFetched" : "2026-06-09",
+      "lastFetched" : "2026-06-20",
       "earnings" : [ ]
     },
     "RKLB" : {

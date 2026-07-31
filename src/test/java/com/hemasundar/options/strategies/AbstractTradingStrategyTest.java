@@ -281,7 +281,7 @@ public class AbstractTradingStrategyTest {
         when(chain.getExpiryDatesInRange(anyInt(), anyInt(), anyInt())).thenReturn(Arrays.asList("2024-01-01"));
 
         OptionsStrategyFilter filter = new OptionsStrategyFilter();
-        filter.setIgnoreEarnings(true); // Ignore Earnings
+        filter.setEarningsFilterExpressions(java.util.Collections.emptyList()); // No earnings filter
 
         List<TradeSetup> trades = strategy.findTrades(chain, filter);
         assertEquals(1, trades.size());
@@ -292,18 +292,19 @@ public class AbstractTradingStrategyTest {
     public void testFindTrades_EarningsFound_SkipsExpiry() throws Exception {
         OptionChainResponse chain = mock(OptionChainResponse.class);
         when(chain.getSymbol()).thenReturn("AAPL");
-        when(chain.getExpiryDatesInRange(anyInt(), anyInt(), anyInt())).thenReturn(Arrays.asList("2024-01-01"));
+        LocalDate expiry = LocalDate.now().plusDays(30);
+        when(chain.getExpiryDatesInRange(anyInt(), anyInt(), anyInt())).thenReturn(Arrays.asList(expiry.toString()));
 
         EarningsCalendarResponse earningsResponse = new EarningsCalendarResponse();
         EarningsCalendarResponse.EarningCalendar entry = new EarningsCalendarResponse.EarningCalendar();
-        entry.setDate(LocalDate.of(2024, 1, 1));
+        entry.setDate(LocalDate.now().plusDays(15));
         earningsResponse.setEarningsCalendar(Arrays.asList(entry));
 
         when(finnHubAPIs.getEarningsByTicker(eq("AAPL"), any(LocalDate.class)))
                 .thenReturn(earningsResponse);
 
         OptionsStrategyFilter filter = new OptionsStrategyFilter();
-        filter.setIgnoreEarnings(false);
+        filter.setEarningsFilterExpressions(com.hemasundar.utils.MathExpressionParser.parseRules(Arrays.asList("DAYS_TO_NEXT_EARNINGS >= DTE")));
 
         List<TradeSetup> trades = strategy.findTrades(chain, filter);
         assertTrue(trades.isEmpty()); // Should skip this expiry
@@ -313,13 +314,14 @@ public class AbstractTradingStrategyTest {
     public void testFindTrades_EarningsError_AllowsExpiry() throws Exception {
         OptionChainResponse chain = mock(OptionChainResponse.class);
         when(chain.getSymbol()).thenReturn("AAPL");
-        when(chain.getExpiryDatesInRange(anyInt(), anyInt(), anyInt())).thenReturn(Arrays.asList("2024-01-01"));
+        LocalDate expiry = LocalDate.now().plusDays(30);
+        when(chain.getExpiryDatesInRange(anyInt(), anyInt(), anyInt())).thenReturn(Arrays.asList(expiry.toString()));
 
         when(finnHubAPIs.getEarningsByTicker(eq("AAPL"), any(LocalDate.class)))
                 .thenThrow(new RuntimeException("FinnHub Error"));
 
         OptionsStrategyFilter filter = new OptionsStrategyFilter();
-        filter.setIgnoreEarnings(false);
+        filter.setEarningsFilterExpressions(com.hemasundar.utils.MathExpressionParser.parseRules(Arrays.asList("DAYS_TO_NEXT_EARNINGS >= DTE")));
 
         List<TradeSetup> trades = strategy.findTrades(chain, filter);
         assertEquals(1, trades.size()); // Exception should be caught and expiry processed

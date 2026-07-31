@@ -17,6 +17,7 @@ import java.util.List;
 
 import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.services.FilterLogStore;
 import com.hemasundar.services.SupabaseService;
 
 public class IronCondorStrategy extends AbstractTradingStrategy {
@@ -59,7 +60,6 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
                 .targetDTE(filter.getTargetDTE())
                 .maxLossLimit(filter.getMaxLossLimit())
                 .minReturnOnRisk(0) // Get all valid spreads
-                .ignoreEarnings(true) // Don't check earnings again for legs
                 .shortLeg(putShortLegFilter)
                 .build();
 
@@ -68,7 +68,6 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
                 .targetDTE(filter.getTargetDTE())
                 .maxLossLimit(filter.getMaxLossLimit())
                 .minReturnOnRisk(0)
-                .ignoreEarnings(true)
                 .shortLeg(callShortLegFilter)
                 .build();
 
@@ -90,14 +89,15 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
             }
         }
 
-        return findValidIronCondors(putSpreads, callSpreads, chain.getUnderlyingPrice(), filter);
+        return findValidIronCondors(chain.getSymbol(), expiryDate, putSpreads, callSpreads, chain.getUnderlyingPrice(), filter);
     }
 
-    private List<TradeSetup> findValidIronCondors(List<PutCreditSpread> putSpreads,
+    private List<TradeSetup> findValidIronCondors(String symbol, String expiryDate, List<PutCreditSpread> putSpreads,
             List<CallCreditSpread> callSpreads,
             double currentPrice,
             OptionsStrategyFilter filter) {
-        List<TradeSetup> condors = new ArrayList<>();
+        
+        List<IronCondor> combinations = new ArrayList<>();
 
         for (PutCreditSpread putSpread : putSpreads) {
             for (CallCreditSpread callSpread : callSpreads) {
@@ -113,28 +113,13 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
                 double callWidth = (callSpread.getLongCall().getStrikePrice()
                         - callSpread.getShortCall().getStrikePrice()) * 100;
                 double maxRisk = Math.max(putWidth, callWidth) - totalCredit;
-
-                // Use filter helper methods instead of hardcoded checks
-                if (!filter.passesMaxLoss(maxRisk)) {
-                    continue;
-                }
-
-                if (!filter.passesMinReturnOnRisk(totalCredit, maxRisk)) {
-                    continue;
-                }
-
-                double returnOnRisk = (totalCredit / maxRisk) * 100;
+                double returnOnRisk = maxRisk > 0 ? (totalCredit / maxRisk) * 100 : 0;
 
                 double lowerBreakEven = putSpread.getShortPut().getStrikePrice() - (totalCredit / 100);
                 double upperBreakEven = callSpread.getShortCall().getStrikePrice() + (totalCredit / 100);
 
                 double lowerBreakEvenPercentage = ((currentPrice - lowerBreakEven) / currentPrice) * 100;
                 double upperBreakEvenPercentage = ((upperBreakEven - currentPrice) / currentPrice) * 100;
-
-                if (!filter.passesMaxBreakEvenPercentage(lowerBreakEvenPercentage) ||
-                        !filter.passesMaxBreakEvenPercentage(upperBreakEvenPercentage)) {
-                    continue;
-                }
 
                 IronCondor condor = IronCondor.builder()
                         .putLeg(putSpread)
@@ -149,25 +134,26 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
                         .currentPrice(currentPrice)
                         .build();
 
-                // Use common method from TradeSetup interface
-                double annualizedNetExtrinsicPct = condor.getAnulizedNetExtrinsicValueToCapitalPercentage();
-
-                if (!filter.passesMaxNetExtrinsicValueToPricePercentage(annualizedNetExtrinsicPct)) {
-                    continue;
-                }
-                if (!filter.passesMinNetExtrinsicValueToPricePercentage(annualizedNetExtrinsicPct)) {
-                    continue;
-                }
-                if (!filter.passesCreditLimit(totalCredit)) {
-                    continue;
-                }
-                if (!filter.passesMinCredit(totalCredit)) {
-                    continue;
-                }
-
-                condors.add(condor);
+                combinations.add(condor);
             }
         }
-        return condors;
+        
+        FilterLogStore.getInstance().logFilter(
+                getStrategyName(), symbol, expiryDate,
+                FilterStage.GENERATED_CANDIDATES.displayName(),
+                combinations.size(), combinations.size());
+
+        List<TradeSetup> mapped = new ArrayList<>(combinations);
+
+        return FilterPipeline
+                .<TradeSetup>forContext(getStrategyName(), symbol, expiryDate)
+                .step(FilterStage.MAX_LOSS_FILTER,          commonMaxLossFilter(filter, TradeSetup::getMaxLoss))
+                .step(FilterStage.MIN_RETURN_ON_RISK_FILTER,commonMinReturnOnRiskFilter(filter, TradeSetup::getNetCredit, TradeSetup::getMaxLoss))
+                .step(FilterStage.MAX_CREDIT_FILTER,        commonMaxTotalCreditFilter(filter, TradeSetup::getNetCredit))
+                .step(FilterStage.MIN_CREDIT_FILTER,        commonMinTotalCreditFilter(filter, TradeSetup::getNetCredit))
+                .step(FilterStage.MAX_EXTRINSIC_VALUE_FILTER, commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
+                .step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter))
+                .step(FilterStage.BREAK_EVEN_FILTER,        trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()) && filter.passesMaxBreakEvenPercentage(trade.getUpperBreakEvenPercentage()))
+                .run(mapped);
     }
 }

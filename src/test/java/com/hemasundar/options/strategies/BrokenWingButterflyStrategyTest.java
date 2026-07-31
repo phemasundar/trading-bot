@@ -51,7 +51,7 @@ public class BrokenWingButterflyStrategyTest {
 
         BrokenWingButterflyFilter filter = new BrokenWingButterflyFilter();
         filter.setTargetDTE(30);
-        filter.setIgnoreEarnings(true);
+
         filter.setMaxTotalDebit(500.0);
 
         List<TradeSetup> trades = strategy.findTrades(chain, filter);
@@ -73,7 +73,7 @@ public class BrokenWingButterflyStrategyTest {
 
         BrokenWingButterflyFilter filter = new BrokenWingButterflyFilter();
         filter.setTargetDTE(30);
-        filter.setIgnoreEarnings(true);
+
 
         List<TradeSetup> trades = strategy.findTrades(chain, filter);
         assertTrue(trades.isEmpty());
@@ -95,7 +95,7 @@ public class BrokenWingButterflyStrategyTest {
 
         BrokenWingButterflyFilter filter = new BrokenWingButterflyFilter();
         filter.setTargetDTE(30);
-        filter.setIgnoreEarnings(true);
+
 
         List<TradeSetup> trades = strategy.findTrades(chain, filter);
         assertTrue(trades.isEmpty());
@@ -116,7 +116,7 @@ public class BrokenWingButterflyStrategyTest {
 
         BrokenWingButterflyFilter filter = new BrokenWingButterflyFilter();
         filter.setTargetDTE(30);
-        filter.setIgnoreEarnings(true);
+
         filter.setPriceVsMaxDebitRatio(2.0);
 
         List<TradeSetup> trades = strategy.findTrades(chain, filter);
@@ -143,7 +143,7 @@ public class BrokenWingButterflyStrategyTest {
 
         BrokenWingButterflyFilter filter = new BrokenWingButterflyFilter();
         filter.setTargetDTE(30);
-        filter.setIgnoreEarnings(true);
+
         filter.setMaxUpperBreakevenDelta(0.20); // 0.35 > 0.20 REJECT
 
         List<TradeSetup> trades = strategy.findTrades(chain, filter);
