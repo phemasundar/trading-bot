@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earnings Calendar — Trading Bot</title>
+    <meta name="description" content="Monthly calendar view of upcoming earnings events for tracked securities">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css?v=6">
+    <script src="/theme.js?v=3"></script>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Mobile menu toggle -->
+        <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-brand">
+                Trading Bot
+                <small>Automated Systems</small>
+            </div>
+            
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Options</div>
+                <a href="/" class="nav-link">
+                    <span class="nav-icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/execute.html" class="nav-link">
+                    <span class="nav-icon">▶️</span>
+                    <span>Execute Strategy</span>
+                </a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Screeners</div>
+                <a href="/screeners.html" class="nav-link">
+                    <span class="nav-icon">🔎</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/execute-screener.html" class="nav-link">
+                    <span class="nav-icon">🧪</span>
+                    <span>Execute Screener</span>
+                </a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Research</div>
+                <a href="/earnings-calendar.html" class="nav-link active">
+                    <span class="nav-icon">📅</span>
+                    <span>Earnings Calendar</span>
+                </a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">System</div>
+                <a href="/config.html" class="nav-link">
+                    <span class="nav-icon">⚙️</span>
+                    <span>Config</span>
+                </a>
+                <a href="/logs.html" class="nav-link">
+                    <span class="nav-icon">📋</span>
+                    <span>Execution Logs</span>
+                </a>
+            </div>
+
+            <div style="flex: 1;"></div>
+            <div class="sidebar-section" style="border:none; margin-bottom: 0;">
+                <button id="theme-toggle" class="btn btn-ghost" style="width:100%; justify-content:center; gap: 8px;" onclick="toggleTheme()">
+                    <span id="theme-icon">☀️</span>
+                    <span id="theme-text">Light Mode</span>
+                </button>
+            </div>
+        </nav>
+        <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Auth Loading Overlay -->
+            <div id="authLoading" class="auth-loading-overlay">
+                <div class="auth-spinner"></div>
+                <p>Authenticating…</p>
+            </div>
+
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Earnings Calendar</h1>
+                    <p class="page-subtitle">Monthly view of upcoming earnings events for tracked securities</p>
+                </div>
+            </div>
+
+            <!-- Calendar Navigation -->
+            <div class="cal-nav">
+                <button class="btn btn-ghost btn-sm" id="cal-prev" onclick="calNavigate(-1)">‹ Prev</button>
+                <h2 class="cal-month-label" id="cal-month-label"></h2>
+                <button class="btn btn-ghost btn-sm" id="cal-next" onclick="calNavigate(1)">Next ›</button>
+                <button class="btn btn-ghost btn-sm" id="cal-today" onclick="calGoToday()" style="margin-left: 12px;">Today</button>
+            </div>
+
+            <!-- Calendar Grid -->
+            <div class="cal-grid" id="cal-grid">
+                <div class="cal-header-cell">Sun</div>
+                <div class="cal-header-cell">Mon</div>
+                <div class="cal-header-cell">Tue</div>
+                <div class="cal-header-cell">Wed</div>
+                <div class="cal-header-cell">Thu</div>
+                <div class="cal-header-cell">Fri</div>
+                <div class="cal-header-cell">Sat</div>
+            </div>
+
+            <!-- Event Detail Panel (shown on day click) -->
+            <div class="cal-detail-panel card" id="cal-detail-panel" style="display:none;">
+                <div class="cal-detail-header">
+                    <h3 id="cal-detail-date"></h3>
+                    <button class="btn btn-ghost btn-sm" onclick="closeDetailPanel()">✕</button>
+                </div>
+                <div id="cal-detail-body"></div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/app.js?v=7"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initAuth();
+            initEarningsCalendar();
+        });
+    </script>
+</body>
+</html>
