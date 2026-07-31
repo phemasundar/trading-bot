@@ -814,4 +814,55 @@ public class StrategyController {
         }
     }
 
+    // ────────────────────────────────────────────
+    // EARNINGS CALENDAR
+    // ────────────────────────────────────────────
+
+    /**
+     * Returns all cached earnings events grouped by date.
+     * Each date key maps to a list of event objects containing symbol, quarter, year,
+     * eps/revenue estimates and actuals, and the reporting hour.
+     */
+    @GetMapping("/earnings-calendar")
+    public ResponseEntity<?> getEarningsCalendar() {
+        try {
+            Path cachePath = Path.of("src/main/resources/earnings_cache.json");
+            if (!Files.exists(cachePath)) {
+                return ResponseEntity.ok(Map.of("events", Map.of()));
+            }
+            String json = Files.readString(cachePath);
+            tools.jackson.databind.ObjectMapper mapper = tools.jackson.databind.json.JsonMapper.builder()
+                    .findAndAddModules()
+                    .build();
+            com.hemasundar.pojos.EarningsCache cache = mapper.readValue(json,
+                    com.hemasundar.pojos.EarningsCache.class);
+
+            // Flatten all earnings into a date → list-of-events map
+            Map<String, List<Map<String, Object>>> eventsByDate = new TreeMap<>();
+            cache.getCache().forEach((symbol, entry) -> {
+                if (entry.getEarnings() == null) return;
+                for (var earning : entry.getEarnings()) {
+                    if (earning.getDate() == null) continue;
+                    String dateKey = earning.getDate().toString();
+                    Map<String, Object> event = new LinkedHashMap<>();
+                    event.put("symbol", earning.getSymbol());
+                    event.put("date", dateKey);
+                    event.put("quarter", earning.getQuarter());
+                    event.put("year", earning.getYear());
+                    event.put("hour", earning.getHour());
+                    event.put("epsEstimate", earning.getEpsEstimate());
+                    event.put("epsActual", earning.getEpsActual());
+                    event.put("revenueEstimate", earning.getRevenueEstimate());
+                    event.put("revenueActual", earning.getRevenueActual());
+                    eventsByDate.computeIfAbsent(dateKey, k -> new ArrayList<>()).add(event);
+                }
+            });
+
+            return ResponseEntity.ok(Map.of("events", eventsByDate));
+        } catch (Exception e) {
+            log.error("Error reading earnings calendar: {}", e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
+
 }

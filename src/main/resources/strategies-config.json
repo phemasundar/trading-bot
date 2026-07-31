@@ -708,7 +708,13 @@
         "maxDTE": 100,
         "maxLossLimit": 20000,
         "minReturnOnRisk": 12,
-        "minIVRank": 50,
+        "minIVRank": 30,
+        "earningsFilters": {
+          "conditions": [
+            "DAYS_TO_NEXT_EARNINGS >= DTE",
+            "EARNINGS_NEAREST_TO_DTE <= DTE - 10"
+          ]
+        },
         "putShortLeg": {
           "maxDelta": 0.2
         },
