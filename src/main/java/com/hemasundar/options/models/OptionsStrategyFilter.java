@@ -62,7 +62,9 @@ public class OptionsStrategyFilter {
 
     // Behavior flags
     @lombok.Builder.Default
-    private boolean ignoreEarnings = true;
+    private java.util.List<com.hemasundar.technical.MathExpression> earningsFilterExpressions = new java.util.ArrayList<>();
+
+    private java.util.Map<String, Object> earningsFilters;
 
     private java.util.List<String> includeOnly;
     private java.util.List<String> excludeIf;

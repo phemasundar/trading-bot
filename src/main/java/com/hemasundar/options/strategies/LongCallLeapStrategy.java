@@ -251,7 +251,6 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                 .minDTE(filter.getMinDTE())
                 .maxDTE(filter.getMaxDTE())
                 .targetDTE(filter.getTargetDTE())
-                .ignoreEarnings(filter.isIgnoreEarnings())
                 .marginInterestRate(filter.getMarginInterestRate())
                 .savingsInterestRate(filter.getSavingsInterestRate())
                 .maxLossLimit(filter.getMaxLossLimit())

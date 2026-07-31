@@ -11,6 +11,8 @@ import com.hemasundar.pojos.EarningsCalendarResponse;
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.services.FilterLogStore;
 import com.hemasundar.services.SupabaseService;
+import com.hemasundar.services.EarningsDataResolver;
+import com.hemasundar.technical.MathExpressionEvaluator;
 import org.apache.commons.collections4.CollectionUtils;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -83,21 +85,19 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
         List<TradeSetup> allTrades = new ArrayList<>();
 
         for (String expiryDate : expiryDates) {
-            // Check earnings for this expiry if not ignored
-            if (!filter.isIgnoreEarnings()) {
-                try {
-                    EarningsCalendarResponse earningsResponse = finnHubAPIs.getEarningsByTicker(
-                            symbol, LocalDate.parse(expiryDate));
-                    if (CollectionUtils.isNotEmpty(earningsResponse.getEarningsCalendar())) {
-                        log.info("[{}] Skipping expiry {} due to upcoming earnings on {}",
-                                symbol, expiryDate,
-                                earningsResponse.getEarningsCalendar().get(0).getDate());
-                        continue; // Skip this expiry, try next
-                    }
-                } catch (Exception e) {
-                    log.error("[{}] Error checking earnings for {}: {}",
-                            symbol, expiryDate, e.getMessage());
+            // Apply new Earnings Filters
+            if (CollectionUtils.isNotEmpty(filter.getEarningsFilterExpressions())) {
+                java.util.Map<String, Double> earningsVariables = EarningsDataResolver.resolve(symbol, expiryDate, finnHubAPIs);
+                boolean passesEarnings = MathExpressionEvaluator.evaluateAll(filter.getEarningsFilterExpressions(), earningsVariables::get);
+                
+                FilterLogStore.getInstance().logFilter(strategyName, symbol, expiryDate, FilterStage.EARNINGS_FILTER.displayName(), 1, passesEarnings ? 1 : 0);
+                
+                if (!passesEarnings) {
+                    log.info("[{}] Skipping expiry {} due to earnings filter condition mismatch", symbol, expiryDate);
+                    continue;
                 }
+            } else {
+                FilterLogStore.getInstance().logFilter(strategyName, symbol, expiryDate, FilterStage.EARNINGS_FILTER.displayName(), 1, 1);
             }
 
             // Find trades for this expiry

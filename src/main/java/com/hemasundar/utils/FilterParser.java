@@ -61,8 +61,19 @@ public class FilterParser {
                 v -> filter.setMaxNetExtrinsicValueToPricePercentage(toDouble(v)));
         applyIfPresent(filterMap, "minNetExtrinsicValueToPricePercentage",
                 v -> filter.setMinNetExtrinsicValueToPricePercentage(toDouble(v)));
-        applyIfPresent(filterMap, "ignoreEarnings",
-                v -> filter.setIgnoreEarnings(Boolean.parseBoolean(v.toString())));
+
+        if (filterMap.containsKey("earningsFilters") && filterMap.get("earningsFilters") != null) {
+            Object earningsFiltersObj = filterMap.get("earningsFilters");
+            if (earningsFiltersObj instanceof Map<?, ?> earningsMap) {
+                if (earningsMap.containsKey("conditions") && earningsMap.get("conditions") instanceof List<?> rules) {
+                    List<String> stringRules = rules.stream().map(Object::toString).collect(Collectors.toList());
+                    filter.setEarningsFilterExpressions(MathExpressionParser.parseRules(stringRules));
+                }
+            }
+            // Also store the raw map for serialization/UI rendering if needed
+            filter.setEarningsFilters((Map<String, Object>) earningsFiltersObj);
+        }
+
         applyIfPresent(filterMap, "maxTotalDebit", v -> filter.setMaxTotalDebit(toDouble(v)));
         applyIfPresent(filterMap, "maxTotalCredit", v -> filter.setMaxTotalCredit(toDouble(v)));
         applyIfPresent(filterMap, "minTotalCredit", v -> filter.setMinTotalCredit(toDouble(v)));
