@@ -8,7 +8,7 @@
 
 ## Coding Standards
 
-- **Java Best Practices**: Write clean, modern Java (JDK 17+). Adhere to SOLID principles, favoring composition over inheritance and immutability where applicable.
+- **Java Best Practices**: Write clean, modern Java (JDK 21+). Adhere to SOLID principles, favoring composition over inheritance and immutability where applicable.
 - **Spring Boot Ecosystem**: Effectively leverage Spring's dependency injection, properties configuration, and application events. Keep business logic decoupled from framework-specific web layers.
 - **Boilerplate Reduction**: Use Lombok extensively (`@Data`, `@Builder`, `@NoArgsConstructor`, `@AllArgsConstructor`, `@Slf4j`, `@UtilityClass`) in all new models, DTOs, and config classes to minimize boilerplate.
 - **Null Safety**: Standardize null and emptiness checks using Apache Commons (`StringUtils.isBlank`, `CollectionUtils.isEmpty`). Ensure collections are returned as empty lists rather than nulls.
