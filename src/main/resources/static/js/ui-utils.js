@@ -391,3 +391,139 @@ function showFilterHelp(event, key, label) {
     };
     setTimeout(() => document.addEventListener('click', closeHandler), 10);
 }
+
+/** Dashboard Filtering Logic */
+function resetDashboardFilter(type) {
+    const textInput = document.getElementById(`${type}-filter-text`);
+    const dateInput = document.getElementById(`${type}-filter-date`);
+    if (textInput) textInput.value = '';
+    if (dateInput) dateInput.value = '';
+    clearDashboardFilter(type, false);
+}
+
+function showDashboardFilterBar(type) {
+    const bar = document.getElementById(`${type}-filter-bar`);
+    if (bar) bar.style.display = 'block';
+}
+
+function hideDashboardFilterBar(type) {
+    const bar = document.getElementById(`${type}-filter-bar`);
+    if (bar) bar.style.display = 'none';
+}
+
+function onFilterColumnChange(type) {
+    const colSelect = document.getElementById(`${type}-filter-column`);
+    const textInput = document.getElementById(`${type}-filter-text`);
+    const dateGroup = document.getElementById(`${type}-filter-date-group`);
+    if (!colSelect) return;
+    
+    if (colSelect.value === 'expiry') {
+        if (textInput) textInput.style.display = 'none';
+        if (dateGroup) dateGroup.style.display = 'flex';
+    } else {
+        if (textInput) textInput.style.display = 'block';
+        if (dateGroup) dateGroup.style.display = 'none';
+    }
+}
+
+function applyDashboardFilter(type) {
+    const colSelect = document.getElementById(`${type}-filter-column`);
+    const textInput = document.getElementById(`${type}-filter-text`);
+    const dateInput = document.getElementById(`${type}-filter-date`);
+    const dateMode = document.getElementById(`${type}-filter-date-mode`);
+    
+    if (!colSelect) return;
+    const col = colSelect.value;
+    
+    let filterText = '';
+    let filterDate = null;
+    let mode = 'before';
+    
+    if (col === 'expiry') {
+        if (dateInput && dateInput.value) {
+            filterDate = new Date(dateInput.value).getTime();
+            if (dateMode) mode = dateMode.value;
+        }
+        if (!filterDate) return;
+    } else {
+        if (textInput) filterText = textInput.value.trim().toLowerCase();
+        if (!filterText) {
+            clearDashboardFilter(type);
+            return;
+        }
+    }
+    
+    let matchCount = 0;
+    const containerId = type === 'options' ? 'results-container' : 'screener-results-container';
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    const cards = container.querySelectorAll('.card');
+    cards.forEach(card => {
+        let cardHasMatch = false;
+        const rows = card.querySelectorAll('.trade-row');
+        rows.forEach(row => {
+            let isMatch = false;
+            if (col === 'ticker') {
+                const sym = row.dataset.symbol || '';
+                isMatch = sym.toLowerCase().includes(filterText);
+            } else if (col === 'expiry') {
+                const dateText = row.querySelector('td:nth-child(6)')?.textContent || '';
+                const match = dateText.match(/(\d{4}-\d{2}-\d{2})/);
+                if (match) {
+                    const rowDate = new Date(match[1]).getTime();
+                    isMatch = mode === 'before' ? rowDate <= filterDate : rowDate >= filterDate;
+                }
+            }
+            
+            if (isMatch) {
+                row.style.display = '';
+                cardHasMatch = true;
+                matchCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        if (cardHasMatch) {
+            card.style.display = '';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+    
+    const summary = document.getElementById(`${type}-filter-summary`);
+    if (summary) {
+        summary.textContent = `Found ${matchCount} match${matchCount !== 1 ? 'es' : ''}`;
+        summary.style.display = 'block';
+    }
+    
+    const clearBtn = document.getElementById(`${type}-filter-clear`);
+    if (clearBtn) clearBtn.style.display = 'inline-flex';
+}
+
+function clearDashboardFilter(type, resetInputs = true) {
+    if (resetInputs) {
+        const textInput = document.getElementById(`${type}-filter-text`);
+        const dateInput = document.getElementById(`${type}-filter-date`);
+        if (textInput) textInput.value = '';
+        if (dateInput) dateInput.value = '';
+    }
+    
+    const containerId = type === 'options' ? 'results-container' : 'screener-results-container';
+    const container = document.getElementById(containerId);
+    if (container) {
+        const cards = container.querySelectorAll('.card');
+        cards.forEach(card => {
+            card.style.display = '';
+            const rows = card.querySelectorAll('.trade-row');
+            rows.forEach(row => row.style.display = '');
+        });
+    }
+    
+    const summary = document.getElementById(`${type}-filter-summary`);
+    if (summary) summary.style.display = 'none';
+    
+    const clearBtn = document.getElementById(`${type}-filter-clear`);
+    if (clearBtn) clearBtn.style.display = 'none';
+}
