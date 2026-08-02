@@ -222,36 +222,38 @@ public class ThinkOrSwimAPIs {
             boolean needExtendedHoursData,
             boolean needPreviousClose) {
 
-        var request = RestAssured.given()
-                .header("accept", "application/json")
-                .header("Authorization", "Bearer " + tokenProvider.getAccessToken())
-                .queryParam("symbol", symbol)
-                .queryParam("periodType", periodType)
-                .queryParam("period", period)
-                .queryParam("frequencyType", frequencyType)
-                .queryParam("frequency", frequency)
-                .queryParam("needExtendedHoursData", needExtendedHoursData)
-                .queryParam("needPreviousClose", needPreviousClose);
+        return schwabApiExecutor.executeWithRetry("Price History API - " + symbol, () -> {
+            var request = RestAssured.given()
+                    .header("accept", "application/json")
+                    .header("Authorization", "Bearer " + tokenProvider.getAccessToken())
+                    .queryParam("symbol", symbol)
+                    .queryParam("periodType", periodType)
+                    .queryParam("period", period)
+                    .queryParam("frequencyType", frequencyType)
+                    .queryParam("frequency", frequency)
+                    .queryParam("needExtendedHoursData", needExtendedHoursData)
+                    .queryParam("needPreviousClose", needPreviousClose);
 
-        if (startDate != null) {
-            request.queryParam("startDate", startDate);
-        }
-        if (endDate != null) {
-            request.queryParam("endDate", endDate);
-        }
-
-        Response response = request.get(BaseURLs.SCHWAB_BASE_URL + "/pricehistory");
-
-        if (response.statusCode() != 200) {
-            if (response.statusCode() == 400) {
-                apiErrorHandler.handle400Error("Price History API", symbol, response.asString());
-                return null;
+            if (startDate != null) {
+                request.queryParam("startDate", startDate);
             }
-            throw new RuntimeException(
-                    "Price History API failed: " + response.statusCode() + " - " + response.asString());
-        }
+            if (endDate != null) {
+                request.queryParam("endDate", endDate);
+            }
 
-        return JavaUtils.convertJsonToPojo(response.asString(), PriceHistoryResponse.class);
+            Response response = request.get(BaseURLs.SCHWAB_BASE_URL + "/pricehistory");
+
+            if (response.statusCode() != 200) {
+                if (response.statusCode() == 400) {
+                    apiErrorHandler.handle400Error("Price History API", symbol, response.asString());
+                    return null;
+                }
+                throw new RuntimeException(
+                        "Price History API failed: " + response.statusCode() + " - " + response.asString());
+            }
+
+            return JavaUtils.convertJsonToPojo(response.asString(), PriceHistoryResponse.class);
+        });
     }
 
     /**
