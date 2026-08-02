@@ -352,3 +352,212 @@ async function deleteCustomScreenerResult(resultId, card) {
         showToast(`Failed to delete: ${e.message}`, 'error');
     }
 }
+
+async function initExecuteScreenerPage() {
+    const authed = await initAuth();
+    if (!authed) return;
+    loadCustomScreenerResults();
+    checkCustomScreenerExecutionStatus();
+    updateMarketStatusBadge();
+}
+
+function onScreenerTypeChange() {
+    const typeSelect = document.getElementById('screener-type');
+    if (!typeSelect) return;
+    
+    const type = typeSelect.value;
+    const meta = SCREENER_TYPE_META[type];
+    
+    if (meta) {
+        const rsiCondition = document.getElementById('execute-rsiCondition');
+        if (rsiCondition && meta.rsi) {
+            rsiCondition.value = meta.rsi;
+            const rsiRange = document.getElementById('rsi-custom-range-inputs');
+            if (rsiRange) rsiRange.style.display = meta.rsi === 'CUSTOM_RANGE' ? 'flex' : 'none';
+        }
+        
+        const bbSelect = document.querySelector('[data-tech-filter="BOLLINGER_BAND"][data-tech-field="condition"]');
+        if (bbSelect && meta.bollinger) {
+            bbSelect.value = meta.bollinger;
+        }
+        
+        const pdGroup = document.getElementById('sc-priceDropRules-group');
+        const lbGroup = document.getElementById('sc-lookbackDays-group');
+        if (pdGroup) pdGroup.style.display = meta.hasDrop ? 'block' : 'none';
+        if (lbGroup) lbGroup.style.display = meta.hasLookback ? 'block' : 'none';
+    }
+}
+
+function getTechnicalFiltersFromDOM() {
+    const filters = [];
+    const elements = document.querySelectorAll('[data-tech-filter]');
+    
+    const filterMap = {};
+    elements.forEach(el => {
+        const filterType = el.dataset.techFilter;
+        const fieldName = el.dataset.techField;
+        
+        // Skip hidden elements if they are part of a hidden group
+        if (el.closest && el.closest('[style*="display: none"]')) return;
+        
+        if (!filterMap[filterType]) filterMap[filterType] = {};
+        
+        if (el.tagName === 'SELECT') {
+            if (el.value) filterMap[filterType][fieldName] = el.value;
+        } else if (el.type === 'number') {
+            if (el.value !== '') filterMap[filterType][fieldName] = parseFloat(el.value);
+        } else {
+            if (el.value && el.value.trim() !== '') filterMap[filterType][fieldName] = el.value.trim();
+        }
+    });
+    
+    for (const [type, data] of Object.entries(filterMap)) {
+        if (Object.keys(data).length > 0) {
+            filters.push({ type, ...data });
+        }
+    }
+    
+    return filters;
+}
+
+async function executeCustomScreener() {
+    const typeEl = document.getElementById('screener-type');
+    const aliasEl = document.getElementById('screener-alias-input');
+    const secFileEl = document.getElementById('screener-securities-file-input');
+    const secEl = document.getElementById('screener-securities-input');
+    
+    if (!typeEl || !typeEl.value) {
+        showToast('Select a screener type', 'error');
+        return;
+    }
+    
+    const hasFile = secFileEl && secFileEl.value.trim();
+    const hasTickers = secEl && secEl.value.trim();
+    if (!hasFile && !hasTickers) {
+        showToast('Provide a securities file, inline tickers, or both', 'error');
+        return;
+    }
+    
+    let technicalFilters;
+    try {
+        technicalFilters = getTechnicalFiltersFromDOM();
+    } catch (e) {
+        showToast(e.message, 'error');
+        return;
+    }
+    
+    const body = {
+        screenerType: typeEl.value,
+        alias: aliasEl ? aliasEl.value.trim() : '',
+        securitiesFile: secFileEl ? secFileEl.value.trim() : '',
+        securities: secEl ? secEl.value.trim() : '',
+        technicalFilters
+    };
+    
+    try {
+        const progress = document.getElementById('screener-custom-progress');
+        if (progress) progress.className = 'progress-container active';
+        
+        const res = await API.executeCustomScreener(body);
+        showToast(res.message);
+        startTimer(Date.now());
+        startPolling(() => {
+            if (progress) progress.className = 'progress-container';
+            stopTimer();
+            loadCustomScreenerResults();
+            showToast('Screener execution completed!');
+        });
+    } catch (e) {
+        const progress = document.getElementById('screener-custom-progress');
+        if (progress) progress.className = 'progress-container';
+        showToast(e.message, 'error');
+    }
+}
+
+async function loadCustomScreenerResults() {
+    const container = document.getElementById('screener-custom-results');
+    if (!container) return;
+    try {
+        const results = await API.getRecentCustomScreenerResults();
+        container.innerHTML = '';
+        if (!results || results.length === 0) {
+            container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔬</div>No custom screener executions yet</div>';
+            return;
+        }
+        for (const r of results) {
+            container.appendChild(buildScreenerCard(r, true));
+        }
+    } catch (e) {
+        container.innerHTML = `<div class="empty-state text-danger">Failed to load: ${e.message}</div>`;
+    }
+}
+
+async function checkCustomScreenerExecutionStatus() {
+    try {
+        const progress = document.getElementById('screener-custom-progress');
+        if (!progress) return;
+        
+        const status = await API.getStatus();
+        if (status.running) {
+            window.currentExecutionTaskName = status.currentTask || "";
+            progress.className = 'progress-container active';
+            startTimer(status.startTimeMs);
+            startPolling(() => {
+                progress.className = 'progress-container';
+                stopTimer();
+                loadCustomScreenerResults();
+                showToast('Custom screener execution completed!');
+            });
+        } else if (status.alerts && status.alerts.length > 0) {
+            showErrorPanel(status.alerts);
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function loadScreenerFiltersFromResult(jsonStr, event) {
+    if (event) event.stopPropagation();
+    try {
+        const req = JSON.parse(jsonStr);
+        
+        const typeEl = document.getElementById('screener-type');
+        if (typeEl && req.screenerType) {
+            typeEl.value = req.screenerType;
+            onScreenerTypeChange();
+        }
+        
+        const aliasEl = document.getElementById('screener-alias-input');
+        if (aliasEl) aliasEl.value = req.alias || '';
+        
+        const secFileEl = document.getElementById('screener-securities-file-input');
+        if (secFileEl) secFileEl.value = req.securitiesFile || '';
+        
+        const secEl = document.getElementById('screener-securities-input');
+        if (secEl) secEl.value = req.securities || '';
+        
+        document.querySelectorAll('[data-tech-filter]').forEach(el => {
+            if (el.tagName === 'SELECT') el.value = '';
+            else el.value = '';
+        });
+        
+        if (req.technicalFilters && Array.isArray(req.technicalFilters)) {
+            req.technicalFilters.forEach(tf => {
+                for (const [k, v] of Object.entries(tf)) {
+                    if (k === 'type') continue;
+                    const el = document.querySelector(`[data-tech-filter="${tf.type}"][data-tech-field="${k}"]`);
+                    if (el) {
+                        el.value = v;
+                        if (el.tagName === 'SELECT') {
+                            const ev = new Event('change');
+                            el.dispatchEvent(ev);
+                        }
+                    }
+                }
+            });
+        }
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        showToast('Filters loaded from result');
+    } catch (e) {
+        showToast('Failed to load filters: ' + e.message, 'error');
+    }
+}
