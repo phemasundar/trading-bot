@@ -15,7 +15,7 @@ import org.apache.commons.collections4.MapUtils;
 import org.springframework.stereotype.Component;
 
 import com.hemasundar.apis.FinnHubAPIs;
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.services.FilterLogStore;
 import com.hemasundar.services.SupabaseService;
 
@@ -29,9 +29,9 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
 
     public LongCallLeapStrategy(StrategyType strategyType,
                                FinnHubAPIs finnHubAPIs,
-                               ThinkOrSwinAPIs thinkOrSwinAPIs,
+                               ThinkOrSwimAPIs ThinkOrSwimAPIs,
                                java.util.Optional<SupabaseService> supabaseService) {
-        super(strategyType, finnHubAPIs, thinkOrSwinAPIs, supabaseService);
+        super(strategyType, finnHubAPIs, ThinkOrSwimAPIs, supabaseService);
     }
 
     @Override

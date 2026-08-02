@@ -1,6 +1,6 @@
 package com.hemasundar.technical;
 
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.cache.QuotesCache;
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.pojos.QuotesResponse;
@@ -36,7 +36,7 @@ import org.springframework.stereotype.Component;
 @lombok.RequiredArgsConstructor
 public class TechnicalScreener {
 
-    private final ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private final ThinkOrSwimAPIs ThinkOrSwimAPIs;
     private final SchwabApiExecutor schwabApiExecutor;
     private final VolatilityCalculator volatilityCalculator;
 
@@ -438,7 +438,7 @@ public class TechnicalScreener {
         }
 
         Integer hvPeriod = conditions != null ? conditions.getHvPeriod() : 20;
-        PriceHistoryCache.HistoricalData cachedData = PriceHistoryCache.getInstance().getHistoricalData(symbol, thinkOrSwinAPIs);
+        PriceHistoryCache.HistoricalData cachedData = PriceHistoryCache.getInstance().getHistoricalData(symbol, ThinkOrSwimAPIs);
         PriceHistoryResponse priceHistory = cachedData != null ? cachedData.getPriceHistory() : null;
         
         if (priceHistory == null) {
@@ -571,6 +571,18 @@ public class TechnicalScreener {
 
         // Market Cap
         QuotesResponse.QuoteData quoteData = QuotesCache.getInstance().get(symbol);
+        if (quoteData == null && ThinkOrSwimAPIs != null) {
+            try {
+                log.info("Symbol {}: quoteData missing in cache, fetching on-demand", symbol);
+                quoteData = ThinkOrSwimAPIs.getQuote(symbol, null);
+                if (quoteData != null) {
+                    QuotesCache.getInstance().put(symbol, quoteData);
+                }
+            } catch (Exception e) {
+                log.warn("Symbol {}: On-demand quote fetch failed: {}", symbol, e.getMessage());
+            }
+        }
+
         if (quoteData != null) {
             Double mcap = quoteData.getMarketCapB();
             if (mcap != null) {

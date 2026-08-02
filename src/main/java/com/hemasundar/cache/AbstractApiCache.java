@@ -87,6 +87,18 @@ public abstract class AbstractApiCache<T> {
     public boolean isCached(String symbol) {
         return cache.containsKey(symbol);
     }
+
+    /**
+     * Stores cached data for a symbol manually.
+     *
+     * @param symbol The stock symbol
+     * @param data   The data to cache
+     */
+    public void put(String symbol, T data) {
+        if (symbol != null && data != null) {
+            cache.put(symbol, data);
+        }
+    }
     
     /**
      * Retrieves cached data for a symbol.

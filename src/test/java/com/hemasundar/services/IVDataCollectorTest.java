@@ -1,6 +1,6 @@
 package com.hemasundar.services;
 
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.pojos.IVDataPoint;
 import com.hemasundar.utils.StrategyTestUtils;
@@ -11,13 +11,13 @@ import static org.testng.Assert.*;
 
 public class IVDataCollectorTest {
 
-    private ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private ThinkOrSwimAPIs ThinkOrSwimAPIs;
     private IVDataCollector ivDataCollector;
 
     @BeforeMethod
     public void setUp() {
-        thinkOrSwinAPIs = mock(ThinkOrSwinAPIs.class);
-        ivDataCollector = new IVDataCollector(thinkOrSwinAPIs);
+        ThinkOrSwimAPIs = mock(ThinkOrSwimAPIs.class);
+        ivDataCollector = new IVDataCollector(ThinkOrSwimAPIs);
     }
 
     @Test
@@ -30,7 +30,7 @@ public class IVDataCollectorTest {
         StrategyTestUtils.addOption(mockChain, "2026-01-02", 30, 150.0, 4.90, 5.00, 0.50, true); // PUT
         StrategyTestUtils.addOption(mockChain, "2026-01-02", 30, 150.0, 4.90, 5.00, 0.50, false); // CALL
 
-        when(thinkOrSwinAPIs.getOptionChain(symbol)).thenReturn(mockChain);
+        when(ThinkOrSwimAPIs.getOptionChain(symbol)).thenReturn(mockChain);
 
         IVDataPoint result = ivDataCollector.collectIVDataPoint(symbol);
 
@@ -48,7 +48,7 @@ public class IVDataCollectorTest {
         OptionChainResponse mockChain = StrategyTestUtils.createMockChain(symbol, 150.0);
         // No options added, so the symbol is not optionable
 
-        when(thinkOrSwinAPIs.getOptionChain(symbol)).thenReturn(mockChain);
+        when(ThinkOrSwimAPIs.getOptionChain(symbol)).thenReturn(mockChain);
 
         IVDataPoint result = ivDataCollector.collectIVDataPoint(symbol);
 
@@ -64,7 +64,7 @@ public class IVDataCollectorTest {
         String symbol = "NVR";
         OptionChainResponse mockChain = StrategyTestUtils.createMockChain(symbol, 0.0);
 
-        when(thinkOrSwinAPIs.getOptionChain(symbol)).thenReturn(mockChain);
+        when(ThinkOrSwimAPIs.getOptionChain(symbol)).thenReturn(mockChain);
 
         IVDataPoint result = ivDataCollector.collectIVDataPoint(symbol);
 
@@ -81,7 +81,7 @@ public class IVDataCollectorTest {
         // but the symbol does have options.
         StrategyTestUtils.addOption(mockChain, "2027-01-02", 365, 150.0, 4.90, 5.00, 0.50, true);
 
-        when(thinkOrSwinAPIs.getOptionChain(symbol)).thenReturn(mockChain);
+        when(ThinkOrSwimAPIs.getOptionChain(symbol)).thenReturn(mockChain);
 
         IVDataPoint result = ivDataCollector.collectIVDataPoint(symbol);
 

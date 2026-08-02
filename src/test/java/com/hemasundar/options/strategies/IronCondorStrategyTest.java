@@ -24,7 +24,7 @@ public class IronCondorStrategyTest {
     @Mock
     private com.hemasundar.apis.FinnHubAPIs finnHubAPIs;
     @Mock
-    private com.hemasundar.apis.ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private com.hemasundar.apis.ThinkOrSwimAPIs ThinkOrSwimAPIs;
     @Mock
     private com.hemasundar.utils.VolatilityCalculator volatilityCalculator;
 
@@ -32,10 +32,10 @@ public class IronCondorStrategyTest {
     public void setUp() {
         MockitoAnnotations.openMocks(this);
         // Initialize real sub-strategies with mocks
-        PutCreditSpreadStrategy putStrategy = new PutCreditSpreadStrategy(StrategyType.PUT_CREDIT_SPREAD, finnHubAPIs, thinkOrSwinAPIs, java.util.Optional.empty());
-        CallCreditSpreadStrategy callStrategy = new CallCreditSpreadStrategy(StrategyType.CALL_CREDIT_SPREAD, finnHubAPIs, thinkOrSwinAPIs, java.util.Optional.empty());
+        PutCreditSpreadStrategy putStrategy = new PutCreditSpreadStrategy(StrategyType.PUT_CREDIT_SPREAD, finnHubAPIs, ThinkOrSwimAPIs, java.util.Optional.empty());
+        CallCreditSpreadStrategy callStrategy = new CallCreditSpreadStrategy(StrategyType.CALL_CREDIT_SPREAD, finnHubAPIs, ThinkOrSwimAPIs, java.util.Optional.empty());
         
-        strategy = new TestableIronCondorStrategy(finnHubAPIs, thinkOrSwinAPIs, java.util.Optional.empty(), putStrategy, callStrategy);
+        strategy = new TestableIronCondorStrategy(finnHubAPIs, ThinkOrSwimAPIs, java.util.Optional.empty(), putStrategy, callStrategy);
     }
 
     @Test
@@ -190,11 +190,11 @@ public class IronCondorStrategyTest {
     // stubbs out sub-strategy behavior or provides real ones
     private static class TestableIronCondorStrategy extends IronCondorStrategy {
         public TestableIronCondorStrategy(com.hemasundar.apis.FinnHubAPIs finnHubAPIs,
-                                         com.hemasundar.apis.ThinkOrSwinAPIs thinkOrSwinAPIs,
+                                         com.hemasundar.apis.ThinkOrSwimAPIs ThinkOrSwimAPIs,
                                          java.util.Optional<com.hemasundar.services.SupabaseService> supabaseService,
                                          PutCreditSpreadStrategy putCreditSpreadStrategy, 
                                          CallCreditSpreadStrategy callCreditSpreadStrategy) {
-            super(StrategyType.IRON_CONDOR, finnHubAPIs, thinkOrSwinAPIs, supabaseService, putCreditSpreadStrategy, callCreditSpreadStrategy);
+            super(StrategyType.IRON_CONDOR, finnHubAPIs, ThinkOrSwimAPIs, supabaseService, putCreditSpreadStrategy, callCreditSpreadStrategy);
         }
 
         @Override

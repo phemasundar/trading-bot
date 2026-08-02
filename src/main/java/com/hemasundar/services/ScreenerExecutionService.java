@@ -1,6 +1,6 @@
 package com.hemasundar.services;
 
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.config.StrategiesConfigLoader;
 import com.hemasundar.dto.AlertMessages;
 import com.hemasundar.dto.ExecutionAlert;
@@ -31,7 +31,7 @@ public class ScreenerExecutionService {
     private final SupabaseService supabaseService;
     private final SecuritiesResolver securitiesResolver;
     private final StrategyExecutionService strategyExecutionService;
-    private final ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private final ThinkOrSwimAPIs ThinkOrSwimAPIs;
     private final TelegramUtils telegramUtils;
     private final TechnicalScreener technicalScreener;
     private final PriceDropScreener priceDropScreener;
@@ -95,13 +95,13 @@ public class ScreenerExecutionService {
                 }
             };
             PriceHistoryCache.getInstance().prewarm(allSymbolsToPrewarm, schwabApiExecutor, 
-                    symbol -> PriceHistoryCache.getInstance().getHistoricalData(symbol, thinkOrSwinAPIs),
+                    symbol -> PriceHistoryCache.getInstance().getHistoricalData(symbol, ThinkOrSwimAPIs),
                     prewarmAlertCallback);
 
             // Prewarm QuotesCache — parallel fetch using single-symbol Quote API
             log.info("[Prewarm] Starting QuotesCache prewarm for {} symbols", allSymbolsToPrewarm.size());
             QuotesCache.getInstance().prewarm(allSymbolsToPrewarm, schwabApiExecutor,
-                    symbol -> thinkOrSwinAPIs.getQuote(symbol, null),
+                    symbol -> ThinkOrSwimAPIs.getQuote(symbol, null),
                     prewarmAlertCallback);
 
             // Pre-calculate indicators universally so screeners/strategies can fetch from cache

@@ -1,6 +1,6 @@
 package com.hemasundar.technical;
 
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.cache.PriceHistoryCache;
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.pojos.QuotesResponse;
@@ -20,7 +20,7 @@ import java.util.function.BiConsumer;
 @lombok.RequiredArgsConstructor
 public class PriceDropScreener {
 
-    private final ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private final ThinkOrSwimAPIs ThinkOrSwimAPIs;
     private final SchwabApiExecutor schwabApiExecutor;
 
     /**
@@ -61,7 +61,7 @@ public class PriceDropScreener {
         for (int i = 0; i < symbols.size(); i += 50) {
             List<String> batch = symbols.subList(i, Math.min(i + 50, symbols.size()));
             try {
-                Map<String, QuotesResponse.QuoteData> quotes = thinkOrSwinAPIs.getQuotes(batch);
+                Map<String, QuotesResponse.QuoteData> quotes = ThinkOrSwimAPIs.getQuotes(batch);
 
                 for (Map.Entry<String, QuotesResponse.QuoteData> entry : quotes.entrySet()) {
                     String symbol = entry.getKey();
@@ -117,7 +117,7 @@ public class PriceDropScreener {
         for (int i = 0; i < symbols.size(); i += 50) {
             List<String> batch = symbols.subList(i, Math.min(i + 50, symbols.size()));
             try {
-                Map<String, QuotesResponse.QuoteData> quotes = thinkOrSwinAPIs.getQuotes(batch);
+                Map<String, QuotesResponse.QuoteData> quotes = ThinkOrSwimAPIs.getQuotes(batch);
 
                 for (Map.Entry<String, QuotesResponse.QuoteData> entry : quotes.entrySet()) {
                     String symbol = entry.getKey();
@@ -171,7 +171,7 @@ public class PriceDropScreener {
         // ── Parallel execution (Track B) ──
         List<TechnicalScreener.ScreeningResult> parallelResults = schwabApiExecutor.executeParallel(
                 symbols, symbol -> {
-                    PriceHistoryCache.HistoricalData cachedData = PriceHistoryCache.getInstance().getHistoricalData(symbol, thinkOrSwinAPIs);
+                    PriceHistoryCache.HistoricalData cachedData = PriceHistoryCache.getInstance().getHistoricalData(symbol, ThinkOrSwimAPIs);
                     PriceHistoryResponse history = cachedData != null ? cachedData.getPriceHistory() : null;
 
                     if (history == null || history.getCandles() == null

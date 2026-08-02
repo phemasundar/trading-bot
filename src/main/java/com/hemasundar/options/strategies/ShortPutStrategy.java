@@ -1,7 +1,7 @@
 package com.hemasundar.options.strategies;
 
 import com.hemasundar.apis.FinnHubAPIs;
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.options.models.CreditSpreadFilter;
 import com.hemasundar.options.models.LegFilter;
 import com.hemasundar.options.models.OptionChainResponse;
@@ -41,9 +41,9 @@ public class ShortPutStrategy extends AbstractTradingStrategy {
 
     public ShortPutStrategy(StrategyType strategyType,
                             FinnHubAPIs finnHubAPIs,
-                            ThinkOrSwinAPIs thinkOrSwinAPIs,
+                            ThinkOrSwimAPIs ThinkOrSwimAPIs,
                             Optional<SupabaseService> supabaseService) {
-        super(strategyType, finnHubAPIs, thinkOrSwinAPIs, supabaseService);
+        super(strategyType, finnHubAPIs, ThinkOrSwimAPIs, supabaseService);
     }
 
     @Override

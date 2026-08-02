@@ -1,7 +1,7 @@
 package com.hemasundar.cache;
 
 import com.hemasundar.pojos.PriceHistoryResponse;
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.utils.VolatilityCalculator;
 import lombok.extern.log4j.Log4j2;
 
@@ -46,7 +46,7 @@ public class PriceHistoryCache extends AbstractApiCache<PriceHistoryCache.Histor
     /**
      * Gets the HistoricalData for a symbol. If not cached, fetches 1-year daily history.
      */
-    public HistoricalData getHistoricalData(String symbol, ThinkOrSwinAPIs schwabApi) {
+    public HistoricalData getHistoricalData(String symbol, ThinkOrSwimAPIs schwabApi) {
         HistoricalData data = get(symbol);
         if (data != null) {
             return data;

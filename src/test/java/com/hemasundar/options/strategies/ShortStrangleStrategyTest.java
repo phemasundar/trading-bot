@@ -1,7 +1,7 @@
 package com.hemasundar.options.strategies;
 
 import com.hemasundar.apis.FinnHubAPIs;
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.options.models.LegFilter;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.ShortStrangle;
@@ -23,14 +23,14 @@ public class ShortStrangleStrategyTest {
     @Mock
     private FinnHubAPIs finnHubAPIs;
     @Mock
-    private ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private ThinkOrSwimAPIs ThinkOrSwimAPIs;
 
     private ShortStrangleStrategy strategy;
 
     @BeforeMethod
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        strategy = new ShortStrangleStrategy(StrategyType.SHORT_STRANGLE, finnHubAPIs, thinkOrSwinAPIs, Optional.empty());
+        strategy = new ShortStrangleStrategy(StrategyType.SHORT_STRANGLE, finnHubAPIs, ThinkOrSwimAPIs, Optional.empty());
     }
 
     @Test

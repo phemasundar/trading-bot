@@ -1,6 +1,6 @@
 package com.hemasundar.technical;
 
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.technical.*;
 import com.hemasundar.utils.SchwabApiExecutor;
@@ -22,12 +22,12 @@ import static org.testng.Assert.*;
 public class TechnicalScreenerTest {
 
     private TechnicalScreener technicalScreener;
-    private ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private ThinkOrSwimAPIs ThinkOrSwimAPIs;
     private SchwabApiExecutor schwabApiExecutor;
 
     @BeforeMethod
     public void setUp() {
-        thinkOrSwinAPIs = Mockito.mock(ThinkOrSwinAPIs.class);
+        ThinkOrSwimAPIs = Mockito.mock(ThinkOrSwimAPIs.class);
         schwabApiExecutor = Mockito.mock(SchwabApiExecutor.class);
         Mockito.when(schwabApiExecutor.executeParallel(Mockito.anyList(), Mockito.any(), Mockito.any())).thenAnswer(inv -> {
             List<String> symbols = inv.getArgument(0);
@@ -38,13 +38,14 @@ public class TechnicalScreenerTest {
             }
             return res;
         });
-        technicalScreener = new TechnicalScreener(thinkOrSwinAPIs, schwabApiExecutor, new com.hemasundar.utils.VolatilityCalculator());
+        technicalScreener = new TechnicalScreener(ThinkOrSwimAPIs, schwabApiExecutor, new com.hemasundar.utils.VolatilityCalculator());
         PriceHistoryCache.getInstance().clear();
+        com.hemasundar.cache.TechnicalIndicatorCache.getInstance().clear();
     }
 
     @Test
     public void testAnalyzeStockNullHistory() {
-        Mockito.when(thinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
+        Mockito.when(ThinkOrSwimAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(null);
 
         TechnicalIndicators indicators = TechnicalIndicators.builder().build();
@@ -57,7 +58,7 @@ public class TechnicalScreenerTest {
     public void testAnalyzeStockEmptyHistory() {
         PriceHistoryResponse response = new PriceHistoryResponse();
         response.setCandles(new ArrayList<>());
-        Mockito.when(thinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
+        Mockito.when(ThinkOrSwimAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(response);
 
         TechnicalIndicators indicators = TechnicalIndicators.builder().build();
@@ -69,7 +70,7 @@ public class TechnicalScreenerTest {
     @Test
     public void testAnalyzeStockSuccess() {
         PriceHistoryResponse response = createMockResponse(100.0, 10);
-        Mockito.when(thinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
+        Mockito.when(ThinkOrSwimAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(response);
 
         TechnicalIndicators indicators = TechnicalIndicators.builder()
@@ -91,7 +92,7 @@ public class TechnicalScreenerTest {
     @Test
     public void testScreenStocksCriteriaMet() {
         PriceHistoryResponse response = createMockResponse(50.0, 30);
-        Mockito.when(thinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
+        Mockito.when(ThinkOrSwimAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(response);
 
         TechnicalIndicators indicators = TechnicalIndicators.builder()
@@ -119,7 +120,7 @@ public class TechnicalScreenerTest {
     @Test
     public void testScreenStocksCriteriaNotMet() {
         PriceHistoryResponse response = createMockResponse(100.0, 30);
-        Mockito.when(thinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
+        Mockito.when(ThinkOrSwimAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(response);
 
         TechnicalIndicators indicators = TechnicalIndicators.builder().build();
@@ -146,7 +147,7 @@ public class TechnicalScreenerTest {
     public void testAnalyzeStock_AllIndicators() {
         // Create 201 candles for MA200
         PriceHistoryResponse response = createMockResponse(100.0, 201);
-        Mockito.when(thinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
+        Mockito.when(ThinkOrSwimAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(response);
 
         TechnicalIndicators indicators = TechnicalIndicators.builder()
@@ -173,7 +174,7 @@ public class TechnicalScreenerTest {
     public void testMeetsAllCriteria_ConditionCoverage() {
         // We will exercise meetsAllCriteria through evaluate indirectly
         PriceHistoryResponse response = createMockResponse(100.0, 201);
-        Mockito.when(thinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
+        Mockito.when(ThinkOrSwimAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(response);
 
         // Scenario 1: RSI condition coverage

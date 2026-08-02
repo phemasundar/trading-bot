@@ -23,7 +23,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import com.hemasundar.apis.FinnHubAPIs;
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.services.FilterLogStore;
 import com.hemasundar.services.SupabaseService;
 
@@ -32,9 +32,9 @@ public class ZebraStrategy extends AbstractTradingStrategy {
 
     public ZebraStrategy(StrategyType strategyType,
                         FinnHubAPIs finnHubAPIs,
-                        ThinkOrSwinAPIs thinkOrSwinAPIs,
+                        ThinkOrSwimAPIs ThinkOrSwimAPIs,
                         java.util.Optional<SupabaseService> supabaseService) {
-        super(strategyType, finnHubAPIs, thinkOrSwinAPIs, supabaseService);
+        super(strategyType, finnHubAPIs, ThinkOrSwimAPIs, supabaseService);
     }
 
     @Override

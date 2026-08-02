@@ -1,7 +1,7 @@
 package com.hemasundar.options.strategies;
 
 import com.hemasundar.apis.FinnHubAPIs;
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.cache.PriceHistoryCache;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionsStrategyFilter;
@@ -35,15 +35,15 @@ public class AbstractTradingStrategyTest {
     private FinnHubAPIs finnHubAPIs;
     
     @Mock
-    private ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private ThinkOrSwimAPIs ThinkOrSwimAPIs;
     
     private AutoCloseable mocks;
 
     // A concrete subclass strictly for testing AbstractTradingStrategy logic
     private static class DummyStrategy extends AbstractTradingStrategy {
 
-        public DummyStrategy(FinnHubAPIs finnHubAPIs, ThinkOrSwinAPIs thinkOrSwinAPIs) {
-            super(StrategyType.PUT_CREDIT_SPREAD, finnHubAPIs, thinkOrSwinAPIs, java.util.Optional.empty());
+        public DummyStrategy(FinnHubAPIs finnHubAPIs, ThinkOrSwimAPIs ThinkOrSwimAPIs) {
+            super(StrategyType.PUT_CREDIT_SPREAD, finnHubAPIs, ThinkOrSwimAPIs, java.util.Optional.empty());
         }
 
         @Override
@@ -145,7 +145,7 @@ public class AbstractTradingStrategyTest {
     @BeforeMethod
     public void setup() {
         mocks = MockitoAnnotations.openMocks(this);
-        strategy = new DummyStrategy(finnHubAPIs, thinkOrSwinAPIs);
+        strategy = new DummyStrategy(finnHubAPIs, ThinkOrSwimAPIs);
         PriceHistoryCache.getInstance().clear();
     }
 
@@ -225,11 +225,11 @@ public class AbstractTradingStrategyTest {
         Predicate<TradeSetup> predicate = strategy.callCommonMaxNetExtrinsicValueToPricePercentageFilter(filter);
 
         TradeSetup t1 = mock(TradeSetup.class);
-        when(t1.getAnulizedNetExtrinsicValueToCapitalPercentage()).thenReturn(4.0);
+        when(t1.getAnnualizedNetExtrinsicValueToCapitalPercentage()).thenReturn(4.0);
         assertTrue(predicate.test(t1));
 
         TradeSetup t2 = mock(TradeSetup.class);
-        when(t2.getAnulizedNetExtrinsicValueToCapitalPercentage()).thenReturn(6.0);
+        when(t2.getAnnualizedNetExtrinsicValueToCapitalPercentage()).thenReturn(6.0);
         assertFalse(predicate.test(t2));
     }
 
@@ -241,11 +241,11 @@ public class AbstractTradingStrategyTest {
         Predicate<TradeSetup> predicate = strategy.callCommonMinNetExtrinsicValueToPricePercentageFilter(filter);
 
         TradeSetup t1 = mock(TradeSetup.class);
-        when(t1.getAnulizedNetExtrinsicValueToCapitalPercentage()).thenReturn(6.0);
+        when(t1.getAnnualizedNetExtrinsicValueToCapitalPercentage()).thenReturn(6.0);
         assertTrue(predicate.test(t1));
 
         TradeSetup t2 = mock(TradeSetup.class);
-        when(t2.getAnulizedNetExtrinsicValueToCapitalPercentage()).thenReturn(4.0);
+        when(t2.getAnnualizedNetExtrinsicValueToCapitalPercentage()).thenReturn(4.0);
         assertFalse(predicate.test(t2));
     }
 

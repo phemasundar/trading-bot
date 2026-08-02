@@ -1,7 +1,7 @@
 package com.hemasundar.config;
 
 import com.hemasundar.apis.FinnHubAPIs;
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.options.strategies.*;
 import com.hemasundar.services.SupabaseService;
 import com.hemasundar.utils.VolatilityCalculator;
@@ -19,7 +19,7 @@ public class StrategiesBeanConfigTest {
     @Mock
     private FinnHubAPIs finnHubAPIs;
     @Mock
-    private ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private ThinkOrSwimAPIs ThinkOrSwimAPIs;
     @Mock
     private VolatilityCalculator volatilityCalculator;
     @Mock
@@ -38,57 +38,57 @@ public class StrategiesBeanConfigTest {
         Optional<SupabaseService> optDb = Optional.of(supabaseService);
 
         PutCreditSpreadStrategy pcs = beanConfig.putCreditSpreadStrategy(
-                finnHubAPIs, thinkOrSwinAPIs, optDb);
+                finnHubAPIs, ThinkOrSwimAPIs, optDb);
         assertNotNull(pcs);
         assertEquals(pcs.getStrategyType(), StrategyType.PUT_CREDIT_SPREAD);
 
         PutCreditSpreadStrategy tpcs = beanConfig.techPutCreditSpreadStrategy(
-                finnHubAPIs, thinkOrSwinAPIs, optDb);
+                finnHubAPIs, ThinkOrSwimAPIs, optDb);
         assertNotNull(tpcs);
         assertEquals(tpcs.getStrategyType(), StrategyType.TECH_PUT_CREDIT_SPREAD);
 
         PutCreditSpreadStrategy blpcs = beanConfig.bullishLongPutCreditSpreadStrategy(
-                finnHubAPIs, thinkOrSwinAPIs, optDb);
+                finnHubAPIs, ThinkOrSwimAPIs, optDb);
         assertNotNull(blpcs);
         assertEquals(blpcs.getStrategyType(), StrategyType.BULLISH_LONG_PUT_CREDIT_SPREAD);
 
         CallCreditSpreadStrategy ccs = beanConfig.callCreditSpreadStrategy(
-                finnHubAPIs, thinkOrSwinAPIs, optDb);
+                finnHubAPIs, ThinkOrSwimAPIs, optDb);
         assertNotNull(ccs);
         assertEquals(ccs.getStrategyType(), StrategyType.CALL_CREDIT_SPREAD);
 
         CallCreditSpreadStrategy tccs = beanConfig.techCallCreditSpreadStrategy(
-                finnHubAPIs, thinkOrSwinAPIs, optDb);
+                finnHubAPIs, ThinkOrSwimAPIs, optDb);
         assertNotNull(tccs);
         assertEquals(tccs.getStrategyType(), StrategyType.TECH_CALL_CREDIT_SPREAD);
 
         IronCondorStrategy ic = beanConfig.ironCondorStrategy(
-                finnHubAPIs, thinkOrSwinAPIs, optDb, pcs, ccs);
+                finnHubAPIs, ThinkOrSwimAPIs, optDb, pcs, ccs);
         assertNotNull(ic);
         assertEquals(ic.getStrategyType(), StrategyType.IRON_CONDOR);
 
         IronCondorStrategy blic = beanConfig.bullishLongIronCondorStrategy(
-                finnHubAPIs, thinkOrSwinAPIs, optDb, pcs, ccs);
+                finnHubAPIs, ThinkOrSwimAPIs, optDb, pcs, ccs);
         assertNotNull(blic);
         assertEquals(blic.getStrategyType(), StrategyType.BULLISH_LONG_IRON_CONDOR);
 
         LongCallLeapStrategy leap = beanConfig.longCallLeapStrategy(
-                finnHubAPIs, thinkOrSwinAPIs, optDb);
+                finnHubAPIs, ThinkOrSwimAPIs, optDb);
         assertNotNull(leap);
         assertEquals(leap.getStrategyType(), StrategyType.LONG_CALL_LEAP);
 
         BrokenWingButterflyStrategy bwb = beanConfig.brokenWingButterflyStrategy(
-                finnHubAPIs, thinkOrSwinAPIs, optDb);
+                finnHubAPIs, ThinkOrSwimAPIs, optDb);
         assertNotNull(bwb);
         assertEquals(bwb.getStrategyType(), StrategyType.BULLISH_BROKEN_WING_BUTTERFLY);
 
         ZebraStrategy zebra = beanConfig.zebraStrategy(
-                finnHubAPIs, thinkOrSwinAPIs, optDb);
+                finnHubAPIs, ThinkOrSwimAPIs, optDb);
         assertNotNull(zebra);
         assertEquals(zebra.getStrategyType(), StrategyType.BULLISH_ZEBRA);
 
         ShortPutStrategy sp = beanConfig.shortPutStrategy(
-                finnHubAPIs, thinkOrSwinAPIs, optDb);
+                finnHubAPIs, ThinkOrSwimAPIs, optDb);
         assertNotNull(sp);
         assertEquals(sp.getStrategyType(), StrategyType.SHORT_PUT);
     }

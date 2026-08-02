@@ -1,6 +1,6 @@
 package com.hemasundar.jobs;
 
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.config.properties.SupabaseConfig;
 import com.hemasundar.pojos.IVDataPoint;
 import com.hemasundar.services.IVDataCollector;
@@ -29,7 +29,7 @@ public class IVDataJobServiceTest {
     private SupabaseConfig supabaseConfig;
 
     @Mock
-    private ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private ThinkOrSwimAPIs ThinkOrSwimAPIs;
 
     @Mock
     private TelegramUtils telegramUtils;
@@ -51,7 +51,7 @@ public class IVDataJobServiceTest {
         ivDataJobService = new IVDataJobService(
                 Optional.of(supabaseService),
                 supabaseConfig,
-                thinkOrSwinAPIs,
+                ThinkOrSwimAPIs,
                 telegramUtils,
                 ivDataCollector,
                 schwabApiExecutor,

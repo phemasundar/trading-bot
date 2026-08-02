@@ -1,7 +1,7 @@
 package com.hemasundar.services;
 
 import com.hemasundar.apis.FinnHubAPIs;
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.config.StrategiesConfigLoader;
 import com.hemasundar.dto.ExecutionResult;
 import com.hemasundar.options.models.OptionChainResponse;
@@ -53,7 +53,7 @@ public class StrategyExecutionServiceTest {
     private StrategyExecutionService strategyExecutionService;
 
     @Mock
-    private ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private ThinkOrSwimAPIs ThinkOrSwimAPIs;
 
     @Mock
     private FinnHubAPIs finnHubAPIs;
@@ -74,7 +74,7 @@ public class StrategyExecutionServiceTest {
         strategyExecutionService = new StrategyExecutionService(
                 supabaseService,
                 securitiesResolver,
-                thinkOrSwinAPIs,
+                ThinkOrSwimAPIs,
                 finnHubAPIs,
                 telegramUtils,
                 technicalScreener,
@@ -97,7 +97,7 @@ public class StrategyExecutionServiceTest {
         mockedJavaUtils = Mockito.mockStatic(JavaUtils.class);
 
         // Global dummy API response
-        when(thinkOrSwinAPIs.getOptionChain(anyString()))
+        when(ThinkOrSwimAPIs.getOptionChain(anyString()))
                 .thenReturn(new OptionChainResponse());
 
         // Global dummy securities response
