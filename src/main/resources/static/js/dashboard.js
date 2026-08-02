@@ -6,8 +6,10 @@ async function initDashboard() {
     const authed = await initAuth();
     if (!authed) return;
     await loadFilterDescriptions();
+    await loadOptionsStrategies();
     updateMarketStatusBadge();
     await loadDashboardResults();
+    await checkExecutionStatus();
     initTradeRowClicks();
 }
 
@@ -19,6 +21,96 @@ async function loadFilterDescriptions() {
         }
     } catch (e) {
         console.warn('Could not load filter descriptions:', e);
+    }
+}
+
+async function loadOptionsStrategies() {
+    const strategyContainer = document.getElementById('strategy-checkboxes');
+    if (strategyContainer) {
+        try {
+            const strategies = await API.getStrategies();
+            strategyContainer.innerHTML = strategies.map(s => {
+                const displayName = s.securitiesFile ? `${s.name} - ${s.securitiesFile}` : s.name;
+                return `
+                <div class="flex items-center gap-sm" style="margin-bottom: 8px;">
+                    <label class="checkbox-label" style="margin: 0;">
+                        <input type="checkbox" value="${s.index}" data-type="strategy">
+                        <span>${displayName}</span>
+                    </label>
+                    ${s.descriptionFile ? `<button type="button" class="info-btn" onclick="showInfo(event, '${s.descriptionFile}', '${escapeAttr(displayName)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>` : ''}
+                </div>`;
+            }).join('');
+            const badge = document.getElementById('strategy-count-badge');
+            if (badge) badge.textContent = `(${strategies.length})`;
+        } catch (e) {
+            strategyContainer.innerHTML = `<span class="text-muted">Failed to load strategies</span>`;
+        }
+    }
+}
+
+async function checkExecutionStatus() {
+    try {
+        const status = await API.getStatus();
+        if (status.alerts && status.alerts.length > 0) {
+            showErrorPanel(status.alerts);
+        }
+        if (status.running) {
+            window.currentExecutionTaskName = status.currentTask || "";
+            setDashboardBusy(true);
+            startTimer(status.startTimeMs);
+            startPolling(() => {
+                setDashboardBusy(false);
+                loadDashboardResults();
+                showToast('Execution completed!');
+            });
+        }
+    } catch (e) { /* ignore */ }
+}
+
+async function executeSelected() {
+    const checkedStrategies = document.querySelectorAll('#strategy-checkboxes input[type="checkbox"]:checked');
+    const checkedScreeners = document.querySelectorAll('#screener-checkboxes input[type="checkbox"]:checked');
+    const strategyIndices = Array.from(checkedStrategies).map(c => parseInt(c.value));
+    const screenerIndices = Array.from(checkedScreeners).map(c => parseInt(c.value));
+    if (strategyIndices.length === 0 && screenerIndices.length === 0) {
+        showToast('Select at least one strategy or screener', 'error');
+        return;
+    }
+    try {
+        setDashboardBusy(true);
+        const res = await API.executeStrategies(strategyIndices, screenerIndices);
+        showToast(res.message);
+        startTimer(Date.now());
+        startPolling(() => {
+            setDashboardBusy(false);
+            loadDashboardResults();
+            showToast('Execution completed!');
+        });
+    } catch (e) {
+        setDashboardBusy(false);
+        showToast(e.message, 'error');
+    }
+}
+
+async function cancelExecution() {
+    try {
+        await API.cancelExecution();
+        showToast('Cancellation requested');
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+}
+
+function selectAll(check) {
+    document.querySelectorAll('#strategy-checkboxes input[type="checkbox"]')
+        .forEach(cb => cb.checked = check);
+    if (check) {
+        const body = document.getElementById('strategy-section');
+        const arrow = document.getElementById('arrow-strategy-section');
+        if (body && !body.classList.contains('open')) {
+            body.classList.add('open');
+            if (arrow) arrow.classList.add('open');
+        }
     }
 }
 
@@ -37,14 +129,12 @@ async function loadDashboardResults() {
             return;
         }
 
-        // Standard Results
         if (results && results.length > 0) {
             results.forEach(res => {
                 container.appendChild(buildResultCard(res, 'Standard'));
             });
         }
 
-        // Custom Results
         if (customResults && customResults.length > 0) {
             customResults.forEach(res => {
                 container.appendChild(buildResultCard(res, 'Custom'));
@@ -615,7 +705,7 @@ function renderOptionDataTable(legsOptionData) {
             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 3px 16px;">`;
 
         for (const [label, val] of rows) {
-            html += `<div style="display:flex; justify-space-between; font-size:0.8rem; padding: 2px 0; border-bottom: 1px solid var(--border); gap:8px;">
+            html += `<div style="display:flex; justify-content:space-between; font-size:0.8rem; padding: 2px 0; border-bottom: 1px solid var(--border); gap:8px;">
                 <span style="color:var(--text-muted); white-space:nowrap;">${label}</span>
                 <span style="color:var(--text-primary); font-family:var(--font-mono); text-align:right;">${val}</span>
             </div>`;

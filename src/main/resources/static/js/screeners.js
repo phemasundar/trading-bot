@@ -18,7 +18,7 @@ async function initScreenerDashboard() {
     await loadScreenerStrategies();
     await loadScreenerResults();
     await checkScreenerExecutionStatus();
-    fetchAndRenderMarketStatus();
+    updateMarketStatusBadge();
 }
 
 async function loadScreenerStrategies() {
@@ -48,6 +48,61 @@ async function loadScreenerStrategies() {
         if (badge) badge.textContent = `(${screeners.length})`;
     } catch (e) {
         screenerContainer.innerHTML = `<span class="text-muted">Failed to load screeners</span>`;
+    }
+}
+
+async function checkScreenerExecutionStatus() {
+    try {
+        const status = await API.getStatus();
+        if (status.alerts && status.alerts.length > 0) {
+            showErrorPanel(status.alerts);
+        }
+        if (status.running) {
+            window.currentExecutionTaskName = status.currentTask || "";
+            setDashboardBusy(true);
+            startTimer(status.startTimeMs);
+            startPolling(() => {
+                setDashboardBusy(false);
+                loadScreenerResults();
+                showToast('Execution completed!');
+            });
+        }
+    } catch (e) { /* ignore */ }
+}
+
+async function executeScreenersSelected() {
+    const checkedScreeners = document.querySelectorAll('#screener-checkboxes input[type="checkbox"]:checked');
+    const screenerIndices = Array.from(checkedScreeners).map(c => parseInt(c.value));
+    if (screenerIndices.length === 0) {
+        showToast('Select at least one screener', 'error');
+        return;
+    }
+    try {
+        setDashboardBusy(true);
+        const res = await API.executeStrategies([], screenerIndices);
+        showToast(res.message);
+        startTimer(Date.now());
+        startPolling(() => {
+            setDashboardBusy(false);
+            loadScreenerResults();
+            showToast('Screener execution completed!');
+        });
+    } catch (e) {
+        setDashboardBusy(false);
+        showToast(e.message, 'error');
+    }
+}
+
+function selectAllScreeners(check) {
+    document.querySelectorAll('#screener-checkboxes input[type="checkbox"]')
+        .forEach(cb => cb.checked = check);
+    if (check) {
+        const body = document.getElementById('screener-section');
+        const arrow = document.getElementById('arrow-screener-section');
+        if (body && !body.classList.contains('open')) {
+            body.classList.add('open');
+            if (arrow) arrow.classList.add('open');
+        }
     }
 }
 
