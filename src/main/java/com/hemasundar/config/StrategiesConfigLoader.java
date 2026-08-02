@@ -96,10 +96,10 @@ public class StrategiesConfigLoader {
         List<OptionsConfig> configs = new ArrayList<>();
 
         try {
-            String json = FilePaths.readResource(configResource);
+            String yaml = FilePaths.readResource(configResource);
 
             // Parse root config as POJO
-            StrategiesConfig rootConfig = JavaUtils.convertJsonToPojo(json, StrategiesConfig.class);
+            StrategiesConfig rootConfig = JavaUtils.convertYamlToPojo(yaml, StrategiesConfig.class);
 
             // Build named preset filter-map lookup from root technicalFilters
             Map<String, Map<String, Object>> presetFilters = rootConfig.getTechnicalFilters();
@@ -129,7 +129,7 @@ public class StrategiesConfigLoader {
     // ==================== TECHNICAL SCREENERS ====================
 
     /**
-     * Loads screener configurations from the default strategies-config.json path.
+     * Loads screener configurations from the default strategies-config.yml path.
      * Only returns enabled screeners.
      *
      * @return list of enabled ScreenerConfig objects
@@ -142,7 +142,7 @@ public class StrategiesConfigLoader {
      * Loads screener configurations from the specified config file.
      * Only returns enabled screeners.
      *
-     * @param configResource path to the strategies-config.json file
+     * @param configResource path to the strategies-config.yml file
      * @param securitiesMap  map of securities
      * @return list of enabled ScreenerConfig objects
      */
@@ -150,10 +150,10 @@ public class StrategiesConfigLoader {
         List<ScreenerConfig> configs = new ArrayList<>();
 
         try {
-            String json = FilePaths.readResource(configResource);
+            String yaml = FilePaths.readResource(configResource);
 
             // Parse root config as POJO
-            StrategiesConfig rootConfig = JavaUtils.convertJsonToPojo(json, StrategiesConfig.class);
+            StrategiesConfig rootConfig = JavaUtils.convertYamlToPojo(yaml, StrategiesConfig.class);
             Map<String, Object> indicatorConfigs = rootConfig.getTechnicalIndicatorConfigs();
 
             // Convert each enabled screener entry to ScreenerConfig

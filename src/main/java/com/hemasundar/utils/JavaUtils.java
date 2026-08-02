@@ -14,6 +14,11 @@ public class JavaUtils {
         return YAML_MAPPER.readValue(yamlData, tClass);
     }
 
+    public static String convertYamlToJson(String yamlData) {
+        Object pojo = YAML_MAPPER.readValue(yamlData, Object.class);
+        return JSON_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(pojo);
+    }
+
     public static <T> T convertJsonToPojo(String jsonData, Class<T> tClass) {
         return JSON_MAPPER.readValue(jsonData, tClass);
     }

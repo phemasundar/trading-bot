@@ -43,7 +43,7 @@ public class StrategiesConfigLoaderTest {
         Map<String, List<String>> securitiesMap = new HashMap<>();
         securitiesMap.put("portfolio", List.of("AAPL", "MSFT"));
 
-        List<OptionsConfig> configs = configLoader.load("test-strategies-config.json", securitiesMap);
+        List<OptionsConfig> configs = configLoader.load("test-strategies-config.yml", securitiesMap);
 
         assertNotNull(configs);
         assertEquals(configs.get(0).getAlias(), "Bullish Puts");
@@ -52,13 +52,13 @@ public class StrategiesConfigLoaderTest {
 
     @Test
     public void testLoad_NotFound() {
-        List<OptionsConfig> configs = configLoader.load("non-existent.json", new HashMap<>());
+        List<OptionsConfig> configs = configLoader.load("non-existent.yml", new HashMap<>());
         assertTrue(configs.isEmpty());
     }
 
     @Test
     public void testLoad_MalformedJson() {
-        List<OptionsConfig> configs = configLoader.load("malformed-strategies-config.json", new HashMap<>());
+        List<OptionsConfig> configs = configLoader.load("malformed-strategies-config.yml", new HashMap<>());
         assertNotNull(configs);
     }
 
@@ -68,7 +68,7 @@ public class StrategiesConfigLoaderTest {
         securitiesMap.put("top100.yaml", List.of("GOOG", "TSLA"));
         
         List<com.hemasundar.technical.ScreenerConfig> screeners = configLoader
-                .loadScreeners("test-strategies-config.json", securitiesMap);
+                .loadScreeners("test-strategies-config.yml", securitiesMap);
         
         assertNotNull(screeners);
         assertEquals(screeners.get(0).getAlias(), "Bullish Screener");

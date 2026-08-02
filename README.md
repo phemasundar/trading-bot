@@ -32,7 +32,7 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
   **Dashboard Results Filter**: Both the Options Dashboard and Screeners Dashboard feature a cross-table filter bar displayed just below the "Latest Results" heading. Users can select a column (Ticker for both dashboards; Expiry Date with before/after date picker for Options only), enter a search value, and instantly filter results across all strategy cards simultaneously. Cards with matching rows are automatically expanded; cards with zero matches are collapsed. A match summary (e.g. "5 matches across 3 strategies") is shown below the controls. Clicking "✕ Clear" restores all rows and collapses all cards to a clean state.
 
 
-- **Greek Exposure Pill Labels**: Every strategy card on the Options Dashboard displays four colored Greek indicator pills — Δ (Delta), Γ (Gamma), Θ (Theta), V (Vega) — color-coded green for positive exposure, red for negative, and gray for neutral. Greek polarity is configured per strategy in `strategies-config.json` and flows through the full stack, persisted as part of the `filterConfig` JSON in Supabase.
+- **Greek Exposure Pill Labels**: Every strategy card on the Options Dashboard displays four colored Greek indicator pills — Δ (Delta), Γ (Gamma), Θ (Theta), V (Vega) — color-coded green for positive exposure, red for negative, and gray for neutral. Greek polarity is configured per strategy in `strategies-config.yml` and flows through the full stack, persisted as part of the `filterConfig` JSON in Supabase.
 
 - **Earnings Calendar**: A dedicated monthly calendar view (`/earnings-calendar.html`) sourced from the local `earnings_cache.json`. Displays all cached earnings events as color-coded chips (BMO = amber, AMC = purple) on their respective dates. Click any day to see a detailed table of that day's events including symbol, reporting timing, quarter, EPS and revenue estimates/actuals. Navigate months with Prev/Next or jump to today.
 
@@ -133,7 +133,7 @@ The user interface features a clean, highly structured sidebar navigation divide
 
 - **Screeners Dashboard (`/screeners.html`)**: Exclusively displays technical stock screener results and allows quick execution/cancel triggers for screeners.
 - **Execute Strategy (`/execute.html`)**: Build custom configurations for any strategy type, set filters, and view interactive "speech balloon" tooltips for every field. Previous execution results show collapsible filter details and a "Load Filters" button to quickly reload parameters from past runs.
-- **Execute Screener (`/execute-screener.html`)**: Run one-off technical screeners with fully configurable conditions (RSI, Bollinger, Moving Averages, Price Drop, etc.) without modifying `strategies-config.json`. Historical custom screener results are displayed with a **"⬆ Load Filters"** button to re-populate the form with the exact parameters from any previous run.
+- **Execute Screener (`/execute-screener.html`)**: Run one-off technical screeners with fully configurable conditions (RSI, Bollinger, Moving Averages, Price Drop, etc.) without modifying `strategies-config.yml`. Historical custom screener results are displayed with a **"⬆ Load Filters"** button to re-populate the form with the exact parameters from any previous run.
 - **Strategy Config (`/config.html`)**: Read-only view of all strategy configurations with full parameter descriptions.
 - **Execution Logs (`/logs.html`)**: Real-time per-filter logs showing exactly where trade candidates are being discarded (e.g. Delta filter, Volume filter, DTE constraints) to help debug filter configurations.
 - **Swagger API Docs (`/swagger-ui.html`)**: Interactive REST API documentation.
@@ -156,7 +156,7 @@ This will:
 
 ### Configuring Securities Files Per Strategy
 
-Each strategy and screener resolves its symbol universe from three sources, all configured via `securitiesFile` and/or `securities` in `strategies-config.json`. Multiple names can be combined with commas; duplicates are automatically deduplicated.
+Each strategy and screener resolves its symbol universe from three sources, all configured via `securitiesFile` and/or `securities` in `strategies-config.yml`. Multiple names can be combined with commas; duplicates are automatically deduplicated.
 
 ```json
 {

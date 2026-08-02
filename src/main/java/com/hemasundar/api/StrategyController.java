@@ -222,25 +222,17 @@ public class StrategyController {
     }
 
     /**
-     * Returns the raw strategies-config.json content.
+     * Returns the strategies configuration formatted as JSON.
      */
     @GetMapping("/config")
     public ResponseEntity<?> getConfig() {
         try {
-            String configPath = "strategies-config.json";
-            Path path = Path.of(configPath);
-            if (!Files.exists(path)) {
-                // Try classpath
-                var resource = getClass().getClassLoader().getResource(configPath);
-                if (resource != null) {
-                    path = Path.of(resource.toURI());
-                }
-            }
-            String content = Files.readString(path);
+            String yamlContent = com.hemasundar.utils.FilePaths.readResource(com.hemasundar.utils.FilePaths.strategiesConfig);
+            String jsonContent = com.hemasundar.utils.JavaUtils.convertYamlToJson(yamlContent);
             return ResponseEntity.ok()
                     .header("Content-Type", "application/json")
                     .header("Cache-Control", "no-cache, no-store, must-revalidate")
-                    .body(content);
+                    .body(jsonContent);
         } catch (Exception e) {
             log.error("Failed to read config", e);
             return ResponseEntity.internalServerError()

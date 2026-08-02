@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Root POJO for strategies-config.json with all nested configuration classes.
+ * Root POJO for strategies-config.yml with all nested configuration classes.
  * Contains all options strategies, technical screeners, and reusable technical
  * indicator config definitions.
  *
