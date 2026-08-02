@@ -1,7 +1,7 @@
 # ============================================================
-# Stage 1: Build — Maven + JDK 17 to produce the JAR
+# Stage 1: Build — Maven + JDK 21 to produce the JAR
 # ============================================================
-FROM maven:3.9.6-eclipse-temurin-17 AS builder
+FROM maven:3.9.6-eclipse-temurin-21 AS builder
 
 WORKDIR /build
 
@@ -14,9 +14,9 @@ COPY src ./src
 RUN mvn package -Dmaven.test.skip=true -q
 
 # ============================================================
-# Stage 2: Runtime — slim JRE 17 image
+# Stage 2: Runtime — slim JRE 21 image
 # ============================================================
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
