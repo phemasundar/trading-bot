@@ -27,7 +27,7 @@ public interface TradeSetup {
     double getNetExtrinsicValue();
 
     // Default calculation for the annualized net extrinsic percentage
-    default double getAnulizedNetExtrinsicValueToCapitalPercentage() {
+    default double getAnnualizedNetExtrinsicValueToCapitalPercentage() {
         if (getMaxLoss() <= 0 || getDaysToExpiration() <= 0)
             return 0;
         return (getNetExtrinsicValue() / getMaxLoss()) * (365.0 / getDaysToExpiration()) * 100;

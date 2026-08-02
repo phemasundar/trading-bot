@@ -1,6 +1,6 @@
 package com.hemasundar.technical;
 
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.pojos.QuotesResponse;
 import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.technical.MathExpression;
@@ -26,12 +26,12 @@ import static org.testng.Assert.*;
 public class PriceDropScreenerTest {
 
     private PriceDropScreener priceDropScreener;
-    private ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private ThinkOrSwimAPIs ThinkOrSwimAPIs;
     private SchwabApiExecutor schwabApiExecutor;
 
     @BeforeMethod
     public void setUp() {
-        thinkOrSwinAPIs = Mockito.mock(ThinkOrSwinAPIs.class);
+        ThinkOrSwimAPIs = Mockito.mock(ThinkOrSwimAPIs.class);
         schwabApiExecutor = Mockito.mock(SchwabApiExecutor.class);
         Mockito.when(schwabApiExecutor.executeParallel(anyList(), any(), any())).thenAnswer(inv -> {
             List<String> symbols = inv.getArgument(0);
@@ -42,7 +42,7 @@ public class PriceDropScreenerTest {
             }
             return res;
         });
-        priceDropScreener = new PriceDropScreener(thinkOrSwinAPIs, schwabApiExecutor);
+        priceDropScreener = new PriceDropScreener(ThinkOrSwimAPIs, schwabApiExecutor);
         PriceHistoryCache.getInstance().clear();
     }
 
@@ -60,7 +60,7 @@ public class PriceDropScreenerTest {
         data.setQuote(quote);
         quotes.put("AAPL", data);
         
-        Mockito.when(thinkOrSwinAPIs.getQuotes(anyList())).thenReturn(quotes);
+        Mockito.when(ThinkOrSwimAPIs.getQuotes(anyList())).thenReturn(quotes);
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screenPriceDrop(
                 List.of("AAPL"), List.of(MathExpression.builder().leftVariable("DROP_PCT").operator(RelationalOperator.GREATER_THAN_OR_EQUAL).rightVariable("3.0").build()), 0, null);
@@ -84,7 +84,7 @@ public class PriceDropScreenerTest {
         data.setQuote(quote);
         quotes.put("MSFT", data);
         
-        Mockito.when(thinkOrSwinAPIs.getQuotes(anyList())).thenReturn(quotes);
+        Mockito.when(ThinkOrSwimAPIs.getQuotes(anyList())).thenReturn(quotes);
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screenPriceDrop(
                 List.of("MSFT"), List.of(MathExpression.builder().leftVariable("DROP_PCT").operator(RelationalOperator.GREATER_THAN_OR_EQUAL).rightVariable("3.0").build()), 0, null);
@@ -105,7 +105,7 @@ public class PriceDropScreenerTest {
         data.setQuote(quote);
         quotes.put("TSLA", data);
         
-        Mockito.when(thinkOrSwinAPIs.getQuotes(anyList())).thenReturn(quotes);
+        Mockito.when(ThinkOrSwimAPIs.getQuotes(anyList())).thenReturn(quotes);
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screen52WeekHighDrop(
                 List.of("TSLA"), List.of(MathExpression.builder().leftVariable("DROP_PCT").operator(RelationalOperator.GREATER_THAN_OR_EQUAL).rightVariable("15.0").build()), null);
@@ -136,7 +136,7 @@ public class PriceDropScreenerTest {
         
         history.setCandles(candles);
         
-        Mockito.when(thinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
+        Mockito.when(ThinkOrSwimAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(history);
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screenPriceDrop(
@@ -149,7 +149,7 @@ public class PriceDropScreenerTest {
 
     @Test
     public void testScreenPriceDrop_ApiErrorGraceful() {
-        Mockito.when(thinkOrSwinAPIs.getQuotes(anyList())).thenThrow(new RuntimeException("API Down"));
+        Mockito.when(ThinkOrSwimAPIs.getQuotes(anyList())).thenThrow(new RuntimeException("API Down"));
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screenPriceDrop(
                 List.of("AAPL"), List.of(MathExpression.builder().leftVariable("DROP_PCT").operator(RelationalOperator.GREATER_THAN_OR_EQUAL).rightVariable("3.0").build()), 0, null);
@@ -178,7 +178,7 @@ public class PriceDropScreenerTest {
         
         history.setCandles(candles);
         
-        Mockito.when(thinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
+        Mockito.when(ThinkOrSwimAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(history);
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screenPriceDrop(
@@ -210,7 +210,7 @@ public class PriceDropScreenerTest {
         
         history.setCandles(candles);
         
-        Mockito.when(thinkOrSwinAPIs.getYearlyPriceHistory(anyString(), anyInt()))
+        Mockito.when(ThinkOrSwimAPIs.getYearlyPriceHistory(anyString(), anyInt()))
                 .thenReturn(history);
         
         List<TechnicalScreener.ScreeningResult> results = priceDropScreener.screenPriceDrop(

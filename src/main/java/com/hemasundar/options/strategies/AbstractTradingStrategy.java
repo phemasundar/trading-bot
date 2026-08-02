@@ -1,7 +1,7 @@
 package com.hemasundar.options.strategies;
 
 import com.hemasundar.apis.FinnHubAPIs;
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.cache.IVRankCache;
 import com.hemasundar.cache.PriceHistoryCache;
 import com.hemasundar.options.models.OptionChainResponse;
@@ -33,7 +33,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
     private final StrategyType strategyType;
 
     protected final FinnHubAPIs finnHubAPIs;
-    protected final ThinkOrSwinAPIs thinkOrSwinAPIs;
+    protected final ThinkOrSwimAPIs ThinkOrSwimAPIs;
 
     /**
      * Optional Supabase service for IV Rank lookups.
@@ -196,7 +196,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
     protected java.util.function.Predicate<TradeSetup> commonMaxNetExtrinsicValueToPricePercentageFilter(
             OptionsStrategyFilter filter) {
         return tradeSetup -> filter.passesMaxNetExtrinsicValueToPricePercentage(
-                tradeSetup.getAnulizedNetExtrinsicValueToCapitalPercentage());
+                tradeSetup.getAnnualizedNetExtrinsicValueToCapitalPercentage());
     }
 
     /**
@@ -207,7 +207,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
     protected java.util.function.Predicate<TradeSetup> commonMinNetExtrinsicValueToPricePercentageFilter(
             OptionsStrategyFilter filter) {
         return tradeSetup -> filter.passesMinNetExtrinsicValueToPricePercentage(
-                tradeSetup.getAnulizedNetExtrinsicValueToCapitalPercentage());
+                tradeSetup.getAnnualizedNetExtrinsicValueToCapitalPercentage());
     }
 
     /**

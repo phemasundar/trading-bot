@@ -1,6 +1,6 @@
 package com.hemasundar.jobs;
 
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.config.properties.SupabaseConfig;
 import com.hemasundar.pojos.IVDataPoint;
 import com.hemasundar.services.IVDataCollector;
@@ -29,7 +29,7 @@ public class IVDataJobService {
 
     private final SupabaseConfig supabaseConfig;
 
-    private final ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private final ThinkOrSwimAPIs ThinkOrSwimAPIs;
 
     private final TelegramUtils telegramUtils;
 

@@ -1,6 +1,6 @@
 package com.hemasundar.cache;
 
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.pojos.QuotesResponse;
 import lombok.extern.log4j.Log4j2;
 

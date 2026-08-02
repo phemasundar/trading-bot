@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.hemasundar.apis.FinnHubAPIs;
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.services.FilterLogStore;
 import com.hemasundar.services.SupabaseService;
 
@@ -26,11 +26,11 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
 
     public IronCondorStrategy(StrategyType strategyType,
                              FinnHubAPIs finnHubAPIs,
-                             ThinkOrSwinAPIs thinkOrSwinAPIs,
+                             ThinkOrSwimAPIs ThinkOrSwimAPIs,
                              java.util.Optional<SupabaseService> supabaseService,
                              PutCreditSpreadStrategy putStrategy,
                              CallCreditSpreadStrategy callStrategy) {
-        super(strategyType, finnHubAPIs, thinkOrSwinAPIs, supabaseService);
+        super(strategyType, finnHubAPIs, ThinkOrSwimAPIs, supabaseService);
         this.putStrategy = putStrategy;
         this.callStrategy = callStrategy;
     }

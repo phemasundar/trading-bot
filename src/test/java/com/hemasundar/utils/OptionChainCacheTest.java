@@ -1,6 +1,6 @@
 package com.hemasundar.utils;
 
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.options.models.OptionChainResponse;
 import org.mockito.MockedStatic;
 import org.testng.annotations.AfterMethod;
@@ -15,12 +15,12 @@ import static org.testng.Assert.*;
 public class OptionChainCacheTest {
 
     private OptionChainCache cache;
-    private ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private ThinkOrSwimAPIs ThinkOrSwimAPIs;
 
     @BeforeMethod
     public void setUp() {
-        thinkOrSwinAPIs = mock(ThinkOrSwinAPIs.class);
-        cache = new OptionChainCache(thinkOrSwinAPIs);
+        ThinkOrSwimAPIs = mock(ThinkOrSwimAPIs.class);
+        cache = new OptionChainCache(ThinkOrSwimAPIs);
     }
 
     @Test
@@ -29,7 +29,7 @@ public class OptionChainCacheTest {
         OptionChainResponse mockResponse = new OptionChainResponse();
         mockResponse.setSymbol(symbol);
         
-        when(thinkOrSwinAPIs.getOptionChain(symbol)).thenReturn(mockResponse);
+        when(ThinkOrSwimAPIs.getOptionChain(symbol)).thenReturn(mockResponse);
         
         // First call - should fetch from API
         OptionChainResponse result1 = cache.get(symbol);
@@ -42,7 +42,7 @@ public class OptionChainCacheTest {
         assertSame(result1, result2);
         assertEquals(cache.getApiCallCounter().get(), 1);
         
-        verify(thinkOrSwinAPIs, times(1)).getOptionChain(symbol);
+        verify(ThinkOrSwimAPIs, times(1)).getOptionChain(symbol);
     }
 
     @Test
@@ -50,7 +50,7 @@ public class OptionChainCacheTest {
         String symbol = "TSLA";
         assertFalse(cache.isCached(symbol));
         
-        when(thinkOrSwinAPIs.getOptionChain(symbol)).thenReturn(new OptionChainResponse());
+        when(ThinkOrSwimAPIs.getOptionChain(symbol)).thenReturn(new OptionChainResponse());
         cache.get(symbol);
         
         assertTrue(cache.isCached(symbol));
@@ -59,7 +59,7 @@ public class OptionChainCacheTest {
     @Test
     public void testClear() {
         // Mock API call to avoid null pointer or actual network call
-        when(thinkOrSwinAPIs.getOptionChain(anyString())).thenReturn(new OptionChainResponse());
+        when(ThinkOrSwimAPIs.getOptionChain(anyString())).thenReturn(new OptionChainResponse());
         
         cache.get("AAPL"); 
         cache.clear();
@@ -71,7 +71,7 @@ public class OptionChainCacheTest {
     public void testPrewarm_AllCached() {
         cache.clear();
         String symbol = "AAPL";
-        when(thinkOrSwinAPIs.getOptionChain(symbol)).thenReturn(new OptionChainResponse());
+        when(ThinkOrSwimAPIs.getOptionChain(symbol)).thenReturn(new OptionChainResponse());
         cache.get(symbol); // caches it
 
         SchwabApiExecutor executor = mock(SchwabApiExecutor.class);
@@ -95,8 +95,8 @@ public class OptionChainCacheTest {
             return List.of(func.apply(symbol1), func.apply(symbol2));
         });
 
-        when(thinkOrSwinAPIs.getOptionChain(symbol1)).thenReturn(resp1);
-        when(thinkOrSwinAPIs.getOptionChain(symbol2)).thenReturn(resp2);
+        when(ThinkOrSwimAPIs.getOptionChain(symbol1)).thenReturn(resp1);
+        when(ThinkOrSwimAPIs.getOptionChain(symbol2)).thenReturn(resp2);
 
         cache.prewarm(List.of(symbol1, symbol2), executor);
 
@@ -128,8 +128,8 @@ public class OptionChainCacheTest {
         String symbol2 = "MSFT";
         OptionChainResponse resp1 = new OptionChainResponse();
 
-        when(thinkOrSwinAPIs.getOptionChain(symbol1)).thenReturn(resp1);
-        when(thinkOrSwinAPIs.getOptionChain(symbol2)).thenThrow(new RuntimeException("API error"));
+        when(ThinkOrSwimAPIs.getOptionChain(symbol1)).thenReturn(resp1);
+        when(ThinkOrSwimAPIs.getOptionChain(symbol2)).thenThrow(new RuntimeException("API error"));
 
         List<OptionChainResponse> results = cache.getAll(List.of(symbol1, symbol2));
 

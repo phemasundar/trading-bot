@@ -42,7 +42,7 @@ public class ScreenerExecutionServiceTest {
     private StrategyExecutionService strategyExecutionService;
 
     @Mock
-    private com.hemasundar.apis.ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private com.hemasundar.apis.ThinkOrSwimAPIs ThinkOrSwimAPIs;
 
     @Mock
     private com.hemasundar.utils.TelegramUtils telegramUtils;
@@ -64,7 +64,7 @@ public class ScreenerExecutionServiceTest {
                 supabaseService,
                 securitiesResolver,
                 strategyExecutionService,
-                thinkOrSwinAPIs,
+                ThinkOrSwimAPIs,
                 telegramUtils,
                 technicalScreener,
                 priceDropScreener,

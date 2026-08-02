@@ -10,14 +10,14 @@ import static org.testng.Assert.*;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import com.hemasundar.apis.FinnHubAPIs;
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import org.testng.annotations.BeforeMethod;
 
 public class ZebraStrategyTest {
     @Mock
     private FinnHubAPIs finnHubAPIs;
     @Mock
-    private ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private ThinkOrSwimAPIs ThinkOrSwimAPIs;
     @Mock
     private com.hemasundar.utils.VolatilityCalculator volatilityCalculator;
 
@@ -26,7 +26,7 @@ public class ZebraStrategyTest {
     @BeforeMethod
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        strategy = new ZebraStrategy(StrategyType.BULLISH_ZEBRA, finnHubAPIs, thinkOrSwinAPIs, java.util.Optional.empty());
+        strategy = new ZebraStrategy(StrategyType.BULLISH_ZEBRA, finnHubAPIs, ThinkOrSwimAPIs, java.util.Optional.empty());
     }
 
     @Test

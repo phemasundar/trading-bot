@@ -1,26 +1,40 @@
 package com.hemasundar.utils;
 
-import tools.jackson.databind.JavaType;
-import tools.jackson.databind.json.JsonMapper;
-import tools.jackson.dataformat.yaml.YAMLMapper;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+import lombok.experimental.UtilityClass;
 
 import java.util.Map;
 
+@UtilityClass
 public class JavaUtils {
-    private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
-    private static final YAMLMapper YAML_MAPPER = YAMLMapper.builder().build();
+    private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
+    private static final YAMLMapper YAML_MAPPER = new YAMLMapper();
 
     public static <T> T convertYamlToPojo(String yamlData, Class<T> tClass) {
-        return YAML_MAPPER.readValue(yamlData, tClass);
+        try {
+            return YAML_MAPPER.readValue(yamlData, tClass);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to convert YAML to POJO: " + e.getMessage(), e);
+        }
     }
 
     public static String convertYamlToJson(String yamlData) {
-        Object pojo = YAML_MAPPER.readValue(yamlData, Object.class);
-        return JSON_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(pojo);
+        try {
+            Object pojo = YAML_MAPPER.readValue(yamlData, Object.class);
+            return JSON_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(pojo);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to convert YAML to JSON: " + e.getMessage(), e);
+        }
     }
 
     public static <T> T convertJsonToPojo(String jsonData, Class<T> tClass) {
-        return JSON_MAPPER.readValue(jsonData, tClass);
+        try {
+            return JSON_MAPPER.readValue(jsonData, tClass);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to convert JSON to POJO: " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -46,9 +60,12 @@ public class JavaUtils {
      * @return Map of String to T
      */
     public static <T> Map<String, T> convertJsonToMap(String jsonData, Class<T> valueClass) {
-        JavaType mapType = JSON_MAPPER.getTypeFactory()
-                .constructMapType(Map.class, String.class, valueClass);
-        return JSON_MAPPER.readValue(jsonData, mapType);
+        try {
+            JavaType mapType = JSON_MAPPER.getTypeFactory()
+                    .constructMapType(Map.class, String.class, valueClass);
+            return JSON_MAPPER.readValue(jsonData, mapType);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to convert JSON to Map: " + e.getMessage(), e);
+        }
     }
-
 }

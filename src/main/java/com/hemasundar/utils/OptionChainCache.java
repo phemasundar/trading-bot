@@ -1,6 +1,6 @@
 package com.hemasundar.utils;
 
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.options.models.OptionChainResponse;
 import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
@@ -26,7 +26,7 @@ import com.hemasundar.cache.AbstractApiCache;
 @lombok.RequiredArgsConstructor
 public class OptionChainCache extends AbstractApiCache<OptionChainResponse> {
 
-    private final ThinkOrSwinAPIs schwabApi;
+    private final ThinkOrSwimAPIs schwabApi;
 
     /**
      * Gets the OptionChainResponse for a symbol.

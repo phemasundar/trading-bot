@@ -34,7 +34,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-public class StrategyControllerTest {
+public class StrategyExecutionControllerTest {
 
     private MockMvc mockMvc;
 
@@ -48,7 +48,7 @@ public class StrategyControllerTest {
     private com.hemasundar.utils.SecuritiesResolver securitiesResolver;
 
     @Mock
-    private com.hemasundar.apis.ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private com.hemasundar.apis.ThinkOrSwimAPIs ThinkOrSwimAPIs;
 
     @Mock
     private com.hemasundar.config.StrategiesConfigLoader strategiesConfigLoader;
@@ -65,16 +65,26 @@ public class StrategyControllerTest {
     @Mock
     private com.hemasundar.utils.WikipediaSecuritiesFetcher wikipediaFetcher;
 
-    private StrategyController strategyController;
+    private StrategyExecutionController strategyController;
+    private AuthConfigController authConfigController;
+    private ScreenerController screenerController;
+    private SecuritiesController securitiesController;
+    private ConfigController configController;
+    private LogController logController;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeMethod
     public void setup() {
         MockitoAnnotations.openMocks(this);
-        // Manual constructor injection is safer than @InjectMocks for final fields
-        strategyController = new StrategyController(executionService, screenerExecutionService, securitiesResolver, thinkOrSwinAPIs, strategiesConfigLoader, supabaseConfig, authErrorUtils, supabaseService, java.util.Optional.empty(), wikipediaFetcher);
-        mockMvc = MockMvcBuilders.standaloneSetup(strategyController).build();
+        strategyController = new StrategyExecutionController(executionService, screenerExecutionService, securitiesResolver, ThinkOrSwimAPIs, strategiesConfigLoader, authErrorUtils, java.util.Optional.empty(), wikipediaFetcher);
+        authConfigController = new AuthConfigController(supabaseConfig);
+        screenerController = new ScreenerController(screenerExecutionService, executionService, supabaseService, securitiesResolver, strategiesConfigLoader, wikipediaFetcher);
+        securitiesController = new SecuritiesController(securitiesResolver);
+        configController = new ConfigController();
+        logController = new LogController(executionService);
+
+        mockMvc = MockMvcBuilders.standaloneSetup(strategyController, authConfigController, screenerController, securitiesController, configController, logController).build();
     }
 
     @Test
@@ -350,7 +360,7 @@ public class StrategyControllerTest {
         equityData.setIsOpen(true);
         mockResponse.setEquity(Map.of("EQ", equityData));
         
-        when(thinkOrSwinAPIs.getMarketHours()).thenReturn(mockResponse);
+        when(ThinkOrSwimAPIs.getMarketHours()).thenReturn(mockResponse);
 
         mockMvc.perform(get("/api/market-status"))
                 .andExpect(status().isOk())
@@ -359,7 +369,7 @@ public class StrategyControllerTest {
 
     @Test
     public void testGetMarketStatus_Error() throws Exception {
-        when(thinkOrSwinAPIs.getMarketHours()).thenThrow(new RuntimeException("API Down"));
+        when(ThinkOrSwimAPIs.getMarketHours()).thenThrow(new RuntimeException("API Down"));
 
         mockMvc.perform(get("/api/market-status"))
                 .andExpect(status().isInternalServerError())
@@ -527,7 +537,7 @@ public class StrategyControllerTest {
         when(mockRepo.getIVRank("AAPL")).thenReturn(62.3);
         when(mockRepo.getIVStats("AAPL")).thenReturn(Map.of("minIV", 18.4, "maxIV", 45.6, "currentIV", 34.1));
 
-        StrategyController customController = new StrategyController(executionService, screenerExecutionService, securitiesResolver, thinkOrSwinAPIs, strategiesConfigLoader, supabaseConfig, authErrorUtils, supabaseService, java.util.Optional.of(mockRepo), wikipediaFetcher);
+        StrategyExecutionController customController = new StrategyExecutionController(executionService, screenerExecutionService, securitiesResolver, ThinkOrSwimAPIs, strategiesConfigLoader, authErrorUtils, java.util.Optional.of(mockRepo), wikipediaFetcher);
         MockMvc customMockMvc = MockMvcBuilders.standaloneSetup(customController).build();
 
         customMockMvc.perform(get("/api/iv-rank?symbol=AAPL"))
@@ -544,7 +554,7 @@ public class StrategyControllerTest {
         IVDataRepository mockRepo = mock(IVDataRepository.class);
         when(mockRepo.getIVRank("AAPL")).thenReturn(null);
 
-        StrategyController customController = new StrategyController(executionService, screenerExecutionService, securitiesResolver, thinkOrSwinAPIs, strategiesConfigLoader, supabaseConfig, authErrorUtils, supabaseService, java.util.Optional.of(mockRepo), wikipediaFetcher);
+        StrategyExecutionController customController = new StrategyExecutionController(executionService, screenerExecutionService, securitiesResolver, ThinkOrSwimAPIs, strategiesConfigLoader, authErrorUtils, java.util.Optional.of(mockRepo), wikipediaFetcher);
         MockMvc customMockMvc = MockMvcBuilders.standaloneSetup(customController).build();
 
         customMockMvc.perform(get("/api/iv-rank?symbol=AAPL"))
@@ -556,11 +566,44 @@ public class StrategyControllerTest {
         IVDataRepository mockRepo = mock(IVDataRepository.class);
         when(mockRepo.getIVRank("AAPL")).thenThrow(new IOException("Connection reset"));
 
-        StrategyController customController = new StrategyController(executionService, screenerExecutionService, securitiesResolver, thinkOrSwinAPIs, strategiesConfigLoader, supabaseConfig, authErrorUtils, supabaseService, java.util.Optional.of(mockRepo), wikipediaFetcher);
+        StrategyExecutionController customController = new StrategyExecutionController(executionService, screenerExecutionService, securitiesResolver, ThinkOrSwimAPIs, strategiesConfigLoader, authErrorUtils, java.util.Optional.of(mockRepo), wikipediaFetcher);
         MockMvc customMockMvc = MockMvcBuilders.standaloneSetup(customController).build();
 
         customMockMvc.perform(get("/api/iv-rank?symbol=AAPL"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.error").value("Connection reset"));
+    }
+
+    @Test
+    public void testGetQuotes_Success() throws Exception {
+        com.hemasundar.pojos.QuotesResponse.Quote quote = new com.hemasundar.pojos.QuotesResponse.Quote();
+        quote.setLastPrice(150.0);
+        quote.setNetChange(2.5);
+        quote.setNetPercentChange(1.69);
+
+        com.hemasundar.pojos.QuotesResponse.QuoteData data = new com.hemasundar.pojos.QuotesResponse.QuoteData();
+        data.setQuote(quote);
+
+        when(ThinkOrSwimAPIs.getQuotes(List.of("AAPL"), "quote", null))
+                .thenReturn(Map.of("AAPL", data));
+
+        mockMvc.perform(get("/api/quotes?symbols=AAPL"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].symbol").value("AAPL"))
+                .andExpect(jsonPath("$[0].lastPrice").value(150.0));
+    }
+
+    @Test
+    public void testGetQuotes_BlankSymbols() throws Exception {
+        mockMvc.perform(get("/api/quotes?symbols="))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("symbols parameter is required"));
+    }
+
+    @Test
+    public void testGetEarningsCalendar() throws Exception {
+        mockMvc.perform(get("/api/earnings-calendar"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.events").exists());
     }
 }

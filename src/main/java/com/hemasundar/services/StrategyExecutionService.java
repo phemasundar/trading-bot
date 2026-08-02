@@ -1,7 +1,7 @@
 package com.hemasundar.services;
 
 import com.hemasundar.apis.FinnHubAPIs;
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.config.StrategiesConfigLoader;
 import com.hemasundar.dto.*;
 import com.hemasundar.options.models.OptionChainResponse;
@@ -39,7 +39,7 @@ public class StrategyExecutionService {
 
     private final SupabaseService supabaseService;
     private final SecuritiesResolver securitiesResolver;
-    private final ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private final ThinkOrSwimAPIs ThinkOrSwimAPIs;
     private final FinnHubAPIs finnHubAPIs;
     private final TelegramUtils telegramUtils;
     private final TechnicalScreener technicalScreener;
@@ -201,39 +201,35 @@ public class StrategyExecutionService {
             }
 
             // Shared cache for option chains
-            OptionChainCache cache = new OptionChainCache(thinkOrSwinAPIs);
+            OptionChainCache cache = new OptionChainCache(ThinkOrSwimAPIs);
 
             // ── Parallel Cache Pre-warm (Track A) ──
-            // Collect the union of all securities from strategies that do NOT use a
-            // technical filter. For those strategies the full securities list goes
-            // directly to getOptionChain, so we can pre-warm all of them now.
-            // Strategies that DO have a technical filter are skipped here because their
-            // option-chain calls only happen for the small survivor set after screening
-            // (handled lazily); the screener itself benefits from Track B.
-            List<String> symbolsToPrewarm = selectedStrategies.stream()
+            // Option chain pre-warming for strategies without technical filter (strategies with technical filters
+            // defer option chain fetching to the screened survivor set)
+            List<String> optionChainSymbolsToPrewarm = selectedStrategies.stream()
                     .filter(c -> !c.hasTechnicalFilter())
                     .flatMap(c -> c.getSecurities().stream())
                     .distinct()
                     .collect(Collectors.toList());
 
-            if (!symbolsToPrewarm.isEmpty()) {
+            if (!optionChainSymbolsToPrewarm.isEmpty()) {
                 log.info("Pre-warming option chain cache for {} unique symbols across {} strategies",
-                        symbolsToPrewarm.size(), selectedStrategies.size());
-                cache.prewarm(symbolsToPrewarm, schwabApiExecutor);
-                
-                log.info("Pre-warming quotes cache for {} unique symbols", symbolsToPrewarm.size());
-                com.hemasundar.cache.QuotesCache.getInstance().prewarm(symbolsToPrewarm, schwabApiExecutor, 
-                        symbol -> thinkOrSwinAPIs.getQuote(symbol, null),
-                        (sourceContext, errorMsg) -> log.warn("Quotes prewarm error: {}", errorMsg));
+                        optionChainSymbolsToPrewarm.size(), selectedStrategies.size());
+                cache.prewarm(optionChainSymbolsToPrewarm, schwabApiExecutor);
             }
 
-            // For ALL symbols (including ones used in technical filters), run the technical indicator pre-calculation
+            // For ALL symbols (including ones used in technical filters), pre-warm QuotesCache & run indicator pre-calculation
             List<String> allSymbolsAcrossStrategies = selectedStrategies.stream()
                     .flatMap(c -> c.getSecurities().stream())
                     .distinct()
                     .collect(Collectors.toList());
-            
+
             if (!allSymbolsAcrossStrategies.isEmpty()) {
+                log.info("Pre-warming quotes cache for {} unique symbols", allSymbolsAcrossStrategies.size());
+                com.hemasundar.cache.QuotesCache.getInstance().prewarm(allSymbolsAcrossStrategies, schwabApiExecutor, 
+                        symbol -> ThinkOrSwimAPIs.getQuote(symbol, null),
+                        (sourceContext, errorMsg) -> log.warn("Quotes prewarm error: {}", errorMsg));
+
                 technicalIndicatorPreCalculationService.preCalculateAll(allSymbolsAcrossStrategies,
                         (sourceContext, errorMsg) -> log.warn("Technical pre-calc error: {}", errorMsg));
             }
@@ -307,7 +303,7 @@ public class StrategyExecutionService {
         try {
             log.info("Starting custom execution: {}", executionId);
 
-            OptionChainCache cache = new OptionChainCache(thinkOrSwinAPIs);
+            OptionChainCache cache = new OptionChainCache(ThinkOrSwimAPIs);
 
             // ── Parallel Cache Pre-warm (Track A — Custom Execution) ──
             // For strategies that do NOT use a technical filter, we know the full
@@ -315,20 +311,23 @@ public class StrategyExecutionService {
             // subsequent cache.get() calls inside findTradesForStrategy are instant hits.
             // Strategies WITH a technical filter are skipped here because their symbol
             // list shrinks to the screened survivors — fetched lazily after screening.
-            if (!config.hasTechnicalFilter()) {
-                List<String> symbolsToPrewarm = config.getSecurities().stream()
-                        .distinct()
-                        .collect(Collectors.toList());
-                if (!symbolsToPrewarm.isEmpty()) {
-                    log.info("Pre-warming option chain cache for {} symbols (custom execution)",
-                            symbolsToPrewarm.size());
-                    cache.prewarm(symbolsToPrewarm, schwabApiExecutor);
-                    
-                    log.info("Pre-warming quotes cache for {} unique symbols (custom execution)", symbolsToPrewarm.size());
-                    com.hemasundar.cache.QuotesCache.getInstance().prewarm(symbolsToPrewarm, schwabApiExecutor, 
-                            symbol -> thinkOrSwinAPIs.getQuote(symbol, null),
-                            (sourceContext, errorMsg) -> log.warn("Quotes prewarm error: {}", errorMsg));
+            List<String> customSymbols = config.getSecurities() != null
+                    ? config.getSecurities().stream().distinct().collect(Collectors.toList())
+                    : Collections.emptyList();
+
+            if (!customSymbols.isEmpty()) {
+                if (!config.hasTechnicalFilter()) {
+                    log.info("Pre-warming option chain cache for {} symbols (custom execution)", customSymbols.size());
+                    cache.prewarm(customSymbols, schwabApiExecutor);
                 }
+
+                log.info("Pre-warming quotes cache for {} unique symbols (custom execution)", customSymbols.size());
+                com.hemasundar.cache.QuotesCache.getInstance().prewarm(customSymbols, schwabApiExecutor, 
+                        symbol -> ThinkOrSwimAPIs.getQuote(symbol, null),
+                        (sourceContext, errorMsg) -> log.warn("Quotes prewarm error: {}", errorMsg));
+
+                technicalIndicatorPreCalculationService.preCalculateAll(customSymbols,
+                        (sourceContext, errorMsg) -> log.warn("Technical pre-calc error: {}", errorMsg));
             }
 
             // Execute the single custom strategy

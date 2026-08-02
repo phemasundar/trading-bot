@@ -52,7 +52,33 @@ public class JavaUtilsTest {
     }
 
     @Test
-    public void testConstructor() {
-        assertNotNull(new JavaUtils());
+    public void testConstructor() throws Exception {
+        var constructor = JavaUtils.class.getDeclaredConstructor();
+        constructor.setAccessible(true);
+        try {
+            constructor.newInstance();
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            assertTrue(e.getCause() instanceof UnsupportedOperationException);
+        }
+    }
+
+    @Test(expectedExceptions = RuntimeException.class)
+    public void testConvertYamlToPojo_Invalid() {
+        JavaUtils.convertYamlToPojo("[[invalid yaml:::", TestPojo.class);
+    }
+
+    @Test(expectedExceptions = RuntimeException.class)
+    public void testConvertYamlToJson_Invalid() {
+        JavaUtils.convertYamlToJson("[[invalid yaml:::");
+    }
+
+    @Test(expectedExceptions = RuntimeException.class)
+    public void testConvertJsonToPojo_Invalid() {
+        JavaUtils.convertJsonToPojo("invalid json", TestPojo.class);
+    }
+
+    @Test(expectedExceptions = RuntimeException.class)
+    public void testConvertJsonToMap_Invalid() {
+        JavaUtils.convertJsonToMap("invalid json", TestPojo.class);
     }
 }

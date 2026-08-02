@@ -1,6 +1,6 @@
 package com.hemasundar.services;
 
-import com.hemasundar.apis.ThinkOrSwinAPIs;
+import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionType;
 import com.hemasundar.pojos.IVDataPoint;
@@ -22,7 +22,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class IVDataCollector {
 
-    private final ThinkOrSwinAPIs thinkOrSwinAPIs;
+    private final ThinkOrSwimAPIs ThinkOrSwimAPIs;
 
     private static final int TARGET_DTE = 30;
     private static final int DTE_TOLERANCE = 30;
@@ -39,7 +39,7 @@ public class IVDataCollector {
             log.info("[{}] Collecting IV data", symbol);
 
             // Get option chain
-            OptionChainResponse chain = thinkOrSwinAPIs.getOptionChain(symbol);
+            OptionChainResponse chain = ThinkOrSwimAPIs.getOptionChain(symbol);
             if (chain == null) {
                 log.warn("[{}] Invalid option chain response", symbol);
                 return null;
