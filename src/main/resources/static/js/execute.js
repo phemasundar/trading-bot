@@ -319,3 +319,92 @@ async function loadCustomResults() {
         container.innerHTML = `<div class="empty-state text-danger">Failed to load: ${e.message}</div>`;
     }
 }
+
+function loadTemplateParams(jsonStr) {
+    try {
+        const strategy = JSON.parse(jsonStr);
+        
+        const typeEl = document.getElementById('strategy-type');
+        if (typeEl && strategy.strategyType) {
+            typeEl.value = strategy.strategyType;
+            const ev = new Event('change');
+            typeEl.dispatchEvent(ev);
+        }
+        
+        const aliasEl = document.getElementById('alias-input');
+        if (aliasEl) aliasEl.value = strategy.alias || '';
+        
+        const secFileEl = document.getElementById('securities-file-input');
+        if (secFileEl) secFileEl.value = strategy.securitiesFile || '';
+        
+        const secEl = document.getElementById('securities-input');
+        if (secEl) secEl.value = strategy.securities || '';
+        
+        document.querySelectorAll('[data-filter]').forEach(el => {
+            if (el.type === 'checkbox') el.checked = false;
+            else el.value = '';
+        });
+        
+        if (strategy.filter) {
+            const flattenObj = (ob, prefix = '') => {
+                let res = {};
+                for (const [k, v] of Object.entries(ob)) {
+                    const key = prefix ? `${prefix}.${k}` : k;
+                    if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
+                        Object.assign(res, flattenObj(v, key));
+                    } else {
+                        res[key] = v;
+                    }
+                }
+                return res;
+            };
+            const flatFilters = flattenObj(strategy.filter);
+            
+            for (const [key, val] of Object.entries(flatFilters)) {
+                const el = document.querySelector(`[data-filter="${key}"]`);
+                if (el) {
+                    if (el.type === 'checkbox') el.checked = !!val;
+                    else el.value = val;
+                }
+            }
+        }
+        
+        document.querySelectorAll('[data-tech-filter]').forEach(el => {
+            if (el.tagName === 'SELECT') el.value = '';
+            else el.value = '';
+        });
+        
+        if (strategy.technicalFilters && Array.isArray(strategy.technicalFilters)) {
+            strategy.technicalFilters.forEach(tf => {
+                for (const [k, v] of Object.entries(tf)) {
+                    if (k === 'type') continue;
+                    const el = document.querySelector(`[data-tech-filter="${tf.type}"][data-tech-field="${k}"]`);
+                    if (el) {
+                        el.value = v;
+                        if (el.tagName === 'SELECT') {
+                            const ev = new Event('change');
+                            el.dispatchEvent(ev);
+                        }
+                    }
+                }
+            });
+        }
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        showToast('Template filters loaded');
+    } catch (e) {
+        showToast('Failed to load template filters: ' + e.message, 'error');
+    }
+}
+
+function loadFiltersFromResult(btn) {
+    try {
+        const configStr = btn.dataset.filterConfig;
+        if (!configStr) return;
+        const config = JSON.parse(configStr);
+        config.alias = btn.dataset.strategyName || config.alias || '';
+        loadTemplateParams(JSON.stringify(config));
+    } catch (e) {
+        if (typeof showToast !== 'undefined') showToast('Failed to load filters from result: ' + e.message, 'error');
+    }
+}

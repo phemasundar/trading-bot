@@ -767,3 +767,53 @@ async function deleteCustomResult(resultId, card) {
         showToast(`Failed to delete: ${e.message}`, 'error');
     }
 }
+
+function renderTechFiltersGrid(techFilters) {
+    if (!techFilters) return '';
+    if (typeof techFilters === 'string') {
+        return `<div class="mt-sm"><span class="config-item-label">Tech Filters</span> <span class="config-item-value">${escapeHtmlContent(techFilters)}</span></div>`;
+    }
+    
+    let html = '<div class="nested-section"><div class="nested-heading">Technical Filters</div><div class="config-grid">';
+    
+    for (const [key, filter] of Object.entries(techFilters)) {
+        if (!filter) continue;
+        let details = [];
+        if (filter.config) {
+            if (typeof filter.config === 'string') details.push(`Config: ${filter.config}`);
+            else details.push(`Config: ${JSON.stringify(filter.config)}`);
+        }
+        if (filter.condition) {
+            if (typeof filter.condition === 'string') details.push(`Condition: ${filter.condition}`);
+            else details.push(`Condition: ${JSON.stringify(filter.condition)}`);
+        }
+        if (filter.conditions && Array.isArray(filter.conditions)) {
+            details.push(...filter.conditions);
+        }
+        
+        const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const val = details.length > 0 ? details.join('<br>') : '—';
+        html += `<div class="config-item" style="grid-column: 1 / -1;"><span class="config-item-label">${label}</span><span class="config-item-value" style="font-family: var(--font-mono); font-size: 0.8rem;">${val}</span></div>`;
+    }
+    
+    html += '</div></div>';
+    return html;
+}
+
+function renderFundamentalFiltersGrid(funFilters) {
+    if (!funFilters) return '';
+    let html = '<div class="nested-section"><div class="nested-heading">Fundamental Filters</div><div class="config-grid">';
+    
+    for (const [key, filter] of Object.entries(funFilters)) {
+        if (!filter) continue;
+        let details = [];
+        if (filter.conditions && Array.isArray(filter.conditions)) {
+            details.push(...filter.conditions);
+        }
+        const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const val = details.length > 0 ? details.join('<br>') : '—';
+        html += `<div class="config-item" style="grid-column: 1 / -1;"><span class="config-item-label">${label}</span><span class="config-item-value" style="font-family: var(--font-mono); font-size: 0.8rem;">${val}</span></div>`;
+    }
+    html += '</div></div>';
+    return html;
+}
