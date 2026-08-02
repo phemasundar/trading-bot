@@ -1,6 +1,6 @@
 # Strategy Configuration Documentation
 
-This document describes the structure and available configurations for `strategies-config.json`.
+This document describes the structure and available configurations for `strategies-config.yml`.
 
 ## `earningsFilters`
 

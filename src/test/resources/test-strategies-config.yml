@@ -1,0 +1,18 @@
+---
+optionsStrategies:
+- strategyType: "PUT_CREDIT_SPREAD"
+  alias: "Bullish Puts"
+  enabled: true
+  securities: "AAPL, MSFT"
+  filterType: "CreditSpreadFilter"
+  filter:
+    targetDTE: 30
+    minTotalCredit: 50.0
+technicalScreeners:
+- screenerType: "RSI_BB_BULLISH_CROSSOVER"
+  alias: "Bullish Screener"
+  enabled: true
+  securities: "GOOG, TSLA"
+  conditions:
+    rsiCondition: "OVERSOLD"
+    minVolume: 1000

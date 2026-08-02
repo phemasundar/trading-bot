@@ -53,7 +53,7 @@ public class ScreenerConfig {
 
     /**
      * Fundamental filter conditions (e.g. Market Cap).
-     * Parsed from the {@code fundamentalFilters} block in strategies-config.json.
+     * Parsed from the {@code fundamentalFilters} block in strategies-config.yml.
      */
     private final FundamentalFilterConditions fundamentalConditions;
 

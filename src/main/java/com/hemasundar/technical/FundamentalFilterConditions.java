@@ -22,7 +22,7 @@ import java.util.List;
  * </ul>
  *
  * <p>
- * Example JSON in {@code strategies-config.json}:
+ * Example YAML in {@code strategies-config.yml}:
  * <pre>
  * "fundamentalFilters": {
  *     "MARKET_CAP": {

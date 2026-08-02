@@ -28,7 +28,7 @@ public class FilePaths {
     public static final String trackingSecurities = "securities/2_tracking.yaml";
     public static final String securities2026 = "securities/4_2026.yaml";
 
-    public static final String strategiesConfig = "strategies-config.json";
+    public static final String strategiesConfig = "strategies-config.yml";
 
     /**
      * Reads a classpath resource and returns its content as a String.

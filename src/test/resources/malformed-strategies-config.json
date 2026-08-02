@@ -1,8 +1,0 @@
-{
-  "strategies": [
-    {
-      "type": "INVALID_TYPE",
-      "enabled": true
-    }
-  ]
-}
