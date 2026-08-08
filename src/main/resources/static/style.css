@@ -101,29 +101,7 @@ a:hover {
     position: fixed;
     top: 0;
     bottom: 0;
-    left: 0;
     z-index: 10;
-    overflow-y: auto;
-    overflow-x: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
-}
-
-.sidebar::-webkit-scrollbar {
-    width: 5px;
-}
-
-.sidebar::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.sidebar::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 4px;
-}
-
-.sidebar::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
 }
 
 /* ── Sidebar Grouping ── */
