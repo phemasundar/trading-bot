@@ -4184,6 +4184,14 @@ if (typeof module !== 'undefined' && module.exports) {
         handleTableSort,
         buildScreenerCard,
         buildScreenerTable,
-        buildDropScreenerTable
+        buildDropScreenerTable,
+        renderFilterGrid,
+        renderTechFiltersGrid,
+        renderFundamentalFiltersGrid,
+        showErrorPanel,
+        dismissErrorPanel,
+        dismissSingleAlert,
+        startTimer,
+        stopTimer
     };
 }

@@ -23,7 +23,15 @@ const {
     handleTableSort,
     buildScreenerCard,
     buildScreenerTable,
-    buildDropScreenerTable
+    buildDropScreenerTable,
+    renderFilterGrid,
+    renderTechFiltersGrid,
+    renderFundamentalFiltersGrid,
+    showErrorPanel,
+    dismissErrorPanel,
+    dismissSingleAlert,
+    startTimer,
+    stopTimer
 } = require('../../main/resources/static/app');
 
 describe('App Utility Functions', () => {
@@ -401,6 +409,133 @@ describe('UI Builder Functions', () => {
         // Trades map should be populated as 'screener' type
         expect(window.tradeDataMap['sc123'][0]).toEqual({ symbol: 'AAPL' });
         expect(window.tradeDataMap['sc123']._type).toBe('screener');
+    });
+
+    test('renderFilterGrid should format config object into grid HTML', () => {
+        const config = {
+            minReturnOnRisk: 15.5,
+            excludeEarnings: true,
+            allowedSectors: ['Tech', 'Health'],
+            nestedObject: {
+                innerKey: 'Inner Value'
+            },
+            technicalFilterSummary: 'Strong Buy'
+        };
+        
+        const html = renderFilterGrid(config);
+        
+        // Assert label formatting (e.g. minReturnOnRisk -> Min Return On Risk)
+        expect(html).toContain('Min Return On Risk');
+        expect(html).toContain('15.5');
+        
+        // Assert boolean and array formatting
+        expect(html).toContain('Exclude Earnings');
+        expect(html).toContain('Yes');
+        expect(html).toContain('Allowed Sectors');
+        expect(html).toContain('Tech, Health');
+        
+        // Assert nested object section
+        expect(html).toContain('Nested Object');
+        expect(html).toContain('Inner Key');
+        expect(html).toContain('Inner Value');
+        
+        // Assert technicalFilterSummary special handling
+        expect(html).toContain('🔬 Tech Filters');
+        expect(html).toContain('Strong Buy');
+    });
+
+    test('renderTechFiltersGrid should render technical filters properly', () => {
+        const strHtml = renderTechFiltersGrid('PresetName');
+        expect(strHtml).toContain('Preset');
+        expect(strHtml).toContain('PresetName');
+
+        const mapHtml = renderTechFiltersGrid({
+            'RSI': { condition: 'RSI < 30' },
+            'SMA': ['SMA_50', 'SMA_200']
+        });
+        expect(mapHtml).toContain('🔬 Technical Filters');
+        expect(mapHtml).toContain('RSI');
+        expect(mapHtml).toContain('RSI < 30');
+        expect(mapHtml).toContain('SMA');
+        expect(mapHtml).toContain('SMA_50, SMA_200');
+    });
+
+    test('renderFundamentalFiltersGrid should render fundamental filters properly', () => {
+        const mapHtml = renderFundamentalFiltersGrid({
+            'MARKET_CAP': { conditions: ['> 10B'] },
+            'PE_RATIO': '< 20'
+        });
+        expect(mapHtml).toContain('📊 Fundamental Filters');
+        expect(mapHtml).toContain('MARKET_CAP');
+        expect(mapHtml).toContain('> 10B');
+        expect(mapHtml).toContain('PE_RATIO');
+        expect(mapHtml).toContain('< 20');
+    });
+
+    test('showErrorPanel should render errors and warnings', () => {
+        const alerts = [
+            { severity: 'ERROR', source: 'Test', message: 'Critical failure', timestamp: 1234567890 },
+            { severity: 'WARNING', source: 'Test', message: 'Minor issue', timestamp: 1234567890 }
+        ];
+        
+        showErrorPanel(alerts);
+        
+        const panel = document.getElementById('error-panel');
+        expect(panel).not.toBeNull();
+        expect(panel.innerHTML).toContain('1 error, 1 warning');
+        expect(panel.innerHTML).toContain('Critical failure');
+        expect(panel.innerHTML).toContain('Minor issue');
+    });
+
+    test('dismissSingleAlert should remove item and update count', () => {
+        const alerts = [
+            { severity: 'ERROR', source: 'Test', message: 'Critical failure', timestamp: 1234567890 },
+            { severity: 'WARNING', source: 'Test', message: 'Minor issue', timestamp: 1234567890 }
+        ];
+        showErrorPanel(alerts);
+        
+        const panel = document.getElementById('error-panel');
+        const warnItem = panel.querySelector('.error-panel-item-warning');
+        const dismissBtn = warnItem.querySelector('.error-item-dismiss');
+        
+        // Mock the closest() function in JSDOM if needed, but it works natively in JSDOM
+        dismissSingleAlert(dismissBtn);
+        
+        // Warning should be gone, error remains
+        expect(panel.querySelector('.error-panel-item-warning')).toBeNull();
+        expect(panel.querySelector('.error-panel-item-error')).not.toBeNull();
+        
+        // Count should update
+        expect(panel.querySelector('.error-panel-count').textContent).toBe('1 error');
+    });
+
+    test('dismissErrorPanel should remove the entire panel', async () => {
+        const alerts = [{ severity: 'ERROR', source: 'Test', message: 'Fail', timestamp: 123 }];
+        showErrorPanel(alerts);
+        expect(document.getElementById('error-panel')).not.toBeNull();
+        
+        await dismissErrorPanel();
+        expect(document.getElementById('error-panel')).toBeNull();
+    });
+
+    test('startTimer and stopTimer should manage elapsed text element', () => {
+        jest.useFakeTimers();
+        document.body.innerHTML = '<div id="elapsed-text"></div>';
+        const startTime = Date.now() - 65000; // 1 min 5 seconds ago
+        
+        startTimer(startTime);
+        
+        // Fast forward 1 second to trigger interval
+        jest.advanceTimersByTime(1000);
+        
+        const el = document.getElementById('elapsed-text');
+        expect(el.textContent).toContain('Elapsed: 1m 6s');
+        
+        stopTimer();
+        
+        // Fast forward another 5 seconds, text should not change
+        jest.advanceTimersByTime(5000);
+        expect(el.textContent).toContain('Elapsed: 1m 6s');
     });
 });
 
