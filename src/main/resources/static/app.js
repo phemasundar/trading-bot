@@ -4164,6 +4164,23 @@ if (typeof module !== 'undefined' && module.exports) {
         formatDuration,
         timeAgo,
         formatCompanyName,
-        closeDetailPanel
+        closeDetailPanel,
+        toggleSidebar,
+        escapeAttr,
+        showToast,
+        renderGreeksPills,
+        formatLegs,
+        formatBreakeven,
+        formatExpiryDate,
+        escapeHtmlContent,
+        decodeAttr,
+        formatRevenue,
+        formatHourBadge,
+        rsiValue,
+        buildTradeTable,
+        buildResultCard,
+        renderTermGroups,
+        toggleCard,
+        handleTableSort
     };
 }
