@@ -1,0 +1,28 @@
+{
+  "name": "trading-bot",
+  "version": "1.0.0",
+  "description": "A Java-based options trading analysis bot that integrates with the Schwab API to analyze various options strategies.",
+  "main": "jest.config.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/phemasundar/trading-bot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/phemasundar/trading-bot/issues"
+  },
+  "homepage": "https://github.com/phemasundar/trading-bot#readme",
+  "devDependencies": {
+    "jest": "^30.4.2",
+    "jest-environment-jsdom": "^30.4.1"
+  }
+}
