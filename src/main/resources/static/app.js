@@ -3146,7 +3146,7 @@ function renderConfig(config, container, securitiesMaps = {}) {
     }
 }
 
-function renderFilterGrid(filter) {
+function renderInternalFilterGrid(filter) {
     const entries = Object.entries(filter).filter(([k, v]) => v !== null && typeof v !== 'object');
     if (entries.length === 0 && !Object.entries(filter).some(([k, v]) => v !== null && typeof v === 'object')) {
         return '<span class="text-muted">No filters configured</span>';
@@ -3173,7 +3173,7 @@ function renderFilterGrid(filter) {
     const nested = Object.entries(filter).filter(([k, v]) => v !== null && typeof v === 'object' && !Array.isArray(v));
     for (const [key, value] of nested) {
         const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
-        html += `<div class="nested-section"><h4 class="nested-heading">${label}</h4>${renderFilterGrid(value)}</div>`;
+        html += `<div class="nested-section"><h4 class="nested-heading">${label}</h4>${renderInternalFilterGrid(value)}</div>`;
     }
 
     // Arrays
@@ -4154,4 +4154,44 @@ function closeDetailPanel() {
     _calSelectedDate = null;
     // Remove selection styling without full re-render
     document.querySelectorAll('.cal-day.cal-selected').forEach(el => el.classList.remove('cal-selected'));
+}
+
+// Conditionally export for testing
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        formatMarketCap,
+        formatLargeNumber,
+        formatDuration,
+        timeAgo,
+        formatCompanyName,
+        closeDetailPanel,
+        toggleSidebar,
+        escapeAttr,
+        showToast,
+        renderGreeksPills,
+        formatLegs,
+        formatBreakeven,
+        formatExpiryDate,
+        escapeHtmlContent,
+        decodeAttr,
+        formatRevenue,
+        formatHourBadge,
+        rsiValue,
+        buildTradeTable,
+        buildResultCard,
+        renderTermGroups,
+        toggleCard,
+        handleTableSort,
+        buildScreenerCard,
+        buildScreenerTable,
+        buildDropScreenerTable,
+        renderFilterGrid,
+        renderTechFiltersGrid,
+        renderFundamentalFiltersGrid,
+        showErrorPanel,
+        dismissErrorPanel,
+        dismissSingleAlert,
+        startTimer,
+        stopTimer
+    };
 }
