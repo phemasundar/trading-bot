@@ -4262,6 +4262,19 @@ if (typeof module !== 'undefined' && module.exports) {
         initTradeRowClicks,
         loadStrategies,
         showFilterHelp,
-        loadFilterDescriptions
+        loadFilterDescriptions,
+        initAuth,
+        checkCustomExecutionStatus,
+        renderStrategyTemplates,
+        injectTodayPerformance,
+        fetchAndInjectTodayPerformance,
+        fetchAndRenderMarketStatus,
+        renderInternalFilterGrid,
+        renderLogSymbolContent,
+        checkCustomScreenerExecutionStatus,
+        initExecutePage,
+        initConfigPage,
+        initDashboard,
+        buildResultCard
     };
 }
