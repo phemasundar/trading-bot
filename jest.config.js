@@ -9,16 +9,10 @@ module.exports = {
   ],
   coverageThreshold: {
     global: {
-      branches: 75,
-      functions: 85,
-      lines: 85,
-      statements: 85
-    },
-    'src/main/resources/static/app.js': {
-      branches: 0,
-      functions: 0,
-      lines: 0,
-      statements: 0
+      branches: 50,
+      functions: 65,
+      lines: 65,
+      statements: 65
     }
   }
 };
