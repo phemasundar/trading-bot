@@ -4181,6 +4181,9 @@ if (typeof module !== 'undefined' && module.exports) {
         buildResultCard,
         renderTermGroups,
         toggleCard,
-        handleTableSort
+        handleTableSort,
+        buildScreenerCard,
+        buildScreenerTable,
+        buildDropScreenerTable
     };
 }

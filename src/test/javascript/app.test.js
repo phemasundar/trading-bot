@@ -15,7 +15,15 @@ const {
     decodeAttr,
     formatRevenue,
     formatHourBadge,
-    rsiValue
+    rsiValue,
+    buildTradeTable,
+    buildResultCard,
+    renderTermGroups,
+    toggleCard,
+    handleTableSort,
+    buildScreenerCard,
+    buildScreenerTable,
+    buildDropScreenerTable
 } = require('../../main/resources/static/app');
 
 describe('App Utility Functions', () => {
@@ -196,6 +204,203 @@ describe('Trade Formatting Functions', () => {
         expect(escaped).toBe('&lt;div class="test"&gt;&amp; \' "&lt;/div&gt;');
         const decoded = decodeAttr(escaped);
         expect(decoded).toBe(original);
+    });
+});
+
+describe('UI Builder Functions', () => {
+    beforeEach(() => {
+        document.body.innerHTML = '';
+        window.tableSortState = {};
+        window.tradeDataMap = {};
+    });
+
+    test('buildTradeTable should return empty state if no trades', () => {
+        expect(buildTradeTable(null)).toContain('No trades found');
+        expect(buildTradeTable([])).toContain('No trades found');
+    });
+
+    test('buildTradeTable should render table with trades', () => {
+        const trades = [
+            {
+                symbol: 'AAPL',
+                companyName: 'Apple Inc.',
+                underlyingPrice: 150.0,
+                todayPct: 1.5,
+                strategyType: 'IRON_CONDOR',
+                maxLoss: -50.0,
+                extrinsicValue: 20.0,
+                returnOnRisk: 15.0,
+                netCredit: 10.0,
+                legs: [
+                    { action: 'SELL', strike: 155, optionType: 'CALL', expirationDate: '2026-04-17T20:00:00.000+00:00' }
+                ],
+                breakEvenPrice: 156.0
+            }
+        ];
+        
+        const html = buildTradeTable(trades, 'card123');
+        expect(html).toContain('<table');
+        expect(html).toContain('AAPL');
+        expect(html).toContain('Apple Inc.');
+        expect(html).toContain('$150.00');
+        expect(html).toContain('SELL');
+        expect(html).toContain('text-success'); // for positive ROR
+        expect(html).toContain('handleTableSort');
+    });
+
+    test('buildResultCard should create disabled card if no trades', () => {
+        const result = {
+            strategyId: 'strat1',
+            strategyName: 'Test Strategy',
+            trades: [],
+            updatedAt: new Date().toISOString()
+        };
+        const card = buildResultCard(result, 'Standard');
+        expect(card.tagName).toBe('DIV');
+        expect(card.className).toContain('card disabled');
+        expect(card.querySelector('.card-name').textContent).toBe('Test Strategy');
+    });
+
+    test('buildResultCard should create active card with trades', () => {
+        const result = {
+            strategyId: 'strat2',
+            strategyName: 'Active Strategy',
+            trades: [{ symbol: 'AAPL' }],
+            updatedAt: new Date().toISOString(),
+            tradesFound: 1
+        };
+        const card = buildResultCard(result, 'Custom');
+        expect(card.className).toBe('card');
+        expect(card.querySelector('.card-name').textContent).toBe('Active Strategy');
+        expect(card.querySelector('.card-badge').textContent).toBe('Custom');
+        expect(card.querySelector('.card-stats').textContent).toContain('Trades: 1');
+        
+        // Trades map should be populated
+        expect(window.tradeDataMap['strat2']).toEqual([{ symbol: 'AAPL' }]);
+    });
+
+    test('toggleCard should toggle open class and content visibility', () => {
+        document.body.innerHTML = `
+            <div id="arrow-card1"></div>
+            <div id="content-card1"></div>
+        `;
+        toggleCard('card1');
+        expect(document.getElementById('content-card1').classList.contains('open')).toBe(true);
+        expect(document.getElementById('arrow-card1').classList.contains('open')).toBe(true);
+        
+        toggleCard('card1');
+        expect(document.getElementById('content-card1').classList.contains('open')).toBe(false);
+        expect(document.getElementById('arrow-card1').classList.contains('open')).toBe(false);
+    });
+
+    test('handleTableSort should update state and re-render table', () => {
+        // Setup initial DOM and state
+        document.body.innerHTML = '<div id="content-card1"></div>';
+        window.tradeDataMap['card1'] = [
+            { symbol: 'AAPL', underlyingPrice: 150 },
+            { symbol: 'MSFT', underlyingPrice: 300 }
+        ];
+        
+        handleTableSort('card1', 'symbol');
+        
+        // Check state updated
+        expect(window.tableSortState['card1'].column).toBe('symbol');
+        expect(window.tableSortState['card1'].direction).toBe('asc');
+        
+        // Re-sorting same column flips direction
+        handleTableSort('card1', 'symbol');
+        expect(window.tableSortState['card1'].direction).toBe('desc');
+    });
+
+    test('renderTermGroups should group results and sort by termWeight', () => {
+        const results = [
+            { strategyName: 'Strat 1', filterConfig: { termType: 'Short' }, trades: [] },
+            { strategyName: 'Strat 2', filterConfig: '{"termType": "Long"}', trades: [] },
+            { strategyName: 'Strat 3', trades: [] } // Defaults to Other
+        ];
+        
+        const container = document.createElement('div');
+        renderTermGroups(container, results, 'Standard');
+        
+        const groups = container.querySelectorAll('.term-group');
+        expect(groups.length).toBe(3);
+        
+        // Long (weight 60) should be first, Short (30) second, Other (-1) last
+        expect(groups[0].querySelector('.term-group-label').textContent).toBe('Long');
+        expect(groups[1].querySelector('.term-group-label').textContent).toBe('Short');
+        expect(groups[2].querySelector('.term-group-label').textContent).toBe('Other');
+        
+        // Header click should toggle visibility
+        const header = groups[0].querySelector('.term-group-header');
+        const body = groups[0].querySelector('.term-group-body');
+        
+        expect(body.classList.contains('hidden')).toBe(true);
+        header.click();
+        expect(body.classList.contains('hidden')).toBe(false);
+    });
+
+    test('buildScreenerTable should render HTML table for screener results', () => {
+        const results = [
+            {
+                symbol: 'NVDA',
+                companyName: 'NVIDIA Corp',
+                marketCapB: 2000,
+                price: 850.50,
+                rsi: 35.4,
+                bollingerBandsPosition: 0.1,
+                ttmRevenue: 50000000000,
+                debtToEquity: 0.5
+            }
+        ];
+        
+        const html = buildScreenerTable(results, 'scr1');
+        expect(html).toContain('<table');
+        expect(html).toContain('NVDA');
+        expect(html).toContain('NVIDIA Corp');
+        expect(html).toContain('$2000.00B'); // formatMarketCap output
+        expect(html).toContain('35.4'); // rsi output
+        expect(html).toContain('handleTableSort(\'scr1\'');
+    });
+
+    test('buildDropScreenerTable should render HTML table for drop results', () => {
+        const results = [
+            {
+                symbol: 'TSLA',
+                companyName: 'Tesla Inc',
+                dropPercent: 5.5,
+                volume: 50000000,
+                dropType: 'Significant Drop'
+            }
+        ];
+        
+        const html = buildDropScreenerTable(results, 'drop1');
+        expect(html).toContain('<table');
+        expect(html).toContain('TSLA');
+        expect(html).toContain('Tesla Inc');
+        expect(html).toContain('-5.50%');
+        expect(html).toContain('50.0M');
+        expect(html).toContain('Significant Drop');
+        expect(html).toContain('handleTableSort(\'drop1\'');
+    });
+
+    test('buildScreenerCard should create DOM element for screener result', () => {
+        const result = {
+            screenerId: 'sc123',
+            screenerName: 'Value Stocks',
+            results: [{ symbol: 'AAPL' }],
+            resultsFound: 1,
+            updatedAt: new Date().toISOString()
+        };
+        
+        const card = buildScreenerCard(result, false);
+        expect(card.tagName).toBe('DIV');
+        expect(card.className).toBe('card');
+        expect(card.querySelector('.card-name').textContent).toBe('Value Stocks');
+        expect(card.querySelector('.card-stats').textContent).toContain('Found: 1');
+        
+        // Trades map should be populated as 'screener' type
+        expect(window.tradeDataMap['sc123'][0]).toEqual({ symbol: 'AAPL' });
+        expect(window.tradeDataMap['sc123']._type).toBe('screener');
     });
 });
 
