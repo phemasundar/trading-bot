@@ -47,6 +47,9 @@ const {
     selectAllScreeners,
     loadScreenerStrategies,
     loadScreenerResults,
+    initExecutePage,
+    initConfigPage,
+    initDashboard,
     showDashboardFilterBar,
     hideDashboardFilterBar,
     resetDashboardFilter,
@@ -101,7 +104,11 @@ const {
     initTradeRowClicks,
     loadStrategies,
     showFilterHelp,
-    loadFilterDescriptions
+    loadFilterDescriptions,
+    initAuth,
+    injectTodayPerformance,
+    fetchAndInjectTodayPerformance,
+    checkCustomScreenerExecutionStatus
 } = require('../../main/resources/static/app');
 
 Element.prototype.scrollIntoView = jest.fn();
@@ -1671,6 +1678,1057 @@ describe('Filter Help Tooltip Balloon', () => {
         const tooltip = document.querySelector('.tooltip-balloon');
         expect(tooltip).not.toBeNull();
         expect(tooltip.innerHTML).toContain('Min Delta');
+    });
+});
+
+describe('initAuth Function', () => {
+    test('initAuth should initialize Supabase client and return true when authenticated', async () => {
+        delete window.location;
+        window.location = { href: '' };
+
+        global.fetch = jest.fn().mockResolvedValueOnce({
+            json: jest.fn().mockResolvedValueOnce({
+                supabaseUrl: 'https://example.supabase.co',
+                supabaseAnonKey: 'mock-key'
+            })
+        });
+
+        const mockSession = {
+            access_token: 'mock-access-token',
+            user: { email: 'user@example.com' }
+        };
+
+        global.supabase = {
+            createClient: jest.fn().mockReturnValue({
+                auth: {
+                    getSession: jest.fn().mockResolvedValue({ data: { session: mockSession } }),
+                    onAuthStateChange: jest.fn()
+                }
+            })
+        };
+
+        const result = await initAuth();
+        expect(result).toBe(true);
+        expect(API._accessToken).toBe('mock-access-token');
+    });
+
+    test('initAuth should redirect to login and return false when session is null', async () => {
+        delete window.location;
+        window.location = { href: '' };
+
+        global.fetch = jest.fn().mockResolvedValueOnce({
+            json: jest.fn().mockResolvedValueOnce({
+                supabaseUrl: 'https://example.supabase.co',
+                supabaseAnonKey: 'mock-key'
+            })
+        });
+
+        global.supabase = {
+            createClient: jest.fn().mockReturnValue({
+                auth: {
+                    getSession: jest.fn().mockResolvedValue({ data: { session: null } }),
+                    onAuthStateChange: jest.fn()
+                }
+            })
+        };
+
+        const result = await initAuth();
+        expect(result).toBe(false);
+    });
+});
+
+describe('Custom Execution and Strategy Templates', () => {
+    test('checkCustomExecutionStatus should activate progress container when running', async () => {
+        document.body.innerHTML = '<div id="custom-progress"></div>';
+
+        jest.spyOn(API, 'get').mockResolvedValueOnce({
+            running: true,
+            currentTask: 'Strategy 1',
+            startTimeMs: Date.now()
+        });
+
+        await checkCustomExecutionStatus();
+
+        const progress = document.getElementById('custom-progress');
+        expect(progress.className).toContain('active');
+    });
+
+    test('renderStrategyTemplates should render template chips when strategies match', async () => {
+        document.body.innerHTML = '<div id="strategy-templates"></div>';
+
+        window.appConfig = {
+            optionsStrategies: [
+                { strategyType: 'BULL_PUT_SPREAD', name: 'Conservative Bull Put' }
+            ]
+        };
+
+        await renderStrategyTemplates('BULL_PUT_SPREAD');
+
+        const container = document.getElementById('strategy-templates');
+        expect(container.innerHTML).toContain('Conservative Bull Put');
+    });
+});
+
+describe('Template and Result Filter Loading', () => {
+    test('loadTemplateParams should populate form inputs from JSON strategy', () => {
+        document.body.innerHTML = `
+            <input id="alias-input" />
+            <input id="securities-input" />
+            <input id="securities-file-input" />
+            <input data-filter="minDelta" />
+        `;
+
+        const strategy = {
+            alias: 'My Spread',
+            securities: 'AAPL, MSFT',
+            filter: { minDelta: 0.20 }
+        };
+
+        const jsonStr = escapeAttr(JSON.stringify(strategy));
+        loadTemplateParams(jsonStr);
+
+        expect(document.getElementById('alias-input').value).toContain('My Spread');
+        expect(document.getElementById('securities-input').value).toBe('AAPL, MSFT');
+        expect(document.querySelector('[data-filter="minDelta"]').value).toBe('0.2');
+    });
+
+    test('loadFiltersFromResult should populate form inputs from button dataset', () => {
+        document.body.innerHTML = `
+            <select id="strategy-type">
+                <option value="BULL_PUT_SPREAD">Bull Put Spread</option>
+            </select>
+            <div id="specific-filters"></div>
+            <div id="strategy-templates"></div>
+            <input id="alias-input" />
+            <input data-filter="minDelta" />
+            <button id="test-btn" data-filter-config="${escapeAttr(JSON.stringify({ minDelta: 0.15 }))}" data-strategy-name="Bull Put Spread Test"></button>
+        `;
+
+        const btn = document.getElementById('test-btn');
+        loadFiltersFromResult(btn);
+
+        expect(document.getElementById('alias-input').value).toBe('Bull Put Spread Test (Reload)');
+    });
+});
+
+describe('Custom Execution Submission', () => {
+    test('executeCustom should submit form data to /api/execute/custom', async () => {
+        document.body.innerHTML = `
+            <select id="strategy-type"><option value="BULL_PUT_SPREAD" selected>Bull Put</option></select>
+            <input id="securities-input" value="AAPL, MSFT" />
+            <input id="securities-file-input" value="" />
+            <input id="alias-input" value="My Test Run" />
+            <div id="custom-progress"></div>
+        `;
+
+        jest.spyOn(API, 'post').mockResolvedValueOnce({ message: 'Submitted successfully' });
+
+        await executeCustom();
+
+        expect(API.post).toHaveBeenCalledWith('/api/execute/custom', expect.objectContaining({
+            strategyType: 'BULL_PUT_SPREAD',
+            securities: 'AAPL, MSFT',
+            alias: 'My Test Run'
+        }));
+    });
+});
+
+describe('Config Renderer', () => {
+    test('renderConfig should append section headings and config cards', () => {
+        const container = document.createElement('div');
+        const config = {
+            optionsStrategies: [
+                {
+                    alias: 'Bull Spread',
+                    strategyType: 'BULL_PUT_SPREAD',
+                    enabled: true,
+                    securities: 'AAPL, MSFT'
+                }
+            ]
+        };
+        const securitiesMaps = {
+            'default.txt': ['AAPL', 'MSFT']
+        };
+
+        renderConfig(config, container, securitiesMaps);
+
+        expect(container.innerHTML).toContain('Options Strategies');
+        expect(container.innerHTML).toContain('Bull Spread');
+        expect(container.innerHTML).toContain('Securities');
+        expect(container.innerHTML).toContain('default.txt');
+    });
+});
+
+describe('Extended Table Sorting Keys', () => {
+    test('handleTableSort should correctly sort for all strategy and screener keys', () => {
+        const cardId = 'sortTestCard';
+        const data = [
+            {
+                symbol: 'MSFT',
+                anulizedNetExtrinsicValueToCapitalPercentage: 12,
+                breakevenCAGR: 15,
+                breakEvenPercent: 2,
+                returnOnRiskCAGR: 20,
+                marketCapB: 2500,
+                _todayPct: 1.5,
+                currentPrice: 400,
+                rsi: 65,
+                ma200: 380,
+                ma100: 390,
+                ma50: 395,
+                ma20: 398,
+                referencePrice: 410,
+                dropPercent: 5
+            },
+            {
+                symbol: 'AAPL',
+                anulizedNetExtrinsicValueToCapitalPercentage: 18,
+                breakevenCAGR: 22,
+                breakEvenPercent: 4,
+                returnOnRiskCAGR: 30,
+                marketCapB: 3000,
+                _todayPct: 2.8,
+                currentPrice: 220,
+                rsi: 45,
+                ma200: 200,
+                ma100: 210,
+                ma50: 215,
+                ma20: 218,
+                referencePrice: 230,
+                dropPercent: 12
+            }
+        ];
+        data._type = 'trades';
+
+        window.tradeDataMap = window.tradeDataMap || {};
+        window.tradeDataMap[cardId] = data;
+
+        document.body.innerHTML = `<div id="content-${cardId}"></div>`;
+
+        const keysToTest = ['extrinsic', 'breakeven', 'ror', 'marketCapB', 'todayPct', 'price', 'rsi', 'ma200', 'ma100', 'ma50', 'ma20', 'refPrice', 'dropPct'];
+        keysToTest.forEach(key => {
+            expect(() => handleTableSort(cardId, key)).not.toThrow();
+        });
+    });
+});
+
+describe("Today's Performance & Market Status", () => {
+    test('injectTodayPerformance should update matching today-perf cells', async () => {
+        document.body.innerHTML = `
+            <div id="test-scope">
+                <div class="today-perf" data-symbol="AAPL"></div>
+                <div class="today-perf" data-symbol="MSFT"></div>
+            </div>
+        `;
+
+        const scope = document.getElementById('test-scope');
+        jest.spyOn(API, 'get').mockResolvedValueOnce([
+            { symbol: 'AAPL', netChange: 2.5, netPercentChange: 1.15 },
+            { symbol: 'MSFT', netChange: -1.2, netPercentChange: -0.3 }
+        ]);
+
+        await injectTodayPerformance(['AAPL', 'MSFT'], scope);
+
+        expect(scope.innerHTML).toContain('+$2.50 (+1.15%)');
+        expect(scope.innerHTML).toContain('$1.20 (-0.30%)');
+    });
+
+    test('fetchAndInjectTodayPerformance should call API.get and inject performance data', async () => {
+        document.body.innerHTML = `
+            <div id="container">
+                <div class="today-perf" data-symbol="AAPL"></div>
+            </div>
+        `;
+
+        jest.spyOn(API, 'get').mockResolvedValueOnce([
+            { symbol: 'AAPL', netChange: 3.0, netPercentChange: 1.5 }
+        ]);
+
+        const container = document.getElementById('container');
+        await fetchAndInjectTodayPerformance(container);
+
+        expect(container.innerHTML).toContain('+$3.00');
+    });
+
+    test('fetchAndRenderMarketStatus should render market status badges', async () => {
+        document.body.innerHTML = '<div class="main-content"></div>';
+
+        jest.spyOn(API, 'get').mockResolvedValueOnce({
+            equityStatus: 'OPEN',
+            optionsStatus: 'PRE_MARKET'
+        });
+
+        await fetchAndRenderMarketStatus();
+
+        const badge = document.querySelector('.market-status-container');
+        expect(badge).not.toBeNull();
+        expect(badge.innerHTML).toContain('Equity: OPEN');
+        expect(badge.innerHTML).toContain('Options: PRE MARKET');
+    });
+});
+
+describe('Internal Filter Grid & Log Symbol Content', () => {
+    test('renderInternalFilterGrid should render config items and nested objects', () => {
+        const filter = {
+            maxLoss: 500,
+            allowEarnings: true,
+            shortLeg: { minDelta: 0.2 },
+            sortPriority: ['ror', 'delta']
+        };
+
+        const html = renderInternalFilterGrid(filter);
+
+        expect(html).toContain('Max Loss');
+        expect(html).toContain('Short Leg');
+        expect(html).toContain('Min Delta');
+        expect(html).toContain('Sort Priority');
+    });
+
+    test('renderLogSymbolContent should render collapsible log expiry blocks', () => {
+        const otherEntries = [
+            { filterStage: 'DTE Check', tradesIn: 10, tradesOut: 8 }
+        ];
+        const byExpiry = {
+            '2026-08-21': [
+                { filterStage: 'Generated Candidates', tradesIn: 20, tradesOut: 20 },
+                { filterStage: 'Delta Filter', tradesIn: 20, tradesOut: 12 }
+            ]
+        };
+
+        const html = renderLogSymbolContent(otherEntries, byExpiry, 'bull-put', 'aapl', new Set());
+
+        expect(html).toContain('Expiry: 2026-08-21');
+        expect(html).toContain('Delta Filter');
+        expect(html).toContain('Other (symbol-level)');
+    });
+});
+
+describe('Screener Templates & Parameters Loading', () => {
+    test('onScreenerTypeChange should update DOM inputs and render screener templates', () => {
+        document.body.innerHTML = `
+            <select id="screener-type"><option value="RSI_OVERSOLD" selected>RSI Oversold</option></select>
+            <div id="sc-priceDropRules-group"></div>
+            <div id="sc-lookbackDays-group"></div>
+            <select id="sc-rsiCondition"></select>
+            <select id="sc-bollingerCondition"></select>
+            <div id="screener-templates"></div>
+        `;
+
+        window.appConfig = {
+            technicalScreeners: [
+                { screenerType: 'RSI_OVERSOLD', alias: 'RSI Dip Picker', enabled: true }
+            ]
+        };
+
+        onScreenerTypeChange();
+
+        const templates = document.getElementById('screener-templates');
+        expect(templates.innerHTML).toContain('RSI Dip Picker');
+    });
+
+    test('loadScreenerTemplateParams should populate form inputs from JSON screener', () => {
+        document.body.innerHTML = `
+            <input id="screener-alias-input" />
+            <input id="screener-securities-input" />
+            <input id="screener-securities-file-input" />
+            <select id="sc-rsiCondition"></select>
+        `;
+
+        const screener = {
+            alias: 'RSI Oversold Template',
+            securities: 'AAPL, SPY',
+            technicalFilters: {
+                RSI: { condition: 'RSI_UNDER_30' }
+            }
+        };
+
+        const jsonStr = escapeAttr(JSON.stringify(screener));
+        loadScreenerTemplateParams(jsonStr);
+
+        expect(document.getElementById('screener-alias-input').value).toContain('RSI Oversold Template');
+        expect(document.getElementById('screener-securities-input').value).toBe('AAPL, SPY');
+    });
+});
+
+describe('Screener Filters & Execution', () => {
+    test('loadScreenerFiltersFromResult should populate screener form inputs from JSON params', () => {
+        document.body.innerHTML = `
+            <select id="screener-type"><option value="RSI_OVERSOLD">RSI Oversold</option></select>
+            <input id="screener-alias-input" />
+            <input id="screener-securities-file-input" />
+            <input id="screener-securities-input" />
+            <div id="screener-tech-filters-container"></div>
+            <div class="main-content"><div class="card"></div></div>
+        `;
+
+        const params = {
+            screenerType: 'RSI_OVERSOLD',
+            alias: 'Saved Screener Alias',
+            securities: 'AAPL, NVDA'
+        };
+
+        const jsonStr = escapeAttr(JSON.stringify(params));
+        const mockEvent = { stopPropagation: jest.fn() };
+
+        loadScreenerFiltersFromResult(jsonStr, mockEvent);
+
+        expect(document.getElementById('screener-alias-input').value).toBe('Saved Screener Alias');
+        expect(document.getElementById('screener-securities-input').value).toBe('AAPL, NVDA');
+    });
+
+    test('executeCustomScreener should post payload to /api/execute/custom-screener', async () => {
+        document.body.innerHTML = `
+            <select id="screener-type"><option value="RSI_OVERSOLD" selected>RSI Oversold</option></select>
+            <input id="screener-alias-input" value="Custom Run" />
+            <input id="screener-securities-file-input" value="" />
+            <input id="screener-securities-input" value="AAPL, TSLA" />
+            <div id="screener-tech-filters-container"></div>
+            <div id="custom-screener-progress"></div>
+        `;
+
+        jest.spyOn(API, 'post').mockResolvedValueOnce({ message: 'Screener submitted' });
+
+        await executeCustomScreener();
+
+        expect(API.post).toHaveBeenCalledWith('/api/execute/custom-screener', expect.objectContaining({
+            screenerType: 'RSI_OVERSOLD',
+            alias: 'Custom Run',
+            securities: 'AAPL, TSLA'
+        }));
+    });
+});
+
+describe('Earnings Calendar Grid & Navigation', () => {
+    test('initEarningsCalendar and renderCalendar should fetch events and render day cells', async () => {
+        document.body.innerHTML = `
+            <span id="cal-month-label"></span>
+            <div id="cal-grid">
+                <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+            </div>
+            <div id="cal-detail-panel" style="display:none">
+                <div id="cal-detail-title"></div>
+                <div id="cal-detail-body"></div>
+            </div>
+        `;
+
+        jest.spyOn(API, 'get').mockResolvedValueOnce({
+            events: {
+                '2026-08-15': [
+                    { symbol: 'AAPL', time: 'bmo', quarter: 'Q3', epsEstimate: 1.5, revenueEstimate: 90000000000 }
+                ]
+            }
+        });
+
+        await initEarningsCalendar();
+
+        const label = document.getElementById('cal-month-label');
+        expect(label.textContent).toContain('2026');
+
+        const grid = document.getElementById('cal-grid');
+        expect(grid.children.length).toBeGreaterThan(7);
+    });
+
+    test('calNavigate and calGoToday should adjust current month and re-render grid', () => {
+        document.body.innerHTML = `
+            <span id="cal-month-label"></span>
+            <div id="cal-grid">
+                <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+            </div>
+        `;
+
+        renderCalendar();
+        const initialLabel = document.getElementById('cal-month-label').textContent;
+
+        calNavigate(1);
+        const nextLabel = document.getElementById('cal-month-label').textContent;
+        expect(nextLabel).not.toBe(initialLabel);
+
+        calGoToday();
+        const todayLabel = document.getElementById('cal-month-label').textContent;
+        expect(todayLabel).toBe(initialLabel);
+    });
+
+    test('formatDateKey should format JS date object to YYYY-MM-DD string', () => {
+        const d = new Date(2026, 7, 15); // Aug 15, 2026
+        expect(formatDateKey(d)).toBe('2026-08-15');
+    });
+
+    test('onDayClick should open detail panel when day cell is clicked', () => {
+        document.body.innerHTML = `
+            <div id="cal-detail-panel" style="display:none">
+                <div id="cal-detail-date"></div>
+                <div id="cal-detail-title"></div>
+                <div id="cal-detail-body"></div>
+            </div>
+        `;
+
+        onDayClick('2026-08-15', new Date(2026, 7, 15));
+
+        const panel = document.getElementById('cal-detail-panel');
+        expect(panel.style.display).toBe('block');
+    });
+});
+
+describe('Log Sorting & Polling', () => {
+    test('handleLogSort should toggle sort state and update window properties', () => {
+        const mockEvent = { stopPropagation: jest.fn() };
+        handleLogSort('filterStage', mockEvent);
+
+        expect(window.logSortColumn).toBe('filterStage');
+        expect(window.logSortAsc).toBe(true);
+
+        handleLogSort('filterStage', mockEvent);
+        expect(window.logSortAsc).toBe(false);
+
+        handleLogSort('filterStage', mockEvent);
+        expect(window.logSortColumn).toBeNull();
+    });
+
+    test('loadLogs and clearLogs should fetch and manage filter logs', async () => {
+        document.body.innerHTML = `
+            <div id="logsContainer"></div>
+            <div id="logsEmpty" style="display:none"></div>
+        `;
+
+        const mockLogs = [
+            { strategyName: 'Bull Put Spread', symbol: 'AAPL', filterStage: 'Delta Filter', tradesIn: 10, tradesOut: 6 }
+        ];
+
+        jest.spyOn(API, 'get').mockResolvedValueOnce(mockLogs);
+        await loadLogs();
+
+        const container = document.getElementById('logsContainer');
+        expect(container.innerHTML).toContain('Bull Put Spread');
+        expect(container.innerHTML).toContain('AAPL');
+
+        jest.spyOn(API, 'post').mockResolvedValueOnce({ message: 'Logs cleared' });
+        jest.spyOn(API, 'get').mockResolvedValueOnce([]);
+
+        await clearLogs();
+        expect(document.getElementById('logsEmpty').style.display).toBe('flex');
+    });
+});
+
+describe('Custom Screener Results & Status', () => {
+    test('loadCustomScreenerResults should fetch custom screener results and render cards', async () => {
+        document.body.innerHTML = '<div id="screener-custom-results"></div>';
+
+        const mockResults = [
+            { id: 1, screenerType: 'RSI_OVERSOLD', matches: [{ symbol: 'AAPL', currentPrice: 220 }] }
+        ];
+
+        jest.spyOn(API, 'get').mockResolvedValueOnce(mockResults);
+
+        await loadCustomScreenerResults();
+
+        const container = document.getElementById('screener-custom-results');
+        expect(container.children.length).toBe(1);
+    });
+
+    test('checkCustomScreenerExecutionStatus should handle running status', async () => {
+        document.body.innerHTML = '<div id="screener-custom-progress" style="display:none"></div>';
+
+        jest.spyOn(API, 'get').mockResolvedValueOnce({
+            running: true,
+            currentTask: 'RSI Screener',
+            startTimeMs: Date.now()
+        });
+
+        await checkCustomScreenerExecutionStatus();
+
+        const progress = document.getElementById('screener-custom-progress');
+        expect(progress.style.display).toBe('block');
+    });
+});
+
+describe('Legacy loadResults Execution', () => {
+    test('loadResults should fetch both options and screener results and populate containers', async () => {
+        document.body.innerHTML = `
+            <div id="results-container"></div>
+            <div id="screener-results-container"></div>
+        `;
+
+        const optionResults = [
+            { strategyName: 'Bull Put Spread', expirationDate: '2026-08-21', candidateTrades: [] }
+        ];
+        const screenerResults = [
+            { screenerType: 'RSI_OVERSOLD', matches: [] }
+        ];
+
+        jest.spyOn(API, 'get').mockImplementation(url => {
+            if (url === '/api/results') return Promise.resolve(optionResults);
+            if (url === '/api/results/screeners') return Promise.resolve(screenerResults);
+            return Promise.resolve([]);
+        });
+
+        await loadResults();
+
+        expect(document.getElementById('results-container').children.length).toBeGreaterThan(0);
+        expect(document.getElementById('screener-results-container').children.length).toBe(1);
+    });
+});
+
+describe('Execute Strategy Page Initialization', () => {
+    test('initExecutePage should populate strategy dropdown and attach listeners', async () => {
+        document.body.innerHTML = `
+            <select id="strategy-type"></select>
+            <div id="custom-results"></div>
+            <div id="custom-progress"></div>
+            <div id="market-status-bar"></div>
+            <div id="strategy-templates"></div>
+        `;
+
+        global.fetch = jest.fn().mockResolvedValue({
+            json: () => Promise.resolve({ supabaseUrl: 'http://localhost', supabaseAnonKey: 'key' })
+        });
+        window.supabase = {
+            createClient: jest.fn().mockReturnValue({
+                auth: {
+                    getSession: jest.fn().mockResolvedValue({
+                        data: { session: { access_token: 'fake-token', user: { email: 'test@test.com' } } }
+                    }),
+                    onAuthStateChange: jest.fn()
+                }
+            })
+        };
+
+        jest.spyOn(API, 'get').mockImplementation(url => {
+            if (url === '/api/auth/status') return Promise.resolve({ authenticated: true });
+            if (url === '/api/config/descriptions') return Promise.resolve({});
+            if (url === '/api/results/custom') return Promise.resolve([]);
+            if (url === '/api/status') return Promise.resolve({ running: false });
+            if (url === '/api/market/status') return Promise.resolve({ state: 'open' });
+            return Promise.resolve({});
+        });
+
+        await initExecutePage();
+
+        const select = document.getElementById('strategy-type');
+        expect(select.children.length).toBeGreaterThan(0);
+    });
+
+    test('renderStrategyTemplates should display matching strategy cards', async () => {
+        document.body.innerHTML = '<div id="strategy-templates"></div>';
+
+        window.appConfig = {
+            optionsStrategies: [
+                { strategyType: 'BULL_PUT_SPREAD', name: 'Bull Put 1', enabled: true }
+            ]
+        };
+
+        await renderStrategyTemplates('BULL_PUT_SPREAD');
+
+        const container = document.getElementById('strategy-templates');
+        expect(container.innerHTML).toContain('Bull Put 1');
+    });
+});
+
+describe('Config Viewer Page Initialization', () => {
+    test('initConfigPage should fetch config and render options/screener configurations', async () => {
+        document.body.innerHTML = `
+            <div id="config-container"></div>
+            <div id="market-status-bar"></div>
+        `;
+
+        global.fetch = jest.fn().mockResolvedValue({
+            json: () => Promise.resolve({ supabaseUrl: 'http://localhost', supabaseAnonKey: 'key' })
+        });
+        window.supabase = {
+            createClient: jest.fn().mockReturnValue({
+                auth: {
+                    getSession: jest.fn().mockResolvedValue({
+                        data: { session: { access_token: 'fake-token', user: { email: 'test@test.com' } } }
+                    }),
+                    onAuthStateChange: jest.fn()
+                }
+            })
+        };
+
+        const mockConfig = {
+            optionsStrategies: [
+                { strategyType: 'BULL_PUT_SPREAD', name: 'Bull Put Strategy', enabled: true }
+            ],
+            technicalScreeners: [
+                { screenerType: 'RSI_OVERSOLD', alias: 'RSI Screener', enabled: true }
+            ]
+        };
+
+        jest.spyOn(API, 'get').mockImplementation(url => {
+            if (url === '/api/config/descriptions') return Promise.resolve({});
+            if (url === '/api/config') return Promise.resolve(mockConfig);
+            if (url === '/api/securities') return Promise.resolve({});
+            if (url === '/api/market/status') return Promise.resolve({ state: 'open' });
+            return Promise.resolve({});
+        });
+
+        await initConfigPage();
+
+        const container = document.getElementById('config-container');
+        expect(container.innerHTML).toContain('BULL_PUT_SPREAD');
+        expect(container.innerHTML).toContain('RSI Screener');
+    });
+});
+
+describe('Template Parameters Loader', () => {
+    test('loadTemplateParams should set alias, securities, and filter inputs', () => {
+        document.body.innerHTML = `
+            <input id="alias-input" />
+            <input id="securities-input" />
+            <input id="securities-file-input" />
+            <input data-filter="minDelta" />
+            <input type="checkbox" data-filter="ignoreEarnings" />
+        `;
+
+        const strategy = {
+            alias: 'Bull Put Template',
+            securities: 'AAPL, SPY',
+            filter: {
+                minDelta: 0.15,
+                ignoreEarnings: true
+            }
+        };
+
+        const jsonStr = escapeAttr(JSON.stringify(strategy));
+        loadTemplateParams(jsonStr);
+
+        expect(document.getElementById('alias-input').value).toBe('Bull Put Template (Custom)');
+        expect(document.getElementById('securities-input').value).toBe('AAPL, SPY');
+        expect(document.querySelector('[data-filter="minDelta"]').value).toBe('0.15');
+        expect(document.querySelector('[data-filter="ignoreEarnings"]').checked).toBe(true);
+    });
+});
+
+describe('Execution History Filters Loader', () => {
+    test('loadFiltersFromResult should fill strategy form from result JSON', () => {
+        document.body.innerHTML = `
+            <select id="strategy-type"><option value="BULL_PUT_SPREAD">Bull Put</option></select>
+            <input id="alias-input" />
+            <input id="securities-input" />
+            <input id="securities-file-input" />
+            <input data-filter="minDelta" />
+        `;
+
+        const filterConfig = {
+            strategyType: 'BULL_PUT_SPREAD',
+            securities: ['AAPL', 'MSFT'],
+            minDelta: 0.2
+        };
+
+        const btn = document.createElement('button');
+        btn.dataset.filterConfig = escapeAttr(JSON.stringify(filterConfig));
+        btn.dataset.strategyName = escapeAttr('My Strategy');
+
+        loadFiltersFromResult(btn);
+
+        expect(document.getElementById('alias-input').value).toContain('My Strategy (Reload)');
+        expect(document.getElementById('securities-input').value).toBe('AAPL, MSFT');
+        expect(document.querySelector('[data-filter="minDelta"]').value).toBe('0.2');
+    });
+});
+
+describe('Technical Filters Form Filling', () => {
+    test('fillTechFiltersForm should fill inputs from technical filters config map', () => {
+        document.body.innerHTML = `
+            <input data-tech-filter="RSI" data-tech-field="condition" />
+            <input data-tech-filter="VOLUME" data-tech-field="rules" />
+        `;
+
+        const techFilters = {
+            RSI: { condition: 'RSI_UNDER_30' },
+            VOLUME: { conditions: ['MIN_VOLUME:1000000'] }
+        };
+
+        fillTechFiltersForm(techFilters);
+
+        expect(document.querySelector('[data-tech-filter="RSI"][data-tech-field="condition"]').value).toBe('RSI_UNDER_30');
+        expect(document.querySelector('[data-tech-filter="VOLUME"][data-tech-field="rules"]').value).toBe('MIN_VOLUME:1000000');
+    });
+});
+
+describe('Custom Strategy Execution Payload', () => {
+    test('executeCustom should assemble form inputs into payload and POST to API', async () => {
+        document.body.innerHTML = `
+            <select id="strategy-type"><option value="BULL_PUT_SPREAD" selected>Bull Put</option></select>
+            <input id="alias-input" value="My Run" />
+            <input id="securities-file-input" value="" />
+            <input id="securities-input" value="AAPL, TSLA" />
+            <input data-filter="minDelta" value="0.25" type="number" />
+            <div id="custom-progress"></div>
+        `;
+
+        jest.spyOn(API, 'post').mockResolvedValueOnce({ message: 'Custom execution started' });
+
+        await executeCustom();
+
+        expect(API.post).toHaveBeenCalledWith('/api/execute/custom', expect.objectContaining({
+            strategyType: 'BULL_PUT_SPREAD',
+            alias: 'My Run',
+            securities: 'AAPL, TSLA'
+        }));
+    });
+});
+
+describe('Custom Result Deletion Modals', () => {
+    test('promptDeleteCustomScreenerResult should show modal', () => {
+        document.body.innerHTML = `
+            <div class="card">
+                <div class="card-header" data-target="sc-123">Header</div>
+            </div>
+        `;
+
+        const mockEvent = { stopPropagation: jest.fn() };
+        promptDeleteCustomScreenerResult('sc-123', mockEvent);
+
+        const overlay = document.querySelector('.modal-overlay');
+        expect(overlay).not.toBeNull();
+        expect(overlay.textContent).toContain('Delete Screener Result');
+    });
+
+    test('deleteCustomScreenerResult should call API.delete', async () => {
+        const card = document.createElement('div');
+        jest.spyOn(API, 'delete').mockResolvedValueOnce({ success: true });
+
+        await deleteCustomScreenerResult('sc-123', card);
+
+        expect(API.delete).toHaveBeenCalledWith('/api/results/custom/screeners/sc-123');
+    });
+});
+
+describe('Dashboard Page Initialization', () => {
+    test('initDashboard should fetch strategies, results, status, and market status', async () => {
+        document.body.innerHTML = `
+            <div id="strategy-checkboxes"></div>
+            <div id="results-container"></div>
+            <div id="market-status-bar"></div>
+        `;
+
+        global.fetch = jest.fn().mockResolvedValue({
+            json: () => Promise.resolve({ supabaseUrl: 'http://localhost', supabaseAnonKey: 'key' })
+        });
+        window.supabase = {
+            createClient: jest.fn().mockReturnValue({
+                auth: {
+                    getSession: jest.fn().mockResolvedValue({
+                        data: { session: { access_token: 'fake-token', user: { email: 'test@test.com' } } }
+                    }),
+                    onAuthStateChange: jest.fn()
+                }
+            })
+        };
+
+        jest.spyOn(API, 'get').mockImplementation(url => {
+            if (url === '/api/config/descriptions') return Promise.resolve({});
+            if (url === '/api/strategies') return Promise.resolve([{ name: 'Strategy 1', enabled: true }]);
+            if (url === '/api/results') return Promise.resolve([]);
+            if (url === '/api/status') return Promise.resolve({ running: false });
+            if (url === '/api/market/status') return Promise.resolve({ state: 'open' });
+            return Promise.resolve({});
+        });
+
+        await initDashboard();
+
+        expect(document.getElementById('strategy-checkboxes').innerHTML).toContain('Strategy 1');
+    });
+});
+
+describe('Time and Duration Formatters', () => {
+    test('timeAgo should format minutes and hours correctly', () => {
+        const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+        expect(timeAgo(fiveMinsAgo)).toBe('5m ago');
+
+        const twoHoursAgo = new Date(Date.now() - 2 * 3600 * 1000).toISOString();
+        expect(timeAgo(twoHoursAgo)).toBe('2h ago');
+    });
+
+    test('formatDuration should format ms, seconds, and minutes', () => {
+        expect(formatDuration(412)).toBe('412ms');
+        expect(formatDuration(5300)).toBe('5.3s');
+        expect(formatDuration(125000)).toBe('2.1m');
+        expect(formatDuration(0)).toBeNull();
+    });
+});
+
+describe('Result Card Filter Details Toggle', () => {
+    test('clicking .filter-details-toggle should toggle open class on body and arrow', () => {
+        global.CSS = { escape: s => s.replace(/\./g, '\\.') };
+
+        const result = {
+            strategyId: '101',
+            strategyName: 'Bull Put Spread',
+            trades: [{ symbol: 'AAPL' }],
+            filterConfig: { minDelta: 0.15 }
+        };
+
+        const card = buildResultCard(result, 'Standard');
+        document.body.appendChild(card);
+
+        const toggle = card.querySelector('.filter-details-toggle');
+        expect(toggle).not.toBeNull();
+
+        toggle.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+        const body = card.querySelector('.filter-details-body');
+        expect(body).not.toBeNull();
+        expect(body.classList.contains('open')).toBe(true);
+    });
+
+    test('buildResultCard with no trades and descriptionFile should set disabled style and disable info button', () => {
+        const result = {
+            strategyId: '102',
+            strategyName: 'Iron Condor',
+            descriptionFile: 'iron-condor.md',
+            trades: []
+        };
+
+        const card = buildResultCard(result, 'Standard');
+        expect(card.className).toContain('disabled');
+
+        const infoBtn = card.querySelector('.info-btn');
+        expect(infoBtn).not.toBeNull();
+        expect(infoBtn.style.opacity).toBe('0.5');
+
+        const mockEvent = { stopPropagation: jest.fn(), preventDefault: jest.fn() };
+        infoBtn.onclick(mockEvent);
+        expect(mockEvent.stopPropagation).toHaveBeenCalled();
+    });
+
+    test('renderTermGroups should sort groups by termWeight including Daily and Custom terms', () => {
+        const container = document.createElement('div');
+        const results = [
+            { filterConfig: { termType: 'Daily' }, strategyName: 'Daily Strategy', trades: [] },
+            { filterConfig: { termType: 'Custom Alpha' }, strategyName: 'Alpha Strategy', trades: [] },
+            { filterConfig: { termType: 'Custom Beta' }, strategyName: 'Beta Strategy', trades: [] },
+            { filterConfig: {}, strategyName: 'Other Strategy', trades: [] }
+        ];
+
+        renderTermGroups(container, results);
+        expect(container.children.length).toBe(4);
+    });
+
+    test('deleteCustomResult should handle API failure gracefully', async () => {
+        jest.spyOn(API, 'delete').mockRejectedValueOnce(new Error('Server Error'));
+        await deleteCustomResult('res-123', null);
+        const toast = document.querySelector('.toast-error');
+        expect(toast).not.toBeNull();
+        expect(toast.textContent).toContain('Failed to delete: Server Error');
+    });
+
+    test('deleteCustomScreenerResult should handle API failure gracefully', async () => {
+        document.body.innerHTML = '';
+        jest.spyOn(API, 'delete').mockRejectedValueOnce(new Error('Network Fail'));
+        await deleteCustomScreenerResult('sc-999', null);
+        const toast = document.querySelector('.toast-error');
+        expect(toast).not.toBeNull();
+        expect(toast.textContent).toContain('Failed to delete: Network Fail');
+    });
+
+    test('confirmDeleteCustomResult should render deletion overlay with confirm button', () => {
+        document.body.innerHTML = '';
+        const card = document.createElement('div');
+
+        confirmDeleteCustomResult('res-777', card);
+        const overlay = document.querySelector('.modal-overlay');
+        expect(overlay).not.toBeNull();
+        expect(overlay.querySelector('#confirm-delete-btn')).not.toBeNull();
+    });
+
+    test('promptDeleteCustomScreenerResult should render deletion overlay with confirm button', () => {
+        document.body.innerHTML = '';
+        const card = document.createElement('div');
+
+        const mockEvent = { stopPropagation: jest.fn() };
+        promptDeleteCustomScreenerResult('sc-777', mockEvent);
+        const overlay = document.querySelector('.modal-overlay');
+        expect(overlay).not.toBeNull();
+        expect(overlay.querySelector('#confirm-delete-btn')).not.toBeNull();
+    });
+
+    test('buildScreenerTable should render SMA columns for maValues and call buildDropScreenerTable for dropType', () => {
+        const resultsWithMA = [
+            { ticker: 'MSFT', currentPrice: 400.5, maValues: { 20: 395.0, 50: 380.0 } }
+        ];
+
+        const htmlMA = buildScreenerTable(resultsWithMA, 'sc-table-1');
+        expect(htmlMA).toContain('SMA 50');
+        expect(htmlMA).toContain('SMA 20');
+
+        const resultsDrop = [
+            { ticker: 'TSLA', dropType: 'PERCENT_DROP', currentPrice: 200.0 }
+        ];
+
+        const htmlDrop = buildScreenerTable(resultsDrop, 'sc-table-2');
+        expect(htmlDrop).not.toBeNull();
+    });
+
+    test('buildScreenerTable should render Bollinger Bands, MA comparisons, and volume ratio in detail attributes', () => {
+        const screenerResults = [
+            {
+                ticker: 'NVDA',
+                symbol: 'NVDA',
+                currentPrice: 120.0,
+                bollingerLower: 115.0,
+                bollingerUpper: 130.0,
+                priceTouchingLowerBand: true,
+                maValues: { 20: 125.0, 50: 110.0 },
+                volumeRatio: 2.5
+            },
+            {
+                ticker: 'AMD',
+                symbol: 'AMD',
+                currentPrice: 150.0,
+                bollingerLower: 140.0,
+                bollingerUpper: 148.0,
+                priceTouchingUpperBand: true,
+                maValues: { 20: 145.0 }
+            },
+            {
+                ticker: 'INTC',
+                symbol: 'INTC',
+                currentPrice: 30.0,
+                bollingerLower: 28.0,
+                bollingerUpper: 35.0,
+                maValues: { 20: 32.0 }
+            }
+        ];
+
+        const html = buildScreenerTable(screenerResults, 'sc-table-std');
+        expect(html).toContain('Touching Lower');
+        expect(html).toContain('Touching Upper');
+        expect(html).toContain('Within bands');
+        expect(html).toContain('Below SMA20');
+        expect(html).toContain('Above SMA50');
+    });
+
+    test('handleTableSort should support 3rd click reset and sorting by volume, maxLoss, ror', () => {
+        document.body.innerHTML = `
+            <div id="content-table-sort-test">
+                <table class="data-table"><tbody></tbody></table>
+            </div>
+        `;
+
+        window.tradeDataMap['table-sort-test'] = [
+            { symbol: 'AAPL', volume: 100, maxLoss: 50, returnOnRisk: 10, dte: 30, maxLoss: 500 },
+            { symbol: 'MSFT', volume: 500, maxLoss: 20, returnOnRisk: 25, dte: 45, maxLoss: 200 }
+        ];
+
+        // 1st click: asc
+        handleTableSort('table-sort-test', 'volume');
+        expect(window.tableSortState['table-sort-test'].direction).toBe('asc');
+
+        // 2nd click: desc
+        handleTableSort('table-sort-test', 'volume');
+        expect(window.tableSortState['table-sort-test'].direction).toBe('desc');
+
+        // 3rd click: reset
+        handleTableSort('table-sort-test', 'volume');
+        expect(window.tableSortState['table-sort-test'].direction).toBeNull();
+
+        // Sort by maxLoss
+        handleTableSort('table-sort-test', 'maxLoss');
+
+        // Sort by ror with dynamic calculation
+        window.tradeDataMap['table-sort-test'][0].returnOnRiskCAGR = null;
+        handleTableSort('table-sort-test', 'ror');
     });
 });
 
