@@ -78,6 +78,13 @@ public class OptionsConfig {
     private final Map<String, String> greeks;
 
     /**
+     * Optional term classification: "Long Term", "Short Term", "Medium Term", or
+     * "Daily".
+     * Inserted between alias and securitiesFile in the display name.
+     */
+    private final String termType;
+
+    /**
      * Gets the display name for this strategy configuration.
      * Returns the alias if provided, otherwise falls back to StrategyType display
      * name.
@@ -86,6 +93,25 @@ public class OptionsConfig {
         return StringUtils.isNotBlank(alias)
                 ? alias
                 : strategy.getStrategyType().toString();
+    }
+
+    /**
+     * Gets the unique strategy identifier combining alias, termType, and
+     * securitiesFile. Used as the primary key in Supabase so that strategies
+     * sharing the same alias but differing in termType or securities are stored
+     * and displayed independently.
+     */
+    public String getStrategyId() {
+        java.util.List<String> parts = new java.util.ArrayList<>();
+        parts.add(getName());
+        if (StringUtils.isNotBlank(termType)) {
+            parts.add(termType);
+        }
+        String secFile = filter != null ? filter.getSecuritiesFile() : null;
+        if (StringUtils.isNotBlank(secFile)) {
+            parts.add(secFile);
+        }
+        return String.join(" - ", parts);
     }
 
     /**

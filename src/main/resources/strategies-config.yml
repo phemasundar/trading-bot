@@ -55,8 +55,9 @@ technicalFilters:
       conditions:
         - "VOLUME >= 1000000"
 optionsStrategies:
-  - alias: "Short-Term PCS"
+  - alias: "PCS"
     enabled: true
+    termType: "Short Term"
     strategyType: "PUT_CREDIT_SPREAD"
     descriptionFile: "put_credit_spread.md"
     filterType: "CreditSpreadFilter"
@@ -83,8 +84,9 @@ optionsStrategies:
           period: 20
         conditions:
           - "HV_RANK >= 25"
-  - alias: "Long-Term PCS"
+  - alias: "PCS"
     enabled: true
+    termType: "Medium Term"
     strategyType: "PUT_CREDIT_SPREAD"
     descriptionFile: "put_credit_spread.md"
     filterType: "CreditSpreadFilter"
@@ -110,6 +112,7 @@ optionsStrategies:
           - "HV_RANK >= 25"
   - alias: "Tech RSI/BB PCS"
     enabled: true
+    termType: "Short Term"
     strategyType: "TECH_PUT_CREDIT_SPREAD"
     descriptionFile: "tech_put_credit_spread.md"
     filterType: "CreditSpreadFilter"
@@ -132,6 +135,7 @@ optionsStrategies:
     technicalFilters: "oversold"
   - alias: "Standard CCS"
     enabled: true
+    termType: "Short Term"
     strategyType: "CALL_CREDIT_SPREAD"
     descriptionFile: "call_credit_spread.md"
     filterType: "CreditSpreadFilter"
@@ -159,6 +163,7 @@ optionsStrategies:
           - "HV_RANK >= 25"
   - alias: "Tech RSI/BB CCS"
     enabled: true
+    termType: "Short Term"
     strategyType: "TECH_CALL_CREDIT_SPREAD"
     descriptionFile: "tech_call_credit_spread.md"
     filterType: "CreditSpreadFilter"
@@ -181,6 +186,7 @@ optionsStrategies:
     technicalFilters: "overbought"
   - alias: "0 DTE Iron Condor"
     enabled: true
+    termType: "Daily"
     strategyType: "IRON_CONDOR"
     descriptionFile: "iron_condor.md"
     filterType: "IronCondorFilter"
@@ -210,8 +216,9 @@ optionsStrategies:
           period: 20
         conditions:
           - "HV_RANK >= 25"
-  - alias: "Mid-Term Iron Condor"
+  - alias: "Iron Condor"
     enabled: true
+    termType: "Medium Term"
     strategyType: "IRON_CONDOR"
     descriptionFile: "iron_condor.md"
     filterType: "IronCondorFilter"
@@ -241,8 +248,9 @@ optionsStrategies:
           period: 20
         conditions:
           - "HV_RANK >= 25"
-  - alias: "Long-Term Iron Condor"
+  - alias: "Iron Condor"
     enabled: true
+    termType: "Medium Term 2"
     strategyType: "IRON_CONDOR"
     descriptionFile: "iron_condor.md"
     filterType: "IronCondorFilter"
@@ -271,6 +279,7 @@ optionsStrategies:
           - "HV_RANK >= 25"
   - alias: "Moderate LEAP"
     enabled: true
+    termType: "Extra Long Term"
     strategyType: "LONG_CALL_LEAP"
     descriptionFile: "long_call_leap.md"
     filterType: "LongCallLeapFilter"
@@ -293,6 +302,7 @@ optionsStrategies:
       vega: "positive"
   - alias: "Tech Moderate LEAP"
     enabled: true
+    termType: "Extra Long Term"
     strategyType: "LONG_CALL_LEAP"
     descriptionFile: "long_call_leap.md"
     filterType: "LongCallLeapFilter"
@@ -329,6 +339,7 @@ optionsStrategies:
       vega: "positive"
   - alias: "Aggressive LEAP"
     enabled: true
+    termType: "Extra Long Term"
     strategyType: "LONG_CALL_LEAP"
     descriptionFile: "long_call_leap.md"
     filterType: "LongCallLeapFilter"
@@ -351,6 +362,7 @@ optionsStrategies:
       vega: "positive"
   - alias: "LEAP Top 5"
     enabled: true
+    termType: "Extra Long Term"
     strategyType: "LONG_CALL_LEAP"
     descriptionFile: "long_call_leap.md"
     filterType: "LongCallLeapFilter"
@@ -381,8 +393,9 @@ optionsStrategies:
       gamma: "positive"
       theta: "negative"
       vega: "positive"
-  - alias: "BWB Conservative (Disabled)"
+  - alias: "BWB Conservative"
     enabled: true
+    termType: "Short Term"
     strategyType: "BULLISH_BROKEN_WING_BUTTERFLY"
     descriptionFile: "bullish_bwb.md"
     filterType: "BrokenWingButterflyFilter"
@@ -408,6 +421,7 @@ optionsStrategies:
     securitiesFile: "portfolio, 2026"
   - alias: "BWB Active"
     enabled: true
+    termType: "Short Term"
     maxTradesToSend: 10
     strategyType: "BULLISH_BROKEN_WING_BUTTERFLY"
     descriptionFile: "bullish_bwb.md"
@@ -435,6 +449,7 @@ optionsStrategies:
     securitiesFile: "tracking, 2026"
   - alias: "Bullish ZEBRA"
     enabled: true
+    termType: "Short Term"
     strategyType: "BULLISH_ZEBRA"
     descriptionFile: "bullish_zebra.md"
     filterType: "ZebraFilter"
@@ -459,8 +474,9 @@ optionsStrategies:
       theta: "negative"
       vega: "positive"
     securitiesFile: "portfolio, tracking, 2026"
-  - alias: "Short Put short term"
+  - alias: "Short Put"
     enabled: true
+    termType: "Short Term"
     strategyType: "SHORT_PUT"
     descriptionFile: "short_put.md"
     filterType: "CreditSpreadFilter"
@@ -481,8 +497,9 @@ optionsStrategies:
       theta: "positive"
       vega: "negative"
     securitiesFile: "portfolio, tracking, 2026"
-  - alias: "Short Put medium term"
+  - alias: "Short Put"
     enabled: true
+    termType: "Medium Term"
     strategyType: "SHORT_PUT"
     descriptionFile: "short_put.md"
     filterType: "CreditSpreadFilter"
@@ -500,8 +517,9 @@ optionsStrategies:
       theta: "positive"
       vega: "negative"
     securitiesFile: "portfolio, tracking, 2026"
-  - alias: "Short Put long term"
+  - alias: "Short Put"
     enabled: true
+    termType: "Extra Long Term"
     strategyType: "SHORT_PUT"
     descriptionFile: "short_put.md"
     filterType: "CreditSpreadFilter"
@@ -520,6 +538,7 @@ optionsStrategies:
     securitiesFile: "portfolio, tracking, 2026"
   - alias: "Short Strangle"
     enabled: true
+    termType: "Up To Medium Term"
     strategyType: "SHORT_STRANGLE"
     descriptionFile: "short_strangle.md"
     filterType: "ShortStrangleFilter"

@@ -228,6 +228,9 @@ public class StrategiesConfigLoader {
         OptionsStrategyFilter filter = filterType.parseFilter(entry.getFilter());
         if (filter != null) {
             filter.setSecuritiesFile(entry.getSecuritiesFile());
+            if (entry.getTermType() != null) {
+                filter.setTermType(entry.getTermType());
+            }
             if (entry.getSecurities() != null && !entry.getSecurities().trim().isEmpty()) {
                 filter.setSecurities(entry.getSecurities());
             }
@@ -270,6 +273,7 @@ public class StrategiesConfigLoader {
                 .securities(securities)
                 .technicalFilterChain(technicalFilterChain)
                 .alias(entry.getAlias())
+                .termType(entry.getTermType())
                 .descriptionFile(entry.getDescriptionFile())
                 .maxTradesToSend(entry.getMaxTradesToSend())
                 .greeks(entry.getGreeks())

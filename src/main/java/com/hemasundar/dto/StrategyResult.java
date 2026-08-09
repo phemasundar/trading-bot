@@ -71,14 +71,16 @@ public class StrategyResult {
      * Builds a StrategyResult from a trades map (symbol_expiry → TradeSetup list).
      * Shared by StrategyExecutionService and SampleTestNG (TestNG).
      *
-     * @param strategyName    display name of the strategy
+     * @param strategyId      unique identifier (alias + termType + securitiesFile)
+     * @param strategyName    display name of the strategy (alias only)
      * @param allTrades       map of "SYMBOL_expiryDate" → List of TradeSetup
      * @param executionTimeMs time taken to execute the strategy
      * @param filter          the filter config used
      * @param descriptionFile the markdown description filename
      * @return StrategyResult ready for Supabase persistence
      */
-    public static StrategyResult fromTrades(String strategyName,
+    public static StrategyResult fromTrades(String strategyId,
+            String strategyName,
             Map<String, List<TradeSetup>> allTrades,
             long executionTimeMs,
             OptionsStrategyFilter filter,
@@ -103,7 +105,7 @@ public class StrategyResult {
         }
 
         return StrategyResult.builder()
-                .strategyId(strategyName)
+                .strategyId(strategyId)
                 .strategyName(strategyName)
                 .executionTimeMs(executionTimeMs)
                 .tradesFound(tradeDTOs.size())

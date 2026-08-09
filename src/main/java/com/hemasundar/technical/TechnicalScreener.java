@@ -587,7 +587,7 @@ public class TechnicalScreener {
             Double mcap = quoteData.getMarketCapB();
             if (mcap != null) {
                 builder.marketCapB(mcap);
-                log.info("Symbol {}: Calculated Market Cap B: {}", symbol, mcap);
+                log.debug("Symbol {}: Calculated Market Cap B: {}", symbol, mcap);
             } else {
                 log.info("Symbol {}: Market Cap data missing in quote", symbol);
             }

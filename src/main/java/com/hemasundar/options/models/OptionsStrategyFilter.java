@@ -22,6 +22,11 @@ public class OptionsStrategyFilter {
     private String strategyType;
     private String securitiesFile;
     private String securities;
+    /**
+     * Optional term classification: "Long Term", "Short Term", "Medium Term", or "Daily".
+     * Serialized into filterConfig JSON so the UI can include it in the display name.
+     */
+    private String termType;
 
     /**
      * Optional Greek exposure map for this strategy.

@@ -166,6 +166,12 @@
       <artifactId>rest-assured</artifactId>
       <version>6.0.0</version>
     </dependency>
+    <!-- Thymeleaf for frontend layout templates -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-thymeleaf</artifactId>
+      <version>3.2.2</version>
+    </dependency>
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>

@@ -298,14 +298,13 @@ function buildResultCard(result, badgeText = 'Standard') {
         ? `<button type="button" class="btn btn-danger btn-sm" style="margin-left: 4px;" onclick="event.stopPropagation(); confirmDeleteCustomResult('${escapeAttr(result.strategyId)}', this.closest('.card'))">🗑 Delete</button>`
         : '';
 
-    // Determine the card's display name, appending securities file if present
+    // Determine the card's display name, appending termType and securities file if present
     let displayName = result.strategyName || 'Unknown';
     if (result.filterConfig) {
         try {
             const cfg = typeof result.filterConfig === 'string' ? JSON.parse(result.filterConfig) : result.filterConfig;
-            if (cfg && cfg.securitiesFile) {
-                displayName += ` - ${cfg.securitiesFile}`;
-            }
+            if (cfg && cfg.termType) displayName += ` - ${cfg.termType}`;
+            if (cfg && cfg.securitiesFile) displayName += ` - ${cfg.securitiesFile}`;
         } catch (e) { /* ignore parse errors */ }
     }
 
@@ -366,6 +365,89 @@ function toggleCard(id) {
     if (!content) return;
     content.classList.toggle('open');
     if (arrow) arrow.classList.toggle('open');
+}
+
+/**
+ * Groups an array of result objects by their termType (from filterConfig)
+ * and appends collapsible term-type section headers into the given container.
+ * Sections are collapsed by default.
+ *
+ * @param {HTMLElement} container - The parent container to render into.
+ * @param {Array}       results   - Strategy result objects from the API.
+ * @param {string}      [badgeText='Standard'] - Badge label passed to buildResultCard.
+ */
+function renderTermGroups(container, results, badgeText = 'Standard') {
+    const groups = new Map(); // termLabel -> [result, ...]
+
+    for (const r of results) {
+        let term = 'Other';
+        if (r.filterConfig) {
+            try {
+                const cfg = typeof r.filterConfig === 'string' ? JSON.parse(r.filterConfig) : r.filterConfig;
+                if (cfg && cfg.termType) term = cfg.termType;
+            } catch (_) { /* ignore */ }
+        }
+        if (!groups.has(term)) groups.set(term, []);
+        groups.get(term).push(r);
+    }
+
+    /**
+     * Returns a numeric weight for a term-type label so groups sort
+     * longest-to-shortest (descending). "Other" is always last (weight -1).
+     * Scoring is keyword-based so arbitrary user-defined strings are handled.
+     */
+    function termWeight(label) {
+        if (label === 'Other') return -1;
+        const l = label.toLowerCase();
+        if (l.includes('extra long')) return 70;
+        if (l.includes('long'))       return 60;
+        if (l.includes('medium term 2') || l.includes('medium 2')) return 45;
+        if (l.includes('up to'))      return 35;
+        if (l.includes('medium'))     return 40;
+        if (l.includes('short'))      return 30;
+        if (l.includes('daily'))      return 20;
+        return 10; // unknown — above "Other", below "Daily"
+    }
+
+    // Sort: descending by weight, then descending alphabetically/numerically within the same tier (e.g. "Medium Term 2" before "Medium Term")
+    const orderedKeys = [...groups.keys()].sort((a, b) => {
+        const wa = termWeight(a), wb = termWeight(b);
+        if (wb !== wa) return wb - wa;          // higher weight first
+        return b.localeCompare(a);              // descending within same tier
+    });
+
+    for (const term of orderedKeys) {
+        const termResults = groups.get(term);
+        const groupId = 'term-group-' + term.replace(/\s+/g, '-').toLowerCase();
+
+        const groupEl = document.createElement('div');
+        groupEl.className = 'term-group';
+
+        const header = document.createElement('div');
+        header.className = 'term-group-header';
+        header.innerHTML = `
+            <span class="card-arrow" id="arrow-${groupId}">▶</span>
+            <span class="term-group-label">${term}</span>
+            <span class="term-group-count">(${termResults.length})</span>`;
+
+        const body = document.createElement('div');
+        body.className = 'term-group-body hidden';
+        body.id = groupId;
+
+        for (const r of termResults) {
+            body.appendChild(buildResultCard(r, badgeText));
+        }
+
+        header.addEventListener('click', () => {
+            body.classList.toggle('hidden');
+            const arrowEl = document.getElementById(`arrow-${groupId}`);
+            if (arrowEl) arrowEl.classList.toggle('open');
+        });
+
+        groupEl.appendChild(header);
+        groupEl.appendChild(body);
+        container.appendChild(groupEl);
+    }
 }
 
 // ── Delete Custom Result ──
@@ -1512,7 +1594,8 @@ async function loadOptionsStrategies() {
         try {
             const strategies = await API.get('/api/strategies');
             strategyContainer.innerHTML = strategies.map(s => {
-                const displayName = s.securitiesFile ? `${s.name} - ${s.securitiesFile}` : s.name;
+                const parts = [s.name, s.termType, s.securitiesFile].filter(Boolean);
+                const displayName = parts.join(' - ');
                 return `
                 <div class="flex items-center gap-sm" style="margin-bottom: 8px;">
                     <label class="checkbox-label" style="margin: 0;">
@@ -1540,7 +1623,8 @@ async function loadStrategies() {
         try {
             const strategies = await API.get('/api/strategies');
             strategyContainer.innerHTML = strategies.map(s => {
-                const displayName = s.securitiesFile ? `${s.name} - ${s.securitiesFile}` : s.name;
+                const parts = [s.name, s.termType, s.securitiesFile].filter(Boolean);
+                const displayName = parts.join(' - ');
                 return `
                 <div class="flex items-center gap-sm" style="margin-bottom: 8px;">
                     <label class="checkbox-label" style="margin: 0;">
@@ -1596,9 +1680,7 @@ async function loadOptionsResults() {
             optionsContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div>No option strategy results yet. Execute a strategy to see results.</div>';
             hideDashboardFilterBar('options');
         } else {
-            for (const r of optionResults) {
-                optionsContainer.appendChild(buildResultCard(r));
-            }
+            renderTermGroups(optionsContainer, optionResults);
             // Inject live today's performance into every trade table
             fetchAndInjectTodayPerformance(optionsContainer);
             showDashboardFilterBar('options');
@@ -1631,9 +1713,7 @@ async function loadResults() {
             if (!optionResults || optionResults.length === 0) {
                 optionsContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div>No option strategy results yet. Execute a strategy to see results.</div>';
             } else {
-                for (const r of optionResults) {
-                    optionsContainer.appendChild(buildResultCard(r));
-                }
+                renderTermGroups(optionsContainer, optionResults);
                 // Inject live today's performance into every trade table
                 fetchAndInjectTodayPerformance(optionsContainer);
             }

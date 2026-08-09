@@ -431,7 +431,7 @@ public class StrategyExecutionService {
                             : null);
         }
 
-        StrategyResult result = StrategyResult.fromTrades(config.getName(), allTrades, executionTime,
+        StrategyResult result = StrategyResult.fromTrades(config.getStrategyId(), config.getName(), allTrades, executionTime,
                 config.getFilter(), config.getDescriptionFile());
 
         // Attach technical indicators to trades
