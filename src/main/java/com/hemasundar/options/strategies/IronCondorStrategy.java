@@ -139,14 +139,14 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
         }
         
         FilterLogStore.getInstance().logFilter(
-                getStrategyName(), symbol, expiryDate,
+                getStrategyName(filter), symbol, expiryDate,
                 FilterStage.GENERATED_CANDIDATES.displayName(),
                 combinations.size(), combinations.size());
 
         List<TradeSetup> mapped = new ArrayList<>(combinations);
 
         return FilterPipeline
-                .<TradeSetup>forContext(getStrategyName(), symbol, expiryDate)
+                .<TradeSetup>forContext(getStrategyName(filter), symbol, expiryDate)
                 .step(FilterStage.MAX_LOSS_FILTER,          commonMaxLossFilter(filter, TradeSetup::getMaxLoss))
                 .step(FilterStage.MIN_RETURN_ON_RISK_FILTER,commonMinReturnOnRiskFilter(filter, TradeSetup::getNetCredit, TradeSetup::getMaxLoss))
                 .step(FilterStage.MAX_CREDIT_FILTER,        commonMaxTotalCreditFilter(filter, TradeSetup::getNetCredit))

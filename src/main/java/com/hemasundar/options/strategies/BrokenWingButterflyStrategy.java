@@ -69,7 +69,7 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
 
         log.trace("[BWB] Current price: {}, Available strikes: {}", chain.getUnderlyingPrice(), sortedStrikes);
 
-        String strategyName = getStrategyName();
+        String strategyName = getStrategyName(filter);
         String symbol = chain.getSymbol();
 
         List<BWBCandidate> candidates = generateCandidates(callMap, sortedStrikes, chain.getUnderlyingPrice()).toList();

@@ -20,8 +20,15 @@ import lombok.experimental.SuperBuilder;
 public class OptionsStrategyFilter {
     // Global filter constraints
     private String strategyType;
+    /** Unique identifier for the strategy execution (e.g. Alias - TermType - SecuritiesFile) */
+    private String strategyId;
     private String securitiesFile;
     private String securities;
+    /**
+     * Optional term classification: "Long Term", "Short Term", "Medium Term", or "Daily".
+     * Serialized into filterConfig JSON so the UI can include it in the display name.
+     */
+    private String termType;
 
     /**
      * Optional Greek exposure map for this strategy.

@@ -110,7 +110,7 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                 ? ((LongCallLeapFilter) filter).getLongCall()
                 : null;
 
-        String strategyName = getStrategyName();
+        String strategyName = getStrategyName(filter);
         String symbol = chain.getSymbol();
 
         // Build all candidates

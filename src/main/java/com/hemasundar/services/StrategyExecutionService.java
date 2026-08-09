@@ -6,6 +6,7 @@ import com.hemasundar.config.StrategiesConfigLoader;
 import com.hemasundar.dto.*;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionsConfig;
+import com.hemasundar.options.models.OptionsStrategyFilter;
 import com.hemasundar.options.models.TradeSetup;
 import com.hemasundar.options.strategies.AbstractTradingStrategy;
 import com.hemasundar.technical.TechnicalScreener;
@@ -431,7 +432,7 @@ public class StrategyExecutionService {
                             : null);
         }
 
-        StrategyResult result = StrategyResult.fromTrades(config.getName(), allTrades, executionTime,
+        StrategyResult result = StrategyResult.fromTrades(config.getStrategyId(), config.getName(), allTrades, executionTime,
                 config.getFilter(), config.getDescriptionFile());
 
         // Attach technical indicators to trades
@@ -499,7 +500,12 @@ public class StrategyExecutionService {
 
                 log.info("Processing symbol: {}", symbol);
 
-                List<TradeSetup> trades = strategy.findTrades(optionChainResponse, config.getFilter());
+                OptionsStrategyFilter filter = config.getFilter();
+                if (filter != null) {
+                    filter.setStrategyId(config.getStrategyId());
+                }
+
+                List<TradeSetup> trades = strategy.findTrades(optionChainResponse, filter);
 
                 trades.forEach(trade -> log.info("Trade: {}", trade));
 

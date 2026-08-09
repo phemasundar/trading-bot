@@ -68,7 +68,7 @@ public class ShortPutStrategy extends AbstractTradingStrategy {
                 .map(list -> new ShortPutCandidate(list.get(0), chain.getUnderlyingPrice()))
                 .toList();
 
-        String strategyName = getStrategyName();
+        String strategyName = getStrategyName(filter);
         String symbol = chain.getSymbol();
 
         FilterLogStore.getInstance().logFilter(

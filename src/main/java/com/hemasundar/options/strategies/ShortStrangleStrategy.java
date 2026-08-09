@@ -79,7 +79,7 @@ public class ShortStrangleStrategy extends AbstractTradingStrategy {
                 .map(list -> list.get(0))
                 .toList();
 
-        String strategyName = getStrategyName();
+        String strategyName = getStrategyName(filter);
         String symbol = chain.getSymbol();
 
         // ── Phase 1: Candidate-level filters (before building TradeSetup) ──────

@@ -7,7 +7,7 @@ By utilizing the Average True Range (ATR), this screener natively adapts to the 
 
 ## Configuration
 
-In `strategies-config.yml`, the screener is registered under the `"screenerType": "ATR"` type.
+In `strategies-config.json`, the screener is registered under the `"screenerType": "ATR"` type.
 
 ### Example Configuration
 ```json

@@ -70,6 +70,7 @@ public class StrategyExecutionController {
                         map.put("descriptionFile", config.getDescriptionFile());
                         String securitiesFile = config.getFilter() != null ? config.getFilter().getSecuritiesFile() : null;
                         map.put("securitiesFile", securitiesFile);
+                        map.put("termType", config.getTermType());
                         map.put("greeks", config.getGreeks());
                         return map;
                     })

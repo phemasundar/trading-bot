@@ -59,7 +59,7 @@ public class ZebraStrategy extends AbstractTradingStrategy {
                 .sorted()
                 .toList();
 
-        String strategyName = getStrategyName();
+        String strategyName = getStrategyName(filter);
         String symbol = chain.getSymbol();
 
         List<ZebraCandidate> candidates = generateCandidates(callMap, sortedStrikes, chain.getUnderlyingPrice()).toList();

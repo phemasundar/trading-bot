@@ -118,6 +118,12 @@ public class StrategiesConfig {
         private boolean enabled = true;
         private StrategyType strategyType;
         private String alias;
+        /**
+         * Optional term classification for this strategy.
+         * Accepted values: "Long Term", "Short Term", "Medium Term", "Daily".
+         * Inserted between alias and securitiesFile in the display name.
+         */
+        private String termType;
         private String filterType;
         private Object filter;
         private String securitiesFile;
