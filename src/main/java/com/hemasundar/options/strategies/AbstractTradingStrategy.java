@@ -43,7 +43,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
 
     @Override
     public List<TradeSetup> findTrades(OptionChainResponse chain, OptionsStrategyFilter filter) {
-        String strategyName = getStrategyName();
+        String strategyName = getStrategyName(filter);
         String symbol = chain.getSymbol();
 
         // ── Track C: Fire IV Rank ──
@@ -115,7 +115,18 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
 
     /**
      * Returns the display name for this strategy.
-     * Derived from the StrategyType enum.
+     * Uses the unique strategyId if available in the filter, otherwise falls back to StrategyType display name.
+     */
+    public String getStrategyName(OptionsStrategyFilter filter) {
+        if (filter != null && org.apache.commons.lang3.StringUtils.isNotBlank(filter.getStrategyId())) {
+            return filter.getStrategyId();
+        }
+        return getStrategyName();
+    }
+
+    /**
+     * Returns the generic display name for this strategy (based on StrategyType).
+     * Used as a fallback and by external callers that don't have the filter context.
      */
     public String getStrategyName() {
         return strategyType.getDisplayName();

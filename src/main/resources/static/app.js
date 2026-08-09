@@ -859,9 +859,15 @@ function buildTradeTable(trades, cardId = null) {
         const legsAttr = escapeAttr(JSON.stringify(legsOptionData));
 
         let rorCagr = t.returnOnRiskCAGR;
+        if (typeof rorCagr === 'string') rorCagr = parseFloat(rorCagr);
         if (rorCagr == null && t.returnOnRisk != null && t.dte > 0 && t.maxLoss > 0) {
             const rawRoR = t.returnOnRisk / 100.0;
             rorCagr = (Math.pow(1.0 + rawRoR, 365.0 / t.dte) - 1.0) * 100.0;
+        }
+        
+        let rorCagrDisplay = '';
+        if (rorCagr != null && !isNaN(rorCagr) && isFinite(rorCagr)) {
+            rorCagrDisplay = ` <span class="text-muted">(${rorCagr.toFixed(1)}% CAGR)</span>`;
         }
 
         html += `<tr class="trade-row" data-details="${detailsEscaped}" data-tech-indicators="${techIndicatorsAttr}" data-legs-option-data="${legsAttr}" data-symbol="${escapeAttr(sym)}">
@@ -875,7 +881,7 @@ function buildTradeTable(trades, cardId = null) {
             <td class="text-danger">$${(t.maxLoss || 0).toFixed(2)}</td>
             <td>$${(t.netExtrinsicValue || 0).toFixed(2)} <span class="text-muted">(${(t.anulizedNetExtrinsicValueToCapitalPercentage || 0).toFixed(1)}%)</span></td>
             <td>${formatBreakeven(t)}</td>
-            <td class="${rorClass}">${(t.returnOnRisk || 0).toFixed(1)}%${rorCagr != null ? ` <span class="text-muted">(${rorCagr.toFixed(1)}% CAGR)</span>` : ''}</td>
+            <td class="${rorClass}">${(t.returnOnRisk || 0).toFixed(1)}%${rorCagrDisplay}</td>
         </tr>`;
     }
 
@@ -939,12 +945,15 @@ function handleTableSort(cardId, column) {
                     break;
                 case 'ror':
                     const getRoRCagr = (x) => {
-                        if (x.returnOnRiskCAGR != null) return x.returnOnRiskCAGR;
-                        if (x.returnOnRisk != null && x.dte > 0 && x.maxLoss > 0) {
-                            const rawRoR = x.returnOnRisk / 100.0;
-                            return (Math.pow(1.0 + rawRoR, 365.0 / x.dte) - 1.0) * 100.0;
+                        let c = x.returnOnRiskCAGR;
+                        if (typeof c === 'string') c = parseFloat(c);
+                        if (c == null && x.returnOnRisk != null && x.dte > 0 && x.maxLoss > 0) {
+                            c = (Math.pow(1.0 + (x.returnOnRisk/100.0), 365.0/x.dte) - 1.0) * 100.0;
                         }
-                        return x.maxReturnOnRiskPercentage || x.returnOnRisk || 0;
+                        if (c == null || isNaN(c) || !isFinite(c)) {
+                            c = x.maxReturnOnRiskPercentage || x.returnOnRisk || 0;
+                        }
+                        return c;
                     };
                     valA = getRoRCagr(a);
                     valB = getRoRCagr(b);

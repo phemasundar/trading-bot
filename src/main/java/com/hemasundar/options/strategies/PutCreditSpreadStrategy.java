@@ -58,7 +58,7 @@ public class PutCreditSpreadStrategy extends AbstractTradingStrategy {
                 .sorted()
                 .toList();
 
-        String strategyName = getStrategyName();
+        String strategyName = getStrategyName(filter);
         String symbol = chain.getSymbol();
 
         List<PutSpreadCandidate> candidates = generateCandidates(putMap, sortedStrikes, chain.getUnderlyingPrice()).toList();

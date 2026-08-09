@@ -20,6 +20,8 @@ import lombok.experimental.SuperBuilder;
 public class OptionsStrategyFilter {
     // Global filter constraints
     private String strategyType;
+    /** Unique identifier for the strategy execution (e.g. Alias - TermType - SecuritiesFile) */
+    private String strategyId;
     private String securitiesFile;
     private String securities;
     /**
