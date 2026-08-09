@@ -32,6 +32,17 @@ jobs:
               # This will run the `jacoco:check` goal and fail the build if coverage is < 60%
               run: mvn clean verify
 
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+
+            - name: Install Frontend Dependencies
+              run: npm install
+
+            - name: Run Frontend Tests and Verify Coverage
+              run: npm test
+
             - name: Upload Coverage Report
               uses: actions/upload-artifact@v4
               if: always()

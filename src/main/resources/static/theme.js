@@ -27,3 +27,11 @@ function updateThemeIcon(theme) {
 document.addEventListener('DOMContentLoaded', () => {
     updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'dark');
 });
+
+// Conditionally export for testing
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        toggleTheme,
+        updateThemeIcon
+    };
+}
