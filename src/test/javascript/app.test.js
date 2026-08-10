@@ -108,7 +108,8 @@ const {
     initAuth,
     injectTodayPerformance,
     fetchAndInjectTodayPerformance,
-    checkCustomScreenerExecutionStatus
+    checkCustomScreenerExecutionStatus,
+    logout
 } = require('../../main/resources/static/app');
 
 Element.prototype.scrollIntoView = jest.fn();
@@ -2729,6 +2730,104 @@ describe('Result Card Filter Details Toggle', () => {
         // Sort by ror with dynamic calculation
         window.tradeDataMap['table-sort-test'][0].returnOnRiskCAGR = null;
         handleTableSort('table-sort-test', 'ror');
+    });
+
+    test('handleTableSort should support screener and drop screener table types', () => {
+        document.body.innerHTML = `
+            <div id="content-screener-sort-test">
+                <table class="data-table"><tbody></tbody></table>
+            </div>
+            <div id="content-drop-sort-test">
+                <table class="data-table"><tbody></tbody></table>
+            </div>
+        `;
+
+        window.tableTypesMap = {
+            'screener-sort-test': 'screener',
+            'drop-sort-test': 'dropScreener'
+        };
+
+        window.tradeDataMap['screener-sort-test'] = [
+            { ticker: 'AAPL', currentPrice: 150.0 },
+            { ticker: 'MSFT', currentPrice: 300.0 }
+        ];
+        window.tradeDataMap['drop-sort-test'] = [
+            { ticker: 'TSLA', dropType: 'PERCENT_DROP', currentPrice: 200.0 }
+        ];
+
+        handleTableSort('screener-sort-test', 'ticker');
+        handleTableSort('drop-sort-test', 'ticker');
+        expect(document.querySelector('#content-screener-sort-test table')).not.toBeNull();
+        expect(document.querySelector('#content-drop-sort-test table')).not.toBeNull();
+    });
+});
+
+describe('Auth & Logout Deep Coverage', () => {
+    test('logout should sign out from supabase', async () => {
+        const signOutSpy = jest.fn().mockResolvedValue({ error: null });
+        window.supabase = {
+            createClient: jest.fn().mockReturnValue({
+                auth: {
+                    getSession: jest.fn().mockResolvedValue({
+                        data: { session: { access_token: 'fake-token', user: { email: 'test@test.com' } } }
+                    }),
+                    signOut: signOutSpy,
+                    onAuthStateChange: jest.fn()
+                }
+            })
+        };
+        await initAuth();
+        await logout();
+        expect(signOutSpy).toHaveBeenCalled();
+    });
+
+    test('initAuth should return false when fetch or session fails', async () => {
+        global.fetch = jest.fn().mockRejectedValueOnce(new Error('Config fetch failed'));
+        const res = await initAuth();
+        expect(res).toBe(false);
+    });
+
+    test('onAuthStateChange listener should update API token on TOKEN_REFRESHED', async () => {
+        let authStateCallback;
+        window.supabase = {
+            createClient: jest.fn().mockReturnValue({
+                auth: {
+                    getSession: jest.fn().mockResolvedValue({
+                        data: { session: { access_token: 'old-token', user: { email: 'user@test.com' } } }
+                    }),
+                    onAuthStateChange: jest.fn().mockImplementation(cb => { authStateCallback = cb; })
+                }
+            })
+        };
+        global.fetch = jest.fn().mockResolvedValue({
+            json: () => Promise.resolve({ supabaseUrl: 'http://localhost', supabaseAnonKey: 'key' })
+        });
+
+        await initAuth();
+        expect(authStateCallback).toBeDefined();
+
+        // Trigger TOKEN_REFRESHED
+        authStateCallback('TOKEN_REFRESHED', { access_token: 'new-token' });
+        expect(API._accessToken).toBe('new-token');
+
+        // Trigger SIGNED_OUT
+        authStateCallback('SIGNED_OUT', null);
+    });
+});
+
+describe('Today Performance Injections Corner Cases', () => {
+    test('injectTodayPerformance should render N/A when netChange is missing', async () => {
+        document.body.innerHTML = `
+            <div class="today-perf" data-symbol="INVALID"></div>
+        `;
+
+        jest.spyOn(API, 'get').mockResolvedValueOnce([
+            { symbol: 'INVALID', netChange: null, netPercentChange: null }
+        ]);
+
+        await injectTodayPerformance(['INVALID']);
+        const cell = document.querySelector('.today-perf');
+        expect(cell.innerHTML).toContain('N/A');
     });
 });
 
