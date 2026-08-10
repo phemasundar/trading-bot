@@ -4275,6 +4275,7 @@ if (typeof module !== 'undefined' && module.exports) {
         initExecutePage,
         initConfigPage,
         initDashboard,
-        buildResultCard
+        buildResultCard,
+        logout
     };
 }
