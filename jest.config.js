@@ -5,7 +5,8 @@ module.exports = {
   coverageDirectory: 'target/site/jest-coverage',
   collectCoverageFrom: [
     'src/main/resources/static/theme.js',
-    'src/main/resources/static/app.js'
+    'src/main/resources/static/app.js',
+    'src/main/resources/static/js/**/*.js'
   ],
   coverageThreshold: {
     global: {

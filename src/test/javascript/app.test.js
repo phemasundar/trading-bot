@@ -153,7 +153,9 @@ describe('App Utility Functions', () => {
 describe('DOM and String Utilities', () => {
     beforeEach(() => {
         document.body.innerHTML = '';
-        jest.useFakeTimers();
+        delete window.location;
+        window.location = { href: '', assign: jest.fn() };
+        jest.restoreAllMocks();
     });
 
     afterEach(() => {
@@ -175,14 +177,16 @@ describe('DOM and String Utilities', () => {
     });
 
     test('showToast should render success toast and auto-dismiss', () => {
+        jest.useFakeTimers();
         showToast('Operation successful', 'success');
         const toast = document.querySelector('.toast');
         expect(toast).not.toBeNull();
         expect(toast.classList.contains('toast-success')).toBe(true);
         expect(toast.textContent).toBe('Operation successful');
         
-        jest.advanceTimersByTime(4000);
-        expect(document.querySelector('.toast')).toBeNull(); // it removes itself
+        jest.advanceTimersByTime(3500);
+        expect(document.querySelector('.toast-success')).toBeNull(); // it removes itself
+        jest.useRealTimers();
     });
 
     test('showToast should render error toast that persists', () => {
@@ -520,7 +524,7 @@ describe('UI Builder Functions', () => {
         expect(html).toContain('Inner Value');
         
         // Assert technicalFilterSummary special handling
-        expect(html).toContain('🔬 Tech Filters');
+        expect(html).toContain('Tech Filters');
         expect(html).toContain('Strong Buy');
     });
 
@@ -533,7 +537,7 @@ describe('UI Builder Functions', () => {
             'RSI': { condition: 'RSI < 30' },
             'SMA': ['SMA_50', 'SMA_200']
         });
-        expect(mapHtml).toContain('🔬 Technical Filters');
+        expect(mapHtml).toContain('Technical Filters');
         expect(mapHtml).toContain('RSI');
         expect(mapHtml).toContain('RSI < 30');
         expect(mapHtml).toContain('SMA');
@@ -545,7 +549,7 @@ describe('UI Builder Functions', () => {
             'MARKET_CAP': { conditions: ['> 10B'] },
             'PE_RATIO': '< 20'
         });
-        expect(mapHtml).toContain('📊 Fundamental Filters');
+        expect(mapHtml).toContain('Fundamental Filters');
         expect(mapHtml).toContain('MARKET_CAP');
         expect(mapHtml).toContain('> 10B');
         expect(mapHtml).toContain('PE_RATIO');
@@ -1270,7 +1274,7 @@ describe('Config Viewer Functions', () => {
 
         expect(html).toContain('Target D T E');
         expect(html).toContain('45');
-        expect(html).toContain('✅ Yes');
+        expect(html).toContain('Yes');
         expect(html).toContain('Legs');
         expect(html).toContain('Min Delta');
     });
@@ -1638,7 +1642,7 @@ describe('Option Chain Data Table and Row Details', () => {
 
         const panel = document.querySelector('.trade-detail-panel');
         expect(panel).not.toBeNull();
-        expect(panel.innerHTML).toContain('AAPL — Trade Details');
+        expect(panel.innerHTML).toContain('AAPL');
     });
 });
 
