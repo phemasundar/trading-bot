@@ -921,40 +921,52 @@ function renderFilterGrid(cfg) {
         .trim();
 
     const formatValue = (v) => {
-        if (v === null || v === undefined) return '—';
+        if (v === null || v === undefined || v === '') return null;
         if (typeof v === 'boolean') return v ? 'Yes' : 'No';
-        if (Array.isArray(v)) return v.join(', ') || '—';
+        if (Array.isArray(v)) return v.length > 0 ? v.join(', ') : null;
         return String(v);
     };
 
-    let html = '<div class="config-grid">';
+    let html = '';
+    let rootHtml = '';
     const nested = [];
-    const SKIP_KEYS = new Set(['greeks', 'strategyType', 'securitiesFile', 'securities']);
+    const SKIP_KEYS = new Set(['greeks', 'strategyType', 'securitiesFile', 'securities', 'strategyId']);
 
     for (const [key, val] of entries) {
         if (SKIP_KEYS.has(key)) continue;
         if (key === 'maxDTE' && val === 2147483647) continue;
         if ((key === 'targetDTE' || key === 'minDTE' || key === 'minReturnOnRisk' || key === 'minReturnOnRiskCAGR') && val === 0) continue;
         if (key === 'technicalFilterSummary' && val) {
-            html += `<div class="config-item" style="grid-column: 1 / -1"><span class="config-item-label" style="color:var(--accent)">🔬 Tech Filters</span><span class="config-item-value">${formatValue(val)}</span></div>`;
+            rootHtml += `<div class="config-item" style="grid-column: 1 / -1"><span class="config-item-label" style="color:var(--accent)">🔬 Tech Filters</span><span class="config-item-value">${formatValue(val) || String(val)}</span></div>`;
             continue;
         }
         if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
             nested.push([key, val]);
         } else {
-            html += `<div class="config-item"><span class="config-item-label">${formatLabel(key)}</span><span class="config-item-value">${formatValue(val)}</span></div>`;
+            const formattedVal = formatValue(val);
+            if (formattedVal !== null) {
+                rootHtml += `<div class="config-item"><span class="config-item-label">${formatLabel(key)}</span><span class="config-item-value">${formattedVal}</span></div>`;
+            }
         }
     }
-    html += '</div>';
+    
+    if (rootHtml) {
+        html += `<div class="config-grid">${rootHtml}</div>`;
+    }
 
     for (const [key, obj] of nested) {
         const nestedEntries = Object.entries(obj);
         if (nestedEntries.length === 0) continue;
-        html += `<div class="nested-section"><div class="nested-heading">${formatLabel(key)}</div><div class="config-grid">`;
+        let nestedHtml = '';
         for (const [k, v] of nestedEntries) {
-            html += `<div class="config-item"><span class="config-item-label">${formatLabel(k)}</span><span class="config-item-value">${formatValue(v)}</span></div>`;
+            const formattedVal = formatValue(v);
+            if (formattedVal !== null) {
+                nestedHtml += `<div class="config-item"><span class="config-item-label">${formatLabel(k)}</span><span class="config-item-value">${formattedVal}</span></div>`;
+            }
         }
-        html += '</div></div>';
+        if (nestedHtml) {
+            html += `<div class="nested-section"><div class="nested-heading">${formatLabel(key)}</div><div class="config-grid">${nestedHtml}</div></div>`;
+        }
     }
 
     return html;
@@ -970,17 +982,23 @@ function renderTechFiltersGrid(technicalFilters) {
     const parts = [];
     for (const [key, val] of Object.entries(technicalFilters)) {
         if (Array.isArray(val)) {
-            parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${val.join(', ')}</span></div>`);
+            if (val.length > 0) {
+                parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${val.join(', ')}</span></div>`);
+            }
         } else if (val && typeof val === 'object') {
             let condStr = '';
-            if (val.conditions && Array.isArray(val.conditions)) {
+            if (val.conditions && Array.isArray(val.conditions) && val.conditions.length > 0) {
                 condStr = val.conditions.join(', ');
-            } else if (val.condition !== undefined) {
+            } else if (val.condition !== undefined && val.condition !== null && val.condition !== '') {
                 condStr = String(val.condition);
             }
-            parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${condStr || '—'}</span></div>`);
+            if (condStr) {
+                parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${condStr}</span></div>`);
+            }
         } else {
-            parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${val || '—'}</span></div>`);
+            if (val !== null && val !== undefined && val !== '') {
+                parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${val}</span></div>`);
+            }
         }
     }
     if (parts.length === 0) return '';
@@ -992,9 +1010,13 @@ function renderFundamentalFiltersGrid(fundamentalFilters) {
     const parts = [];
     for (const [key, val] of Object.entries(fundamentalFilters)) {
         if (val && typeof val === 'object' && Array.isArray(val.conditions)) {
-            parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${val.conditions.join(', ')}</span></div>`);
+            if (val.conditions.length > 0) {
+                parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${val.conditions.join(', ')}</span></div>`);
+            }
         } else {
-            parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${val || '—'}</span></div>`);
+            if (val !== null && val !== undefined && val !== '') {
+                parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${val}</span></div>`);
+            }
         }
     }
     if (parts.length === 0) return '';
@@ -1421,6 +1443,7 @@ function applyDashboardFilter(prefix) {
     const cards = container ? container.querySelectorAll('.card') : [];
     let totalMatches = 0;
     let cardsWithMatches = 0;
+    const termGroupsWithMatches = new Set();
 
     cards.forEach(card => {
         const cardId = card.querySelector('.card-header')?.dataset?.target;
@@ -1466,6 +1489,17 @@ function applyDashboardFilter(prefix) {
                 contentEl.classList.add('open');
                 if (arrowEl) arrowEl.classList.add('open');
             }
+            
+            const termGroupBody = card.closest('.term-group-body');
+            if (termGroupBody) {
+                termGroupsWithMatches.add(termGroupBody.id);
+                if (termGroupBody.classList.contains('hidden')) {
+                    termGroupBody.classList.remove('hidden');
+                    const termArrowEl = document.getElementById(`arrow-${termGroupBody.id}`);
+                    if (termArrowEl) termArrowEl.classList.add('open');
+                }
+            }
+
             totalMatches += cardMatchCount;
             cardsWithMatches++;
         } else {
@@ -1473,6 +1507,16 @@ function applyDashboardFilter(prefix) {
             if (arrowEl) arrowEl.classList.remove('open');
         }
     });
+
+    if (container) {
+        container.querySelectorAll('.term-group-body').forEach(body => {
+            if (!termGroupsWithMatches.has(body.id)) {
+                body.classList.add('hidden');
+                const arrowEl = document.getElementById(`arrow-${body.id}`);
+                if (arrowEl) arrowEl.classList.remove('open');
+            }
+        });
+    }
 
     if (clearBtn) clearBtn.style.display = '';
     if (summary) {
@@ -1514,6 +1558,12 @@ function clearDashboardFilter(prefix) {
             const contentEl = document.getElementById(`content-${cardId}`);
             const arrowEl = document.getElementById(`arrow-${cardId}`);
             if (contentEl) contentEl.classList.remove('open');
+            if (arrowEl) arrowEl.classList.remove('open');
+        });
+
+        container.querySelectorAll('.term-group-body').forEach(body => {
+            body.classList.add('hidden');
+            const arrowEl = document.getElementById(`arrow-${body.id}`);
             if (arrowEl) arrowEl.classList.remove('open');
         });
 

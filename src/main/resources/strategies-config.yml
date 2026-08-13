@@ -343,7 +343,7 @@ optionsStrategies:
     strategyType: "LONG_CALL_LEAP"
     descriptionFile: "long_call_leap.md"
     filterType: "LongCallLeapFilter"
-    securitiesFile: "top100"
+    securitiesFile: "top100, SPY, QQQ"
     filter:
       minDTE: 330
       marginInterestRate: 6
