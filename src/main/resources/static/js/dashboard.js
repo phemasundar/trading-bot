@@ -1443,6 +1443,7 @@ function applyDashboardFilter(prefix) {
     const cards = container ? container.querySelectorAll('.card') : [];
     let totalMatches = 0;
     let cardsWithMatches = 0;
+    const termGroupsWithMatches = new Set();
 
     cards.forEach(card => {
         const cardId = card.querySelector('.card-header')?.dataset?.target;
@@ -1488,6 +1489,17 @@ function applyDashboardFilter(prefix) {
                 contentEl.classList.add('open');
                 if (arrowEl) arrowEl.classList.add('open');
             }
+            
+            const termGroupBody = card.closest('.term-group-body');
+            if (termGroupBody) {
+                termGroupsWithMatches.add(termGroupBody.id);
+                if (termGroupBody.classList.contains('hidden')) {
+                    termGroupBody.classList.remove('hidden');
+                    const termArrowEl = document.getElementById(`arrow-${termGroupBody.id}`);
+                    if (termArrowEl) termArrowEl.classList.add('open');
+                }
+            }
+
             totalMatches += cardMatchCount;
             cardsWithMatches++;
         } else {
@@ -1495,6 +1507,16 @@ function applyDashboardFilter(prefix) {
             if (arrowEl) arrowEl.classList.remove('open');
         }
     });
+
+    if (container) {
+        container.querySelectorAll('.term-group-body').forEach(body => {
+            if (!termGroupsWithMatches.has(body.id)) {
+                body.classList.add('hidden');
+                const arrowEl = document.getElementById(`arrow-${body.id}`);
+                if (arrowEl) arrowEl.classList.remove('open');
+            }
+        });
+    }
 
     if (clearBtn) clearBtn.style.display = '';
     if (summary) {
@@ -1536,6 +1558,12 @@ function clearDashboardFilter(prefix) {
             const contentEl = document.getElementById(`content-${cardId}`);
             const arrowEl = document.getElementById(`arrow-${cardId}`);
             if (contentEl) contentEl.classList.remove('open');
+            if (arrowEl) arrowEl.classList.remove('open');
+        });
+
+        container.querySelectorAll('.term-group-body').forEach(body => {
+            body.classList.add('hidden');
+            const arrowEl = document.getElementById(`arrow-${body.id}`);
             if (arrowEl) arrowEl.classList.remove('open');
         });
 
