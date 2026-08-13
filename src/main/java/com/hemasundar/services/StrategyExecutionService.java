@@ -16,6 +16,7 @@ import com.hemasundar.utils.SchwabApiExecutor;
 import com.hemasundar.utils.SecuritiesResolver;
 import com.hemasundar.utils.TelegramUtils;
 import com.hemasundar.utils.VolatilityCalculator;
+import org.springframework.context.ApplicationEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
@@ -48,6 +49,7 @@ public class StrategyExecutionService {
     private final StrategiesConfigLoader strategiesConfigLoader;
     private final SchwabApiExecutor schwabApiExecutor;
     private final TechnicalIndicatorPreCalculationService technicalIndicatorPreCalculationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // Execution state tracking (visible across page refreshes)
     private final AtomicBoolean executionRunning = new AtomicBoolean(false);
@@ -464,6 +466,15 @@ public class StrategyExecutionService {
             } catch (IOException e) {
                 addAlert(ExecutionAlert.Severity.WARNING, AlertMessages.SRC_SUPABASE,
                         AlertMessages.SAVE_STRATEGY_RESULT_FAILED);
+            }
+        }
+
+        // Publish event for asynchronous historical trade persistence
+        if (result != null && result.getTradesFound() > 0) {
+            try {
+                eventPublisher.publishEvent(new com.hemasundar.events.StrategyExecutionCompletedEvent(result, isCustomExecution));
+            } catch (Exception e) {
+                log.warn("[{}] Failed to publish strategy execution completed event: {}", config.getName(), e.getMessage());
             }
         }
 

@@ -14,6 +14,7 @@ const {
     fetchAndInjectTodayPerformance,
     renderOptionDataTable,
     initTradeRowClicks,
+    showTradeHistoryModal,
     renderFilterGrid,
     renderTechFiltersGrid,
     renderFundamentalFiltersGrid,
@@ -318,4 +319,53 @@ describe('Dashboard & Table Rendering Tests', () => {
         expect(document.querySelector('.main-content').innerHTML).toContain('OPEN');
         expect(document.querySelector('.main-content').innerHTML).toContain('CLOSED');
     });
+
+    test('buildTradeTable renders History column and history icon button', () => {
+        const trades = [{ symbol: 'AAPL', returnOnRisk: 12.5, maxLoss: 100, expiryDate: '2026-09-18', dte: 30 }];
+        const html = buildTradeTable(trades, 'card-pcs');
+        expect(html).toContain('<th>History</th>');
+        expect(html).toContain('btn-history-icon');
+        expect(html).toContain('🕒');
+    });
+
+    test('showTradeHistoryModal renders modal and displays empty state when no historical matches', async () => {
+        API.post = jest.fn().mockResolvedValueOnce([]);
+        const trade = { symbol: 'AAPL', expiryDate: '2026-09-18' };
+
+        showTradeHistoryModal('pcs-123', trade);
+        expect(document.getElementById('history-modal-overlay')).not.toBeNull();
+        expect(document.getElementById('historyModal').innerHTML).toContain('AAPL');
+
+        await new Promise(resolve => setTimeout(resolve, 20));
+        expect(API.post).toHaveBeenCalledWith('/api/strategies/history/similar-trades', { strategyId: 'pcs', trade: trade, limit: 20 });
+        expect(document.getElementById('history-modal-body').innerHTML).toContain('No matching historical trades found');
+    });
+
+    test('showTradeHistoryModal renders similar trade results table on API response', async () => {
+        const mockMatches = [{ symbol: 'AAPL', returnOnRisk: 14.2, maxLoss: 120, expiryDate: '2026-08-21', dte: 10 }];
+        API.post = jest.fn().mockResolvedValueOnce(mockMatches);
+        const tradeStr = JSON.stringify({ symbol: 'AAPL', expiryDate: '2026-09-18' });
+
+        showTradeHistoryModal('pcs-123', tradeStr);
+        await new Promise(resolve => setTimeout(resolve, 20));
+
+        const body = document.getElementById('history-modal-body');
+        expect(body.innerHTML).toContain('AAPL');
+        expect(body.innerHTML).toContain('History');
+    });
+
+    test('showTradeHistoryModal handles API error and overlay close click', async () => {
+        API.post = jest.fn().mockRejectedValueOnce(new Error('Network failure'));
+        const trade = { symbol: 'AAPL' };
+
+        showTradeHistoryModal('pcs-123', trade);
+        await new Promise(resolve => setTimeout(resolve, 20));
+
+        expect(document.getElementById('history-modal-body').innerHTML).toContain('Failed to load trade history');
+
+        const overlay = document.getElementById('history-modal-overlay');
+        overlay.click();
+        expect(document.getElementById('history-modal-overlay')).toBeNull();
+    });
 });
+
