@@ -520,6 +520,7 @@ function buildTradeTable(trades, cardId = null) {
             ${th('extrinsic', 'Extrinsic')}
             ${th('breakeven', 'Breakeven')}
             ${th('ror', 'ROR%')}
+            <th>History</th>
         </tr></thead><tbody>`;
 
     for (const t of trades) {
@@ -534,6 +535,7 @@ function buildTradeTable(trades, cardId = null) {
         const sym = t.symbol || '';
         const legsOptionData = (t.legs || []).map(l => ({ action: l.action, optionType: l.optionType, optionData: l.optionData || null }));
         const legsAttr = escapeAttr(JSON.stringify(legsOptionData));
+        const tradeEscaped = escapeAttr(JSON.stringify(t));
 
         let rorCagr = t.returnOnRiskCAGR;
         if (typeof rorCagr === 'string') rorCagr = parseFloat(rorCagr);
@@ -559,6 +561,9 @@ function buildTradeTable(trades, cardId = null) {
             <td>$${(t.netExtrinsicValue || 0).toFixed(2)} <span class="text-muted">(${(t.anulizedNetExtrinsicValueToCapitalPercentage || 0).toFixed(1)}%)</span></td>
             <td>${formatBreakeven(t)}</td>
             <td class="${rorClass}">${(t.returnOnRisk || 0).toFixed(1)}%${rorCagrDisplay}</td>
+            <td onclick="event.stopPropagation(); showTradeHistoryModal('${escapeAttr(cardId || '')}', this.dataset.trade, event)" data-trade="${tradeEscaped}">
+                <button class="btn-history-icon" title="View Similar Historical Trades" style="background:none;border:none;cursor:pointer;font-size:1.1rem;padding:2px 6px;">🕒</button>
+            </td>
         </tr>`;
     }
 
@@ -901,6 +906,77 @@ function initTradeRowClicks() {
                 });
         }
     });
+}
+
+function showTradeHistoryModal(cardId, tradeRaw, event) {
+    if (event) event.stopPropagation();
+
+    let trade = tradeRaw;
+    if (typeof tradeRaw === 'string') {
+        try {
+            trade = JSON.parse(decodeAttr(tradeRaw));
+        } catch (e) {
+            trade = tradeRaw;
+        }
+    }
+
+    if (!trade || !trade.symbol) return;
+
+    let overlay = document.getElementById('history-modal-overlay');
+    if (overlay) overlay.remove();
+
+    overlay = document.createElement('div');
+    overlay.id = 'history-modal-overlay';
+    overlay.className = 'modal-overlay';
+    overlay.style.zIndex = '1000';
+
+    const symbolEscaped = escapeHtmlContent(trade.symbol || '');
+    const expiryEscaped = escapeHtmlContent(trade.expiryDate || '');
+
+    overlay.innerHTML = `
+        <div class="modal" id="historyModal" style="max-width: 960px; width: 92%; max-height: 85vh; overflow-y: auto;">
+            <div class="flex items-center justify-between" style="margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+                <div>
+                    <h3 style="margin: 0; font-size: 1.25rem; color: var(--text-primary);">🕒 Similar Historical Trades</h3>
+                    <span class="text-muted small">Target: <strong>${symbolEscaped}</strong> (${expiryEscaped})</span>
+                </div>
+                <button class="btn btn-secondary" onclick="document.getElementById('history-modal-overlay').remove()">✕ Close</button>
+            </div>
+            <div id="history-modal-body">
+                <div class="empty-state"><div class="spinner"></div>Loading similar historical trades...</div>
+            </div>
+        </div>
+    `;
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.remove();
+    });
+
+    document.body.appendChild(overlay);
+
+    const strategyId = cardId ? cardId.replace(/-[0-9a-fA-F-]+$/, '') : '';
+    API.post('/api/strategies/history/similar-trades', { strategyId: strategyId, trade: trade, limit: 20 })
+        .then(matches => {
+            const bodyEl = document.getElementById('history-modal-body');
+            if (!bodyEl) return;
+
+            if (!matches || !Array.isArray(matches) || matches.length === 0) {
+                bodyEl.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📜</div>No matching historical trades found in database</div>';
+                return;
+            }
+
+            bodyEl.innerHTML = buildTradeTable(matches, 'history-modal-table');
+            const symbols = [...new Set(matches.map(m => m.symbol).filter(Boolean))];
+            if (symbols.length > 0) {
+                injectTodayPerformance(symbols, bodyEl);
+            }
+        })
+        .catch(err => {
+            const bodyEl = document.getElementById('history-modal-body');
+            if (bodyEl) {
+                bodyEl.innerHTML = `<div class="empty-state text-danger">Failed to load trade history: ${escapeHtmlContent(err.message || 'Error')}</div>`;
+            }
+        });
 }
 
 if (typeof document !== 'undefined') {
@@ -1594,6 +1670,7 @@ if (typeof module !== 'undefined' && module.exports) {
         fetchAndInjectTodayPerformance,
         renderOptionDataTable,
         initTradeRowClicks,
+        showTradeHistoryModal,
         renderFilterGrid,
         renderTechFiltersGrid,
         renderFundamentalFiltersGrid,

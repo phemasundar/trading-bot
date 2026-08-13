@@ -64,6 +64,9 @@ public class StrategyExecutionServiceTest {
     @Mock
     private TechnicalIndicatorPreCalculationService technicalIndicatorPreCalculationService;
 
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     private MockedStatic<FilePaths> mockedFilePaths;
     private MockedStatic<JavaUtils> mockedJavaUtils;
 
@@ -81,7 +84,8 @@ public class StrategyExecutionServiceTest {
                 volatilityCalculator,
                 strategiesConfigLoader,
                 schwabApiExecutor,
-                technicalIndicatorPreCalculationService
+                technicalIndicatorPreCalculationService,
+                eventPublisher
         );
         when(schwabApiExecutor.executeParallel(anyList(), any(), any())).thenAnswer(inv -> {
             List<String> symbols = inv.getArgument(0);
