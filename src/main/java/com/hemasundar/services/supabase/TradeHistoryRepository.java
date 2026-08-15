@@ -11,6 +11,8 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -47,11 +49,17 @@ public class TradeHistoryRepository {
 
         try {
             ArrayNode payloadArray = mapper.createArrayNode();
+            java.util.Set<String> seenHashesInBatch = new java.util.HashSet<>();
 
             for (Trade trade : trades) {
                 if (trade == null || trade.getSymbol() == null) continue;
 
                 String hash = TradeHashUtil.generateTradeHash(strategyId, trade, executionTimeMs);
+                if (!seenHashesInBatch.add(hash)) {
+                    // Skip duplicates within the same batch to prevent PostgreSQL ON CONFLICT batch conflicts
+                    continue;
+                }
+
                 ObjectNode node = mapper.createObjectNode();
                 node.put("trade_hash", hash);
                 node.put("strategy_id", strategyId);
@@ -102,16 +110,26 @@ public class TradeHistoryRepository {
             return Collections.emptyList();
         }
 
+        List<Trade> trades = fetchHistoricalTradesFromSupabase(symbol, strategyId, limit);
+        if (trades.isEmpty() && strategyId != null && !strategyId.isBlank()) {
+            // Fallback to symbol-only query if strategyId formatting differed so similarity condition can match candidates
+            trades = fetchHistoricalTradesFromSupabase(symbol, null, limit);
+        }
+        return trades;
+    }
+
+    private List<Trade> fetchHistoricalTradesFromSupabase(String symbol, String strategyId, int limit) throws IOException {
         try {
-            StringBuilder urlBuilder = new StringBuilder(HISTORICAL_TRADES_PATH)
-                    .append("?symbol=eq.").append(symbol.toUpperCase())
-                    .append("&select=*&order=created_at.desc&limit=").append(limit > 0 ? limit : 50);
+            int fetchLimit = limit > 0 ? limit : 50;
+            StringBuilder pathBuilder = new StringBuilder(HISTORICAL_TRADES_PATH)
+                    .append("?symbol=eq.").append(java.net.URLEncoder.encode(symbol.trim().toUpperCase(), java.nio.charset.StandardCharsets.UTF_8))
+                    .append("&select=*&order=created_at.desc&limit=").append(fetchLimit);
 
             if (strategyId != null && !strategyId.isBlank()) {
-                urlBuilder.append("&strategy_id=eq.").append(strategyId);
+                pathBuilder.append("&strategy_id=eq.").append(java.net.URLEncoder.encode(strategyId.trim(), java.nio.charset.StandardCharsets.UTF_8));
             }
 
-            String url = client.getUrl(urlBuilder.toString());
+            String url = client.getUrl(pathBuilder.toString());
             Response response = client.request().get(url);
 
             int statusCode = response.getStatusCode();
@@ -128,6 +146,25 @@ public class TradeHistoryRepository {
                     JsonNode tradeDataNode = node.get("trade_data");
                     if (tradeDataNode != null && !tradeDataNode.isNull()) {
                         Trade trade = mapper.treeToValue(tradeDataNode, Trade.class);
+                        if (trade.getFoundDate() == null || trade.getFoundDate().isBlank() || "1969-12-31".equals(trade.getFoundDate()) || "1970-01-01".equals(trade.getFoundDate())) {
+                            if (node.hasNonNull("execution_time_ms") && node.get("execution_time_ms").asLong() > 86400000L) {
+                                trade.setFoundDate(Instant.ofEpochMilli(node.get("execution_time_ms").asLong())
+                                        .atZone(ZoneId.of("America/New_York")).toLocalDate().toString());
+                            } else if (node.hasNonNull("created_at")) {
+                                String ca = node.get("created_at").asText();
+                                try {
+                                    trade.setFoundDate(Instant.parse(ca)
+                                            .atZone(ZoneId.of("America/New_York")).toLocalDate().toString());
+                                } catch (Exception e) {
+                                    if (ca.length() >= 10 && !ca.startsWith("1969") && !ca.startsWith("1970") && !ca.equals("null")) {
+                                        trade.setFoundDate(ca.substring(0, 10));
+                                    }
+                                }
+                            }
+                            if ("1969-12-31".equals(trade.getFoundDate()) || "1970-01-01".equals(trade.getFoundDate())) {
+                                trade.setFoundDate(null);
+                            }
+                        }
                         trades.add(trade);
                     }
                 }

@@ -83,4 +83,28 @@ public class TradeSimilarityConditionTest {
         Trade nullLegs2 = Trade.builder().symbol("AAPL").legs(List.of(nullActionLeg)).build();
         assertTrue(similarityCondition.isSimilar(nullLegs1, nullLegs2));
     }
+
+    @Test
+    public void testIsSimilarDifferentStrikesStillSimilar() {
+        TradeLegDTO morningSell = TradeLegDTO.builder().action("SELL").optionType("PUT").quantity(1).strike(150.0).build();
+        TradeLegDTO morningBuy = TradeLegDTO.builder().action("BUY").optionType("PUT").quantity(1).strike(145.0).build();
+        Trade trade150 = Trade.builder().symbol("AAPL").expiryDate("2026-09-18").legs(List.of(morningSell, morningBuy)).build();
+
+        TradeLegDTO afternoonSell = TradeLegDTO.builder().action("SELL").optionType("PUT").quantity(1).strike(175.0).build();
+        TradeLegDTO afternoonBuy = TradeLegDTO.builder().action("BUY").optionType("PUT").quantity(1).strike(170.0).build();
+        Trade trade175 = Trade.builder().symbol("AAPL").expiryDate("2026-09-18").legs(List.of(afternoonSell, afternoonBuy)).build();
+
+        // History lookup matches all historical trades with same symbol, same expiry date, and same structural legs regardless of strike prices
+        assertTrue(similarityCondition.isSimilar(trade150, trade175));
+    }
+
+    @Test
+    public void testIsSimilarExpiryMismatch() {
+        TradeLegDTO sellPut = TradeLegDTO.builder().action("SELL").optionType("PUT").quantity(1).strike(150.0).build();
+        TradeLegDTO buyPut = TradeLegDTO.builder().action("BUY").optionType("PUT").quantity(1).strike(145.0).build();
+        Trade tradeSept = Trade.builder().symbol("AAPL").expiryDate("2026-09-18").legs(List.of(sellPut, buyPut)).build();
+        Trade tradeOct = Trade.builder().symbol("AAPL").expiryDate("2026-10-16").legs(List.of(sellPut, buyPut)).build();
+
+        assertFalse(similarityCondition.isSimilar(tradeSept, tradeOct));
+    }
 }

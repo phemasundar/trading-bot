@@ -93,4 +93,15 @@ public class ScheduledJobRunnerTest {
         // Should catch exception and exit with 1
         verify(scheduledJobRunner).exit(1);
     }
+
+    @Test
+    public void testRun_Screener_ExceptionHandling() throws Exception {
+        when(jobConfig.getName()).thenReturn("SCREENER");
+        doThrow(new IllegalStateException("Alert error")).when(screenerJobService).runScheduledScreeners();
+
+        scheduledJobRunner.run();
+
+        // Should catch exception and exit with 1
+        verify(scheduledJobRunner).exit(1);
+    }
 }

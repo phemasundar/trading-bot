@@ -21,12 +21,15 @@ public class TradeHistoryEventListenerTest {
     @Mock
     private TradeHistoryRepository tradeHistoryRepository;
 
+    @Mock
+    private com.hemasundar.services.StrategyExecutionService strategyExecutionService;
+
     private TradeHistoryEventListener listener;
 
     @BeforeMethod
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        listener = new TradeHistoryEventListener(tradeHistoryRepository);
+        listener = new TradeHistoryEventListener(tradeHistoryRepository, strategyExecutionService);
         ReflectionTestUtils.setField(listener, "historyEnabled", true);
     }
 
@@ -83,6 +86,7 @@ public class TradeHistoryEventListenerTest {
         Trade trade = Trade.builder().symbol("AAPL").build();
         StrategyResult result = StrategyResult.builder()
                 .strategyId("put_credit_spread")
+                .strategyName("Put Credit Spread")
                 .executionTimeMs(100L)
                 .trades(List.of(trade))
                 .build();
@@ -90,5 +94,11 @@ public class TradeHistoryEventListenerTest {
         StrategyExecutionCompletedEvent event = new StrategyExecutionCompletedEvent(result, false);
 
         listener.handleStrategyExecutionCompleted(event);
+
+        verify(strategyExecutionService, times(1)).addAlert(
+                eq(com.hemasundar.dto.ExecutionAlert.Severity.ERROR),
+                eq(com.hemasundar.dto.AlertMessages.SRC_SUPABASE),
+                contains("Save historical trades failed")
+        );
     }
 }

@@ -77,4 +77,21 @@ public class TradeHistoryServiceTest {
         assertNotNull(matches);
         assertTrue(matches.isEmpty());
     }
+
+    @Test
+    public void testFindSimilarTradesDeduplication() throws Exception {
+        Trade target = Trade.builder().symbol("AAPL").expiryDate("2026-09-18").build();
+        Trade dup1 = Trade.builder().symbol("AAPL").expiryDate("2026-09-18").foundDate("2026-08-14").build();
+        Trade dup2 = Trade.builder().symbol("AAPL").expiryDate("2026-09-18").foundDate("2026-08-14").build();
+        Trade diffDate = Trade.builder().symbol("AAPL").expiryDate("2026-09-18").foundDate("2026-08-13").build();
+
+        when(tradeHistoryRepository.findHistoricalTradesBySymbolAndStrategy(eq("AAPL"), eq("strat1"), anyInt()))
+                .thenReturn(List.of(dup1, dup2, diffDate));
+
+        when(similarityCondition.isSimilar(eq(target), any())).thenReturn(true);
+
+        List<Trade> matches = service.findSimilarTrades("strat1", target, 10);
+        assertNotNull(matches);
+        assertEquals(matches.size(), 2); // dup2 is deduplicated because dup1 was already on 2026-08-14
+    }
 }

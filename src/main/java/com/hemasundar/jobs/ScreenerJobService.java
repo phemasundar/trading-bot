@@ -46,5 +46,18 @@ public class ScreenerJobService {
         } else {
             log.info("No Technical Screeners enabled.");
         }
+
+        // 3. Check for any ERROR severity alerts recorded during execution
+        List<com.hemasundar.dto.ExecutionAlert> errorAlerts = strategyExecutionService.getAlerts().stream()
+                .filter(a -> a.getSeverity() == com.hemasundar.dto.ExecutionAlert.Severity.ERROR)
+                .toList();
+        if (!errorAlerts.isEmpty()) {
+            String errorSummary = errorAlerts.stream()
+                    .map(a -> String.format("[%s] %s", a.getSource(), a.getMessage()))
+                    .collect(Collectors.joining("; "));
+            log.error("Scheduled screener job completed with {} error alert(s): {}", errorAlerts.size(), errorSummary);
+            throw new IllegalStateException(String.format("Scheduled job failed with %d error alert(s): %s",
+                    errorAlerts.size(), errorSummary));
+        }
     }
 }

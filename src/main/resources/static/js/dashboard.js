@@ -3,9 +3,10 @@
  * Dashboard initialization, results loading, card/table builders, sorting, live quote performance, and filter bar.
  */
 
-// ── Global State for Sorting ──
+// ── Global State for Sorting & Strategy Mapping ──
 window.tableSortState = window.tableSortState || {};
 window.tradeDataMap = window.tradeDataMap || {};
+window.tradeStrategyIdMap = window.tradeStrategyIdMap || {};
 
 // ── Card Builder ──
 
@@ -15,6 +16,8 @@ function buildResultCard(result, badgeText = 'Standard') {
     card.className = hasTrades ? 'card' : 'card disabled';
 
     const cardId = String(result.strategyId || result.screenerId || 'card-' + Math.random()).replace(/\s+/g, '-');
+    const actualStrategyId = result.strategyId || result.strategyName || '';
+    window.tradeStrategyIdMap[cardId] = actualStrategyId;
     const arrow = `<span class="card-arrow" id="arrow-${cardId}">▶</span>`;
     const filterId = `filters-${cardId}`;
 
@@ -73,7 +76,7 @@ function buildResultCard(result, badgeText = 'Standard') {
 
         ${filterDetailsHtml}
         <div class="card-content" id="content-${cardId}">
-            ${buildTradeTable(result.trades || [], cardId)}
+            ${buildTradeTable(result.trades || [], cardId, actualStrategyId)}
         </div>`;
 
     window.tradeDataMap[cardId] = result.trades || [];
@@ -492,7 +495,7 @@ function buildDropScreenerTable(results, cardId = null) {
     return html;
 }
 
-function buildTradeTable(trades, cardId = null) {
+function buildTradeTable(trades, cardId = null, strategyId = null, isHistoryModal = false) {
     if (!trades || trades.length === 0) {
         return '<div class="empty-state"><div class="empty-state-icon">📊</div>No trades found</div>';
     }
@@ -509,6 +512,7 @@ function buildTradeTable(trades, cardId = null) {
 
     let html = `<table class="data-table">
         <thead><tr>
+            ${isHistoryModal ? '<th>Date Found</th>' : ''}
             ${th('ticker', 'Ticker')}
             <th>Company</th>
             <th>Price</th>
@@ -520,7 +524,7 @@ function buildTradeTable(trades, cardId = null) {
             ${th('extrinsic', 'Extrinsic')}
             ${th('breakeven', 'Breakeven')}
             ${th('ror', 'ROR%')}
-            <th>History</th>
+            ${!isHistoryModal ? '<th>History</th>' : ''}
         </tr></thead><tbody>`;
 
     for (const t of trades) {
@@ -549,7 +553,15 @@ function buildTradeTable(trades, cardId = null) {
             rorCagrDisplay = ` <span class="text-muted">(${rorCagr.toFixed(1)}% CAGR)</span>`;
         }
 
+        const effectiveStrategyId = strategyId || (cardId && window.tradeStrategyIdMap ? window.tradeStrategyIdMap[cardId] : '') || cardId || '';
+        const foundDateDisplay = (t.foundDate && t.foundDate !== '1969-12-31' && t.foundDate !== '1970-01-01' && t.foundDate !== 'null')
+            ? t.foundDate
+            : (t.executionTimeMs && Number(t.executionTimeMs) > 86400000
+                ? new Date(Number(t.executionTimeMs)).toISOString().slice(0, 10)
+                : '--');
+
         html += `<tr class="trade-row" data-details="${detailsEscaped}" data-tech-indicators="${techIndicatorsAttr}" data-legs-option-data="${legsAttr}" data-symbol="${escapeAttr(sym)}">
+            ${isHistoryModal ? `<td><span class="text-muted text-mono">${escapeHtmlContent(foundDateDisplay)}</span></td>` : ''}
             <td><strong>${sym}</strong></td>
             <td><span class="text-muted" title="${t.companyName || ''}">${formatCompanyName(t.companyName)}</span></td>
             <td class="text-mono">$${(t.underlyingPrice || 0).toFixed(2)}</td>
@@ -561,9 +573,9 @@ function buildTradeTable(trades, cardId = null) {
             <td>$${(t.netExtrinsicValue || 0).toFixed(2)} <span class="text-muted">(${(t.anulizedNetExtrinsicValueToCapitalPercentage || 0).toFixed(1)}%)</span></td>
             <td>${formatBreakeven(t)}</td>
             <td class="${rorClass}">${(t.returnOnRisk || 0).toFixed(1)}%${rorCagrDisplay}</td>
-            <td onclick="event.stopPropagation(); showTradeHistoryModal('${escapeAttr(cardId || '')}', this.dataset.trade, event)" data-trade="${tradeEscaped}">
+            ${!isHistoryModal ? `<td onclick="event.stopPropagation(); showTradeHistoryModal('${escapeAttr(effectiveStrategyId)}', this.dataset.trade, event)" data-trade="${tradeEscaped}">
                 <button class="btn-history-icon" title="View Similar Historical Trades" style="background:none;border:none;cursor:pointer;font-size:1.1rem;padding:2px 6px;">🕒</button>
-            </td>
+            </td>` : ''}
         </tr>`;
     }
 
@@ -589,7 +601,7 @@ function handleTableSort(cardId, column) {
     let data = [...originalData];
     const state = window.tableSortState[cardId];
 
-    if (state.column && state.direction) {
+    if (state && state.column && state.direction) {
         const dirMultiplier = state.direction === 'asc' ? 1 : -1;
 
         data.sort((a, b) => {
@@ -695,7 +707,8 @@ function handleTableSort(cardId, column) {
         } else if (tableType === 'screener') {
             contentDiv.innerHTML = buildScreenerTable(data, cardId);
         } else {
-            contentDiv.innerHTML = buildTradeTable(data, cardId);
+            const actualStrategyId = window.tradeStrategyIdMap ? window.tradeStrategyIdMap[cardId] : null;
+            contentDiv.innerHTML = buildTradeTable(data, cardId, actualStrategyId);
             const symbols = [...new Set(data.map(t => t.symbol).filter(Boolean))];
             if (symbols.length > 0) {
                 injectTodayPerformance(symbols, contentDiv);
@@ -965,7 +978,7 @@ function showTradeHistoryModal(cardId, tradeRaw, event) {
                 return;
             }
 
-            bodyEl.innerHTML = buildTradeTable(matches, 'history-modal-table');
+            bodyEl.innerHTML = buildTradeTable(matches, 'history-modal-table', null, true);
             const symbols = [...new Set(matches.map(m => m.symbol).filter(Boolean))];
             if (symbols.length > 0) {
                 injectTodayPerformance(symbols, bodyEl);

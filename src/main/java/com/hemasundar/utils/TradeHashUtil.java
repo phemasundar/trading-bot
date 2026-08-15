@@ -9,9 +9,11 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import java.util.Locale;
+
 /**
  * Utility for generating deterministic SHA-256 trade hashes for historical trade deduplication per day.
- * Uses structural similarity criteria (matching Strategy, Ticker, Expiry, Leg Actions, Option Types, and Quantities).
+ * Uses leg action, optionType, strike, and quantity (along with Strategy, Ticker, Expiry, and Date).
  */
 public class TradeHashUtil {
 
@@ -22,12 +24,12 @@ public class TradeHashUtil {
     }
 
     /**
-     * Generates a deterministic SHA-256 hex string for a trade opportunity based on structural similarity per day.
+     * Generates a deterministic SHA-256 hex string for a trade opportunity based on trade setup details per day.
      *
      * @param strategyId      Strategy ID
      * @param trade           Trade DTO
      * @param executionTimeMs Execution timestamp in milliseconds
-     * @return SHA-256 hash string unique per structural trade setup per calendar day
+     * @return SHA-256 hash string unique per trade setup per calendar day
      */
     public static String generateTradeHash(String strategyId, Trade trade, long executionTimeMs) {
         long time = executionTimeMs > 0 ? executionTimeMs : System.currentTimeMillis();
@@ -37,8 +39,7 @@ public class TradeHashUtil {
 
     /**
      * Generates a deterministic SHA-256 hex string for a trade opportunity given a specific date string (YYYY-MM-DD).
-     * Hashes on structural trade characteristics (Strategy ID, Symbol, Expiry, Leg Actions/Types/Quantities, and Date)
-     * matching the similarity condition logic.
+     * Hashes on trade characteristics (Strategy ID, Symbol, Expiry, Leg Action/OptionType/Strike/Quantity, and Date).
      *
      * @param strategyId Strategy ID
      * @param trade      Trade DTO
@@ -67,9 +68,10 @@ public class TradeHashUtil {
 
     private static String formatLegStructural(TradeLegDTO leg) {
         if (leg == null) return "";
-        return String.format("%s_%s_%d",
+        return String.format(Locale.US, "%s_%s_%.2f_%d",
                 leg.getAction() != null ? leg.getAction().toUpperCase() : "",
                 leg.getOptionType() != null ? leg.getOptionType().toUpperCase() : "",
+                leg.getStrike(),
                 leg.getQuantity());
     }
 }

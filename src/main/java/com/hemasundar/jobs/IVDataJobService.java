@@ -57,7 +57,7 @@ public class IVDataJobService {
             log.info("✓ Supabase service via Spring Bean active");
         } else {
             log.error("✗ Supabase bean not available");
-            return;
+            throw new IllegalStateException("Supabase bean not available for IV data collection");
         }
 
         allSecurities = loadAllSecurities();
@@ -65,6 +65,12 @@ public class IVDataJobService {
 
         executeCollection();
         sendTelegramSummary();
+
+        if (failCount > 0) {
+            log.error("IV Data Collection finished with {} failed symbol(s): {}", failCount, failedSymbols);
+            throw new IllegalStateException(String.format("IV Data Collection failed for %d symbol(s): %s",
+                    failCount, failedSymbols));
+        }
     }
 
     private void executeCollection() {
