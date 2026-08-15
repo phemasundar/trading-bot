@@ -52,8 +52,14 @@ public class TradeHistoryService {
                     targetTrade.getSymbol(), strategyId, fetchLimit);
 
             int maxResults = limit > 0 ? limit : 20;
+            java.util.Set<String> seenTradeKeys = new java.util.HashSet<>();
             return candidates.stream()
                     .filter(candidate -> similarityCondition.isSimilar(targetTrade, candidate))
+                    .filter(candidate -> {
+                        String date = candidate.getFoundDate() != null ? candidate.getFoundDate() : "";
+                        String key = date + ":" + com.hemasundar.utils.TradeHashUtil.generateTradeHash("", candidate, date);
+                        return seenTradeKeys.add(key);
+                    })
                     .limit(maxResults)
                     .collect(Collectors.toList());
         } catch (Exception e) {

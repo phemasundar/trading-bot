@@ -341,8 +341,8 @@ describe('Dashboard & Table Rendering Tests', () => {
         expect(document.getElementById('history-modal-body').innerHTML).toContain('No matching historical trades found');
     });
 
-    test('showTradeHistoryModal renders similar trade results table on API response', async () => {
-        const mockMatches = [{ symbol: 'AAPL', returnOnRisk: 14.2, maxLoss: 120, expiryDate: '2026-08-21', dte: 10 }];
+    test('showTradeHistoryModal renders similar trade results table with Date Found and without History button on API response', async () => {
+        const mockMatches = [{ symbol: 'AAPL', returnOnRisk: 14.2, maxLoss: 120, expiryDate: '2026-08-21', dte: 10, foundDate: '2026-08-14' }];
         API.post = jest.fn().mockResolvedValueOnce(mockMatches);
         const tradeStr = JSON.stringify({ symbol: 'AAPL', expiryDate: '2026-09-18' });
 
@@ -351,7 +351,9 @@ describe('Dashboard & Table Rendering Tests', () => {
 
         const body = document.getElementById('history-modal-body');
         expect(body.innerHTML).toContain('AAPL');
-        expect(body.innerHTML).toContain('History');
+        expect(body.innerHTML).toContain('Date Found');
+        expect(body.innerHTML).toContain('2026-08-14');
+        expect(body.innerHTML).not.toContain('btn-history-icon');
     });
 
     test('showTradeHistoryModal handles API error and overlay close click', async () => {

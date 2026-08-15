@@ -275,8 +275,8 @@ public class StrategyExecutionService {
                 supabaseService.saveExecutionResult(executionResult);
                 log.info("Saved execution result to Supabase: {}", executionId);
             } catch (IOException e) {
-                addAlert(ExecutionAlert.Severity.WARNING, AlertMessages.SRC_SUPABASE,
-                        AlertMessages.SAVE_EXEC_RESULT_FAILED);
+                addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE,
+                        AlertMessages.SAVE_EXEC_RESULT_FAILED + " (" + e.getMessage() + ")");
             }
 
             // Print cache statistics
@@ -464,17 +464,19 @@ public class StrategyExecutionService {
                 supabaseService.saveStrategyResult(result);
                 log.info("[{}] Saved strategy result to database", config.getName());
             } catch (IOException e) {
-                addAlert(ExecutionAlert.Severity.WARNING, AlertMessages.SRC_SUPABASE,
-                        AlertMessages.SAVE_STRATEGY_RESULT_FAILED);
+                addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE,
+                        AlertMessages.SAVE_STRATEGY_RESULT_FAILED + " (" + e.getMessage() + ")");
             }
         }
 
-        // Publish event for asynchronous historical trade persistence
+        // Publish event for historical trade persistence
         if (result != null && result.getTradesFound() > 0) {
             try {
                 eventPublisher.publishEvent(new com.hemasundar.events.StrategyExecutionCompletedEvent(result, isCustomExecution));
             } catch (Exception e) {
-                log.warn("[{}] Failed to publish strategy execution completed event: {}", config.getName(), e.getMessage());
+                log.error("[{}] Failed to publish strategy execution completed event: {}", config.getName(), e.getMessage());
+                addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE,
+                        AlertMessages.SAVE_HISTORICAL_TRADES_FAILED + ": " + config.getName() + " (" + e.getMessage() + ")");
             }
         }
 

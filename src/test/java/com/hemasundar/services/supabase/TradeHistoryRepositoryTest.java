@@ -70,6 +70,20 @@ public class TradeHistoryRepositoryTest {
         verify(requestSpecification, times(1)).post("http://localhost/rest/v1/historical_trades");
     }
 
+    @Test
+    public void testSaveHistoricalTradesDeduplicatesWithinSameBatch() throws Exception {
+        when(supabaseClient.getUrl(anyString())).thenReturn("http://localhost/rest/v1/historical_trades");
+        when(requestSpecification.post(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(201);
+
+        Trade trade1 = Trade.builder().symbol("AAPL").expiryDate("2026-09-18").build();
+        Trade trade2 = Trade.builder().symbol("AAPL").expiryDate("2026-09-18").build(); // Duplicate
+
+        repository.saveHistoricalTrades(List.of(trade1, trade2), "put_credit_spread", "Put Credit Spread", 100L);
+
+        verify(requestSpecification, times(1)).post("http://localhost/rest/v1/historical_trades");
+    }
+
     @Test(expectedExceptions = IOException.class)
     public void testSaveHistoricalTradesHttpError() throws Exception {
         when(supabaseClient.getUrl(anyString())).thenReturn("http://localhost/rest/v1/historical_trades");
@@ -97,7 +111,7 @@ public class TradeHistoryRepositoryTest {
         when(requestSpecification.get(anyString())).thenReturn(response);
         when(response.getStatusCode()).thenReturn(200);
 
-        String jsonResponse = "[{\"trade_data\": {\"symbol\": \"AAPL\", \"underlyingPrice\": 150.0}}]";
+        String jsonResponse = "[{\"execution_time_ms\": 1723651200000, \"trade_data\": {\"symbol\": \"AAPL\", \"underlyingPrice\": 150.0}}]";
         when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
         when(response.getBody().asString()).thenReturn(jsonResponse);
 
@@ -105,6 +119,7 @@ public class TradeHistoryRepositoryTest {
         assertNotNull(trades);
         assertEquals(trades.size(), 1);
         assertEquals(trades.get(0).getSymbol(), "AAPL");
+        assertNotNull(trades.get(0).getFoundDate());
     }
 
     @Test

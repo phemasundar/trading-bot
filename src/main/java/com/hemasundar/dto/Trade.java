@@ -43,6 +43,11 @@ public class Trade {
     private String expiryDate;
 
     /**
+     * Date when this trade was found/recorded (YYYY-MM-DD)
+     */
+    private String foundDate;
+
+    /**
      * Days to expiration
      */
     private int dte;

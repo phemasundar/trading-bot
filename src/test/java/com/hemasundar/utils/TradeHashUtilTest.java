@@ -13,17 +13,17 @@ import static org.testng.Assert.*;
 public class TradeHashUtilTest {
 
     @Test
-    public void testGenerateTradeHashSimilarTradesSameDayDeduplication() {
-        TradeLegDTO leg1Morning = TradeLegDTO.builder().action("SELL").optionType("PUT").quantity(1).strike(150.0).build();
-        TradeLegDTO leg2Morning = TradeLegDTO.builder().action("BUY").optionType("PUT").quantity(1).strike(145.0).build();
+    public void testGenerateTradeHashDifferentLegStrikesProduceDifferentHashes() {
+        TradeLegDTO leg1Morning = TradeLegDTO.builder().action("SELL").optionType("PUT").quantity(1).strike(150.0).delta(-0.25).premium(3.50).build();
+        TradeLegDTO leg2Morning = TradeLegDTO.builder().action("BUY").optionType("PUT").quantity(1).strike(145.0).delta(-0.15).premium(1.50).build();
         Trade morningTrade = Trade.builder()
                 .symbol("AAPL")
                 .expiryDate("2026-09-18")
                 .legs(List.of(leg1Morning, leg2Morning))
                 .build();
 
-        TradeLegDTO leg1Afternoon = TradeLegDTO.builder().action("SELL").optionType("PUT").quantity(1).strike(152.5).build();
-        TradeLegDTO leg2Afternoon = TradeLegDTO.builder().action("BUY").optionType("PUT").quantity(1).strike(147.5).build();
+        TradeLegDTO leg1Afternoon = TradeLegDTO.builder().action("SELL").optionType("PUT").quantity(1).strike(152.5).delta(-0.30).premium(4.20).build();
+        TradeLegDTO leg2Afternoon = TradeLegDTO.builder().action("BUY").optionType("PUT").quantity(1).strike(147.5).delta(-0.20).premium(2.10).build();
         Trade afternoonTrade = Trade.builder()
                 .symbol("AAPL")
                 .expiryDate("2026-09-18")
@@ -37,8 +37,15 @@ public class TradeHashUtilTest {
         String hashAfternoon = TradeHashUtil.generateTradeHash("put_credit_spread", afternoonTrade, afternoonTime);
 
         assertNotNull(hashMorning);
+        assertNotNull(hashAfternoon);
         assertEquals(hashMorning.length(), 64);
-        assertEquals(hashMorning, hashAfternoon);
+        assertEquals(hashAfternoon.length(), 64);
+        // Different strikes/deltas/premiums produce distinct hashes so both trades are saved
+        assertNotEquals(hashMorning, hashAfternoon);
+
+        // Identical trade setup on the same day produces the exact same hash
+        String duplicateHash = TradeHashUtil.generateTradeHash("put_credit_spread", morningTrade, morningTime);
+        assertEquals(hashMorning, duplicateHash);
     }
 
     @Test

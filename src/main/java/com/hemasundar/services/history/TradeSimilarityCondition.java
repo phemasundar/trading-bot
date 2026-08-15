@@ -29,10 +29,15 @@ public class TradeSimilarityCondition {
             return false;
         }
 
+        // 2. Expiry date equality check
+        if (!equalsIgnoreNull(target.getExpiryDate(), candidate.getExpiryDate())) {
+            return false;
+        }
+
         List<TradeLegDTO> targetLegs = target.getLegs();
         List<TradeLegDTO> candidateLegs = candidate.getLegs();
 
-        // 2. Leg count check
+        // 3. Leg count check
         if (targetLegs == null || candidateLegs == null || targetLegs.size() != candidateLegs.size()) {
             return false;
         }

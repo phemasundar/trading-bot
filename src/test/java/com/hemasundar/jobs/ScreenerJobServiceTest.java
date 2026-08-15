@@ -65,4 +65,20 @@ public class ScreenerJobServiceTest {
         // Should throw exception out
         screenerJobService.runScheduledScreeners();
     }
+
+    @Test(expectedExceptions = IllegalStateException.class)
+    public void testRunScheduledScreeners_ThrowsWhenErrorAlertPresent() throws Exception {
+        OptionsConfig strategy = OptionsConfig.builder().build();
+        when(strategyExecutionService.getEnabledStrategies()).thenReturn(List.of(strategy));
+        when(screenerExecutionService.getEnabledScreeners()).thenReturn(Collections.emptyList());
+
+        com.hemasundar.dto.ExecutionAlert errorAlert = com.hemasundar.dto.ExecutionAlert.builder()
+                .severity(com.hemasundar.dto.ExecutionAlert.Severity.ERROR)
+                .source("Supabase")
+                .message("Save historical trades failed")
+                .build();
+        when(strategyExecutionService.getAlerts()).thenReturn(List.of(errorAlert));
+
+        screenerJobService.runScheduledScreeners();
+    }
 }
