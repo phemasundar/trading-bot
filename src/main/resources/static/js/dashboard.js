@@ -56,7 +56,6 @@ function buildResultCard(result, badgeText = 'Standard') {
         try {
             const cfg = typeof result.filterConfig === 'string' ? JSON.parse(result.filterConfig) : result.filterConfig;
             if (cfg && cfg.termType) displayName += ` - ${cfg.termType}`;
-            if (cfg && cfg.securitiesFile) displayName += ` - ${cfg.securitiesFile}`;
         } catch (e) { /* ignore parse errors */ }
     }
 
@@ -107,6 +106,112 @@ function buildResultCard(result, badgeText = 'Standard') {
     return card;
 }
 
+function updateToggleAllTermsButtonState(container) {
+    const btn = document.getElementById('toggle-all-terms-btn');
+    const bar = document.getElementById('term-actions-bar');
+    if (!btn) return;
+
+    const targetContainer = container || document.getElementById('results-container') || document;
+    const termBodies = targetContainer.querySelectorAll('.term-group-body');
+
+    if (termBodies.length === 0) {
+        btn.style.display = 'none';
+        if (bar) bar.style.display = 'none';
+        return;
+    }
+
+    btn.style.display = 'inline-flex';
+    if (bar) bar.style.display = 'flex';
+
+    const allExpanded = Array.from(termBodies).every(body => !body.classList.contains('hidden'));
+    const arrowEl = document.getElementById('arrow-toggle-all-terms');
+    const textEl = document.getElementById('text-toggle-all-terms');
+
+    if (allExpanded) {
+        if (arrowEl) arrowEl.classList.add('open');
+        if (textEl) textEl.textContent = 'Collapse All';
+    } else {
+        if (arrowEl) arrowEl.classList.remove('open');
+        if (textEl) textEl.textContent = 'Expand All';
+    }
+}
+
+function toggleAllTermGroups(forceExpand, container) {
+    const targetContainer = container || document.getElementById('results-container') || document;
+    const termBodies = targetContainer.querySelectorAll('.term-group-body');
+    if (termBodies.length === 0) return;
+
+    let shouldExpand;
+    if (typeof forceExpand === 'boolean') {
+        shouldExpand = forceExpand;
+    } else {
+        const allExpanded = Array.from(termBodies).every(body => !body.classList.contains('hidden'));
+        shouldExpand = !allExpanded;
+    }
+
+    termBodies.forEach(body => {
+        body.classList.toggle('hidden', !shouldExpand);
+        const arrowEl = document.getElementById(`arrow-${body.id}`) || (body.parentElement ? body.parentElement.querySelector('.card-arrow') : null);
+        if (arrowEl) {
+            arrowEl.classList.toggle('open', shouldExpand);
+        }
+    });
+
+    updateToggleAllTermsButtonState(targetContainer);
+}
+
+function computeTermDteRange(termResults) {
+    if (!termResults || !termResults.length) return '';
+    let globalMin = Infinity;
+    let globalMax = -Infinity;
+    let hasUnboundedMax = false;
+    let hasDte = false;
+
+    for (const r of termResults) {
+        if (!r || !r.filterConfig) continue;
+        try {
+            const cfg = typeof r.filterConfig === 'string' ? JSON.parse(r.filterConfig) : r.filterConfig;
+            if (!cfg) continue;
+
+            const minDTE = (cfg.minDTE !== undefined && cfg.minDTE !== null && cfg.minDTE !== '') ? Number(cfg.minDTE) : null;
+            const maxDTE = (cfg.maxDTE !== undefined && cfg.maxDTE !== null && cfg.maxDTE !== '') ? Number(cfg.maxDTE) : null;
+            const targetDTE = (cfg.targetDTE !== undefined && cfg.targetDTE !== null && cfg.targetDTE !== '') ? Number(cfg.targetDTE) : null;
+
+            if (minDTE !== null && !isNaN(minDTE)) {
+                globalMin = Math.min(globalMin, minDTE);
+                hasDte = true;
+                if (maxDTE !== null && !isNaN(maxDTE)) {
+                    globalMax = Math.max(globalMax, maxDTE);
+                } else {
+                    hasUnboundedMax = true;
+                }
+            } else if (targetDTE !== null && !isNaN(targetDTE) && targetDTE > 0) {
+                globalMin = Math.min(globalMin, targetDTE);
+                globalMax = Math.max(globalMax, targetDTE);
+                hasDte = true;
+            } else if (maxDTE !== null && !isNaN(maxDTE)) {
+                globalMin = Math.min(globalMin, 0);
+                globalMax = Math.max(globalMax, maxDTE);
+                hasDte = true;
+            }
+        } catch (_) { /* ignore */ }
+    }
+
+    if (!hasDte) return '';
+
+    if (hasUnboundedMax && globalMax === -Infinity) {
+        return `${globalMin}+`;
+    }
+    if (globalMin !== Infinity && globalMax !== -Infinity) {
+        if (globalMin === globalMax) return `${globalMin}`;
+        return hasUnboundedMax ? `${globalMin} - ${globalMax}+` : `${globalMin} - ${globalMax}`;
+    }
+    if (hasUnboundedMax && globalMin !== Infinity) {
+        return `${globalMin}+`;
+    }
+    return '';
+}
+
 function renderTermGroups(container, results, badgeText = 'Standard') {
     const groups = new Map();
 
@@ -144,6 +249,8 @@ function renderTermGroups(container, results, badgeText = 'Standard') {
     for (const term of orderedKeys) {
         const termResults = groups.get(term);
         const groupId = 'term-group-' + term.replace(/\s+/g, '-').toLowerCase();
+        const dteRange = computeTermDteRange(termResults);
+        const dteHtml = dteRange ? `<span class="term-group-dte">| ${dteRange}</span>` : '';
 
         const groupEl = document.createElement('div');
         groupEl.className = 'term-group';
@@ -153,6 +260,7 @@ function renderTermGroups(container, results, badgeText = 'Standard') {
         header.innerHTML = `
             <span class="card-arrow" id="arrow-${groupId}">▶</span>
             <span class="term-group-label">${term}</span>
+            ${dteHtml}
             <span class="term-group-count">(${termResults.length})</span>`;
 
         const body = document.createElement('div');
@@ -165,14 +273,17 @@ function renderTermGroups(container, results, badgeText = 'Standard') {
 
         header.addEventListener('click', () => {
             body.classList.toggle('hidden');
-            const arrowEl = document.getElementById(`arrow-${groupId}`);
+            const arrowEl = header.querySelector('.card-arrow') || document.getElementById(`arrow-${groupId}`);
             if (arrowEl) arrowEl.classList.toggle('open');
+            updateToggleAllTermsButtonState(container);
         });
 
         groupEl.appendChild(header);
         groupEl.appendChild(body);
         container.appendChild(groupEl);
     }
+
+    updateToggleAllTermsButtonState(container);
 }
 
 // ── Delete Custom Result ──
@@ -1019,7 +1130,7 @@ function renderFilterGrid(cfg) {
     let html = '';
     let rootHtml = '';
     const nested = [];
-    const SKIP_KEYS = new Set(['greeks', 'strategyType', 'securitiesFile', 'securities', 'strategyId']);
+    const SKIP_KEYS = new Set(['greeks', 'strategyType', 'strategyId']);
 
     for (const [key, val] of entries) {
         if (SKIP_KEYS.has(key)) continue;
@@ -1131,7 +1242,7 @@ async function loadOptionsStrategies() {
         try {
             const strategies = await API.get('/api/strategies');
             strategyContainer.innerHTML = strategies.map(s => {
-                const parts = [s.name, s.termType, s.securitiesFile].filter(Boolean);
+                const parts = [s.name, s.termType].filter(Boolean);
                 const displayName = parts.join(' - ');
                 return `
                 <div class="flex items-center gap-sm" style="margin-bottom: 8px;">
@@ -1158,7 +1269,7 @@ async function loadStrategies() {
         try {
             const strategies = await API.get('/api/strategies');
             strategyContainer.innerHTML = strategies.map(s => {
-                const parts = [s.name, s.termType, s.securitiesFile].filter(Boolean);
+                const parts = [s.name, s.termType].filter(Boolean);
                 const displayName = parts.join(' - ');
                 return `
                 <div class="flex items-center gap-sm" style="margin-bottom: 8px;">
@@ -1211,6 +1322,7 @@ async function loadOptionsResults() {
         if (!optionResults || optionResults.length === 0) {
             optionsContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div>No option strategy results yet. Execute a strategy to see results.</div>';
             hideDashboardFilterBar('options');
+            updateToggleAllTermsButtonState(optionsContainer);
         } else {
             renderTermGroups(optionsContainer, optionResults);
             fetchAndInjectTodayPerformance(optionsContainer);
@@ -1219,6 +1331,7 @@ async function loadOptionsResults() {
     } catch (e) {
         optionsContainer.innerHTML = `<div class="empty-state text-danger">Failed to load results: ${e.message}</div>`;
         hideDashboardFilterBar('options');
+        updateToggleAllTermsButtonState(optionsContainer);
         if (typeof checkExecutionStatus === 'function') {
             checkExecutionStatus();
         }
@@ -1241,6 +1354,7 @@ async function loadResults() {
             optionsContainer.innerHTML = '';
             if (!optionResults || optionResults.length === 0) {
                 optionsContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div>No option strategy results yet. Execute a strategy to see results.</div>';
+                updateToggleAllTermsButtonState(optionsContainer);
             } else {
                 renderTermGroups(optionsContainer, optionResults);
                 fetchAndInjectTodayPerformance(optionsContainer);
@@ -1258,7 +1372,10 @@ async function loadResults() {
             }
         }
     } catch (e) {
-        if (optionsContainer) optionsContainer.innerHTML = `<div class="empty-state text-danger">Failed to load results: ${e.message}</div>`;
+        if (optionsContainer) {
+            optionsContainer.innerHTML = `<div class="empty-state text-danger">Failed to load results: ${e.message}</div>`;
+            updateToggleAllTermsButtonState(optionsContainer);
+        }
         if (screenerContainer) screenerContainer.innerHTML = '';
         if (typeof checkExecutionStatus === 'function') {
             checkExecutionStatus();
@@ -1605,6 +1722,7 @@ function applyDashboardFilter(prefix) {
                 if (arrowEl) arrowEl.classList.remove('open');
             }
         });
+        updateToggleAllTermsButtonState(container);
     }
 
     if (clearBtn) clearBtn.style.display = '';
@@ -1658,6 +1776,7 @@ function clearDashboardFilter(prefix) {
 
         container.querySelectorAll('.trade-detail-panel').forEach(p => p.remove());
         container.querySelectorAll('.trade-row.selected').forEach(r => r.classList.remove('selected'));
+        updateToggleAllTermsButtonState(container);
     }
 }
 
@@ -1670,6 +1789,7 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         buildResultCard,
         renderTermGroups,
+        computeTermDteRange,
         confirmDeleteCustomResult,
         deleteCustomResult,
         promptDeleteCustomScreenerResult,
@@ -1704,6 +1824,8 @@ if (typeof module !== 'undefined' && module.exports) {
         getDashboardItemValue,
         matchesDashboardFilter,
         applyDashboardFilter,
-        clearDashboardFilter
+        clearDashboardFilter,
+        updateToggleAllTermsButtonState,
+        toggleAllTermGroups
     };
 }

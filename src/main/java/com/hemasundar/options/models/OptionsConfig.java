@@ -96,20 +96,15 @@ public class OptionsConfig {
     }
 
     /**
-     * Gets the unique strategy identifier combining alias, termType, and
-     * securitiesFile. Used as the primary key in Supabase so that strategies
-     * sharing the same alias but differing in termType or securities are stored
-     * and displayed independently.
+     * Gets the unique strategy identifier combining alias and termType.
+     * securitiesFile is excluded so that strategy identity and trade history
+     * hashes remain stable across securities list modifications.
      */
     public String getStrategyId() {
         java.util.List<String> parts = new java.util.ArrayList<>();
         parts.add(getName());
         if (StringUtils.isNotBlank(termType)) {
             parts.add(termType);
-        }
-        String secFile = filter != null ? filter.getSecuritiesFile() : null;
-        if (StringUtils.isNotBlank(secFile)) {
-            parts.add(secFile);
         }
         return String.join(" - ", parts);
     }

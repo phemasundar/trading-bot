@@ -1,6 +1,7 @@
 const {
     buildResultCard,
     renderTermGroups,
+    computeTermDteRange,
     confirmDeleteCustomResult,
     deleteCustomResult,
     promptDeleteCustomScreenerResult,
@@ -35,6 +36,8 @@ const {
     matchesDashboardFilter,
     applyDashboardFilter,
     clearDashboardFilter,
+    updateToggleAllTermsButtonState,
+    toggleAllTermGroups,
     toggleCard,
     toggleSection,
     selectAll,
@@ -368,6 +371,183 @@ describe('Dashboard & Table Rendering Tests', () => {
         const overlay = document.getElementById('history-modal-overlay');
         overlay.click();
         expect(document.getElementById('history-modal-overlay')).toBeNull();
+    });
+
+    test('term groups render collapsed by default and toggleAllTermGroups expands/collapses all', () => {
+        document.body.innerHTML = `
+            <div id="options-filter-bar"></div>
+            <div class="term-actions-bar" id="term-actions-bar" style="display:none;">
+                <button class="btn btn-sm btn-ghost" id="toggle-all-terms-btn" style="display:none;">
+                    <span class="card-arrow" id="arrow-toggle-all-terms">▶</span>
+                    <span id="text-toggle-all-terms">Expand All</span>
+                </button>
+            </div>
+            <div id="results-container"></div>
+        `;
+        const container = document.getElementById('results-container');
+        const bar = document.getElementById('term-actions-bar');
+        const results = [
+            { strategyName: 'Strat 1', filterConfig: { termType: 'Short' }, trades: [] },
+            { strategyName: 'Strat 2', filterConfig: { termType: 'Long' }, trades: [] }
+        ];
+
+        renderTermGroups(container, results);
+
+        const btn = document.getElementById('toggle-all-terms-btn');
+        const btnText = document.getElementById('text-toggle-all-terms');
+        const btnArrow = document.getElementById('arrow-toggle-all-terms');
+        const bodies = container.querySelectorAll('.term-group-body');
+
+        expect(btn.style.display).toBe('inline-flex');
+        expect(bar.style.display).toBe('flex');
+        expect(btnText.textContent).toBe('Expand All');
+        expect(btnArrow.classList.contains('open')).toBe(false);
+        expect(bodies.length).toBe(2);
+        bodies.forEach(b => expect(b.classList.contains('hidden')).toBe(true));
+
+        // Single click toggle expands all
+        toggleAllTermGroups(undefined, container);
+        bodies.forEach(b => expect(b.classList.contains('hidden')).toBe(false));
+        expect(btnText.textContent).toBe('Collapse All');
+        expect(btnArrow.classList.contains('open')).toBe(true);
+
+        // Single click toggle collapses all
+        toggleAllTermGroups(undefined, container);
+        bodies.forEach(b => expect(b.classList.contains('hidden')).toBe(true));
+        expect(btnText.textContent).toBe('Expand All');
+        expect(btnArrow.classList.contains('open')).toBe(false);
+
+        // Explicit expand all
+        toggleAllTermGroups(true, container);
+        bodies.forEach(b => expect(b.classList.contains('hidden')).toBe(false));
+        expect(btnText.textContent).toBe('Collapse All');
+
+        // Explicit collapse all
+        toggleAllTermGroups(false, container);
+        bodies.forEach(b => expect(b.classList.contains('hidden')).toBe(true));
+        expect(btnText.textContent).toBe('Expand All');
+    });
+
+    test('updateToggleAllTermsButtonState responds to manual individual group clicks', () => {
+        document.body.innerHTML = `
+            <div id="term-actions-bar" style="display:none;">
+                <button id="toggle-all-terms-btn" style="display:none;">
+                    <span id="arrow-toggle-all-terms">▶</span>
+                    <span id="text-toggle-all-terms">Expand All</span>
+                </button>
+            </div>
+            <div id="results-container"></div>
+        `;
+        const container = document.getElementById('results-container');
+        const results = [
+            { strategyName: 'Strat 1', filterConfig: { termType: 'Short' }, trades: [] },
+            { strategyName: 'Strat 2', filterConfig: { termType: 'Long' }, trades: [] }
+        ];
+
+        renderTermGroups(container, results);
+
+        const btnText = document.getElementById('text-toggle-all-terms');
+        const headers = container.querySelectorAll('.term-group-header');
+
+        // Click first header to expand 1 group (partial expansion)
+        headers[0].click();
+        expect(btnText.textContent).toBe('Expand All');
+
+        // Click second header to expand all groups
+        headers[1].click();
+        expect(btnText.textContent).toBe('Collapse All');
+
+        // Click second header again to collapse 1 group
+        headers[1].click();
+        expect(btnText.textContent).toBe('Expand All');
+    });
+
+    test('updateToggleAllTermsButtonState hides button when container is empty', () => {
+        document.body.innerHTML = `
+            <div id="term-actions-bar" style="display:flex;">
+                <button id="toggle-all-terms-btn" style="display:inline-flex;">
+                    <span id="arrow-toggle-all-terms">▶</span>
+                    <span id="text-toggle-all-terms">Expand All</span>
+                </button>
+            </div>
+            <div id="results-container"></div>
+        `;
+        const container = document.getElementById('results-container');
+        updateToggleAllTermsButtonState(container);
+        expect(document.getElementById('toggle-all-terms-btn').style.display).toBe('none');
+        expect(document.getElementById('term-actions-bar').style.display).toBe('none');
+    });
+
+    describe('computeTermDteRange & DTE header display', () => {
+        test('computeTermDteRange returns empty string when no DTE filter exists', () => {
+            expect(computeTermDteRange([])).toBe('');
+            expect(computeTermDteRange([{ strategyName: 'S1' }])).toBe('');
+            expect(computeTermDteRange([{ strategyName: 'S1', filterConfig: {} }])).toBe('');
+        });
+
+        test('computeTermDteRange formats unbounded range (e.g. Extra Long Term 300+)', () => {
+            const results = [
+                { filterConfig: { minDTE: 300 } },
+                { filterConfig: JSON.stringify({ minDTE: 330 }) }
+            ];
+            expect(computeTermDteRange(results)).toBe('300+');
+        });
+
+        test('computeTermDteRange formats bounded range across multiple strategies (e.g. Medium Term 40 - 185)', () => {
+            const results = [
+                { filterConfig: { minDTE: 55, maxDTE: 185 } },
+                { filterConfig: { minDTE: 40, maxDTE: 65 } }
+            ];
+            expect(computeTermDteRange(results)).toBe('40 - 185');
+        });
+
+        test('computeTermDteRange formats targetDTE correctly', () => {
+            const results = [
+                { filterConfig: { targetDTE: 30 } }
+            ];
+            expect(computeTermDteRange(results)).toBe('30');
+        });
+
+        test('computeTermDteRange formats mixed targetDTE and min/max DTE', () => {
+            const results = [
+                { filterConfig: { targetDTE: 30 } },
+                { filterConfig: { minDTE: 25, maxDTE: 50 } }
+            ];
+            expect(computeTermDteRange(results)).toBe('25 - 50');
+        });
+
+        test('computeTermDteRange formats 0-DTE Daily correctly', () => {
+            const results = [
+                { filterConfig: { minDTE: 0, maxDTE: 1 } }
+            ];
+            expect(computeTermDteRange(results)).toBe('0 - 1');
+        });
+
+        test('renderTermGroups renders term DTE range in header', () => {
+            const container = document.createElement('div');
+            const results = [
+                { strategyName: 'LEAP', filterConfig: { termType: 'Extra Long Term', minDTE: 300 }, trades: [] },
+                { strategyName: 'PCS', filterConfig: { termType: 'Medium Term', minDTE: 55, maxDTE: 185 }, trades: [] },
+                { strategyName: 'IC', filterConfig: { termType: 'Medium Term', minDTE: 40, maxDTE: 65 }, trades: [] }
+            ];
+
+            renderTermGroups(container, results);
+
+            const groups = container.querySelectorAll('.term-group');
+            expect(groups.length).toBe(2);
+
+            // Group 0: Extra Long Term
+            const group0Label = groups[0].querySelector('.term-group-label').textContent;
+            const group0Dte = groups[0].querySelector('.term-group-dte').textContent;
+            expect(group0Label).toBe('Extra Long Term');
+            expect(group0Dte).toBe('| 300+');
+
+            // Group 1: Medium Term
+            const group1Label = groups[1].querySelector('.term-group-label').textContent;
+            const group1Dte = groups[1].querySelector('.term-group-dte').textContent;
+            expect(group1Label).toBe('Medium Term');
+            expect(group1Dte).toBe('| 40 - 185');
+        });
     });
 });
 

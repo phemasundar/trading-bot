@@ -500,6 +500,8 @@ describe('UI Builder Functions', () => {
             minReturnOnRisk: 15.5,
             excludeEarnings: true,
             allowedSectors: ['Tech', 'Health'],
+            securitiesFile: 'portfolio, tracking',
+            securities: 'AAPL, MSFT',
             nestedObject: {
                 innerKey: 'Inner Value'
             },
@@ -512,6 +514,12 @@ describe('UI Builder Functions', () => {
         expect(html).toContain('Min Return On Risk');
         expect(html).toContain('15.5');
         
+        // Assert securities details are rendered
+        expect(html).toContain('Securities File');
+        expect(html).toContain('portfolio, tracking');
+        expect(html).toContain('Securities');
+        expect(html).toContain('AAPL, MSFT');
+
         // Assert boolean and array formatting
         expect(html).toContain('Exclude Earnings');
         expect(html).toContain('Yes');
@@ -764,7 +772,7 @@ describe('Dashboard Page Functions', () => {
         await loadOptionsStrategies();
 
         const container = document.getElementById('strategy-checkboxes');
-        expect(container.innerHTML).toContain('Iron Condor - Short - spy.txt');
+        expect(container.innerHTML).toContain('Iron Condor - Short');
         expect(container.innerHTML).toContain('data-type="strategy"');
         expect(document.getElementById('strategy-count-badge').textContent).toBe('(1)');
     });

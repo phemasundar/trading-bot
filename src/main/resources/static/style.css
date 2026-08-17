@@ -404,7 +404,23 @@ a:hover {
     padding: 8px 0 0 0;
 }
 
-/* ── Term-Type Group Section (Dashboard) ── */
+/* ── Results Header & Term-Type Group Section (Dashboard) ── */
+.results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    gap: 8px;
+}
+
+.term-actions-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-bottom: 12px;
+    gap: 8px;
+}
+
 .term-group {
     margin-bottom: 20px;
 }
@@ -420,7 +436,8 @@ a:hover {
     margin-bottom: 10px;
 }
 
-.term-group-header:hover .term-group-label {
+.term-group-header:hover .term-group-label,
+.term-group-header:hover .term-group-dte {
     color: var(--primary);
 }
 
@@ -428,6 +445,14 @@ a:hover {
     font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    transition: color 0.15s;
+}
+
+.term-group-dte {
+    font-size: 0.7rem;
+    font-weight: 700;
     letter-spacing: 0.8px;
     color: var(--text-muted);
     transition: color 0.15s;

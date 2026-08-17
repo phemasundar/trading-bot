@@ -34,7 +34,8 @@ public class TradeHistoryRepository {
     }
 
     /**
-     * Saves a collection of strategy execution trades into the historical_trades table.
+     * Saves or updates a collection of strategy execution trades into the historical_trades table.
+     * Uses merge-duplicates on trade_hash so that the latest trade details on a given day overwrite earlier entries.
      *
      * @param trades          List of Trade objects
      * @param strategyId      Strategy ID
@@ -49,16 +50,12 @@ public class TradeHistoryRepository {
 
         try {
             ArrayNode payloadArray = mapper.createArrayNode();
-            java.util.Set<String> seenHashesInBatch = new java.util.HashSet<>();
+            java.util.Map<String, ObjectNode> uniqueNodesByHash = new java.util.LinkedHashMap<>();
 
             for (Trade trade : trades) {
                 if (trade == null || trade.getSymbol() == null) continue;
 
                 String hash = TradeHashUtil.generateTradeHash(strategyId, trade, executionTimeMs);
-                if (!seenHashesInBatch.add(hash)) {
-                    // Skip duplicates within the same batch to prevent PostgreSQL ON CONFLICT batch conflicts
-                    continue;
-                }
 
                 ObjectNode node = mapper.createObjectNode();
                 node.put("trade_hash", hash);
@@ -67,18 +64,23 @@ public class TradeHistoryRepository {
                 node.put("symbol", trade.getSymbol().toUpperCase());
                 node.put("expiry_date", trade.getExpiryDate() != null ? trade.getExpiryDate() : "");
                 node.put("execution_time_ms", executionTimeMs);
+                node.put("created_at", Instant.ofEpochMilli(executionTimeMs > 0 ? executionTimeMs : System.currentTimeMillis()).toString());
                 node.set("trade_data", mapper.valueToTree(trade));
 
+                uniqueNodesByHash.put(hash, node);
+            }
+
+            for (ObjectNode node : uniqueNodesByHash.values()) {
                 payloadArray.add(node);
             }
 
             if (payloadArray.isEmpty()) return;
 
             String payload = mapper.writeValueAsString(payloadArray);
-            String url = client.getUrl(HISTORICAL_TRADES_PATH);
+            String url = client.getUrl(HISTORICAL_TRADES_PATH + "?on_conflict=trade_hash");
 
             Response response = client.request()
-                    .header("Prefer", "resolution=ignore-duplicates")
+                    .header("Prefer", "resolution=merge-duplicates")
                     .body(payload)
                     .post(url);
 
