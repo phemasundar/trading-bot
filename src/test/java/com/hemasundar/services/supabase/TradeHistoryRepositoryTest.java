@@ -60,33 +60,43 @@ public class TradeHistoryRepositoryTest {
 
     @Test
     public void testSaveHistoricalTradesSuccess() throws Exception {
-        when(supabaseClient.getUrl(anyString())).thenReturn("http://localhost/rest/v1/historical_trades");
+        when(supabaseClient.getUrl(anyString())).thenReturn("http://localhost/rest/v1/historical_trades?on_conflict=trade_hash");
         when(requestSpecification.post(anyString())).thenReturn(response);
         when(response.getStatusCode()).thenReturn(201);
 
         Trade trade = Trade.builder().symbol("AAPL").expiryDate("2026-09-18").build();
         repository.saveHistoricalTrades(List.of(trade), "put_credit_spread", null, 100L);
 
-        verify(requestSpecification, times(1)).post("http://localhost/rest/v1/historical_trades");
+        verify(requestSpecification, times(1)).header("Prefer", "resolution=merge-duplicates");
+        verify(requestSpecification, times(1)).post("http://localhost/rest/v1/historical_trades?on_conflict=trade_hash");
     }
 
     @Test
     public void testSaveHistoricalTradesDeduplicatesWithinSameBatch() throws Exception {
-        when(supabaseClient.getUrl(anyString())).thenReturn("http://localhost/rest/v1/historical_trades");
+        when(supabaseClient.getUrl(anyString())).thenReturn("http://localhost/rest/v1/historical_trades?on_conflict=trade_hash");
         when(requestSpecification.post(anyString())).thenReturn(response);
         when(response.getStatusCode()).thenReturn(201);
 
-        Trade trade1 = Trade.builder().symbol("AAPL").expiryDate("2026-09-18").build();
-        Trade trade2 = Trade.builder().symbol("AAPL").expiryDate("2026-09-18").build(); // Duplicate
+        org.mockito.ArgumentCaptor<String> bodyCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+
+        Trade trade1 = Trade.builder().symbol("AAPL").expiryDate("2026-09-18").underlyingPrice(150.0).returnOnRisk(10.0).build();
+        Trade trade2 = Trade.builder().symbol("AAPL").expiryDate("2026-09-18").underlyingPrice(155.0).returnOnRisk(12.5).build(); // Duplicate on same day with updated price
 
         repository.saveHistoricalTrades(List.of(trade1, trade2), "put_credit_spread", "Put Credit Spread", 100L);
 
-        verify(requestSpecification, times(1)).post("http://localhost/rest/v1/historical_trades");
+        verify(requestSpecification, times(1)).header("Prefer", "resolution=merge-duplicates");
+        verify(requestSpecification, times(1)).body(bodyCaptor.capture());
+        verify(requestSpecification, times(1)).post("http://localhost/rest/v1/historical_trades?on_conflict=trade_hash");
+
+        String payload = bodyCaptor.getValue();
+        assertTrue(payload.contains("\"underlyingPrice\":155.0"));
+        assertTrue(payload.contains("\"returnOnRisk\":12.5"));
+        assertTrue(payload.contains("\"created_at\""));
     }
 
     @Test(expectedExceptions = IOException.class)
     public void testSaveHistoricalTradesHttpError() throws Exception {
-        when(supabaseClient.getUrl(anyString())).thenReturn("http://localhost/rest/v1/historical_trades");
+        when(supabaseClient.getUrl(anyString())).thenReturn("http://localhost/rest/v1/historical_trades?on_conflict=trade_hash");
         when(requestSpecification.post(anyString())).thenReturn(response);
         when(response.getStatusCode()).thenReturn(500);
         when(response.getStatusLine()).thenReturn("Internal Server Error");

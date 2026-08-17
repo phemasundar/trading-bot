@@ -1,6 +1,33 @@
 # Database Schema & Supabase Configuration
 
-## Feature: Technical Filters in Execute Strategy UI + Filter Details on Dashboard (2026-07-04)
+## Feature: Latest Trade Upsert for Historical Trades Table (2026-08-16)
+
+Updated strategy historical trade persistence to save and retain the **latest** trade opportunity details (such as current underlying price, return on risk, net credit, and execution timestamp) when identical trade setups are scanned multiple times on the same day (e.g. morning vs. evening runs).
+
+### Problem Fixed
+Previously, historical trades were inserted with HTTP header `Prefer: resolution=ignore-duplicates`. When the same trade setup (same symbol, expiry date, and leg structure on the same calendar day) was identified in a later execution run with updated market metrics (different underlying price, RoR, etc.), Supabase ignored the insert, leaving the older morning trade in the database.
+
+### Resolution
+1. **PostgREST Merge Duplicates**: `TradeHistoryRepository.saveHistoricalTrades()` now posts to `/rest/v1/historical_trades?on_conflict=trade_hash` with HTTP header `Prefer: resolution=merge-duplicates`.
+2. **Updated Timestamp & Trade Data**: Updated the payload to include `created_at` timestamp reflecting the execution time, ensuring updated `execution_time_ms`, `created_at`, and full `trade_data` (underlying price, ROR, net credit, breakeven, etc.) overwrite earlier records on conflict.
+3. **Batch Deduplication**: Maintained intra-batch deduplication keeping the latest entry within the batch to prevent PostgreSQL `ON CONFLICT DO UPDATE` batch conflict errors.
+
+### Schema: `historical_trades` Table
+```sql
+CREATE TABLE IF NOT EXISTS historical_trades (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    trade_hash VARCHAR(64) UNIQUE NOT NULL,
+    strategy_id VARCHAR NOT NULL,
+    strategy_name VARCHAR NOT NULL,
+    symbol VARCHAR NOT NULL,
+    expiry_date DATE NOT NULL,
+    execution_time_ms BIGINT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    trade_data JSONB NOT NULL
+);
+```
+
+---
 
 Added full visibility of applied Technical Filters in both the Execute Strategy page and the Options Dashboard Filter Details panel.
 
