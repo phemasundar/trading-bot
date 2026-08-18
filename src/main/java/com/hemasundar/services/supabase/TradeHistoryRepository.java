@@ -11,8 +11,8 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -24,6 +24,7 @@ import java.util.List;
 @Component
 public class TradeHistoryRepository {
     private static final String HISTORICAL_TRADES_PATH = "/rest/v1/historical_trades";
+    private static final ZoneId CDT_ZONE = ZoneId.of("America/Chicago");
 
     private final SupabaseClient client;
     private final ObjectMapper mapper;
@@ -64,7 +65,7 @@ public class TradeHistoryRepository {
                 node.put("symbol", trade.getSymbol().toUpperCase());
                 node.put("expiry_date", trade.getExpiryDate() != null ? trade.getExpiryDate() : "");
                 node.put("execution_time_ms", executionTimeMs);
-                node.put("created_at", Instant.now().toString());
+                node.put("created_at", ZonedDateTime.now(CDT_ZONE).toString());
                 node.set("trade_data", mapper.valueToTree(trade));
 
                 uniqueNodesByHash.put(hash, node);
