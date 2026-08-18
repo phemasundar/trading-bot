@@ -12,8 +12,8 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -66,7 +66,7 @@ public class TradeHistoryRepository {
                 node.put("symbol", trade.getSymbol().toUpperCase());
                 node.put("expiry_date", trade.getExpiryDate() != null ? trade.getExpiryDate() : "");
                 node.put("execution_time_ms", executionTimeMs);
-                node.put("created_at", ZonedDateTime.now(CDT_ZONE).toString());
+                node.put("created_at", OffsetDateTime.now(CDT_ZONE).toString());
                 node.set("trade_data", mapper.valueToTree(trade));
 
                 uniqueNodesByHash.put(hash, node);
