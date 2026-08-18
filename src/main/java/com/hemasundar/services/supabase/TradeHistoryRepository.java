@@ -64,7 +64,7 @@ public class TradeHistoryRepository {
                 node.put("symbol", trade.getSymbol().toUpperCase());
                 node.put("expiry_date", trade.getExpiryDate() != null ? trade.getExpiryDate() : "");
                 node.put("execution_time_ms", executionTimeMs);
-                node.put("created_at", Instant.ofEpochMilli(executionTimeMs > 0 ? executionTimeMs : System.currentTimeMillis()).toString());
+                node.put("created_at", Instant.now().toString());
                 node.set("trade_data", mapper.valueToTree(trade));
 
                 uniqueNodesByHash.put(hash, node);
