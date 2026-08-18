@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      # Timezone: Dallas, TX (CDT/CST)
+      TZ: America/Chicago
       # Inject secrets as environment variables
       REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
       APP_KEY: ${{ secrets.APP_KEY }}
@@ -49,6 +51,6 @@ jobs:
           cache: maven
 
       - name: Run Tests (Bot Execution)
-        run: mvn spring-boot:run "-Dspring-boot.run.arguments=--app.job.name=SCREENER"
+        run: mvn spring-boot:run "-Dspring-boot.run.jvmArguments=-Duser.timezone=America/Chicago" "-Dspring-boot.run.arguments=--app.job.name=SCREENER"
 
 
