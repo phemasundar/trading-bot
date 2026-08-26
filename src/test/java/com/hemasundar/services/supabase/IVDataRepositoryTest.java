@@ -90,9 +90,16 @@ public class IVDataRepositoryTest {
 
     @Test
     public void testGetIVRank_Success() throws IOException {
-        String mockResponseString = "[{\"date\":\"2026-07-02\",\"put_iv\":0.40,\"call_iv\":0.30}," +
-                "{\"date\":\"2026-07-01\",\"put_iv\":0.20,\"call_iv\":0.10}," +
-                "{\"date\":\"2026-06-30\",\"put_iv\":0.60,\"call_iv\":0.50}]";
+        // 20 records: row 0 avg=0.35, row 1 avg=0.15 (min), row 2 avg=0.55 (max), rows 3-19 avg=0.35
+        StringBuilder sb = new StringBuilder("[");
+        sb.append("{\"date\":\"2026-07-20\",\"put_iv\":0.40,\"call_iv\":0.30},");
+        sb.append("{\"date\":\"2026-07-19\",\"put_iv\":0.20,\"call_iv\":0.10},");
+        sb.append("{\"date\":\"2026-07-18\",\"put_iv\":0.60,\"call_iv\":0.50}");
+        for (int i = 3; i < 20; i++) {
+            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.35,\"call_iv\":0.35}", 20 - i));
+        }
+        sb.append("]");
+        String mockResponseString = sb.toString();
 
         when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
         when(requestSpec.get(anyString())).thenReturn(response);
@@ -108,7 +115,14 @@ public class IVDataRepositoryTest {
 
     @Test
     public void testGetIVRank_InsufficientData() throws IOException {
-        String mockResponseString = "[{\"date\":\"2026-07-02\",\"put_iv\":0.40,\"call_iv\":0.30}]";
+        // Only 19 records (< 20 required threshold)
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < 19; i++) {
+            if (i > 0) sb.append(",");
+            sb.append(String.format(java.util.Locale.US, "{\"date\":\"2026-07-%02d\",\"put_iv\":0.40,\"call_iv\":0.30}", i + 1));
+        }
+        sb.append("]");
+        String mockResponseString = sb.toString();
 
         when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
         when(requestSpec.get(anyString())).thenReturn(response);
@@ -143,8 +157,14 @@ public class IVDataRepositoryTest {
 
     @Test
     public void testGetIVRank_MaxEqualsMin() throws IOException {
-        String mockResponseString = "[{\"date\":\"2026-07-02\",\"put_iv\":0.30,\"call_iv\":0.30}," +
-                "{\"date\":\"2026-07-01\",\"put_iv\":0.30,\"call_iv\":0.30}]";
+        // 20 records all identical
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < 20; i++) {
+            if (i > 0) sb.append(",");
+            sb.append(String.format(java.util.Locale.US, "{\"date\":\"2026-07-%02d\",\"put_iv\":0.30,\"call_iv\":0.30}", i + 1));
+        }
+        sb.append("]");
+        String mockResponseString = sb.toString();
 
         when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
         when(requestSpec.get(anyString())).thenReturn(response);
@@ -160,8 +180,14 @@ public class IVDataRepositoryTest {
 
     @Test
     public void testGetIVRank_NullPutAndCallIV() throws IOException {
-        String mockResponseString = "[{\"date\":\"2026-07-02\"}," +
-                "{\"date\":\"2026-07-01\"}]";
+        // 20 records with null put/call IV
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < 20; i++) {
+            if (i > 0) sb.append(",");
+            sb.append(String.format(java.util.Locale.US, "{\"date\":\"2026-07-%02d\"}", i + 1));
+        }
+        sb.append("]");
+        String mockResponseString = sb.toString();
 
         when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
         when(requestSpec.get(anyString())).thenReturn(response);
@@ -177,9 +203,16 @@ public class IVDataRepositoryTest {
 
     @Test
     public void testGetIVStats_Success() throws IOException {
-        String mockResponseString = "[{\"date\":\"2026-07-02\",\"put_iv\":0.40,\"call_iv\":0.30}," +
-                "{\"date\":\"2026-07-01\",\"put_iv\":0.20,\"call_iv\":0.10}," +
-                "{\"date\":\"2026-06-30\",\"put_iv\":0.60,\"call_iv\":0.50}]";
+        // 20 records: row 0 avg=0.35, row 1 avg=0.15 (min), row 2 avg=0.55 (max), rows 3-19 avg=0.35
+        StringBuilder sb = new StringBuilder("[");
+        sb.append("{\"date\":\"2026-07-20\",\"put_iv\":0.40,\"call_iv\":0.30},");
+        sb.append("{\"date\":\"2026-07-19\",\"put_iv\":0.20,\"call_iv\":0.10},");
+        sb.append("{\"date\":\"2026-07-18\",\"put_iv\":0.60,\"call_iv\":0.50}");
+        for (int i = 3; i < 20; i++) {
+            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.35,\"call_iv\":0.35}", 20 - i));
+        }
+        sb.append("]");
+        String mockResponseString = sb.toString();
 
         when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
         when(requestSpec.get(anyString())).thenReturn(response);
@@ -193,12 +226,19 @@ public class IVDataRepositoryTest {
         assertEquals(stats.get("currentIV"), 0.35);
         assertEquals(stats.get("minIV"), 0.15);
         assertEquals(stats.get("maxIV"), 0.55);
-        assertEquals(stats.get("recordCount"), 3);
+        assertEquals(stats.get("recordCount"), 20);
     }
 
     @Test
     public void testGetIVStats_InsufficientData() throws IOException {
-        String mockResponseString = "[{\"date\":\"2026-07-02\",\"put_iv\":0.40,\"call_iv\":0.30}]";
+        // 19 records (< 20 required threshold)
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < 19; i++) {
+            if (i > 0) sb.append(",");
+            sb.append(String.format(java.util.Locale.US, "{\"date\":\"2026-07-%02d\",\"put_iv\":0.40,\"call_iv\":0.30}", i + 1));
+        }
+        sb.append("]");
+        String mockResponseString = sb.toString();
 
         when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
         when(requestSpec.get(anyString())).thenReturn(response);
@@ -209,6 +249,56 @@ public class IVDataRepositoryTest {
         java.util.Map<String, Object> stats = repository.getIVStats("AAPL");
 
         assertNull(stats);
+    }
+
+    @Test
+    public void testGetIVPercentile_Success() throws IOException {
+        // 20 records: row 0 is current (avg 0.35).
+        // 5 records below 0.35 (avg 0.20), 14 records above or equal 0.35 (avg 0.50).
+        // Percentile = 5 / 20 * 100 = 25.0%
+        StringBuilder sb = new StringBuilder("[");
+        sb.append("{\"date\":\"2026-07-20\",\"put_iv\":0.35,\"call_iv\":0.35}");
+        for (int i = 1; i <= 5; i++) {
+            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.20,\"call_iv\":0.20}", 20 - i));
+        }
+        for (int i = 6; i < 20; i++) {
+            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.50,\"call_iv\":0.50}", 20 - i));
+        }
+        sb.append("]");
+        String mockResponseString = sb.toString();
+
+        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
+        when(requestSpec.get(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn(mockResponseString);
+
+        Double ivPercentile = repository.getIVPercentile("AAPL");
+
+        assertNotNull(ivPercentile);
+        assertEquals(ivPercentile, 25.0, 0.01);
+    }
+
+    @Test
+    public void testGetIVPercentile_InsufficientData() throws IOException {
+        // 19 records (< 20 required threshold)
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < 19; i++) {
+            if (i > 0) sb.append(",");
+            sb.append(String.format(java.util.Locale.US, "{\"date\":\"2026-07-%02d\",\"put_iv\":0.40,\"call_iv\":0.30}", i + 1));
+        }
+        sb.append("]");
+        String mockResponseString = sb.toString();
+
+        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
+        when(requestSpec.get(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn(mockResponseString);
+
+        Double ivPercentile = repository.getIVPercentile("AAPL");
+
+        assertNull(ivPercentile);
     }
 
     private IVDataPoint createSampleDataPoint() {

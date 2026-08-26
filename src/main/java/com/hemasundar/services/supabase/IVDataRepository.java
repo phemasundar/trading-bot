@@ -23,6 +23,7 @@ import java.util.Map;
 public class IVDataRepository {
     private static final String IV_DATA_PATH = "/rest/v1/iv_data";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
+    private static final int MIN_RECORDS_REQUIRED = 20;
 
     private final SupabaseClient client;
 
@@ -105,7 +106,7 @@ public class IVDataRepository {
      * call_iv.
      *
      * <p>
-     * Returns {@code null} (fail-open) when fewer than 2 records exist for the
+     * Returns {@code null} (fail-open) when fewer than 20 records exist for the
      * symbol,
      * meaning the filter should be skipped for that symbol.
      *
@@ -152,7 +153,7 @@ public class IVDataRepository {
      * frequency rather than measuring distance from the absolute high/low.
      *
      * <p>
-     * Returns {@code null} (fail-open) when fewer than 2 records exist.
+     * Returns {@code null} (fail-open) when fewer than 20 records exist.
      *
      * @param symbol stock ticker
      * @return IV Percentile in range [0, 100], or {@code null} if data is
@@ -210,9 +211,9 @@ public class IVDataRepository {
             throw new IOException("[" + symbol + "] Failed to parse IV data response: " + e.getMessage(), e);
         }
 
-        if (rows == null || rows.size() < 20) {
-            log.debug("[{}] Insufficient IV data ({} records) — skipping filter",
-                    symbol, rows == null ? 0 : rows.size());
+        if (rows == null || rows.size() < MIN_RECORDS_REQUIRED) {
+            log.debug("[{}] Insufficient IV data ({} records, min required {}) — skipping filter",
+                    symbol, rows == null ? 0 : rows.size(), MIN_RECORDS_REQUIRED);
             return null;
         }
         return rows;
@@ -244,7 +245,7 @@ public class IVDataRepository {
      * {@code ivPercentile}.
      *
      * <p>
-     * Returns {@code null} when fewer than 2 records exist (fail-open).
+     * Returns {@code null} when fewer than 20 records exist (fail-open).
      *
      * @param symbol stock ticker
      * @return map of stats, or {@code null} if data is insufficient

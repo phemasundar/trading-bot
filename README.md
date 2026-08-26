@@ -93,7 +93,7 @@ The bot can automatically collect and store daily Implied Volatility (IV) data f
 
 **IV Percentile** counts the percentage of trading days in the past year where IV was *lower* than today's IV. It is more robust to one-off outlier spikes (e.g., earnings panic) since it measures frequency, not distance from the extremes.
 
-Both metrics are computed from the same single Supabase query per symbol (shared via `IVRankCache`), so there is no extra round-trip cost for enabling both filters simultaneously. Configure them in `strategies-config.yml` via `minIVRank`, `maxIVRank`, `minIVPercentile`, and `maxIVPercentile`. All four are available as form fields in the Execute page (`/execute.html`).
+Both metrics are computed from the same single Supabase query per symbol (shared via `IVRankCache`), so there is no extra round-trip cost for enabling both filters simultaneously. A minimum of 20 historical daily records (~1 trading month) is required to calculate IV Rank and IV Percentile; if fewer than 20 records exist for a symbol, the system fails open (allows the trade). Configure them in `strategies-config.yml` via `minIVRank`, `maxIVRank`, `minIVPercentile`, and `maxIVPercentile`. All four are available as form fields in the Execute page (`/execute.html`).
 
 **Supported Databases:**
 
