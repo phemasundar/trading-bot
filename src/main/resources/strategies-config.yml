@@ -292,6 +292,7 @@ optionsStrategies:
       maxCAGRForBreakEven: 15
       minCostSavingsPercent: 10
       maxLossLimit: 5000
+      maxIVPercentile: 30
       longCall:
         minDelta: 0.4
         minOpenInterest: 10
@@ -315,6 +316,7 @@ optionsStrategies:
       maxCAGRForBreakEven: 15
       minCostSavingsPercent: 10
       maxLossLimit: 5000
+      maxIVPercentile: 30
       longCall:
         minDelta: 0.4
         minOpenInterest: 10
@@ -352,6 +354,7 @@ optionsStrategies:
       maxCAGRForBreakEven: 10
       minCostSavingsPercent: 10
       maxLossLimit: 5000
+      maxIVPercentile: 30
       longCall:
         minDelta: 0.4
         minOpenInterest: 10
@@ -376,6 +379,7 @@ optionsStrategies:
       maxOptionPricePercent: 50
       maxCAGRForBreakEven: 20
       minCostSavingsPercent: 5
+      maxIVPercentile: 30
       longCall:
         minDelta: 0.3
         minOpenInterest: 10
@@ -528,7 +532,7 @@ optionsStrategies:
     filter:
       minDTE: 330
       maxLossLimit: 20000
-      minReturnOnRisk: 24
+      minReturnOnRiskCAGR: 18
       minIVPercentile: 30
       shortLeg:
         maxDelta: 0.2
