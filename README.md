@@ -86,7 +86,14 @@ telegram_chat_id=YOUR_CHAT_ID_HERE
 
 ### IV Data Tracking & Filtering
 
-The bot can automatically collect and store daily Implied Volatility (IV) data for your securities. This data is used for calculating **IV rank and percentile** for better trade timing. Users can filter trades based on IV Rank constraints, and the UI provides a detailed "Volatility Context (1Y)" panel when clicking on individual trades.
+The bot can automatically collect and store daily Implied Volatility (IV) data for your securities. This data is used for calculating **IV Rank and IV Percentile** for better trade timing. Users can filter trades using either metric, and the UI provides a detailed "Volatility Context (1Y)" panel when clicking on individual trades.
+
+**IV Rank** measures where current IV sits within its 1-year absolute high/low range:
+`(currentIV - minIV) / (maxIV - minIV) × 100`
+
+**IV Percentile** counts the percentage of trading days in the past year where IV was *lower* than today's IV. It is more robust to one-off outlier spikes (e.g., earnings panic) since it measures frequency, not distance from the extremes.
+
+Both metrics are computed from the same single Supabase query per symbol (shared via `IVRankCache`), so there is no extra round-trip cost for enabling both filters simultaneously. A minimum of 20 historical daily records (~1 trading month) is required to calculate IV Rank and IV Percentile; if fewer than 20 records exist for a symbol, the system fails open (allows the trade). Configure them in `strategies-config.yml` via `minIVRank`, `maxIVRank`, `minIVPercentile`, and `maxIVPercentile`. All four are available as form fields in the Execute page (`/execute.html`).
 
 **Supported Databases:**
 

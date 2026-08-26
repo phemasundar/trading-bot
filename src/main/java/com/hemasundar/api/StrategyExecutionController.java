@@ -440,7 +440,8 @@ public class StrategyExecutionController {
     }
 
     /**
-     * Returns the current IV Rank for a given symbol.
+     * Returns the current IV Rank and IV Percentile for a given symbol.
+     * Response includes: symbol, ivRank, ivPercentile, currentIV, minIV, maxIV, recordCount.
      */
     @GetMapping("/iv-rank")
     public ResponseEntity<?> getIVRank(@RequestParam String symbol) {

@@ -46,9 +46,11 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
         String strategyName = getStrategyName(filter);
         String symbol = chain.getSymbol();
 
-        // ── Track C: Fire IV Rank ──
+        // ── Track C: Fire IV Rank + IV Percentile in parallel ──
         CompletableFuture<Double> ivRankFuture = CompletableFuture
                 .supplyAsync(() -> resolveIVRank(symbol));
+        CompletableFuture<Double> ivPercentileFuture = CompletableFuture
+                .supplyAsync(() -> resolveIVPercentile(symbol));
 
         // ── IV Rank Filter ──
         Double ivRank = ivRankFuture.join();
@@ -60,6 +62,18 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
         }
         if (filter.getMinIVRank() != null || filter.getMaxIVRank() != null) {
             FilterLogStore.getInstance().logFilter(strategyName, symbol, FilterStage.IV_RANK_FILTER.displayName(), 1, 1);
+        }
+
+        // ── IV Percentile Filter ──
+        Double ivPercentile = ivPercentileFuture.join();
+        if (!filter.passesIVPercentile(ivPercentile)) {
+            log.info("[{}] IV Percentile {:.1f}% outside configured bounds [min={}, max={}], skipping symbol",
+                    symbol, ivPercentile, filter.getMinIVPercentile(), filter.getMaxIVPercentile());
+            FilterLogStore.getInstance().logFilter(strategyName, symbol, FilterStage.IV_PERCENTILE_FILTER.displayName(), 1, 0);
+            return Collections.emptyList();
+        }
+        if (filter.getMinIVPercentile() != null || filter.getMaxIVPercentile() != null) {
+            FilterLogStore.getInstance().logFilter(strategyName, symbol, FilterStage.IV_PERCENTILE_FILTER.displayName(), 1, 1);
         }
 
         int targetDTE = filter.getTargetDTE() != null ? filter.getTargetDTE() : 0;
@@ -279,6 +293,40 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
         } catch (Exception e) {
             log.error("[{}] Error fetching IV Rank: {}, allowing trade (fail-open)", symbol, e.getMessage());
             cache.put(symbol, null);
+            return null;
+        }
+    }
+
+    /**
+     * Resolves the IV Percentile for a symbol, using the per-execution {@link IVRankCache}.
+     *
+     * <p>If the value has already been fetched this run it is returned from cache.
+     * If Supabase is disabled, or if an error occurs, {@code null} is returned (fail-open).
+     *
+     * @param symbol stock ticker
+     * @return IV Percentile in [0, 100], or {@code null} if unavailable
+     */
+    protected Double resolveIVPercentile(String symbol) {
+        IVRankCache cache = IVRankCache.getInstance();
+        if (cache.isPercentileCached(symbol)) {
+            return cache.getPercentile(symbol).orElse(null);
+        }
+        if (supabaseService.isEmpty()) {
+            cache.putPercentile(symbol, null);
+            return null;
+        }
+        try {
+            Double percentile = supabaseService.get().getIVPercentile(symbol);
+            cache.putPercentile(symbol, percentile);
+            if (percentile != null) {
+                log.debug("[{}] Fetched IV Percentile: {:.1f}%", symbol, percentile);
+            } else {
+                log.debug("[{}] IV Percentile unavailable (insufficient data)", symbol);
+            }
+            return percentile;
+        } catch (Exception e) {
+            log.error("[{}] Error fetching IV Percentile: {}, allowing trade (fail-open)", symbol, e.getMessage());
+            cache.putPercentile(symbol, null);
             return null;
         }
     }

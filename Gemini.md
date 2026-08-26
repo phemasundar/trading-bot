@@ -3,7 +3,7 @@
 ## Core Objective
 
 - **Architecture**: A modular, event-driven Options Trading Bot built on Java and Spring Boot. It executes automated strategies based on dynamic technical indicators and options market data. Frontend logic is modularized into domain-focused JS modules under `static/js/` aggregated via `app.js`.
-- **Runtime Goals**: Maintain low-latency execution, resilient error handling, and reliable asynchronous processing. Core integrations include the Charles Schwab API for market data/trading, and Supabase for persistent tracking of IV data, execution history, historical trade deduplication (`historical_trades`), and filter configuration.
+- **Runtime Goals**: Maintain low-latency execution, resilient error handling, and reliable asynchronous processing. Core integrations include the Charles Schwab API for market data/trading, and Supabase for persistent tracking of IV data (used for IV Rank and IV Percentile filters with >=20 historical records required), execution history, historical trade deduplication (`historical_trades`), and filter configuration.
 - **Design Philosophy**: High reliability with strict fail-safes. Technical and fundamental filters, indicator thresholds, and strategy constraints must remain externalized in configuration (e.g. YAML), utilizing dynamic mathematical expression evaluation rather than hardcoded logic.
 - **Timezone Convention**: All timestamps across the app use **`America/Chicago` (CDT/CST)** — Dallas, TX local time. Enforced via `spring.jackson.time-zone=America/Chicago` in `application.properties` and `-Duser.timezone=America/Chicago` JVM arg in `ci.yml`. Market data zone (`America/New_York`) is used only for NYSE trading-day boundary logic in `TradeHashUtil` and `TechnicalIndicatorUtils`.
 

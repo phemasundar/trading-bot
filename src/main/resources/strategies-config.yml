@@ -485,6 +485,7 @@ optionsStrategies:
       maxDTE: 50
       maxLossLimit: 20000
       minReturnOnRisk: 6
+      minIVPercentile: 30
       shortLeg:
         maxDelta: 0.2
         minOpenInterest: 100
@@ -508,6 +509,7 @@ optionsStrategies:
       maxDTE: 185
       maxLossLimit: 20000
       minReturnOnRisk: 12
+      minIVPercentile: 30
       shortLeg:
         maxDelta: 0.2
         minOpenInterest: 100
@@ -527,6 +529,7 @@ optionsStrategies:
       minDTE: 330
       maxLossLimit: 20000
       minReturnOnRisk: 24
+      minIVPercentile: 30
       shortLeg:
         maxDelta: 0.2
         minOpenInterest: 100
@@ -547,7 +550,7 @@ optionsStrategies:
       maxDTE: 100
       maxLossLimit: 20000
       minReturnOnRisk: 12
-      minIVRank: 30
+      minIVPercentile: 30
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"

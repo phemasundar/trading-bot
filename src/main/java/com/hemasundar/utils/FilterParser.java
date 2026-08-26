@@ -87,6 +87,8 @@ public class FilterParser {
         applyIfPresent(filterMap, "topTradesCount", v -> filter.setTopTradesCount(toInt(v)));
         applyIfPresent(filterMap, "minIVRank", v -> filter.setMinIVRank(toDouble(v)));
         applyIfPresent(filterMap, "maxIVRank", v -> filter.setMaxIVRank(toDouble(v)));
+        applyIfPresent(filterMap, "minIVPercentile", v -> filter.setMinIVPercentile(toDouble(v)));
+        applyIfPresent(filterMap, "maxIVPercentile", v -> filter.setMaxIVPercentile(toDouble(v)));
 
         // ── Strategy-specific fields ──
         if (filter instanceof CreditSpreadFilter csFilter) {
