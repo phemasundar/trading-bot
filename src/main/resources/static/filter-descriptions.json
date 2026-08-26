@@ -48,5 +48,9 @@
     "savingsInterestRate": "The interest rate used for interest-bearing cash calculation.",
     "relaxationPriority": "The order in which filters are relaxed if no trades are found. Possible keys: targetDTE, minDTE, maxDTE, maxLossLimit, minReturnOnRisk, maxTotalDebit, maxTotalCredit, minTotalCredit, maxCAGRForBreakEven, maxUpperBreakevenDelta, maxBreakEvenPercentage, maxNetExtrinsicValueToPricePercentage, minNetExtrinsicValueToPricePercentage, ignoreEarnings.",
     "sortPriority": "The order in which found trades are sorted in the results. Possible keys: targetDTE, dte, daysToExpiration, maxLoss, returnOnRisk, breakEvenPercent, netExtrinsicValue, costSavingsPercent, breakevenCAGR.",
-    "priceVsMaxDebitRatio": "Minimum ratio of the underlying price to the maximum debit of the trade."
+    "priceVsMaxDebitRatio": "Minimum ratio of the underlying price to the maximum debit of the trade.",
+    "minIVRank": "Minimum IV Rank threshold (0–100). IV Rank measures where current IV sits within its 1-year absolute high/low range: (currentIV - minIV) / (maxIV - minIV) * 100. Can be distorted by a single outlier spike. Example: 30 means current IV must be at least 30% of the way from its 1-year low to its 1-year high.",
+    "maxIVRank": "Maximum IV Rank threshold (0–100). Symbol is skipped if IV Rank exceeds this value. Useful for avoiding symbols with extremely elevated IV relative to their 1-year range.",
+    "minIVPercentile": "Minimum IV Percentile threshold (0–100). IV Percentile counts the percentage of trading days in the past year where IV was lower than today's IV. More robust than IV Rank since one outlier spike does not skew the entire range. Example: 50 means current IV must be higher than on at least 50% of the past year's trading days.",
+    "maxIVPercentile": "Maximum IV Percentile threshold (0–100). Symbol is skipped if its IV Percentile exceeds this value. Useful for capping exposure to historically extreme IV environments."
 }

@@ -112,6 +112,22 @@ public class OptionsStrategyFilter {
     private Double maxIVRank;
 
     /**
+     * Minimum IV Percentile threshold (0–100) for the symbol.
+     * IV Percentile = percentage of historical days (1Y) where IV was lower than today's IV.
+     * More robust than IV Rank against one-off outlier spikes.
+     * Example: 50.0 means only trade when today's IV is higher than at least 50% of past days.
+     * If null, the IV Percentile filter is not applied.
+     */
+    private Double minIVPercentile;
+
+    /**
+     * Maximum IV Percentile threshold (0–100) for the symbol.
+     * Symbol is skipped if its current IV Percentile is above this value.
+     * If null, no upper bound is enforced.
+     */
+    private Double maxIVPercentile;
+
+    /**
      * Human-readable summary of the technical filter conditions applied during execution.
      * Serialized into the filterConfig JSON blob so the UI can display it in Filter Details.
      * Populated by StrategyExecutionService when a TechnicalFilterChain is active.
@@ -245,6 +261,23 @@ public class OptionsStrategyFilter {
         if (ivRank == null) return true; // fail-open: no data → allow trade
         if (this.minIVRank != null && ivRank < this.minIVRank) return false;
         if (this.maxIVRank != null && ivRank > this.maxIVRank) return false;
+        return true;
+    }
+
+    /**
+     * Checks if the symbol's IV Percentile passes the configured min/max thresholds.
+     *
+     * <p>Fail-open: if {@code ivPercentile} is {@code null} (insufficient historical data),
+     * the filter is skipped and the symbol is allowed through.
+     *
+     * @param ivPercentile computed IV Percentile (0–100), or {@code null} if unavailable
+     * @return true if IV Percentile is within bounds, or if no bounds are set, or if ivPercentile is null
+     */
+    public boolean passesIVPercentile(Double ivPercentile) {
+        if (this.minIVPercentile == null && this.maxIVPercentile == null) return true;
+        if (ivPercentile == null) return true; // fail-open: no data → allow trade
+        if (this.minIVPercentile != null && ivPercentile < this.minIVPercentile) return false;
+        if (this.maxIVPercentile != null && ivPercentile > this.maxIVPercentile) return false;
         return true;
     }
 }

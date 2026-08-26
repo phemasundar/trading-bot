@@ -28,7 +28,8 @@ public class IVDataRepository {
 
     /**
      * Upserts (inserts or updates) IV data point to Supabase.
-     * Uses PostgreSQL's ON CONFLICT to update if entry exists for same symbol and date.
+     * Uses PostgreSQL's ON CONFLICT to update if entry exists for same symbol and
+     * date.
      *
      * @param dataPoint IV data point to upsert
      * @throws IOException if API call fails after retries
@@ -95,12 +96,17 @@ public class IVDataRepository {
     }
 
     /**
-     * Computes the IV Rank for a symbol using up to 1 year of historical data from Supabase.
+     * Computes the IV Rank for a symbol using up to 1 year of historical data from
+     * Supabase.
      *
-     * <p>IV Rank = (current_iv - min_iv) / (max_iv - min_iv) * 100
-     * where {@code current_iv} is the average of the most recent row's put_iv and call_iv.
+     * <p>
+     * IV Rank = (current_iv - min_iv) / (max_iv - min_iv) * 100
+     * where {@code current_iv} is the average of the most recent row's put_iv and
+     * call_iv.
      *
-     * <p>Returns {@code null} (fail-open) when fewer than 2 records exist for the symbol,
+     * <p>
+     * Returns {@code null} (fail-open) when fewer than 2 records exist for the
+     * symbol,
      * meaning the filter should be skipped for that symbol.
      *
      * @param symbol stock ticker
@@ -108,53 +114,22 @@ public class IVDataRepository {
      * @throws IOException if the Supabase API call fails
      */
     public Double getIVRank(String symbol) throws IOException {
-        String oneYearAgo = LocalDate.now().minusYears(1).format(DATE_FORMATTER);
-        // Fetch symbol, date, put_iv, call_iv for the last year, newest first
-        String url = client.getUrl(
-                IV_DATA_PATH
-                + "?select=date,put_iv,call_iv"
-                + "&symbol=eq." + symbol
-                + "&date=gte." + oneYearAgo
-                + "&order=date.desc"
-        );
+        List<Map<String, Object>> rows = fetchIVRows(symbol);
+        if (rows == null)
+            return null;
 
-        Response response = client.request().get(url);
-        if (response.getStatusCode() != 200) {
-            throw new IOException(String.format(
-                    "[%s] IV Rank query failed: %d - %s",
-                    symbol, response.getStatusCode(), response.getStatusLine()));
-        }
-
-        List<Map<String, Object>> rows;
-        try {
-            rows = client.getObjectMapper().readValue(
-                    response.getBody().asString(),
-                    new TypeReference<List<Map<String, Object>>>() {});
-        } catch (Exception e) {
-            throw new IOException("[" + symbol + "] Failed to parse IV data response: " + e.getMessage(), e);
-        }
-
-        if (rows == null || rows.size() < 2) {
-            log.debug("[{}] Insufficient IV data for rank calculation ({} records) — skipping filter",
-                    symbol, rows == null ? 0 : rows.size());
-            return null; // fail-open
-        }
-
-        // Current IV = average of latest row's put_iv and call_iv
-        Map<String, Object> latest = rows.get(0);
-        double currentIV = toAvgIV(latest, symbol);
-
-        // Find min and max average IV across the full window
+        double currentIV = toAvgIV(rows.get(0), symbol);
         double minIV = currentIV;
         double maxIV = currentIV;
         for (Map<String, Object> row : rows) {
             double avg = toAvgIV(row, symbol);
-            if (avg < minIV) minIV = avg;
-            if (avg > maxIV) maxIV = avg;
+            if (avg < minIV)
+                minIV = avg;
+            if (avg > maxIV)
+                maxIV = avg;
         }
 
         if (maxIV == minIV) {
-            // All values identical — IV Rank is 0 by convention (no range)
             log.debug("[{}] IV range is zero (all values = {}), returning IV Rank = 0", symbol, currentIV);
             return 0.0;
         }
@@ -166,47 +141,62 @@ public class IVDataRepository {
     }
 
     /**
-     * Extracts the average IV from a row map (average of put_iv and call_iv).
-     * Falls back to whichever field is non-null; returns 0.0 if both are null.
+     * Computes the IV Percentile for a symbol using up to 1 year of historical data
+     * from Supabase.
+     *
+     * <p>
+     * IV Percentile = (number of historical days where avgIV &lt; currentIV) /
+     * totalDays * 100.
+     * Unlike IV Rank, this metric is not distorted by a single outlier spike
+     * because it counts
+     * frequency rather than measuring distance from the absolute high/low.
+     *
+     * <p>
+     * Returns {@code null} (fail-open) when fewer than 2 records exist.
+     *
+     * @param symbol stock ticker
+     * @return IV Percentile in range [0, 100], or {@code null} if data is
+     *         insufficient
+     * @throws IOException if the Supabase API call fails
      */
-    private double toAvgIV(Map<String, Object> row, String symbol) {
-        Object putIVObj  = row.get("put_iv");
-        Object callIVObj = row.get("call_iv");
-        double putIV  = putIVObj  != null ? ((Number) putIVObj).doubleValue()  : 0.0;
-        double callIV = callIVObj != null ? ((Number) callIVObj).doubleValue() : 0.0;
-        if (putIVObj == null && callIVObj == null) {
-            log.warn("[{}] Row has null put_iv and call_iv, treating avg IV as 0", symbol);
-            return 0.0;
-        }
-        if (putIVObj == null)  return callIV;
-        if (callIVObj == null) return putIV;
-        return (putIV + callIV) / 2.0;
+    public Double getIVPercentile(String symbol) throws IOException {
+        List<Map<String, Object>> rows = fetchIVRows(symbol);
+        if (rows == null)
+            return null;
+
+        double currentIV = toAvgIV(rows.get(0), symbol);
+        long daysBelow = rows.stream()
+                .filter(row -> toAvgIV(row, symbol) < currentIV)
+                .count();
+
+        double ivPercentile = (double) daysBelow / rows.size() * 100.0;
+        log.debug("[{}] IV Percentile = {:.1f}% ({} of {} days below current IV {})",
+                symbol, ivPercentile, daysBelow, rows.size(), currentIV);
+        return ivPercentile;
     }
 
     /**
-     * Returns a map of IV statistics for a symbol over the past 1 year:
-     * {@code minIV}, {@code maxIV}, {@code currentIV}, and {@code recordCount}.
-     *
-     * <p>Returns {@code null} when fewer than 2 records exist (fail-open).
+     * Fetches up to 1 year of IV rows for a symbol from Supabase, ordered
+     * newest-first.
+     * Returns {@code null} (fail-open) when fewer than 20 records exist.
      *
      * @param symbol stock ticker
-     * @return map of stats, or {@code null} if data is insufficient
+     * @return list of rows, or {@code null} if insufficient data
      * @throws IOException if the Supabase API call fails
      */
-    public Map<String, Object> getIVStats(String symbol) throws IOException {
+    private List<Map<String, Object>> fetchIVRows(String symbol) throws IOException {
         String oneYearAgo = LocalDate.now().minusYears(1).format(DATE_FORMATTER);
         String url = client.getUrl(
                 IV_DATA_PATH
-                + "?select=date,put_iv,call_iv"
-                + "&symbol=eq." + symbol
-                + "&date=gte." + oneYearAgo
-                + "&order=date.desc"
-        );
+                        + "?select=date,put_iv,call_iv"
+                        + "&symbol=eq." + symbol
+                        + "&date=gte." + oneYearAgo
+                        + "&order=date.desc");
 
         Response response = client.request().get(url);
         if (response.getStatusCode() != 200) {
             throw new IOException(String.format(
-                    "[%s] IV stats query failed: %d - %s",
+                    "[%s] IV data query failed: %d - %s",
                     symbol, response.getStatusCode(), response.getStatusLine()));
         }
 
@@ -214,28 +204,78 @@ public class IVDataRepository {
         try {
             rows = client.getObjectMapper().readValue(
                     response.getBody().asString(),
-                    new TypeReference<List<Map<String, Object>>>() {});
+                    new TypeReference<List<Map<String, Object>>>() {
+                    });
         } catch (Exception e) {
-            throw new IOException("[" + symbol + "] Failed to parse IV stats response: " + e.getMessage(), e);
+            throw new IOException("[" + symbol + "] Failed to parse IV data response: " + e.getMessage(), e);
         }
 
-        if (rows == null || rows.size() < 2) {
+        if (rows == null || rows.size() < 20) {
+            log.debug("[{}] Insufficient IV data ({} records) — skipping filter",
+                    symbol, rows == null ? 0 : rows.size());
             return null;
         }
+        return rows;
+    }
+
+    /**
+     * Extracts the average IV from a row map (average of put_iv and call_iv).
+     * Falls back to whichever field is non-null; returns 0.0 if both are null.
+     */
+    private double toAvgIV(Map<String, Object> row, String symbol) {
+        Object putIVObj = row.get("put_iv");
+        Object callIVObj = row.get("call_iv");
+        double putIV = putIVObj != null ? ((Number) putIVObj).doubleValue() : 0.0;
+        double callIV = callIVObj != null ? ((Number) callIVObj).doubleValue() : 0.0;
+        if (putIVObj == null && callIVObj == null) {
+            log.warn("[{}] Row has null put_iv and call_iv, treating avg IV as 0", symbol);
+            return 0.0;
+        }
+        if (putIVObj == null)
+            return callIV;
+        if (callIVObj == null)
+            return putIV;
+        return (putIV + callIV) / 2.0;
+    }
+
+    /**
+     * Returns a map of IV statistics for a symbol over the past 1 year:
+     * {@code minIV}, {@code maxIV}, {@code currentIV}, {@code recordCount}, and
+     * {@code ivPercentile}.
+     *
+     * <p>
+     * Returns {@code null} when fewer than 2 records exist (fail-open).
+     *
+     * @param symbol stock ticker
+     * @return map of stats, or {@code null} if data is insufficient
+     * @throws IOException if the Supabase API call fails
+     */
+    public Map<String, Object> getIVStats(String symbol) throws IOException {
+        List<Map<String, Object>> rows = fetchIVRows(symbol);
+        if (rows == null)
+            return null;
 
         double currentIV = toAvgIV(rows.get(0), symbol);
         double minIV = currentIV;
         double maxIV = currentIV;
         for (Map<String, Object> row : rows) {
             double avg = toAvgIV(row, symbol);
-            if (avg < minIV) minIV = avg;
-            if (avg > maxIV) maxIV = avg;
+            if (avg < minIV)
+                minIV = avg;
+            if (avg > maxIV)
+                maxIV = avg;
         }
 
+        long daysBelow = rows.stream()
+                .filter(row -> toAvgIV(row, symbol) < currentIV)
+                .count();
+        double ivPercentile = (double) daysBelow / rows.size() * 100.0;
+
         Map<String, Object> stats = new java.util.LinkedHashMap<>();
-        stats.put("currentIV",   Math.round(currentIV * 100.0) / 100.0);
-        stats.put("minIV",       Math.round(minIV     * 100.0) / 100.0);
-        stats.put("maxIV",       Math.round(maxIV     * 100.0) / 100.0);
+        stats.put("currentIV", Math.round(currentIV * 100.0) / 100.0);
+        stats.put("minIV", Math.round(minIV * 100.0) / 100.0);
+        stats.put("maxIV", Math.round(maxIV * 100.0) / 100.0);
+        stats.put("ivPercentile", Math.round(ivPercentile * 10.0) / 10.0);
         stats.put("recordCount", rows.size());
         return stats;
     }
