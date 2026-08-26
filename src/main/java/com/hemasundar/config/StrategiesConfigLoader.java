@@ -61,13 +61,57 @@ public class StrategiesConfigLoader {
     private final WikipediaSecuritiesFetcher wikipediaFetcher;
 
     private final Map<StrategyType, AbstractTradingStrategy> strategyMap = new HashMap<>();
+    private final Map<StrategyType, Map<String, String>> strategyGreeksMap = new EnumMap<>(StrategyType.class);
 
     @PostConstruct
     public void init() {
         for (AbstractTradingStrategy strategy : availableStrategies) {
             strategyMap.put(strategy.getStrategyType(), strategy);
         }
-        log.info("Initialized StrategiesConfigLoader with {} strategies", strategyMap.size());
+        loadStrategyGreeks(FilePaths.strategyGreeksConfig);
+        log.info("Initialized StrategiesConfigLoader with {} strategies and {} strategy greeks",
+                strategyMap.size(), strategyGreeksMap.size());
+    }
+
+    /**
+     * Loads static Greek polarities for each strategy type from the specified resource.
+     *
+     * @param resourcePath classpath resource path to the greeks configuration YAML
+     */
+    public void loadStrategyGreeks(String resourcePath) {
+        try {
+            String yaml = FilePaths.readResource(resourcePath);
+            Map<String, Map<String, String>> rawMap = JavaUtils.convertYamlToPojo(yaml, Map.class);
+            if (rawMap != null) {
+                strategyGreeksMap.clear();
+                for (Map.Entry<String, Map<String, String>> entry : rawMap.entrySet()) {
+                    try {
+                        StrategyType type = StrategyType.valueOf(entry.getKey());
+                        strategyGreeksMap.put(type, entry.getValue());
+                    } catch (IllegalArgumentException e) {
+                        log.warn("Unknown strategy type in {}: {}", resourcePath, entry.getKey());
+                    }
+                }
+            }
+            log.info("Loaded {} strategy greeks from {}", strategyGreeksMap.size(), resourcePath);
+        } catch (IOException e) {
+            log.warn("Could not load strategy greeks from {}: {}", resourcePath, e.getMessage());
+        } catch (Exception e) {
+            log.error("Failed to parse strategy greeks from {}", resourcePath, e);
+        }
+    }
+
+    /**
+     * Returns the static Greek exposures for a given strategy type.
+     *
+     * @param type StrategyType to look up
+     * @return Map of Greek name to polarity, or empty map if none configured
+     */
+    public Map<String, String> getGreeks(StrategyType type) {
+        if (strategyGreeksMap.isEmpty()) {
+            loadStrategyGreeks(FilePaths.strategyGreeksConfig);
+        }
+        return strategyGreeksMap.getOrDefault(type, Collections.emptyMap());
     }
 
     /**
@@ -226,6 +270,7 @@ public class StrategiesConfigLoader {
         // Parse filter using FilterType enum
         FilterType filterType = FilterType.fromJsonName(entry.getFilterType());
         OptionsStrategyFilter filter = filterType.parseFilter(entry.getFilter());
+        Map<String, String> greeks = getGreeks(entry.getStrategyType());
         if (filter != null) {
             filter.setSecuritiesFile(entry.getSecuritiesFile());
             if (entry.getTermType() != null) {
@@ -234,8 +279,8 @@ public class StrategiesConfigLoader {
             if (entry.getSecurities() != null && !entry.getSecurities().trim().isEmpty()) {
                 filter.setSecurities(entry.getSecurities());
             }
-            if (entry.getGreeks() != null && !entry.getGreeks().isEmpty()) {
-                filter.setGreeks(entry.getGreeks());
+            if (greeks != null && !greeks.isEmpty()) {
+                filter.setGreeks(greeks);
             }
         }
 
@@ -276,7 +321,7 @@ public class StrategiesConfigLoader {
                 .termType(entry.getTermType())
                 .descriptionFile(entry.getDescriptionFile())
                 .maxTradesToSend(entry.getMaxTradesToSend())
-                .greeks(entry.getGreeks())
+                .greeks(greeks)
                 .build();
     }
 

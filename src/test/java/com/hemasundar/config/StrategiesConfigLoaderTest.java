@@ -74,4 +74,41 @@ public class StrategiesConfigLoaderTest {
         assertEquals(screeners.get(0).getAlias(), "Bullish Screener");
         assertEquals(screeners.get(0).getSecurities().size(), 2);
     }
+
+    @Test
+    public void testLoad_GreeksFromStrategyGreeksConfig() {
+        Map<String, List<String>> securitiesMap = new HashMap<>();
+        securitiesMap.put("portfolio", List.of("AAPL", "MSFT"));
+
+        List<OptionsConfig> configs = configLoader.load("test-strategies-config.yml", securitiesMap);
+
+        assertNotNull(configs);
+        OptionsConfig config = configs.get(0);
+        assertNotNull(config.getGreeks());
+        assertEquals(config.getGreeks().get("delta"), "positive");
+        assertEquals(config.getGreeks().get("gamma"), "negative");
+        assertEquals(config.getGreeks().get("theta"), "positive");
+        assertEquals(config.getGreeks().get("vega"), "negative");
+
+        assertNotNull(config.getFilter());
+        assertEquals(config.getFilter().getGreeks(), config.getGreeks());
+    }
+
+    @Test
+    public void testGetGreeks_AllStrategyTypesConfigured() {
+        Map<String, String> pcsGreeks = configLoader.getGreeks(StrategyType.PUT_CREDIT_SPREAD);
+        assertNotNull(pcsGreeks);
+        assertEquals(pcsGreeks.get("delta"), "positive");
+        assertEquals(pcsGreeks.get("gamma"), "negative");
+        assertEquals(pcsGreeks.get("theta"), "positive");
+        assertEquals(pcsGreeks.get("vega"), "negative");
+
+        Map<String, String> ccsGreeks = configLoader.getGreeks(StrategyType.CALL_CREDIT_SPREAD);
+        assertNotNull(ccsGreeks);
+        assertEquals(ccsGreeks.get("delta"), "negative");
+
+        Map<String, String> icGreeks = configLoader.getGreeks(StrategyType.IRON_CONDOR);
+        assertNotNull(icGreeks);
+        assertEquals(icGreeks.get("delta"), "neutral");
+    }
 }
