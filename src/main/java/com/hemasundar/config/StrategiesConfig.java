@@ -154,13 +154,6 @@ public class StrategiesConfig {
          */
         private Map<String, Object> fundamentalFilters;
 
-        /**
-         * Optional Greek exposure map for this strategy.
-         * Keys: "delta", "gamma", "theta", "vega".
-         * Values: "positive", "negative", or "neutral".
-         */
-        private Map<String, String> greeks;
-
         public boolean hasTechnicalFilter() {
             return technicalFilters != null;
         }

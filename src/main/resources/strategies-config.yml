@@ -72,11 +72,6 @@ optionsStrategies:
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
-    greeks:
-      delta: "positive"
-      gamma: "negative"
-      theta: "positive"
-      vega: "negative"
     securitiesFile: "portfolio"
     technicalFilters:
       HISTORICAL_VOLATILITY:
@@ -98,11 +93,6 @@ optionsStrategies:
       shortLeg:
         maxDelta: 0.2
         minOpenInterest: 500
-    greeks:
-      delta: "positive"
-      gamma: "negative"
-      theta: "positive"
-      vega: "negative"
     securitiesFile: "tracking, 2026"
     technicalFilters:
       HISTORICAL_VOLATILITY:
@@ -126,11 +116,6 @@ optionsStrategies:
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
-    greeks:
-      delta: "positive"
-      gamma: "negative"
-      theta: "positive"
-      vega: "negative"
     securitiesFile: "top100"
     technicalFilters: "oversold"
   - alias: "Standard CCS"
@@ -149,11 +134,6 @@ optionsStrategies:
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
-    greeks:
-      delta: "negative"
-      gamma: "negative"
-      theta: "positive"
-      vega: "negative"
     securitiesFile: "portfolio"
     technicalFilters:
       HISTORICAL_VOLATILITY:
@@ -177,11 +157,6 @@ optionsStrategies:
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
-    greeks:
-      delta: "negative"
-      gamma: "negative"
-      theta: "positive"
-      vega: "negative"
     securitiesFile: "top100"
     technicalFilters: "overbought"
   - alias: "0 DTE Iron Condor"
@@ -204,11 +179,6 @@ optionsStrategies:
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
-    greeks:
-      delta: "neutral"
-      gamma: "negative"
-      theta: "positive"
-      vega: "negative"
     securitiesFile: "portfolio"
     technicalFilters:
       HISTORICAL_VOLATILITY:
@@ -236,11 +206,6 @@ optionsStrategies:
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
-    greeks:
-      delta: "neutral"
-      gamma: "negative"
-      theta: "positive"
-      vega: "negative"
     securitiesFile: "portfolio, 2026"
     technicalFilters:
       HISTORICAL_VOLATILITY:
@@ -265,11 +230,6 @@ optionsStrategies:
       callShortLeg:
         maxDelta: 0.15
         minOpenInterest: 500
-    greeks:
-      delta: "neutral"
-      gamma: "negative"
-      theta: "positive"
-      vega: "negative"
     securitiesFile: "bullish, 2026"
     technicalFilters:
       HISTORICAL_VOLATILITY:
@@ -296,11 +256,6 @@ optionsStrategies:
       longCall:
         minDelta: 0.4
         minOpenInterest: 10
-    greeks:
-      delta: "positive"
-      gamma: "positive"
-      theta: "negative"
-      vega: "positive"
   - alias: "Tech Moderate LEAP"
     enabled: true
     termType: "Extra Long Term"
@@ -334,11 +289,6 @@ optionsStrategies:
       VOLUME:
         conditions:
           - "VOLUME_SMA20 >= VOLUME_SMA50 * 90%"
-    greeks:
-      delta: "positive"
-      gamma: "positive"
-      theta: "negative"
-      vega: "positive"
   - alias: "Aggressive LEAP"
     enabled: true
     termType: "Extra Long Term"
@@ -358,11 +308,6 @@ optionsStrategies:
       longCall:
         minDelta: 0.4
         minOpenInterest: 10
-    greeks:
-      delta: "positive"
-      gamma: "positive"
-      theta: "negative"
-      vega: "positive"
   - alias: "LEAP Top 5"
     enabled: true
     termType: "Extra Long Term"
@@ -392,11 +337,6 @@ optionsStrategies:
         - "costSavingsPercent"
         - "optionPricePercent"
         - "breakevenCAGR"
-    greeks:
-      delta: "positive"
-      gamma: "positive"
-      theta: "negative"
-      vega: "positive"
   - alias: "BWB Conservative"
     enabled: true
     termType: "Short Term"
@@ -417,11 +357,6 @@ optionsStrategies:
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
-    greeks:
-      delta: "positive"
-      gamma: "negative"
-      theta: "positive"
-      vega: "negative"
     securitiesFile: "portfolio, 2026"
   - alias: "BWB Active"
     enabled: true
@@ -445,11 +380,6 @@ optionsStrategies:
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
-    greeks:
-      delta: "positive"
-      gamma: "negative"
-      theta: "positive"
-      vega: "negative"
     securitiesFile: "tracking, 2026"
   - alias: "Bullish ZEBRA"
     enabled: true
@@ -472,11 +402,6 @@ optionsStrategies:
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
-    greeks:
-      delta: "positive"
-      gamma: "positive"
-      theta: "negative"
-      vega: "positive"
     securitiesFile: "portfolio, tracking, 2026"
   - alias: "Short Put"
     enabled: true
@@ -496,11 +421,6 @@ optionsStrategies:
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
-    greeks:
-      delta: "positive"
-      gamma: "negative"
-      theta: "positive"
-      vega: "negative"
     securitiesFile: "portfolio, tracking, 2026"
   - alias: "Short Put"
     enabled: true
@@ -517,11 +437,6 @@ optionsStrategies:
       shortLeg:
         maxDelta: 0.2
         minOpenInterest: 100
-    greeks:
-      delta: "positive"
-      gamma: "negative"
-      theta: "positive"
-      vega: "negative"
     securitiesFile: "portfolio, tracking, 2026"
   - alias: "Short Put"
     enabled: true
@@ -537,11 +452,6 @@ optionsStrategies:
       shortLeg:
         maxDelta: 0.2
         minOpenInterest: 100
-    greeks:
-      delta: "positive"
-      gamma: "negative"
-      theta: "positive"
-      vega: "negative"
     securitiesFile: "portfolio, tracking, 2026"
   - alias: "Short Strangle"
     enabled: true
@@ -563,11 +473,6 @@ optionsStrategies:
         maxDelta: 0.2
       callShortLeg:
         maxDelta: 0.2
-    greeks:
-      delta: "neutral"
-      gamma: "negative"
-      theta: "positive"
-      vega: "negative"
     securitiesFile: "portfolio, 2026, tracking, top100"
     technicalFilters:
       HISTORICAL_VOLATILITY:

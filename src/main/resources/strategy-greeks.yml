@@ -1,0 +1,75 @@
+---
+# Static Greek exposures by Strategy Type
+# Polarity values: "positive", "negative", "neutral"
+
+PUT_CREDIT_SPREAD:
+  delta: "positive"
+  gamma: "negative"
+  theta: "positive"
+  vega: "negative"
+
+TECH_PUT_CREDIT_SPREAD:
+  delta: "positive"
+  gamma: "negative"
+  theta: "positive"
+  vega: "negative"
+
+BULLISH_LONG_PUT_CREDIT_SPREAD:
+  delta: "positive"
+  gamma: "negative"
+  theta: "positive"
+  vega: "negative"
+
+CALL_CREDIT_SPREAD:
+  delta: "negative"
+  gamma: "negative"
+  theta: "positive"
+  vega: "negative"
+
+TECH_CALL_CREDIT_SPREAD:
+  delta: "negative"
+  gamma: "negative"
+  theta: "positive"
+  vega: "negative"
+
+IRON_CONDOR:
+  delta: "neutral"
+  gamma: "negative"
+  theta: "positive"
+  vega: "negative"
+
+BULLISH_LONG_IRON_CONDOR:
+  delta: "neutral"
+  gamma: "negative"
+  theta: "positive"
+  vega: "negative"
+
+LONG_CALL_LEAP:
+  delta: "positive"
+  gamma: "positive"
+  theta: "negative"
+  vega: "positive"
+
+BULLISH_BROKEN_WING_BUTTERFLY:
+  delta: "positive"
+  gamma: "negative"
+  theta: "positive"
+  vega: "negative"
+
+BULLISH_ZEBRA:
+  delta: "positive"
+  gamma: "positive"
+  theta: "negative"
+  vega: "positive"
+
+SHORT_PUT:
+  delta: "positive"
+  gamma: "negative"
+  theta: "positive"
+  vega: "negative"
+
+SHORT_STRANGLE:
+  delta: "neutral"
+  gamma: "negative"
+  theta: "positive"
+  vega: "negative"
