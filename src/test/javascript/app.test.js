@@ -505,7 +505,8 @@ describe('UI Builder Functions', () => {
             nestedObject: {
                 innerKey: 'Inner Value'
             },
-            technicalFilterSummary: 'Strong Buy'
+            technicalFilters: 'Strong Buy',
+            technicalFilterSummary: 'Ignored Summary'
         };
         
         const html = renderFilterGrid(config);
@@ -531,9 +532,10 @@ describe('UI Builder Functions', () => {
         expect(html).toContain('Inner Key');
         expect(html).toContain('Inner Value');
         
-        // Assert technicalFilterSummary special handling
-        expect(html).toContain('Tech Filters');
+        // Assert technicalFilters preset is rendered and technicalFilterSummary is skipped
+        expect(html).toContain('Tech Filters (Preset)');
         expect(html).toContain('Strong Buy');
+        expect(html).not.toContain('Ignored Summary');
     });
 
     test('renderTechFiltersGrid should render technical filters properly', () => {

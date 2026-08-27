@@ -16,6 +16,7 @@ const {
     renderOptionDataTable,
     initTradeRowClicks,
     showTradeHistoryModal,
+    formatTechFilterValue,
     renderFilterGrid,
     renderTechFiltersGrid,
     renderFundamentalFiltersGrid,
@@ -62,7 +63,7 @@ describe('Dashboard & Table Rendering Tests', () => {
         const mockResult = {
             strategyId: 'pcs-1',
             strategyName: 'Short PCS',
-            filterConfig: { minDTE: 30, maxDTE: 45, technicalFilterSummary: 'OVERSOLD' },
+            filterConfig: { minDTE: 30, maxDTE: 45, technicalFilters: 'OVERSOLD' },
             trades: [
                 {
                     symbol: 'AAPL',
@@ -209,6 +210,138 @@ describe('Dashboard & Table Rendering Tests', () => {
         const fundHtml = renderFundamentalFiltersGrid({ MARKET_CAP: 'market_cap_b > 100' });
         expect(fundHtml).toContain('MARKET_CAP');
         expect(fundHtml).toContain('market_cap_b > 100');
+    });
+
+    test('formatTechFilterValue formats various indicator filter shapes without [object Object]', () => {
+        // null/empty/primitives
+        expect(formatTechFilterValue(null)).toBeNull();
+        expect(formatTechFilterValue(undefined)).toBeNull();
+        expect(formatTechFilterValue('')).toBeNull();
+        expect(formatTechFilterValue(true)).toBe('Yes');
+        expect(formatTechFilterValue(false)).toBe('No');
+        expect(formatTechFilterValue('OVERSOLD')).toBe('OVERSOLD');
+        expect(formatTechFilterValue(42)).toBe('42');
+
+        // array of strings
+        expect(formatTechFilterValue(['SMA50 >= SMA200', 'EMA9 >= EMA21'])).toBe('SMA50 >= SMA200, EMA9 >= EMA21');
+
+        // indicator with config and conditions
+        const hv = formatTechFilterValue({
+            config: { period: 20 },
+            conditions: ['HV_RANK >= 25']
+        });
+        expect(hv).toBe('HV_RANK >= 25 (Period: 20)');
+        expect(hv).not.toContain('[object Object]');
+
+        // indicator with condition and default config
+        const rsiCross = formatTechFilterValue({
+            config: 'default',
+            condition: 'BULLISH_CROSSOVER'
+        });
+        expect(rsiCross).toBe('BULLISH_CROSSOVER');
+        expect(rsiCross).not.toContain('[object Object]');
+
+        // indicator with CUSTOM_RANGE condition object
+        const rsiRange = formatTechFilterValue({
+            condition: {
+                type: 'CUSTOM_RANGE',
+                min: 30,
+                max: 70
+            }
+        });
+        expect(rsiRange).toBe('CUSTOM_RANGE (30 - 70)');
+        expect(rsiRange).not.toContain('[object Object]');
+
+        // indicator with conditions containing object
+        const volObj = formatTechFilterValue({
+            conditions: [{ type: 'MIN_VOLUME', min: 1000000 }]
+        });
+        expect(volObj).toBe('MIN_VOLUME (min: 1000000)');
+        expect(volObj).not.toContain('[object Object]');
+
+        // indicator with lookbackDays and rules
+        const priceDrop = formatTechFilterValue({
+            lookbackDays: 5,
+            rules: ['PRICE_DROP <= -3']
+        });
+        expect(priceDrop).toBe('PRICE_DROP <= -3 (Lookback: 5d)');
+        expect(priceDrop).not.toContain('[object Object]');
+
+        // arbitrary object fallback
+        const customObj = formatTechFilterValue({ foo: 'bar', count: 10 });
+        expect(customObj).toBe('foo: bar, count: 10');
+        expect(customObj).not.toContain('[object Object]');
+    });
+
+    test('renderFilterGrid properly renders technicalFilters block without [object Object]', () => {
+        const filterConfig = {
+            minDTE: 30,
+            maxDTE: 45,
+            maxLossLimit: 2000,
+            minReturnOnRisk: 24,
+            shortLeg: {
+                maxDelta: 0.2,
+                minOpenInterest: 500
+            },
+            technicalFilters: {
+                HISTORICAL_VOLATILITY: {
+                    config: { period: 20 },
+                    conditions: ['HV_RANK >= 25']
+                },
+                RSI: {
+                    config: 'default',
+                    condition: 'BULLISH_CROSSOVER'
+                },
+                BOLLINGER_BAND: {
+                    config: 'default',
+                    condition: 'LOWER_BAND'
+                },
+                VOLUME: {
+                    conditions: ['VOLUME >= 1000000']
+                }
+            },
+            technicalFilterSummary: 'RSI: BULLISH_CROSSOVER | BB: LOWER_BAND | HV_RANK >= 25'
+        };
+
+        const html = renderFilterGrid(filterConfig);
+
+        // Technical Filters section should exist
+        expect(html).toContain('🔬 Technical Filters');
+        expect(html).toContain('HISTORICAL_VOLATILITY');
+        expect(html).toContain('HV_RANK >= 25 (Period: 20)');
+        expect(html).toContain('RSI');
+        expect(html).toContain('BULLISH_CROSSOVER');
+        expect(html).toContain('BOLLINGER_BAND');
+        expect(html).toContain('LOWER_BAND');
+        expect(html).toContain('VOLUME');
+        expect(html).toContain('VOLUME >= 1000000');
+
+        // Duplicate summary item in rootHtml should be omitted when detailed technicalFilters exists
+        expect(html).not.toContain('<span class="config-item-label" style="color:var(--accent)">🔬 Tech Filters</span>');
+
+        // CRITICAL: MUST NEVER contain [object Object]
+        expect(html).not.toContain('[object Object]');
+    });
+
+    test('renderFilterGrid skips technicalFilterSummary without rendering fallback', () => {
+        const filterConfig = {
+            minDTE: 30,
+            technicalFilterSummary: 'RSI: BULLISH_CROSSOVER | BB: LOWER_BAND'
+        };
+        const html = renderFilterGrid(filterConfig);
+        expect(html).not.toContain('Tech Filters');
+        expect(html).not.toContain('RSI: BULLISH_CROSSOVER');
+    });
+
+    test('renderFilterGrid renders string preset for technicalFilters', () => {
+        const filterConfig = {
+            minDTE: 30,
+            technicalFilters: 'oversold'
+        };
+        const html = renderFilterGrid(filterConfig);
+        expect(html).toContain('🔬 Tech Filters (Preset)');
+        expect(html).toContain('oversold');
+        expect(html).not.toContain('[object Object]');
     });
 
     test('setDashboardBusy toggles busy state on buttons', () => {

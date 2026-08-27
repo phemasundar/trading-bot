@@ -14,7 +14,7 @@
 - **Boilerplate Reduction**: Use Lombok extensively (`@Data`, `@Builder`, `@NoArgsConstructor`, `@AllArgsConstructor`, `@Slf4j`, `@UtilityClass`) in all new models, DTOs, and config classes to minimize boilerplate.
 - **Null Safety**: Standardize null and emptiness checks using Apache Commons (`StringUtils.isBlank`, `CollectionUtils.isEmpty`). Ensure collections are returned as empty lists rather than nulls.
 - **Testing Requirements**: Enforce a minimum of 85% instruction coverage for core business logic using TestNG and standard mocking frameworks.
-- **Strategy Identity**: Strategy IDs are decoupled from securities files (`Alias [- TermType]`) to guarantee deterministic and stable trade hashes in `historical_trades`. Ticker universe configs (`securitiesFile`, `securities`) are persisted in `filterConfig` and rendered in Filter Details.
+- **Strategy Identity**: Strategy IDs are decoupled from securities files (`Alias [- TermType]`) to guarantee deterministic and stable trade hashes in `historical_trades`. Ticker universe configs (`securitiesFile`, `securities`) and technical filter configurations (`technicalFilters`) are persisted in `filterConfig` and formatted cleanly into human-readable representations in Filter Details (preventing `[object Object]` serialization).
 
 ## Agent Behavior
 
