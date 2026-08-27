@@ -1110,35 +1110,166 @@ if (typeof document !== 'undefined') {
 
 // ── Filter Params Formatter ──
 
+/**
+ * Formats a technical filter condition or configuration value into a human-readable string.
+ * Recursively handles arrays, objects (conditions, config, custom range, rules), numbers, and strings,
+ * avoiding raw "[object Object]" serialization.
+ *
+ * @param {*} val - Technical filter condition/config value
+ * @returns {string|null} Formatted readable string or null if empty
+ */
+function formatTechFilterValue(val) {
+    if (val === null || val === undefined || val === '') return null;
+    if (typeof val === 'boolean') return val ? 'Yes' : 'No';
+    if (typeof val === 'number' || typeof val === 'string') return String(val);
+
+    if (Array.isArray(val)) {
+        if (val.length === 0) return null;
+        return val
+            .map(item => (typeof item === 'object' && item !== null) ? formatTechFilterValue(item) : String(item))
+            .filter(Boolean)
+            .join(', ');
+    }
+
+    if (typeof val === 'object') {
+        let condStr = '';
+        if (val.conditions !== undefined && val.conditions !== null) {
+            if (Array.isArray(val.conditions)) {
+                condStr = val.conditions
+                    .map(c => (typeof c === 'object' && c !== null) ? formatTechFilterValue(c) : String(c))
+                    .filter(Boolean)
+                    .join(', ');
+            } else if (typeof val.conditions === 'object') {
+                condStr = formatTechFilterValue(val.conditions);
+            } else {
+                condStr = String(val.conditions);
+            }
+        } else if (val.condition !== undefined && val.condition !== null && val.condition !== '') {
+            if (typeof val.condition === 'object') {
+                if (val.condition.type === 'CUSTOM_RANGE' && (val.condition.min !== undefined || val.condition.max !== undefined)) {
+                    condStr = `CUSTOM_RANGE (${val.condition.min ?? ''} - ${val.condition.max ?? ''})`;
+                } else if (val.condition.type) {
+                    const extra = Object.entries(val.condition)
+                        .filter(([k]) => k !== 'type')
+                        .map(([k, v]) => `${k}: ${typeof v === 'object' ? formatTechFilterValue(v) : v}`)
+                        .join(', ');
+                    condStr = extra ? `${val.condition.type} (${extra})` : String(val.condition.type);
+                } else {
+                    condStr = Object.entries(val.condition)
+                        .map(([k, v]) => `${k}: ${typeof v === 'object' ? formatTechFilterValue(v) : v}`)
+                        .join(', ');
+                }
+            } else {
+                condStr = String(val.condition);
+            }
+        } else if (val.type === 'CUSTOM_RANGE' && (val.min !== undefined || val.max !== undefined)) {
+            condStr = `CUSTOM_RANGE (${val.min ?? ''} - ${val.max ?? ''})`;
+        } else if (val.type && (val.min !== undefined || val.max !== undefined)) {
+            const rangeParts = [val.min !== undefined ? `min: ${val.min}` : '', val.max !== undefined ? `max: ${val.max}` : ''].filter(Boolean);
+            condStr = `${val.type} (${rangeParts.join(', ')})`;
+        } else if (val.rules !== undefined && val.rules !== null) {
+            condStr = Array.isArray(val.rules) ? val.rules.join(', ') : String(val.rules);
+        } else if (val.min !== undefined && val.max !== undefined) {
+            condStr = `${val.min} - ${val.max}`;
+        }
+
+        const configParts = [];
+        if (val.config !== undefined && val.config !== null && val.config !== 'default') {
+            if (typeof val.config === 'object') {
+                if (val.config.period !== undefined) configParts.push(`Period: ${val.config.period}`);
+                for (const [ck, cv] of Object.entries(val.config)) {
+                    if (ck !== 'period' && cv !== null && cv !== undefined && cv !== '') {
+                        configParts.push(`${ck}: ${typeof cv === 'object' ? formatTechFilterValue(cv) : cv}`);
+                    }
+                }
+            } else if (typeof val.config === 'string') {
+                configParts.push(`Config: ${val.config}`);
+            }
+        } else if (val.period !== undefined) {
+            configParts.push(`Period: ${val.period}`);
+        }
+        if (val.lookbackDays !== undefined && val.lookbackDays !== null) {
+            configParts.push(`Lookback: ${val.lookbackDays}d`);
+        }
+
+        const configStr = configParts.join(', ');
+
+        if (condStr && configStr) {
+            return `${condStr} (${configStr})`;
+        }
+        if (condStr) return condStr;
+        if (configStr) return configStr;
+
+        const fallback = Object.entries(val)
+            .filter(([k, v]) => v !== null && v !== undefined && v !== '' && (k !== 'config' || v !== 'default'))
+            .map(([k, v]) => `${k}: ${typeof v === 'object' ? formatTechFilterValue(v) : v}`)
+            .join(', ');
+
+        return fallback || null;
+    }
+
+    return String(val);
+}
+
 function renderFilterGrid(cfg) {
     if (!cfg || typeof cfg !== 'object') return '';
     const entries = Object.entries(cfg);
     if (entries.length === 0) return '';
 
-    const formatLabel = (key) => key
-        .replace(/([A-Z])/g, ' $1')
-        .replace(/^./, s => s.toUpperCase())
-        .replace(/([a-z])(\d)/g, '$1 $2')
-        .trim();
+    const formatLabel = (key) => {
+        if (!key) return '';
+        const ACRONYMS = new Set(['RSI', 'SMA', 'EMA', 'ATR', 'BB', 'HV', 'DTE', 'CAGR', 'IV', 'PE']);
+        if (key.includes('_')) {
+            return key.split('_')
+                .map(w => ACRONYMS.has(w.toUpperCase()) ? w.toUpperCase() : (w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
+                .join(' ');
+        }
+        if (/^[A-Z0-9]+$/.test(key)) {
+            return key;
+        }
+        return key
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/^./, s => s.toUpperCase())
+            .replace(/([a-z])(\d)/g, '$1 $2')
+            .trim();
+    };
 
     const formatValue = (v) => {
         if (v === null || v === undefined || v === '') return null;
         if (typeof v === 'boolean') return v ? 'Yes' : 'No';
-        if (Array.isArray(v)) return v.length > 0 ? v.join(', ') : null;
+        if (Array.isArray(v)) {
+            if (v.length === 0) return null;
+            return v.map(item => (typeof item === 'object' && item !== null) ? formatTechFilterValue(item) : String(item)).join(', ');
+        }
+        if (typeof v === 'object') {
+            return formatTechFilterValue(v);
+        }
         return String(v);
     };
 
     let html = '';
     let rootHtml = '';
+    let techFiltersHtml = '';
+    let fundamentalFiltersHtml = '';
     const nested = [];
-    const SKIP_KEYS = new Set(['greeks', 'strategyType', 'strategyId']);
+    const SKIP_KEYS = new Set(['greeks', 'strategyType', 'strategyId', 'technicalFilterSummary']);
 
     for (const [key, val] of entries) {
         if (SKIP_KEYS.has(key)) continue;
         if (key === 'maxDTE' && val === 2147483647) continue;
         if ((key === 'targetDTE' || key === 'minDTE' || key === 'minReturnOnRisk' || key === 'minReturnOnRiskCAGR') && val === 0) continue;
-        if (key === 'technicalFilterSummary' && val) {
-            rootHtml += `<div class="config-item" style="grid-column: 1 / -1"><span class="config-item-label" style="color:var(--accent)">🔬 Tech Filters</span><span class="config-item-value">${formatValue(val) || String(val)}</span></div>`;
+        if (key === 'technicalFilters' && val) {
+            if (typeof val === 'string') {
+                rootHtml += `<div class="config-item" style="grid-column: 1 / -1"><span class="config-item-label" style="color:var(--accent)">🔬 Tech Filters (Preset)</span><span class="config-item-value">${formatValue(val) || String(val)}</span></div>`;
+            } else if (typeof val === 'object') {
+                techFiltersHtml = renderTechFiltersGrid(val);
+            }
+            continue;
+        }
+        if (key === 'fundamentalFilters' && val) {
+            if (typeof val === 'object') {
+                fundamentalFiltersHtml = renderFundamentalFiltersGrid(val);
+            }
             continue;
         }
         if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
@@ -1166,8 +1297,17 @@ function renderFilterGrid(cfg) {
             }
         }
         if (nestedHtml) {
-            html += `<div class="nested-section"><div class="nested-heading">${formatLabel(key)}</div><div class="config-grid">${nestedHtml}</div></div>`;
+            const headingPrefix = (key === 'technicalFilters' || key === 'technicalFilter') ? '🔬 '
+                : (key === 'fundamentalFilters' || key === 'fundamentalFilter') ? '📊 ' : '';
+            html += `<div class="nested-section"><div class="nested-heading">${headingPrefix}${formatLabel(key)}</div><div class="config-grid">${nestedHtml}</div></div>`;
         }
+    }
+
+    if (techFiltersHtml) {
+        html += techFiltersHtml;
+    }
+    if (fundamentalFiltersHtml) {
+        html += fundamentalFiltersHtml;
     }
 
     return html;
@@ -1182,24 +1322,9 @@ function renderTechFiltersGrid(technicalFilters) {
 
     const parts = [];
     for (const [key, val] of Object.entries(technicalFilters)) {
-        if (Array.isArray(val)) {
-            if (val.length > 0) {
-                parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${val.join(', ')}</span></div>`);
-            }
-        } else if (val && typeof val === 'object') {
-            let condStr = '';
-            if (val.conditions && Array.isArray(val.conditions) && val.conditions.length > 0) {
-                condStr = val.conditions.join(', ');
-            } else if (val.condition !== undefined && val.condition !== null && val.condition !== '') {
-                condStr = String(val.condition);
-            }
-            if (condStr) {
-                parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${condStr}</span></div>`);
-            }
-        } else {
-            if (val !== null && val !== undefined && val !== '') {
-                parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${val}</span></div>`);
-            }
+        const formatted = formatTechFilterValue(val);
+        if (formatted !== null && formatted !== undefined && formatted !== '') {
+            parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${formatted}</span></div>`);
         }
     }
     if (parts.length === 0) return '';
@@ -1210,14 +1335,18 @@ function renderFundamentalFiltersGrid(fundamentalFilters) {
     if (!fundamentalFilters || typeof fundamentalFilters !== 'object') return '';
     const parts = [];
     for (const [key, val] of Object.entries(fundamentalFilters)) {
+        let formatted = '';
         if (val && typeof val === 'object' && Array.isArray(val.conditions)) {
             if (val.conditions.length > 0) {
-                parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${val.conditions.join(', ')}</span></div>`);
+                formatted = val.conditions.map(c => (typeof c === 'object' && c !== null) ? formatTechFilterValue(c) : String(c)).join(', ');
             }
-        } else {
-            if (val !== null && val !== undefined && val !== '') {
-                parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${val}</span></div>`);
-            }
+        } else if (val && typeof val === 'object') {
+            formatted = formatTechFilterValue(val);
+        } else if (val !== null && val !== undefined && val !== '') {
+            formatted = String(val);
+        }
+        if (formatted) {
+            parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${formatted}</span></div>`);
         }
     }
     if (parts.length === 0) return '';
@@ -1805,6 +1934,7 @@ if (typeof module !== 'undefined' && module.exports) {
         renderOptionDataTable,
         initTradeRowClicks,
         showTradeHistoryModal,
+        formatTechFilterValue,
         renderFilterGrid,
         renderTechFiltersGrid,
         renderFundamentalFiltersGrid,
