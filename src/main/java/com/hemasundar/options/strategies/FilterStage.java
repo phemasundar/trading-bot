@@ -46,7 +46,6 @@ public enum FilterStage {
 
     // ── Long Call LEAP strategy ─────────────────────────────────────────────
     PREMIUM_LIMIT_FILTER("Premium Limit Filter"),
-    COST_EFFICIENCY_FILTER("Cost Efficiency Filter"),
     CAGR_FILTER("CAGR Filter"),
     COST_SAVINGS_FILTER("Cost Savings Filter");
 
