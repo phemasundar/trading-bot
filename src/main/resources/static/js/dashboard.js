@@ -1298,7 +1298,8 @@ function renderFilterGrid(cfg) {
         }
         if (nestedHtml) {
             const headingPrefix = (key === 'technicalFilters' || key === 'technicalFilter') ? '🔬 '
-                : (key === 'fundamentalFilters' || key === 'fundamentalFilter') ? '📊 ' : '';
+                : (key === 'fundamentalFilters' || key === 'fundamentalFilter') ? '📊 '
+                : (key === 'earningsFilters' || key === 'earningsFilter') ? '📅 ' : '';
             html += `<div class="nested-section"><div class="nested-heading">${headingPrefix}${formatLabel(key)}</div><div class="config-grid">${nestedHtml}</div></div>`;
         }
     }

@@ -33,6 +33,7 @@
     --text-primary: #e2e8f0;
     --text-secondary: #94a3b8;
     --text-muted: #64748b;
+    --text-placeholder: #64748b;
 
     --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
@@ -63,6 +64,7 @@
     --text-primary: #0f172a;
     --text-secondary: #475569;
     --text-muted: #64748b;
+    --text-placeholder: #94a3b8;
     
     --shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
 }
@@ -561,8 +563,12 @@ a:hover {
     border-color: var(--border-focus);
 }
 
-.form-input::placeholder {
-    color: var(--text-muted);
+.form-input::placeholder,
+.form-textarea::placeholder,
+input::placeholder,
+textarea::placeholder {
+    color: var(--text-placeholder);
+    opacity: 1;
 }
 
 .form-grid {

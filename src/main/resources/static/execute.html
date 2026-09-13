@@ -8,7 +8,7 @@
     <meta name="description" content="Execute custom trading strategies with configurable filters">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/style.css?v=4">
+    <link rel="stylesheet" href="/style.css?v=5">
     <script src="/theme.js?v=3"></script>
 </head>
 
@@ -381,11 +381,9 @@
                                 </svg></button></label>
                         <input type="text" class="form-input" data-filter="excludeIf" placeholder="TSLA, NVDA">
                     </div>
-                    <div class="form-group" style="display:flex; align-items:center; gap:8px; padding-top:20px">
-                        <input type="checkbox" id="ignore-earnings" data-filter="ignoreEarnings" checked>
-                        <label for="ignore-earnings" style="font-size:0.85rem; cursor:pointer">Ignore Earnings <button
-                                type="button" class="info-btn"
-                                onclick="showFilterHelp(event, 'ignoreEarnings', 'Ignore Earnings')"><svg
+                    <div class="form-group">
+                        <label class="form-label">Earnings Filter <button type="button" class="info-btn"
+                                onclick="showFilterHelp(event, 'earningsFilters', 'Earnings Filter')"><svg
                                     class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                     stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                     stroke-linejoin="round">
@@ -393,6 +391,21 @@
                                     <line x1="12" y1="16" x2="12" y2="12"></line>
                                     <line x1="12" y1="8" x2="12.01" y2="8"></line>
                                 </svg></button></label>
+                        <select id="earnings-preset-select" class="form-select" onchange="onEarningsPresetChange(this)">
+                            <option value="">— None (Ignore Earnings) —</option>
+                            <option value="DAYS_TO_NEXT_EARNINGS >= DTE">No Earnings Before Expiration</option>
+                            <option value="EARNINGS_NEAREST_TO_DTE <= DTE - 10">Safe Close (&le; DTE - 10)</option>
+                            <option value="EARNINGS_NEAREST_TO_DTE <= DTE - 5">Safe Close (&le; DTE - 5)</option>
+                            <option value="DAYS_TO_NEXT_EARNINGS >= DTE, EARNINGS_NEAREST_TO_DTE <= DTE - 10">No Earnings &amp; Safe Close</option>
+                            <option value="DAYS_TO_NEXT_EARNINGS <= 14">Capture Earnings Premium (&le; 14d)</option>
+                            <option value="CUSTOM">Custom Condition</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2">
+                        <label class="form-label">Earnings Conditions <span style="font-size:0.75rem; color:var(--text-muted);">(comma-separated rules)</span></label>
+                        <input type="text" class="form-input" id="earnings-conditions-input" data-filter="earningsFilters.conditions"
+                            placeholder="DAYS_TO_NEXT_EARNINGS >= DTE, EARNINGS_NEAREST_TO_DTE <= DTE - 10"
+                            oninput="syncEarningsPresetFromInput()">
                     </div>
                     <!-- Strategy-specific filters are injected here -->
                     <div id="specific-filters" class="form-grid" style="grid-column: 1 / -1"></div>
@@ -500,10 +513,10 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="/js/utils.js?v=1"></script>
     <script src="/js/auth-api.js?v=1"></script>
-    <script src="/js/dashboard.js?v=1"></script>
+    <script src="/js/dashboard.js?v=2"></script>
     <script src="/js/screener-execute.js?v=1"></script>
-    <script src="/js/custom-execute.js?v=1"></script>
-    <script src="/app.js?v=5"></script>
+    <script src="/js/custom-execute.js?v=2"></script>
+    <script src="/app.js?v=6"></script>
     <script>
         document.addEventListener('DOMContentLoaded', initExecutePage);
     </script>

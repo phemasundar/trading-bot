@@ -11,6 +11,9 @@ const {
     renderSpecificFilters,
     executeCustom,
     loadCustomResults,
+    EARNINGS_PRESETS,
+    onEarningsPresetChange,
+    syncEarningsPresetFromInput,
     API,
     escapeAttr
 } = require('../../main/resources/static/app');
@@ -178,5 +181,61 @@ describe('Custom Options Execute Tests', () => {
         API.get = jest.fn().mockRejectedValueOnce(new Error('Failed custom'));
         await loadCustomResults();
         expect(document.getElementById('custom-results').innerHTML).toContain('Failed to load');
+    });
+
+    test('onEarningsPresetChange updates conditions input', () => {
+        document.body.innerHTML = `
+            <select id="earnings-preset-select">
+                <option value="DAYS_TO_NEXT_EARNINGS >= DTE">No Earnings</option>
+            </select>
+            <input id="earnings-conditions-input" value="" />
+        `;
+        const select = document.getElementById('earnings-preset-select');
+        onEarningsPresetChange(select);
+        expect(document.getElementById('earnings-conditions-input').value).toBe('DAYS_TO_NEXT_EARNINGS >= DTE');
+    });
+
+    test('syncEarningsPresetFromInput sets matching preset or CUSTOM', () => {
+        document.body.innerHTML = `
+            <select id="earnings-preset-select">
+                <option value="">None</option>
+                <option value="DAYS_TO_NEXT_EARNINGS >= DTE">No Earnings</option>
+                <option value="CUSTOM">Custom</option>
+            </select>
+            <input id="earnings-conditions-input" value="DAYS_TO_NEXT_EARNINGS >= DTE" />
+        `;
+        syncEarningsPresetFromInput();
+        expect(document.getElementById('earnings-preset-select').value).toBe('DAYS_TO_NEXT_EARNINGS >= DTE');
+
+        document.getElementById('earnings-conditions-input').value = 'DAYS_TO_NEXT_EARNINGS >= 50';
+        syncEarningsPresetFromInput();
+        expect(document.getElementById('earnings-preset-select').value).toBe('CUSTOM');
+
+        document.getElementById('earnings-conditions-input').value = '';
+        syncEarningsPresetFromInput();
+        expect(document.getElementById('earnings-preset-select').value).toBe('');
+    });
+
+    test('executeCustom includes earningsFilters.conditions as list', async () => {
+        document.body.innerHTML = `
+            <select id="strategy-type"><option value="SHORT_STRANGLE" selected>Short Strangle</option></select>
+            <input id="securities-input" value="AAPL">
+            <input id="securities-file-input" value="">
+            <input id="alias-input" value="My Strangle">
+            <input data-filter="earningsFilters.conditions" value="DAYS_TO_NEXT_EARNINGS >= DTE, EARNINGS_NEAREST_TO_DTE <= DTE - 10">
+            <div id="custom-progress"></div>
+        `;
+        API.post = jest.fn().mockResolvedValueOnce({ message: 'Submitted' });
+        await executeCustom();
+        expect(API.post).toHaveBeenCalledWith('/api/execute/custom', expect.objectContaining({
+            filter: expect.objectContaining({
+                earningsFilters: {
+                    conditions: [
+                        'DAYS_TO_NEXT_EARNINGS >= DTE',
+                        'EARNINGS_NEAREST_TO_DTE <= DTE - 10'
+                    ]
+                }
+            })
+        }));
     });
 });

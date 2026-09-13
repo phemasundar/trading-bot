@@ -2391,7 +2391,10 @@ describe('Template Parameters Loader', () => {
             <input id="securities-input" />
             <input id="securities-file-input" />
             <input data-filter="minDelta" />
-            <input type="checkbox" data-filter="ignoreEarnings" />
+            <input id="earnings-conditions-input" data-filter="earningsFilters.conditions" />
+            <select id="earnings-preset-select">
+                <option value="DAYS_TO_NEXT_EARNINGS >= DTE">No Earnings</option>
+            </select>
         `;
 
         const strategy = {
@@ -2399,7 +2402,9 @@ describe('Template Parameters Loader', () => {
             securities: 'AAPL, SPY',
             filter: {
                 minDelta: 0.15,
-                ignoreEarnings: true
+                earningsFilters: {
+                    conditions: ['DAYS_TO_NEXT_EARNINGS >= DTE']
+                }
             }
         };
 
@@ -2409,7 +2414,8 @@ describe('Template Parameters Loader', () => {
         expect(document.getElementById('alias-input').value).toBe('Bull Put Template (Custom)');
         expect(document.getElementById('securities-input').value).toBe('AAPL, SPY');
         expect(document.querySelector('[data-filter="minDelta"]').value).toBe('0.15');
-        expect(document.querySelector('[data-filter="ignoreEarnings"]').checked).toBe(true);
+        expect(document.querySelector('[data-filter="earningsFilters.conditions"]').value).toBe('DAYS_TO_NEXT_EARNINGS >= DTE');
+        expect(document.getElementById('earnings-preset-select').value).toBe('DAYS_TO_NEXT_EARNINGS >= DTE');
     });
 });
 

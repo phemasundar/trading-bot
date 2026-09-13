@@ -73,7 +73,6 @@ The `strategies-config.json` file is located at: `src/main/resources/strategies-
 | `targetDTE` | Integer | `0` | Specific target DTE (0 = use min/max range) |
 | `ignoreEarnings` | Boolean | `true` | Skip options near earnings dates |
 | `maxLossLimit` | Double | - | Maximum potential loss per trade |
-| `minReturnOnRisk` | Integer | - | Minimum return on risk percentage |
 | `marginInterestRate` | Double | `6.0` | Annual margin interest rate (%) |
 | `savingsInterestRate` | Double | `10.0` | Annual savings interest rate (%) |
 
@@ -110,9 +109,6 @@ The `strategies-config.json` file is located at: `src/main/resources/strategies-
     "maxOptionPricePercent": 40.0,
     "maxCAGRForBreakEven": 10.0,
     "minCostSavingsPercent": 10.0,
-    
-    // ===== OPTIONAL FILTERS =====
-    "minCostEfficiencyPercent": 90.0,
     
     // ===== PRIORITY CONFIGURATION =====
     "relaxationPriority": [
@@ -154,13 +150,7 @@ The `strategies-config.json` file is located at: `src/main/resources/strategies-
 | `maxOptionPricePercent` | Double | null | Level 2 | Maximum option price as % of stock |
 | `minCostSavingsPercent` | Double | null | Level 3 | Minimum cost savings vs buying stock |
 
-**Note**: If not specified, these filters are not applied (null = no constraint).
-
-#### ➕ Optional Filters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `minCostEfficiencyPercent` | Double | null | Option cost must be ≤ this % of stock cost |
+**Note**: If not specified, these filters are not applied (null = no constraint; all trades pass).
 
 #### 📊 Priority Configuration
 

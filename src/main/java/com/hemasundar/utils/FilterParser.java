@@ -3,10 +3,12 @@ package com.hemasundar.utils;
 import com.hemasundar.options.models.*;
 import com.hemasundar.options.strategies.StrategyType;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 import com.hemasundar.technical.MathExpression;
 import lombok.experimental.UtilityClass;
 
@@ -65,9 +67,24 @@ public class FilterParser {
         if (filterMap.containsKey("earningsFilters") && filterMap.get("earningsFilters") != null) {
             Object earningsFiltersObj = filterMap.get("earningsFilters");
             if (earningsFiltersObj instanceof Map<?, ?> earningsMap) {
-                if (earningsMap.containsKey("conditions") && earningsMap.get("conditions") instanceof List<?> rules) {
-                    List<String> stringRules = rules.stream().map(Object::toString).collect(Collectors.toList());
-                    filter.setEarningsFilterExpressions(MathExpressionParser.parseRules(stringRules));
+                if (earningsMap.containsKey("conditions") && earningsMap.get("conditions") != null) {
+                    Object condObj = earningsMap.get("conditions");
+                    List<String> stringRules = new ArrayList<>();
+                    if (condObj instanceof List<?> rules) {
+                        stringRules = rules.stream()
+                                .map(Object::toString)
+                                .map(String::trim)
+                                .filter(StringUtils::isNotBlank)
+                                .collect(Collectors.toList());
+                    } else if (condObj instanceof String str && StringUtils.isNotBlank(str)) {
+                        stringRules = Arrays.stream(str.split(","))
+                                .map(String::trim)
+                                .filter(StringUtils::isNotBlank)
+                                .collect(Collectors.toList());
+                    }
+                    if (!stringRules.isEmpty()) {
+                        filter.setEarningsFilterExpressions(MathExpressionParser.parseRules(stringRules));
+                    }
                 }
             }
             // Also store the raw map for serialization/UI rendering if needed
@@ -102,7 +119,6 @@ public class FilterParser {
         } else if (filter instanceof LongCallLeapFilter leapFilter) {
             applyLegFilter(filterMap, "longCall", leapFilter::setLongCall);
             applyIfPresent(filterMap, "minCostSavingsPercent", v -> leapFilter.setMinCostSavingsPercent(toDouble(v)));
-            applyIfPresent(filterMap, "minCostEfficiencyPercent", v -> leapFilter.setMinCostEfficiencyPercent(toDouble(v)));
             applyIfPresent(filterMap, "relaxationPriority", v -> leapFilter.setRelaxationPriority(toStringList(v)));
             applyIfPresent(filterMap, "sortPriority", v -> leapFilter.setSortPriority(toStringList(v)));
         } else if (filter instanceof BrokenWingButterflyFilter bwbFilter) {

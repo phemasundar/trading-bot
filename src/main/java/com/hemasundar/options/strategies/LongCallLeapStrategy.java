@@ -130,7 +130,6 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                 .step(FilterStage.LEG_VOLATILITY_FILTER,  volatilityFilter(finalLongCallFilter))
                 .step(FilterStage.PREMIUM_LIMIT_FILTER,   premiumLimitFilter(filter))
                 .step(FilterStage.MAX_LOSS_FILTER,         maxLossFilter(filter))
-                .step(FilterStage.COST_EFFICIENCY_FILTER,  costEfficiencyFilter(filter))
                 .step(FilterStage.CAGR_FILTER,             cagrFilter(filter))
                 .step(FilterStage.COST_SAVINGS_FILTER,     costSavingsFilter(filter))
                 .step(FilterStage.DEBIT_LIMIT_FILTER,      candidate -> filter.passesDebitLimit(candidate.callPremium() * 100))
@@ -383,22 +382,6 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
         };
     }
 
-    private java.util.function.Predicate<LeapCandidate> costEfficiencyFilter(OptionsStrategyFilter filter) {
-        return c -> {
-            // Optional filter: Check if buying option is cheaper than buying stock on
-            // margin
-            // Only apply if explicitly configured in LongCallLeapFilter
-            if (filter instanceof LongCallLeapFilter leapFilter) {
-                Double minEfficiency = leapFilter.getMinCostEfficiencyPercent();
-                if (minEfficiency != null) {
-                    double efficiencyThreshold = c.costOfBuyingPerStock() * (minEfficiency / 100.0);
-                    return c.costOfOptionBuyingPerStock() <= efficiencyThreshold;
-                }
-            }
-            return true; // No efficiency filter set, pass all
-        };
-    }
-
     private java.util.function.Predicate<LeapCandidate> cagrFilter(OptionsStrategyFilter filter) {
         return c -> {
             if (filter.getMaxCAGRForBreakEven() == null) {
@@ -410,14 +393,14 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
 
     private java.util.function.Predicate<LeapCandidate> costSavingsFilter(OptionsStrategyFilter filter) {
         return c -> {
-            // Only apply if filter is LongCallLeapFilter and minCostSavingsPercent is set
+            // Only apply if filter is LongCallLeapFilter and minCostSavingsPercent is explicitly set
             if (filter instanceof LongCallLeapFilter leapFilter) {
                 Double minSavings = leapFilter.getMinCostSavingsPercent();
                 if (minSavings != null) {
                     return c.costSavingsPercent() >= minSavings;
                 }
             }
-            return true; // No filter set, pass all trades
+            return true; // No user input for this, pass all trades
         };
     }
 

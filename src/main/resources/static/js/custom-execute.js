@@ -46,7 +46,6 @@ const STRATEGY_SPECIFIC_FILTERS = {
     leap: [
         ...getLegFilters('longCall', 'Long Call'),
         { key: 'minCostSavingsPercent', label: 'Min Cost Savings %', placeholder: '10.0', step: '0.1' },
-        { key: 'minCostEfficiencyPercent', label: 'Min Cost Efficiency %', placeholder: '90.0', step: '0.1' },
         { key: 'maxCAGRForBreakEven', label: 'Max Breakeven CAGR', placeholder: '15.0', step: '0.1' },
         { key: 'maxOptionPricePercent', label: 'Max Option Price %', placeholder: '30.0', step: '0.1' },
         { key: 'marginInterestRate', label: 'Margin Interest Rate', placeholder: '6.0', step: '0.1' },
@@ -73,6 +72,43 @@ const STRATEGY_SPECIFIC_FILTERS = {
     ],
 };
 
+const EARNINGS_PRESETS = [
+    { value: '', label: '— None (Ignore Earnings) —', conditions: [] },
+    { value: 'DAYS_TO_NEXT_EARNINGS >= DTE', label: 'No Earnings Before Expiration', conditions: ['DAYS_TO_NEXT_EARNINGS >= DTE'] },
+    { value: 'EARNINGS_NEAREST_TO_DTE <= DTE - 10', label: 'Safe Close (≤ DTE - 10)', conditions: ['EARNINGS_NEAREST_TO_DTE <= DTE - 10'] },
+    { value: 'EARNINGS_NEAREST_TO_DTE <= DTE - 5', label: 'Safe Close (≤ DTE - 5)', conditions: ['EARNINGS_NEAREST_TO_DTE <= DTE - 5'] },
+    { value: 'DAYS_TO_NEXT_EARNINGS >= DTE, EARNINGS_NEAREST_TO_DTE <= DTE - 10', label: 'No Earnings & Safe Close', conditions: ['DAYS_TO_NEXT_EARNINGS >= DTE', 'EARNINGS_NEAREST_TO_DTE <= DTE - 10'] },
+    { value: 'DAYS_TO_NEXT_EARNINGS <= 14', label: 'Capture Earnings Premium (≤ 14d)', conditions: ['DAYS_TO_NEXT_EARNINGS <= 14'] },
+    { value: 'CUSTOM', label: 'Custom Condition', conditions: null }
+];
+
+function onEarningsPresetChange(selectEl) {
+    const val = selectEl ? selectEl.value : '';
+    const condInput = document.getElementById('earnings-conditions-input');
+    if (!condInput) return;
+    const preset = EARNINGS_PRESETS.find(p => p.value === val);
+    if (preset && preset.conditions !== null) {
+        condInput.value = preset.conditions.join(', ');
+    }
+}
+
+function syncEarningsPresetFromInput() {
+    const condInput = document.getElementById('earnings-conditions-input');
+    const selectEl = document.getElementById('earnings-preset-select');
+    if (!condInput || !selectEl) return;
+    const rawVal = condInput.value.trim();
+    if (!rawVal) {
+        selectEl.value = '';
+        return;
+    }
+    const currentRules = rawVal.split(',').map(s => s.trim()).filter(Boolean);
+    const matched = EARNINGS_PRESETS.find(p => {
+        if (!p.conditions || p.conditions.length !== currentRules.length) return false;
+        return p.conditions.every((c, i) => c === currentRules[i]);
+    });
+    selectEl.value = matched ? matched.value : 'CUSTOM';
+}
+
 async function initExecutePage() {
     const authed = await initAuth();
     if (!authed) return;
@@ -88,6 +124,7 @@ async function initExecutePage() {
     });
 
     loadFilterDescriptions();
+    syncEarningsPresetFromInput();
 
     select.addEventListener('change', () => {
         renderSpecificFilters(select.value);
@@ -242,6 +279,14 @@ function loadTemplateParams(strategyJson) {
             }
         }
 
+        if (flatFilters['earningsFilters.conditions'] === undefined && flatFilters.ignoreEarnings !== undefined) {
+            const condEl = document.getElementById('earnings-conditions-input');
+            if (condEl) {
+                condEl.value = flatFilters.ignoreEarnings === false ? 'DAYS_TO_NEXT_EARNINGS >= DTE' : '';
+            }
+        }
+        syncEarningsPresetFromInput();
+
         fillTechFiltersForm(strategy.technicalFilters);
 
         showToast('Template load complete. Verify inputs before execution.');
@@ -331,6 +376,14 @@ function loadFiltersFromResult(btn) {
                 }
             }
         }
+
+        if (flatFilters['earningsFilters.conditions'] === undefined && flatFilters.ignoreEarnings !== undefined) {
+            const condEl = document.getElementById('earnings-conditions-input');
+            if (condEl) {
+                condEl.value = flatFilters.ignoreEarnings === false ? 'DAYS_TO_NEXT_EARNINGS >= DTE' : '';
+            }
+        }
+        syncEarningsPresetFromInput();
 
         fillTechFiltersForm(filterConfig.technicalFilters);
 
@@ -445,8 +498,8 @@ async function executeCustom() {
         if (input.type === 'checkbox') {
             value = input.checked;
         } else if (input.value.trim()) {
-            if (key === 'relaxationPriority' || key === 'sortPriority') {
-                value = input.value.split(',').map(s => s.trim()).filter(s => s);
+            if (key === 'relaxationPriority' || key === 'sortPriority' || key === 'earningsFilters.conditions') {
+                value = input.value.split(',').map(s => s.trim()).filter(Boolean);
             } else if (input.type === 'number') {
                 value = parseFloat(input.value);
             } else {
@@ -549,6 +602,9 @@ if (typeof module !== 'undefined' && module.exports) {
         fillTechFiltersForm,
         renderSpecificFilters,
         executeCustom,
-        loadCustomResults
+        loadCustomResults,
+        EARNINGS_PRESETS,
+        onEarningsPresetChange,
+        syncEarningsPresetFromInput
     };
 }

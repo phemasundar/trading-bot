@@ -26,13 +26,6 @@ public class LongCallLeapFilter extends OptionsStrategyFilter {
      */
     private Double minCostSavingsPercent;
 
-    /**
-     * Minimum cost efficiency percentage (optional).
-     * If set, option must cost at most this % of stock buying cost.
-     * Example: If set to 90.0, option cost must be ≤ 90% of stock buying cost.
-     */
-    private Double minCostEfficiencyPercent;
-
 
     /**
      * Controls the order in which filters are relaxed when fewer than N trades are
