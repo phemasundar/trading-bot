@@ -92,7 +92,7 @@ optionsStrategies:
       minReturnOnRisk: 24
       shortLeg:
         maxDelta: 0.2
-        minOpenInterest: 500
+        minOpenInterest: 100
     securitiesFile: "tracking, 2026"
     technicalFilters:
       HISTORICAL_VOLATILITY:
@@ -199,10 +199,10 @@ optionsStrategies:
       minReturnOnRisk: 24
       putShortLeg:
         maxDelta: 0.15
-        minOpenInterest: 500
+        minOpenInterest: 100
       callShortLeg:
         maxDelta: 0.15
-        minOpenInterest: 500
+        minOpenInterest: 100
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
@@ -226,10 +226,10 @@ optionsStrategies:
       minReturnOnRisk: 36
       putShortLeg:
         maxDelta: 0.15
-        minOpenInterest: 500
+        minOpenInterest: 100
       callShortLeg:
         maxDelta: 0.15
-        minOpenInterest: 500
+        minOpenInterest: 100
     securitiesFile: "bullish, 2026"
     technicalFilters:
       HISTORICAL_VOLATILITY:
@@ -350,10 +350,10 @@ optionsStrategies:
       maxUpperBreakevenDelta: 0.15
       leg1Long:
         minDelta: 0.5
-        minOpenInterest: 1000
+        minOpenInterest: 100
       leg2Short:
         maxDelta: 0.4
-        minOpenInterest: 1000
+        minOpenInterest: 100
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
@@ -374,9 +374,9 @@ optionsStrategies:
       priceVsMaxDebitRatio: 1
       leg1Long:
         minDelta: 0.5
-        minOpenInterest: 1000
+        minOpenInterest: 100
       leg2Short:
-        minOpenInterest: 1000
+        minOpenInterest: 100
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
@@ -451,7 +451,7 @@ optionsStrategies:
       minIVPercentile: 30
       shortLeg:
         maxDelta: 0.2
-        minOpenInterest: 100
+        minOpenInterest: 1
     securitiesFile: "portfolio, tracking, 2026"
   - alias: "Short Strangle"
     enabled: true
