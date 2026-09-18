@@ -188,6 +188,64 @@ public class CustomExecutionRepository {
     }
 
     /**
+     * Updates an existing custom execution result in Supabase by its database ID.
+     *
+     * @param id the record ID (primary key) to update
+     * @param result the updated StrategyResult
+     * @param securities list of securities
+     * @throws IOException if the update request fails
+     */
+    public void updateCustomExecutionResult(Long id, StrategyResult result, List<String> securities) throws IOException {
+        try {
+            String tradesJson = mapper.writeValueAsString(result.getTrades());
+
+            ObjectNode payloadNode = mapper.createObjectNode();
+            payloadNode.put("strategy_name", result.getStrategyName());
+            payloadNode.put("execution_time_ms", result.getExecutionTimeMs());
+            payloadNode.put("trades_found", result.getTradesFound());
+            payloadNode.set("trades", mapper.readTree(tradesJson));
+
+            if (result.getFilterConfig() != null && !result.getFilterConfig().isEmpty()) {
+                payloadNode.set("filter_config", mapper.readTree(result.getFilterConfig()));
+            }
+
+            ArrayNode securitiesArray = mapper.createArrayNode();
+            if (securities != null) {
+                securities.forEach(securitiesArray::add);
+            }
+            payloadNode.set("securities", securitiesArray);
+            payloadNode.put("created_at", Instant.now().toString());
+
+            String payload = mapper.writeValueAsString(payloadNode);
+            String url = client.getUrl(CUSTOM_EXECUTION_RESULTS_PATH + "?id=eq." + id);
+
+            Response response = client.request()
+                    .header("Prefer", "return=representation")
+                    .body(payload)
+                    .patch(url);
+
+            int statusCode = response.getStatusCode();
+            if (statusCode == 200 || statusCode == 204) {
+                String responseBody = response.getBody() != null ? response.getBody().asString() : "";
+                if (responseBody.startsWith("[") && responseBody.trim().equals("[]")) {
+                    log.warn("Custom execution result id={} not found for update, falling back to insert", id);
+                    saveCustomExecutionResult(result, securities);
+                } else {
+                    log.info("Updated custom execution result: id={} {} with {} trades",
+                            id, result.getStrategyName(), result.getTradesFound());
+                }
+            } else {
+                String errorBody = response.getBody() != null ? response.getBody().asString() : "";
+                throw new IOException(String.format("Failed to update custom execution result id=%d: %d - %s. Body: %s",
+                        id, statusCode, response.getStatusLine(), errorBody));
+            }
+        } catch (Exception e) {
+            if (e instanceof IOException) throw (IOException) e;
+            throw new IOException("Failed to update custom execution result: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Retrieves the most recent custom execution results.
      */
     public List<StrategyResult> getRecentCustomExecutions(int limit) throws IOException {

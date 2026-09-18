@@ -199,11 +199,16 @@ async function renderStrategyTemplates(strategyType) {
 
         const loadBtn = `<button type="button" class="btn btn-primary" style="padding: 2px 8px; font-size: 0.75rem; margin-left: auto;" onclick="loadTemplateParams('${escapeAttr(JSON.stringify(strategy))}')">Load Filters</button>`;
 
+        const baseName = strategy.alias || strategy.name || (STRATEGY_TYPES.find(t => t.value === strategy.strategyType)?.label || strategy.strategyType);
+        const detailedName = (strategy.termType && !baseName.toLowerCase().includes(strategy.termType.toLowerCase()))
+            ? `${baseName} - ${strategy.termType}`
+            : baseName;
+
         card.innerHTML = `
             <div class="config-card-header">
                 <div class="flex items-center gap-sm flex-wrap" style="width: 100%;">
                     <span class="card-arrow">▶</span>
-                    <strong>${strategy.alias || strategy.strategyType}</strong>
+                    <strong>${detailedName}</strong>
                     <span class="card-badge">${strategy.securitiesFile || 'Custom'}</span>
                     ${enabledPill}
                     ${loadBtn}
@@ -229,8 +234,13 @@ function loadTemplateParams(strategyJson) {
     try {
         const strategy = JSON.parse(decodeAttr(strategyJson));
 
+        const baseName = strategy.alias || strategy.name || (STRATEGY_TYPES.find(t => t.value === strategy.strategyType)?.label || strategy.strategyType || '');
+        const detailedName = (strategy.termType && !baseName.toLowerCase().includes(strategy.termType.toLowerCase()))
+            ? `${baseName} - ${strategy.termType}`
+            : baseName;
+
         const aliasEl = document.getElementById('alias-input');
-        if (aliasEl) aliasEl.value = (strategy.alias || '') + ' (Custom)';
+        if (aliasEl) aliasEl.value = detailedName ? (detailedName + ' (Custom)') : '';
 
         const secInput = document.getElementById('securities-input');
         if (secInput) {
@@ -297,7 +307,7 @@ function loadTemplateParams(strategyJson) {
     }
 }
 
-function loadFiltersFromResult(btn) {
+function loadFiltersFromResult(btn, isReexecute = false) {
     try {
         const filterConfigStr = decodeAttr(btn.dataset.filterConfig);
         const strategyName = decodeAttr(btn.dataset.strategyName || '');
@@ -326,7 +336,13 @@ function loadFiltersFromResult(btn) {
         }
 
         const aliasEl = document.getElementById('alias-input');
-        if (aliasEl) aliasEl.value = strategyName ? strategyName + ' (Reload)' : '';
+        if (aliasEl) {
+            if (isReexecute) {
+                aliasEl.value = strategyName ? strategyName.replace(/\s*\(Reload\)$/, '') : '';
+            } else {
+                aliasEl.value = strategyName ? (strategyName.endsWith('(Reload)') ? strategyName : strategyName + ' (Reload)') : '';
+            }
+        }
 
         document.querySelectorAll('[data-filter]').forEach(inp => {
             if (inp.type === 'checkbox') {
@@ -387,8 +403,10 @@ function loadFiltersFromResult(btn) {
 
         fillTechFiltersForm(filterConfig.technicalFilters);
 
-        showToast('Filters loaded from previous execution. Verify inputs before running.');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (!isReexecute) {
+            showToast('Filters loaded from previous execution. Verify inputs before running.');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     } catch (e) {
         console.error('Error loading filters from result:', e);
         showToast('Failed to load filters', 'error');
@@ -475,19 +493,46 @@ function renderSpecificFilters(strategyValue) {
     container.innerHTML = html;
 }
 
-async function executeCustom() {
+async function reexecuteCustomStrategy(btn, strategyId) {
+    if (!strategyId) return;
+
+    const progress = document.getElementById('custom-progress');
+    if (progress && progress.classList.contains('active')) {
+        showToast('An execution is already in progress', 'error');
+        return;
+    }
+
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Executing...';
+
+    try {
+        loadFiltersFromResult(btn, true);
+        const success = await executeCustom(strategyId);
+        if (success === false) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    } catch (e) {
+        console.error('Error re-executing custom strategy:', e);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+async function executeCustom(customResultId = null) {
     const typeEl = document.getElementById('strategy-type');
     const securitiesEl = document.getElementById('securities-input');
     const securitiesFileEl = document.getElementById('securities-file-input');
     const aliasEl = document.getElementById('alias-input');
 
-    if (!typeEl.value) { showToast('Select a strategy type', 'error'); return; }
+    if (!typeEl || !typeEl.value) { showToast('Select a strategy type', 'error'); return false; }
 
     const hasFile = securitiesFileEl && securitiesFileEl.value.trim();
     const hasTickers = securitiesEl && securitiesEl.value.trim();
     if (!hasFile && !hasTickers) {
         showToast('Provide a securities file, inline tickers, or both', 'error');
-        return;
+        return false;
     }
 
     const filter = {};
@@ -540,6 +585,10 @@ async function executeCustom() {
         technicalFilters
     };
 
+    if (customResultId) {
+        body.customResultId = Number(customResultId);
+    }
+
     try {
         const progress = document.getElementById('custom-progress');
         if (progress) progress.className = 'progress-container active';
@@ -550,20 +599,27 @@ async function executeCustom() {
         startPolling(() => {
             if (progress) progress.className = 'progress-container';
             stopTimer();
-            loadCustomResults();
+            loadCustomResults(customResultId);
             showToast('Custom execution completed!');
         });
     } catch (e) {
         const progress = document.getElementById('custom-progress');
         if (progress) progress.className = 'progress-container';
         showToast(e.message, 'error');
+        throw e;
     }
 }
 
-async function loadCustomResults() {
+async function loadCustomResults(updatedResultId = null) {
     const container = document.getElementById('custom-results');
     if (!container) return;
     try {
+        const openCardIds = new Set();
+        container.querySelectorAll('.card-content.open').forEach(el => {
+            const id = el.id.replace(/^content-/, '');
+            openCardIds.add(id);
+        });
+
         const results = await API.get('/api/results/custom');
         container.innerHTML = '';
         if (!results || results.length === 0) {
@@ -571,7 +627,16 @@ async function loadCustomResults() {
             return;
         }
         for (const r of results) {
-            container.appendChild(buildResultCard(r, 'Custom'));
+            const cardEl = buildResultCard(r, 'Custom');
+            container.appendChild(cardEl);
+            const cardId = String(r.strategyId || r.screenerId || '').replace(/\s+/g, '-');
+            const shouldOpen = openCardIds.has(cardId) || (updatedResultId && String(r.strategyId) === String(updatedResultId));
+            if (shouldOpen && r.trades && r.trades.length > 0) {
+                const content = cardEl.querySelector(`[id="content-${cardId}"]`);
+                const arrow = cardEl.querySelector(`[id="arrow-${cardId}"]`);
+                if (content) content.classList.add('open');
+                if (arrow) arrow.classList.add('open');
+            }
         }
         fetchAndInjectTodayPerformance(container);
     } catch (e) {
@@ -580,6 +645,13 @@ async function loadCustomResults() {
             checkExecutionStatus();
         }
     }
+}
+
+if (typeof window !== 'undefined') {
+    window.loadFiltersFromResult = loadFiltersFromResult;
+    window.reexecuteCustomStrategy = reexecuteCustomStrategy;
+    window.executeCustom = executeCustom;
+    window.loadCustomResults = loadCustomResults;
 }
 
 // CommonJS Exports
@@ -599,6 +671,7 @@ if (typeof module !== 'undefined' && module.exports) {
         renderStrategyTemplates,
         loadTemplateParams,
         loadFiltersFromResult,
+        reexecuteCustomStrategy,
         fillTechFiltersForm,
         renderSpecificFilters,
         executeCustom,

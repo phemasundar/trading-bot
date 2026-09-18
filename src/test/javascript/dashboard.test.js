@@ -85,6 +85,24 @@ describe('Dashboard & Table Rendering Tests', () => {
         expect(cardElement.innerHTML).toContain('OVERSOLD');
     });
 
+    test('buildResultCard on execute page should render Load, Execute, and Delete buttons for custom result', () => {
+        document.body.innerHTML = '<select id="strategy-type"></select>';
+        const mockResult = {
+            strategyId: '123',
+            strategyName: 'Custom PCS',
+            filterConfig: { minDTE: 30 },
+            trades: []
+        };
+
+        const card = buildResultCard(mockResult, 'Custom');
+        expect(card.innerHTML).toContain('>⬆ Load</button>');
+        expect(card.innerHTML).not.toContain('>Load Filters</button>');
+        expect(card.innerHTML).not.toContain('>⬆ Load Filters</button>');
+        expect(card.innerHTML).toContain('>▶ Execute</button>');
+        expect(card.innerHTML).toContain('reexecuteCustomStrategy(this, \'123\')');
+        expect(card.innerHTML).toContain('🗑 Delete');
+    });
+
     test('buildScreenerCard should render technical screener card with table', () => {
         const mockScreenerResult = {
             screenerId: 'rsi-bb-1',
@@ -342,6 +360,29 @@ describe('Dashboard & Table Rendering Tests', () => {
         expect(html).toContain('🔬 Tech Filters (Preset)');
         expect(html).toContain('oversold');
         expect(html).not.toContain('[object Object]');
+    });
+
+    test('renderFilterGrid skips earningsFilterExpressions and displays earningsFilters cleanly', () => {
+        const filterConfig = {
+            minDTE: 25,
+            maxDTE: 70,
+            earningsFilterExpressions: [
+                {
+                    operator: 'GREATER_THAN_OR_EQUAL',
+                    rightScale: 1,
+                    leftVariable: 'DAYS_TO_NEXT_EARNINGS',
+                    rightVariable: 'DTE'
+                }
+            ],
+            earningsFilters: {
+                conditions: ['DAYS_TO_NEXT_EARNINGS >= DTE']
+            }
+        };
+        const html = renderFilterGrid(filterConfig);
+        expect(html).not.toContain('Earnings Filter Expressions');
+        expect(html).not.toContain('operator:');
+        expect(html).toContain('📅 Earnings Filters');
+        expect(html).toContain('DAYS_TO_NEXT_EARNINGS >= DTE');
     });
 
     test('setDashboardBusy toggles busy state on buttons', () => {

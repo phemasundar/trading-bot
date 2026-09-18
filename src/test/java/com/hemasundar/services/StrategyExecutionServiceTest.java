@@ -247,6 +247,31 @@ public class StrategyExecutionServiceTest {
     }
 
     @Test
+    public void testExecuteCustomStrategy_WithCustomResultId_UpdatesExisting() throws IOException {
+        OptionsConfig config = mock(OptionsConfig.class);
+        when(config.getName()).thenReturn("Custom Update");
+        when(config.getSecurities()).thenReturn(List.of("AAPL"));
+        AbstractTradingStrategy strategy = mock(AbstractTradingStrategy.class);
+        when(config.getStrategy()).thenReturn(strategy);
+        when(strategy.getStrategyName()).thenReturn("Custom Update");
+        when(strategy.getStrategyType()).thenReturn(com.hemasundar.options.strategies.StrategyType.PUT_CREDIT_SPREAD);
+        com.hemasundar.options.models.TradeSetup setupCustom = mock(com.hemasundar.options.models.TradeSetup.class);
+        when(setupCustom.getLegs()).thenReturn(Collections.emptyList());
+        when(setupCustom.getNetCredit()).thenReturn(100.0);
+        when(setupCustom.getMaxLoss()).thenReturn(500.0);
+        when(setupCustom.getReturnOnRisk()).thenReturn(1.0);
+        when(setupCustom.getBreakEvenPrice()).thenReturn(145.0);
+        when(setupCustom.getBreakEvenPercentage()).thenReturn(3.0);
+        when(strategy.findTrades(any(), any())).thenReturn(List.of(setupCustom));
+
+        ExecutionResult result = strategyExecutionService.executeCustomStrategy(config, 77L);
+
+        assertNotNull(result);
+        assertEquals(result.getResults().size(), 1);
+        verify(supabaseService).updateCustomExecutionResult(eq(77L), any(), anyList());
+    }
+
+    @Test
     public void testTechnicalScreeningIntegration() throws IOException {
         OptionsConfig config = mock(OptionsConfig.class);
         when(config.getName()).thenReturn("Tech Strategy");

@@ -16,4 +16,5 @@ public class CustomExecuteRequest {
     private Integer maxTradesToSend;
     private Map<String, Object> filter;
     private Map<String, Object> technicalFilters;
+    private Long customResultId;
 }

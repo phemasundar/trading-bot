@@ -124,6 +124,14 @@ public class SupabaseService {
     }
 
     /**
+     * Updates an existing custom execution result in Supabase by its database ID.
+     */
+    public void updateCustomExecutionResult(Long id, com.hemasundar.dto.StrategyResult result,
+            java.util.List<String> securities) throws IOException {
+        customExecutionRepository.updateCustomExecutionResult(id, result, securities);
+    }
+
+    /**
      * Retrieves the most recent custom execution results.
      */
     public java.util.List<com.hemasundar.dto.StrategyResult> getRecentCustomExecutions(int limit) throws IOException {

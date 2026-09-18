@@ -256,8 +256,9 @@ public class StrategyExecutionController {
 
             log.info("REST: Custom execute {} on {} securities", type.getDisplayName(), symbols.size());
 
+            Long customResultId = request.getCustomResultId();
             CompletableFuture.runAsync(() -> {
-                executionService.executeCustomStrategy(config);
+                executionService.executeCustomStrategy(config, customResultId);
             });
 
             return ResponseEntity.ok(Map.of(
