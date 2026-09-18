@@ -1,6 +1,10 @@
 package com.hemasundar.options.models;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hemasundar.options.models.OptionsStrategyFilter;
+import com.hemasundar.technical.MathExpression;
+import java.util.List;
+import java.util.Map;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
@@ -111,5 +115,22 @@ public class OptionsStrategyFilterTest {
         assertTrue(filter.passesMaxBreakEvenPercentage(4.0));
         assertTrue(filter.passesMaxBreakEvenPercentage(5.0));
         assertFalse(filter.passesMaxBreakEvenPercentage(5.01));
+    }
+
+    @Test
+    public void testEarningsFilterExpressionsJsonIgnored() throws Exception {
+        OptionsStrategyFilter filter = OptionsStrategyFilter.builder()
+                .minDTE(25)
+                .maxDTE(70)
+                .earningsFilters(Map.of("conditions", List.of("DAYS_TO_NEXT_EARNINGS >= DTE")))
+                .earningsFilterExpressions(List.of(new MathExpression()))
+                .build();
+
+        ObjectMapper mapper = new ObjectMapper();
+        String json = mapper.writeValueAsString(filter);
+
+        assertFalse(json.contains("earningsFilterExpressions"));
+        assertTrue(json.contains("earningsFilters"));
+        assertTrue(json.contains("DAYS_TO_NEXT_EARNINGS >= DTE"));
     }
 }

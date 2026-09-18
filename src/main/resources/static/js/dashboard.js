@@ -23,8 +23,16 @@ function buildResultCard(result, badgeText = 'Standard') {
 
     const isExecutePage = !!document.getElementById('strategy-type');
 
-    const loadFiltersBtn = (isExecutePage && result.filterConfig)
-        ? `<button type="button" class="btn btn-primary btn-sm" style="margin-left: auto;" onclick="event.stopPropagation(); loadFiltersFromResult(this)" data-filter-config="${escapeAttr(typeof result.filterConfig === 'string' ? result.filterConfig : JSON.stringify(result.filterConfig))}" data-strategy-name="${escapeAttr(result.strategyName || '')}">⬆ Load Filters</button>`
+    const hasLoadBtn = isExecutePage && !!result.filterConfig;
+    const hasExecuteBtn = isExecutePage && badgeText === 'Custom' && !!result.filterConfig && !!result.strategyId && !isNaN(result.strategyId);
+    const hasDeleteBtn = isExecutePage && badgeText === 'Custom' && !!result.strategyId && !isNaN(result.strategyId);
+
+    const loadFiltersBtn = hasLoadBtn
+        ? `<button type="button" class="btn btn-primary btn-sm" style="margin-left: auto;" onclick="event.stopPropagation(); loadFiltersFromResult(this)" data-filter-config="${escapeAttr(typeof result.filterConfig === 'string' ? result.filterConfig : JSON.stringify(result.filterConfig))}" data-strategy-name="${escapeAttr(result.strategyName || '')}">⬆ Load</button>`
+        : '';
+
+    const executeBtn = hasExecuteBtn
+        ? `<button type="button" class="btn btn-primary btn-sm" style="${!hasLoadBtn ? 'margin-left: auto;' : 'margin-left: 4px;'}" onclick="event.stopPropagation(); reexecuteCustomStrategy(this, '${escapeAttr(result.strategyId)}')" data-filter-config="${escapeAttr(typeof result.filterConfig === 'string' ? result.filterConfig : JSON.stringify(result.filterConfig))}" data-strategy-name="${escapeAttr(result.strategyName || '')}">▶ Execute</button>`
         : '';
 
     let filterDetailsHtml = '';
@@ -47,8 +55,8 @@ function buildResultCard(result, badgeText = 'Standard') {
         } catch (e) { /* ignore parse errors */ }
     }
 
-    const deleteBtn = (isExecutePage && badgeText === 'Custom' && result.strategyId && !isNaN(result.strategyId))
-        ? `<button type="button" class="btn btn-danger btn-sm" style="margin-left: 4px;" onclick="event.stopPropagation(); confirmDeleteCustomResult('${escapeAttr(result.strategyId)}', this.closest('.card'))">🗑 Delete</button>`
+    const deleteBtn = hasDeleteBtn
+        ? `<button type="button" class="btn btn-danger btn-sm" style="${(!hasLoadBtn && !hasExecuteBtn) ? 'margin-left: auto;' : 'margin-left: 4px;'}" onclick="event.stopPropagation(); confirmDeleteCustomResult('${escapeAttr(result.strategyId)}', this.closest('.card'))">🗑 Delete</button>`
         : '';
 
     let displayName = result.strategyName || 'Unknown';
@@ -68,6 +76,7 @@ function buildResultCard(result, badgeText = 'Standard') {
                 <span class="card-badge">${badgeText}</span>
                 ${(() => { try { const cfg = typeof result.filterConfig === 'string' ? JSON.parse(result.filterConfig) : result.filterConfig; return renderGreeksPills(cfg && cfg.greeks); } catch(e) { return ''; } })()}
                 ${loadFiltersBtn}
+                ${executeBtn}
                 ${deleteBtn}
             </div>
             <span class="card-stats">Last run: ${timeAgo(result.updatedAt)} · Trades: ${result.tradesFound || 0}${(() => { const d = formatDuration(result.executionTimeMs); return d ? ` · ⏱ ${d}` : ''; })()}</span>
@@ -1252,7 +1261,7 @@ function renderFilterGrid(cfg) {
     let techFiltersHtml = '';
     let fundamentalFiltersHtml = '';
     const nested = [];
-    const SKIP_KEYS = new Set(['greeks', 'strategyType', 'strategyId', 'technicalFilterSummary']);
+    const SKIP_KEYS = new Set(['greeks', 'strategyType', 'strategyId', 'technicalFilterSummary', 'earningsFilterExpressions', 'earnings_filter_expressions']);
 
     for (const [key, val] of entries) {
         if (SKIP_KEYS.has(key)) continue;

@@ -1,5 +1,6 @@
 package com.hemasundar.options.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -68,6 +69,7 @@ public class OptionsStrategyFilter {
     private Double minNetExtrinsicValueToPricePercentage;
 
     // Behavior flags
+    @JsonIgnore
     @lombok.Builder.Default
     private java.util.List<com.hemasundar.technical.MathExpression> earningsFilterExpressions = new java.util.ArrayList<>();
 

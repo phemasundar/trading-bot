@@ -299,12 +299,25 @@ public class StrategyExecutionService {
      * @return ExecutionResult containing the single strategy's result
      */
     public ExecutionResult executeCustomStrategy(OptionsConfig config) {
+        return executeCustomStrategy(config, null);
+    }
+
+    /**
+     * Executes a single custom strategy configured via the Execute Strategy screen,
+     * bypassing the predefined strategies and saving the result to custom_execution_results.
+     * If customResultId is provided and positive, updates the existing execution result in-place.
+     *
+     * @param config the strategy configuration to execute
+     * @param customResultId optional database ID of existing custom result to update in-place
+     * @return ExecutionResult containing the single custom StrategyResult
+     */
+    public ExecutionResult executeCustomStrategy(OptionsConfig config, Long customResultId) {
         startGlobalExecution(config.getName());
         long startTime = executionStartTimeMs;
         String executionId = "exec_custom_" + startTime;
 
         try {
-            log.info("Starting custom execution: {}", executionId);
+            log.info("Starting custom execution: {} (customResultId: {})", executionId, customResultId);
 
             OptionChainCache cache = new OptionChainCache(ThinkOrSwimAPIs);
 
@@ -346,13 +359,20 @@ public class StrategyExecutionService {
                     .telegramSent(true) // Telegram is sent during strategy execution
                     .build();
 
-            // Save to Supabase custom_execution_results table (NOT the dashboard table)
+            // Save or update in Supabase custom_execution_results table (NOT the dashboard table)
             try {
-                supabaseService.saveCustomExecutionResult(result, config.getSecurities());
-                log.info("Saved custom execution result to Supabase: {}", executionId);
+                if (customResultId != null && customResultId > 0) {
+                    supabaseService.updateCustomExecutionResult(customResultId, result, config.getSecurities());
+                    log.info("Updated custom execution result in Supabase: id={}", customResultId);
+                } else {
+                    supabaseService.saveCustomExecutionResult(result, config.getSecurities());
+                    log.info("Saved custom execution result to Supabase: {}", executionId);
+                }
             } catch (IOException e) {
                 addAlert(ExecutionAlert.Severity.WARNING, AlertMessages.SRC_SUPABASE,
-                        AlertMessages.SAVE_CUSTOM_RESULT_FAILED);
+                        customResultId != null && customResultId > 0
+                                ? AlertMessages.UPDATE_CUSTOM_RESULT_FAILED
+                                : AlertMessages.SAVE_CUSTOM_RESULT_FAILED);
             }
 
             // Print cache statistics

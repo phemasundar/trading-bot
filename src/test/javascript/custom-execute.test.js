@@ -11,6 +11,7 @@ const {
     renderSpecificFilters,
     executeCustom,
     loadCustomResults,
+    reexecuteCustomStrategy,
     EARNINGS_PRESETS,
     onEarningsPresetChange,
     syncEarningsPresetFromInput,
@@ -101,6 +102,40 @@ describe('Custom Options Execute Tests', () => {
         loadTemplateParams(escapeAttr(strategyData));
         expect(document.getElementById('alias-input').value).toContain('PCS Template (Custom)');
         expect(document.querySelector('[data-filter="minDTE"]').value).toBe('30');
+    });
+
+    test('renderStrategyTemplates and loadTemplateParams with termType displays detailed name and populates alias', async () => {
+        document.body.innerHTML = `
+            <div id="strategy-templates"></div>
+            <input id="alias-input">
+        `;
+        window.appConfig = {
+            optionsStrategies: [
+                {
+                    strategyType: 'SHORT_PUT',
+                    alias: 'Short Put',
+                    termType: 'Short Term',
+                    enabled: true,
+                    securitiesFile: 'portfolio'
+                },
+                {
+                    strategyType: 'SHORT_PUT',
+                    alias: 'Short Put',
+                    termType: 'Medium Term',
+                    enabled: true,
+                    securitiesFile: 'tracking'
+                }
+            ]
+        };
+
+        await renderStrategyTemplates('SHORT_PUT');
+        const containerHtml = document.getElementById('strategy-templates').innerHTML;
+        expect(containerHtml).toContain('Short Put - Short Term');
+        expect(containerHtml).toContain('Short Put - Medium Term');
+
+        const strategyData = JSON.stringify(window.appConfig.optionsStrategies[0]);
+        loadTemplateParams(escapeAttr(strategyData));
+        expect(document.getElementById('alias-input').value).toBe('Short Put - Short Term (Custom)');
     });
 
     test('loadFiltersFromResult populates inputs from button dataset', () => {
@@ -237,5 +272,135 @@ describe('Custom Options Execute Tests', () => {
                 }
             })
         }));
+    });
+
+    test('executeCustom includes customResultId when passed', async () => {
+        document.body.innerHTML = `
+            <select id="strategy-type"><option value="PUT_CREDIT_SPREAD" selected>PCS</option></select>
+            <input id="securities-input" value="AAPL">
+            <input id="securities-file-input" value="">
+            <input id="alias-input" value="Existing Run">
+            <div id="custom-progress"></div>
+        `;
+        API.post = jest.fn().mockResolvedValueOnce({ message: 'Started' });
+        await executeCustom(42);
+        expect(API.post).toHaveBeenCalledWith('/api/execute/custom', expect.objectContaining({
+            customResultId: 42,
+            strategyType: 'PUT_CREDIT_SPREAD'
+        }));
+    });
+
+    test('loadFiltersFromResult with isReexecute=true does not append (Reload)', () => {
+        document.body.innerHTML = `
+            <select id="strategy-type"><option value="PUT_CREDIT_SPREAD">PCS</option></select>
+            <input id="alias-input">
+            <input id="securities-file-input">
+            <input id="securities-input">
+            <div id="specific-filters"></div>
+        `;
+        const filterObj = {
+            strategyType: 'PUT_CREDIT_SPREAD',
+            securities: 'MSFT'
+        };
+        const dummyBtn = document.createElement('button');
+        dummyBtn.dataset.filterConfig = escapeAttr(JSON.stringify(filterObj));
+        dummyBtn.dataset.strategyName = 'Put Credit Spread';
+
+        loadFiltersFromResult(dummyBtn, true);
+        expect(document.getElementById('alias-input').value).toBe('Put Credit Spread');
+    });
+
+    test('reexecuteCustomStrategy loads filters and submits executeCustom with strategyId', async () => {
+        document.body.innerHTML = `
+            <select id="strategy-type"><option value="PUT_CREDIT_SPREAD">PCS</option></select>
+            <input id="alias-input">
+            <input id="securities-file-input">
+            <input id="securities-input">
+            <div id="specific-filters"></div>
+            <div id="custom-progress"></div>
+        `;
+        const filterObj = {
+            strategyType: 'PUT_CREDIT_SPREAD',
+            securities: 'NVDA'
+        };
+        const executeBtn = document.createElement('button');
+        executeBtn.dataset.filterConfig = escapeAttr(JSON.stringify(filterObj));
+        executeBtn.dataset.strategyName = 'NVDA PCS';
+        executeBtn.innerHTML = 'Execute';
+
+        API.post = jest.fn().mockResolvedValueOnce({ message: 'Execution started' });
+
+        await reexecuteCustomStrategy(executeBtn, '99');
+
+        expect(document.getElementById('strategy-type').value).toBe('PUT_CREDIT_SPREAD');
+        expect(document.getElementById('securities-input').value).toBe('NVDA');
+        expect(API.post).toHaveBeenCalledWith('/api/execute/custom', expect.objectContaining({
+            customResultId: 99,
+            strategyType: 'PUT_CREDIT_SPREAD'
+        }));
+    });
+
+    test('reexecuteCustomStrategy prevents duplicate run if progress is already active', async () => {
+        document.body.innerHTML = `
+            <div id="custom-progress" class="progress-container active"></div>
+        `;
+        const btn = document.createElement('button');
+        btn.innerHTML = '▶ Execute';
+        API.post = jest.fn();
+
+        await reexecuteCustomStrategy(btn, '99');
+        expect(API.post).not.toHaveBeenCalled();
+    });
+
+    test('reexecuteCustomStrategy restores button if execution fails', async () => {
+        document.body.innerHTML = `
+            <select id="strategy-type"><option value="">Select</option></select>
+            <div id="custom-progress"></div>
+        `;
+        const btn = document.createElement('button');
+        btn.dataset.filterConfig = escapeAttr(JSON.stringify({ strategyType: '' }));
+        btn.innerHTML = '▶ Execute';
+
+        await reexecuteCustomStrategy(btn, '99');
+        expect(btn.disabled).toBe(false);
+        expect(btn.innerHTML).toBe('▶ Execute');
+    });
+
+    test('loadCustomResults preserves open card state and auto-opens updated card with trades', async () => {
+        document.body.innerHTML = `
+            <select id="strategy-type"></select>
+            <div id="custom-results">
+                <div class="card">
+                    <div class="card-content open" id="content-100"></div>
+                </div>
+            </div>
+        `;
+
+        API.get = jest.fn().mockImplementation(url => {
+            if (url === '/api/results/custom') {
+                return Promise.resolve([
+                    {
+                        strategyId: '100',
+                        strategyName: 'PCS 1',
+                        filterConfig: { minDTE: 30 },
+                        trades: [{ symbol: 'AAPL', returnOnRisk: 10, maxProfit: 50, legs: [] }]
+                    },
+                    {
+                        strategyId: '200',
+                        strategyName: 'PCS 2',
+                        filterConfig: { minDTE: 30 },
+                        trades: [{ symbol: 'MSFT', returnOnRisk: 12, maxProfit: 60, legs: [] }]
+                    }
+                ]);
+            }
+            return Promise.resolve({});
+        });
+
+        await loadCustomResults('200');
+
+        const card100Content = document.getElementById('content-100');
+        const card200Content = document.getElementById('content-200');
+        expect(card100Content.classList.contains('open')).toBe(true);
+        expect(card200Content.classList.contains('open')).toBe(true);
     });
 });

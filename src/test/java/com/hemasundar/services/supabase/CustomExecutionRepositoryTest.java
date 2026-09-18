@@ -120,6 +120,52 @@ public class CustomExecutionRepositoryTest {
     }
 
     @Test
+    public void testUpdateCustomExecutionResult_Success() throws IOException {
+        StrategyResult result = StrategyResult.builder()
+                .strategyName("custom-strat")
+                .trades(Collections.emptyList())
+                .tradesFound(0)
+                .executionTimeMs(50)
+                .filterConfig("{\"key\":\"val\"}")
+                .build();
+
+        when(requestSpec.header(anyString(), anyString())).thenReturn(requestSpec);
+        when(requestSpec.body(anyString())).thenReturn(requestSpec);
+        when(requestSpec.patch(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn("[{\"id\":42}]");
+
+        repository.updateCustomExecutionResult(42L, result, List.of("AAPL"));
+
+        verify(requestSpec).patch(contains("custom_execution_results?id=eq.42"));
+    }
+
+    @Test
+    public void testUpdateCustomExecutionResult_NotFound_FallbacksToSave() throws IOException {
+        StrategyResult result = StrategyResult.builder()
+                .strategyName("custom-strat")
+                .trades(Collections.emptyList())
+                .tradesFound(0)
+                .executionTimeMs(50)
+                .filterConfig("{\"key\":\"val\"}")
+                .build();
+
+        when(requestSpec.header(anyString(), anyString())).thenReturn(requestSpec);
+        when(requestSpec.body(anyString())).thenReturn(requestSpec);
+        when(requestSpec.patch(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn("[]");
+        when(requestSpec.post(anyString())).thenReturn(response);
+
+        repository.updateCustomExecutionResult(42L, result, List.of("AAPL"));
+
+        verify(requestSpec).patch(contains("custom_execution_results?id=eq.42"));
+        verify(requestSpec).post(contains("custom_execution_results"));
+    }
+
+    @Test
     public void testGetRecentCustomExecutions_Success() throws IOException {
         String jsonResponse = "[{" +
                 "\"id\":123," +

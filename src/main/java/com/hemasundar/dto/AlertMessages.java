@@ -26,6 +26,7 @@ public class AlertMessages {
 
     public static final String SAVE_EXEC_RESULT_FAILED    = "Save exec result failed";
     public static final String SAVE_CUSTOM_RESULT_FAILED  = "Save custom result failed";
+    public static final String UPDATE_CUSTOM_RESULT_FAILED = "Update custom result failed";
     public static final String SAVE_STRATEGY_RESULT_FAILED = "Save strategy result failed";
     public static final String SAVE_SCREENER_RESULT_FAILED = "Save screener result failed";
     public static final String SAVE_HISTORICAL_TRADES_FAILED = "Save historical trades failed";
