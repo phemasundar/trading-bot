@@ -34,6 +34,8 @@ public class SupabaseServiceTest {
     private CustomExecutionRepository customExecutionRepository;
     @Mock
     private CustomScreenerRepository customScreenerRepository;
+    @Mock
+    private SecurityIndicatorsRepository securityIndicatorsRepository;
 
     @BeforeMethod
     public void setup() {
@@ -44,7 +46,8 @@ public class SupabaseServiceTest {
                 strategyResultRepository,
                 screenerResultRepository,
                 customExecutionRepository,
-                customScreenerRepository
+                customScreenerRepository,
+                securityIndicatorsRepository
         );
     }
 
@@ -138,6 +141,26 @@ public class SupabaseServiceTest {
     public void testDeleteCustomScreenerExecution() throws IOException {
         supabaseService.deleteCustomScreenerExecution("123");
         verify(customScreenerRepository).deleteCustomScreenerExecution("123");
+    }
+
+    @Test
+    public void testSaveSecurityIndicators() throws IOException {
+        List<com.hemasundar.technical.TechnicalScreener.ScreeningResult> results = List.of();
+        supabaseService.saveSecurityIndicators(results);
+        verify(securityIndicatorsRepository).saveSecurityIndicators(results);
+    }
+
+    @Test
+    public void testGetAllSecurityIndicators() throws IOException {
+        supabaseService.getAllSecurityIndicators();
+        verify(securityIndicatorsRepository).getAllSecurityIndicators();
+    }
+
+    @Test
+    public void testGetSecurityIndicatorsForSymbols() throws IOException {
+        List<String> symbols = List.of("NVDA");
+        supabaseService.getSecurityIndicatorsForSymbols(symbols);
+        verify(securityIndicatorsRepository).getSecurityIndicatorsForSymbols(symbols);
     }
 }
 

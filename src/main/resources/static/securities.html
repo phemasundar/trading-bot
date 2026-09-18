@@ -1,15 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Earnings Calendar — Trading Bot</title>
-    <meta name="description" content="Monthly calendar view of upcoming earnings events for tracked securities">
+    <title>Trading Bot — Securities</title>
+    <meta name="description" content="Technical analysis indicator tracking & multi-timeframe dashboard for securities">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/style.css?v=7">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css?v=8">
     <script src="/theme.js?v=3"></script>
 </head>
+
 <body>
     <div class="app-layout">
         <!-- Mobile menu toggle -->
@@ -21,7 +23,7 @@
                 Trading Bot
                 <small>Automated Systems</small>
             </div>
-            
+
             <div class="sidebar-section">
                 <div class="sidebar-section-title">Options</div>
                 <a href="/" class="nav-link">
@@ -48,11 +50,11 @@
 
             <div class="sidebar-section">
                 <div class="sidebar-section-title">Research</div>
-                <a href="/securities.html" class="nav-link">
+                <a href="/securities.html" class="nav-link active">
                     <span class="nav-icon">📁</span>
                     <span>Securities</span>
                 </a>
-                <a href="/earnings-calendar.html" class="nav-link active">
+                <a href="/earnings-calendar.html" class="nav-link">
                     <span class="nav-icon">📅</span>
                     <span>Earnings Calendar</span>
                 </a>
@@ -82,45 +84,47 @@
 
         <!-- Main Content -->
         <main class="main-content">
-            <!-- Auth Loading Overlay -->
-            <div id="authLoading" class="auth-loading-overlay">
-                <div class="auth-spinner"></div>
-                <p>Authenticating…</p>
-            </div>
-
-            <div class="page-header">
+            <div class="page-header-flex">
                 <div>
-                    <h1 class="page-title">Earnings Calendar</h1>
-                    <p class="page-subtitle">Monthly view of upcoming earnings events for tracked securities</p>
+                    <h1 class="page-title">Securities</h1>
+                    <p class="page-subtitle">Multi-timeframe technical indicator tracker powered by Supabase precalculations</p>
+                </div>
+                <div class="header-actions">
+                    <span class="badge badge-success" id="db-status-badge">
+                        <span class="status-dot"></span> Supabase Sync
+                    </span>
+                    <button class="btn btn-ghost" id="btn-toggle-all-blocks" onclick="toggleAllBlocks()">
+                        <span id="toggle-all-text">Expand All</span>
+                    </button>
                 </div>
             </div>
 
-            <!-- Calendar Navigation -->
-            <div class="cal-nav">
-                <button class="btn btn-ghost btn-sm" id="cal-prev" onclick="calNavigate(-1)">‹ Prev</button>
-                <h2 class="cal-month-label" id="cal-month-label"></h2>
-                <button class="btn btn-ghost btn-sm" id="cal-next" onclick="calNavigate(1)">Next ›</button>
-                <button class="btn btn-ghost btn-sm" id="cal-today" onclick="calGoToday()" style="margin-left: 12px;">Today</button>
-            </div>
-
-            <!-- Calendar Grid -->
-            <div class="cal-grid" id="cal-grid">
-                <div class="cal-header-cell">Sun</div>
-                <div class="cal-header-cell">Mon</div>
-                <div class="cal-header-cell">Tue</div>
-                <div class="cal-header-cell">Wed</div>
-                <div class="cal-header-cell">Thu</div>
-                <div class="cal-header-cell">Fri</div>
-                <div class="cal-header-cell">Sat</div>
-            </div>
-
-            <!-- Event Detail Panel (shown on day click) -->
-            <div class="cal-detail-panel card" id="cal-detail-panel" style="display:none;">
-                <div class="cal-detail-header">
-                    <h3 id="cal-detail-date"></h3>
-                    <button class="btn btn-ghost btn-sm" onclick="closeDetailPanel()">✕</button>
+            <!-- Global Search & Filter Summary -->
+            <div class="securities-toolbar card">
+                <div class="toolbar-search-wrapper">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="securities-global-search" class="form-input search-input"
+                           placeholder="Filter by symbol (e.g. NVDA, NBIS) or company name..."
+                           oninput="handleGlobalSearch(this.value)">
+                    <button id="clear-search-btn" class="btn-clear" onclick="clearSearch()" style="display:none;">✕</button>
                 </div>
-                <div id="cal-detail-body"></div>
+                <div class="filter-badges-bar" id="filter-config-summary">
+                    <span class="filter-summary-label">Active Indicators Config:</span>
+                    <span class="chip chip-indicator" id="chip-rsi">RSI: Loading...</span>
+                    <span class="chip chip-indicator" id="chip-bb">Bollinger: Loading...</span>
+                    <span class="chip chip-indicator" id="chip-ma">SMAs: Loading...</span>
+                    <span class="chip chip-indicator" id="chip-ema">EMAs: Loading...</span>
+                    <span class="chip chip-indicator" id="chip-vol">Volume: Loading...</span>
+                    <span class="chip chip-indicator" id="chip-vola">ATR/HV: Loading...</span>
+                </div>
+            </div>
+
+            <!-- Discovered Securities Groups Container -->
+            <div id="securities-groups-container" class="securities-groups-list">
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Discovering securities files and loading indicator data...</p>
+                </div>
             </div>
         </main>
     </div>
@@ -128,13 +132,16 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/js/utils.js?v=1"></script>
     <script src="/js/auth-api.js?v=1"></script>
-    <script src="/js/earnings-calendar.js?v=1"></script>
+    <script src="/js/securities.js?v=2"></script>
     <script src="/app.js?v=7"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
-            await initAuth();
-            initEarningsCalendar();
+            const authed = await initAuth();
+            if (authed) {
+                initSecuritiesPage();
+            }
         });
     </script>
 </body>
+
 </html>

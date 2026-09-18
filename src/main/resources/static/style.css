@@ -2381,3 +2381,576 @@ textarea::placeholder {
     border-left: 2px solid var(--primary);
 }
 
+/* ══════════════════════════════════════════════════════════════════
+   Securities Page & Indicator Cards (Reference Design Inspired)
+   ══════════════════════════════════════════════════════════════════ */
+
+.page-header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    margin-right: 6px;
+    box-shadow: 0 0 6px var(--success);
+}
+
+/* ── Securities Toolbar ── */
+.securities-toolbar {
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.toolbar-search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.toolbar-search-wrapper .search-icon {
+    position: absolute;
+    left: 14px;
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.toolbar-search-wrapper .search-input {
+    width: 100%;
+    padding: 10px 38px 10px 40px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    background: var(--bg-primary);
+}
+
+.btn-clear {
+    position: absolute;
+    right: 12px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 4px;
+}
+
+.btn-clear:hover {
+    color: var(--text-primary);
+}
+
+.filter-badges-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.filter-summary-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-right: 4px;
+}
+
+.chip-indicator {
+    background: rgba(19, 73, 236, 0.08);
+    border: 1px solid rgba(19, 73, 236, 0.2);
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    font-family: var(--font-mono);
+}
+
+/* ── Collapsible Securities File Blocks ── */
+.securities-groups-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.securities-group-block {
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    transition: border-color 0.2s;
+}
+
+.securities-group-block:hover {
+    border-color: rgba(19, 73, 236, 0.4);
+}
+
+.group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    cursor: pointer;
+    user-select: none;
+    background: var(--bg-card);
+    transition: background 0.15s;
+}
+
+.group-header:hover {
+    background: var(--bg-card-hover);
+}
+
+.group-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.group-icon {
+    font-size: 1.1rem;
+}
+
+.group-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.group-header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.badge-count {
+    background: rgba(19, 73, 236, 0.12);
+    color: var(--primary);
+    border: 1px solid rgba(19, 73, 236, 0.25);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 9999px;
+}
+
+.status-indicator {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.group-body {
+    padding: 16px 20px 24px;
+    background: rgba(0, 0, 0, 0.15);
+    border-top: 1px solid var(--border);
+}
+
+[data-theme="light"] .group-body {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.group-inner-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.group-search-wrapper {
+    position: relative;
+    flex: 1;
+    max-width: 320px;
+}
+
+.group-search-wrapper .search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.group-search-input {
+    width: 100%;
+    padding: 6px 12px 6px 30px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    background: var(--bg-input);
+}
+
+.group-stats-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+/* ── Securities Cards Grid & Individual Card (Reference Design) ── */
+.securities-cards-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+}
+
+.sec-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px 28px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 28px;
+    align-items: start;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+
+.sec-card:hover {
+    border-color: rgba(19, 73, 236, 0.35);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+
+/* Left Column */
+.sec-left-col {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.sec-top-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.sec-alert-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+}
+
+.pill-success {
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    color: var(--success);
+}
+
+.pill-danger {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: var(--danger);
+}
+
+.pill-warning {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    color: var(--warning);
+}
+
+.pill-neutral {
+    background: rgba(19, 73, 236, 0.10);
+    border: 1px solid rgba(19, 73, 236, 0.25);
+    color: var(--primary);
+}
+
+.sec-ticker-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.sec-header-block {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.sec-company-name {
+    font-size: 1.85rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+    margin: 0;
+    line-height: 1.15;
+}
+
+.sec-symbol-tag {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.sec-narrative {
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* Price Action Progression Box */
+.sec-progression-box {
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-top: 4px;
+}
+
+[data-theme="light"] .sec-progression-box {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.sec-progression-title {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+}
+
+.sec-progression-steps {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.sec-step {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sec-step-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.sec-step-value {
+    font-family: var(--font-mono);
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.sec-step-arrow {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    font-weight: 300;
+    user-select: none;
+}
+
+.sec-step-highlight {
+    background: rgba(16, 185, 129, 0.10);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    padding: 6px 14px;
+    border-radius: 8px;
+}
+
+.sec-step-highlight .sec-step-label {
+    color: var(--success);
+    font-weight: 600;
+}
+
+.sec-step-highlight .sec-step-value {
+    color: var(--success);
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+/* Right Column: Dynamic Tracker Card */
+.sec-right-col {
+    width: 100%;
+}
+
+.sec-tracker-card {
+    background: rgba(0, 0, 0, 0.32);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+[data-theme="light"] .sec-tracker-card {
+    background: rgba(0, 0, 0, 0.02);
+    border-color: rgba(0, 0, 0, 0.08);
+}
+
+.sec-tracker-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.sec-metrics-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sec-metric-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.84rem;
+    gap: 12px;
+}
+
+.sec-metric-label {
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sec-metric-label.text-success {
+    color: var(--success);
+    font-weight: 600;
+}
+
+.sec-metric-label small {
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.sec-metric-values {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: right;
+    white-space: nowrap;
+}
+
+.badge-inline {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+}
+
+/* Trading Playbook Box */
+.sec-playbook-callout {
+    background: rgba(16, 185, 129, 0.06);
+    border-left: 3px solid var(--success);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-top: 4px;
+}
+
+.sec-playbook-header {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--success);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+.sec-playbook-text {
+    font-size: 0.8rem;
+    color: var(--success);
+    line-height: 1.45;
+}
+
+/* Pending Card State */
+.sec-card-pending {
+    opacity: 0.85;
+    border-style: dashed;
+}
+
+.sec-pending-action {
+    margin-top: 8px;
+}
+
+.sec-tracker-card-empty {
+    min-height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.empty-tracker-notice {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.empty-cards-notice {
+    text-align: center;
+    padding: 28px;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+}
+
+.loading-inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 20px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.spinner-sm {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ── Responsive Rules for Securities Screen ── */
+@media (max-width: 1100px) {
+    .sec-card {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        padding: 20px;
+    }
+}
+
+@media (max-width: 640px) {
+    .sec-company-name {
+        font-size: 1.4rem;
+    }
+    .sec-progression-steps {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .sec-step-arrow {
+        transform: rotate(90deg);
+        align-self: center;
+    }
+}
+
+

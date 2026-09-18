@@ -1,6 +1,7 @@
 package com.hemasundar.utils;
 
 import com.hemasundar.pojos.Securities;
+import com.hemasundar.technical.SecuritiesFilterConfig;
 import org.mockito.MockedStatic;
 import org.mockito.testng.MockitoTestNGListener;
 import org.testng.annotations.AfterMethod;
@@ -88,5 +89,43 @@ public class SecuritiesResolverTest {
     public void testLoadSecuritiesMaps_staticFileReadError() throws IOException {
         when(FilePaths.readResource(anyString())).thenThrow(new IOException("Disk error"));
         resolver.loadSecuritiesMaps(); // should propagate the IOException
+    }
+
+    // ── formatDisplayName tests ──────────────────────────────────────────────────
+
+    @Test
+    public void testFormatDisplayName() {
+        assertEquals(resolver.formatDisplayName("1_portfolio"), "Portfolio");
+        assertEquals(resolver.formatDisplayName("2_tracking"), "Tracking");
+        assertEquals(resolver.formatDisplayName("3_bullish"), "Bullish");
+        assertEquals(resolver.formatDisplayName("4_2026"), "2026");
+        assertEquals(resolver.formatDisplayName("top100"), "Top 100");
+        assertEquals(resolver.formatDisplayName("custom_watchlist"), "Custom Watchlist");
+        assertEquals(resolver.formatDisplayName(""), "");
+        assertEquals(resolver.formatDisplayName(null), "");
+    }
+
+    // ── loadSecuritiesFiltersConfig tests ────────────────────────────────────────
+
+    @Test
+    public void testLoadSecuritiesFiltersConfig() throws IOException {
+        String mockYaml = "filters:\n  rsi:\n    enabled: true\n    period: 14";
+        SecuritiesFilterConfig mockConfig = SecuritiesFilterConfig.builder()
+                .filters(SecuritiesFilterConfig.FilterSettings.builder()
+                        .rsi(SecuritiesFilterConfig.RsiConfig.builder()
+                                .enabled(true)
+                                .period(14)
+                                .build())
+                        .build())
+                .build();
+
+        when(FilePaths.readResource(FilePaths.securitiesFiltersConfig)).thenReturn(mockYaml);
+        when(JavaUtils.convertYamlToPojo(eq(mockYaml), eq(SecuritiesFilterConfig.class))).thenReturn(mockConfig);
+
+        SecuritiesFilterConfig config = resolver.loadSecuritiesFiltersConfig();
+        assertNotNull(config);
+        assertNotNull(config.getFilters());
+        assertTrue(config.getFilters().getRsi().isEnabled());
+        assertEquals(config.getFilters().getRsi().getPeriod(), 14);
     }
 }
