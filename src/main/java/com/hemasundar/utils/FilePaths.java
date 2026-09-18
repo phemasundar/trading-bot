@@ -30,6 +30,7 @@ public class FilePaths {
 
     public static final String strategiesConfig = "strategies-config.yml";
     public static final String strategyGreeksConfig = "strategy-greeks.yml";
+    public static final String securitiesFiltersConfig = "securities-filters.yml";
 
     /**
      * Reads a classpath resource and returns its content as a String.

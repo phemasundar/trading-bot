@@ -31,6 +31,7 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
 - **Greek Exposure Pill Labels**: Every strategy card on the Options Dashboard displays four colored Greek indicator pills — Δ (Delta), Γ (Gamma), Θ (Theta), V (Vega) — color-coded green for positive exposure, red for negative, and gray for neutral. Static Greek polarities are configured centrally by strategy type in `strategy-greeks.yml` (reducing boilerplate in `strategies-config.yml`) and flow through the full stack, persisted as part of the `filterConfig` JSON in Supabase.
 
 - **Earnings Calendar**: A dedicated monthly calendar view (`/earnings-calendar.html`) sourced from the local `earnings_cache.json`. Displays all cached earnings events as color-coded chips (BMO = amber, AMC = purple) on their respective dates. Click any day to see a detailed table of that day's events including symbol, reporting timing, quarter, EPS and revenue estimates/actuals. Navigate months with Prev/Next or jump to today.
+- **Securities Analysis Screen & Indicator Tracker**: A dedicated screen (`/securities.html`) under Research that dynamically discovers all securities files (`securities/*.yaml`) and renders collapsible blocks. Expanding a block lazy-loads precalculated technical indicators stored in Supabase with zero live Schwab API overhead. Securities are displayed in modern, responsive non-tabular cards featuring dynamic indicator trackers (SMAs, EMAs, RSI, Bollinger Bands, Volume, Volatility), price action progression flows, and trading playbook callouts configured via `securities-filters.yml`.
 
 - **Robust Architecture**: Full Spring Dependency Injection (DI) system with standardized constructor-based bean management (via Lombok `@RequiredArgsConstructor`) for guaranteed initialization and enhanced testability. Strictly immutable Data Transfer Objects (DTOs) and standardized service layers ensure thread-safe concurrent execution. Extensive use of Lombok annotations (e.g. `@Data`, `@Builder`, `@ToString`) and Apache Commons utilities (e.g. `CollectionUtils`, `StringUtils`) eliminates boilerplate code and ensures resilient null/empty evaluations.
 - **High Test Coverage**: Comprehensive TestNG unit test suite integrated with `jacoco-maven-plugin` enforcing a minimum of **85.00%** instruction coverage across all core business logic, services, technical indicators, and REST APIs. Fully integrated Node.js / Jest unit test suite (`npm test`) enforcing JSDOM-based DOM rendering, authentication flows, trade tables, filter grids, and interactive dashboard state with **235 unit tests** exceeding **84.9%** statement coverage across modular frontend JS components (`utils.js`, `auth-api.js`, `dashboard.js`, `screener-execute.js`, `custom-execute.js`, `config-page.js`, `logs-page.js`, `earnings-calendar.js`, `theme.js`, `app.js`).
@@ -123,6 +124,15 @@ For detailed setup instructions:
 
 > ⚠️ **Supabase Security**: All tables must have **Row-Level Security (RLS) enabled**. When creating new tables, always include `ENABLE ROW LEVEL SECURITY` and add an `"Allow service role full access"` policy (`FOR ALL USING (true) WITH CHECK (true)`). The backend uses the `service_role` key (server-side only) — failure to enable RLS exposes the table to public read/write/delete access. See [`enable_rls_custom_screener_results.sql`](enable_rls_custom_screener_results.sql) for the canonical policy template.
 
+### Security Technical Indicators Persistence (`latest_security_indicators`)
+
+During technical screener and options strategy execution (both via daily scheduled cron jobs and web UI executions), the bot evaluates **all available technical indicators in the application** (RSI 14, Bollinger Bands 20/2, SMAs 20/50/100/200, EMAs 9/21, Volume SMAs 20/50, Highs 5/20/252, ATR 14, HV Rank 20, Market Cap, and summaries).
+
+All computed indicator values are persisted to the Supabase table `latest_security_indicators` with:
+- Exactly **1 row per security** (`symbol` as Primary Key).
+- Automatic **in-place upsert (`resolution=merge-duplicates`)** replacing previous indicator values whenever fresh indicators are calculated.
+- Zero live API overhead when viewing the **Securities** screen, as indicator values are directly retrieved from this pre-populated database table.
+
 
 ## Usage
 
@@ -212,7 +222,66 @@ Specify a magic keyword to fetch the live constituent list from Wikipedia at run
 
 **API Call Optimization:** The `OptionChainCache` ensures each symbol is fetched only once, even if it appears in multiple sources. Cache hit/miss statistics are logged at the end of every execution run.
 
+## Securities Analysis Dashboard
 
+A dedicated research interface accessible at `/securities.html` under the **Research → Securities** sidebar navigation.
+
+### Key Architecture & Capabilities
+
+1. **Dynamic File Discovery**:
+   - Discovers all securities lists under `src/main/resources/securities/*.yaml` automatically (e.g. `1_portfolio.yaml`, `2_tracking.yaml`, `3_bullish.yaml`, `4_2026.yaml`, `top100.yaml`).
+   - Cleanly formats filenames into human-readable titles (e.g. `1_portfolio.yaml` → `Portfolio`, `top100.yaml` → `Top 100`).
+   - Renders collapsible accordion blocks displaying file badge and symbol count.
+
+2. **Supabase Precalculated Indicator Sourcing**:
+   - Zero live Schwab API calls are initiated on page load or block expansion.
+   - All indicators are precalculated universally during daily scheduled screener jobs and manual screener runs via `TechnicalIndicatorPreCalculationService`.
+   - Indicators and their respective configuration parameters are bundled together and upserted into the `latest_security_indicators` table (1 row per security).
+   - Multi-config ready: Columns store JSONB structures keyed by configuration name (e.g. `default`: `{ period: 14, oversoldThreshold: 30.0, ... }`).
+
+3. **Non-Tabular Card / Tile Grid**:
+   - When a block expands, each security is presented in a modern, 2-column card layout:
+     - **Left Column**:
+       - Alert pill badge (e.g. `⚡ PUSH PAST DAILY 50 SMA ($219.37)`, `⚡ RSI OVERSOLD (28.4)`, `⚡ TOUCHING LOWER BB`).
+       - Ticker label and large bold company name.
+       - Technical narrative summary.
+       - **Price Action Progression**: Visual step sequence showing Support Floor (`100 SMA` / `50 SMA`) → Intermediate Reference (`20 SMA` / `BB Mid`) → **Latest Close** highlighted in a glowing emerald green pill box.
+     - **Right Column**:
+       - **Dynamic Indicator Tracker**: Metrics list with Moving Averages (`SMA 20/50/100/200`, `EMA 9/21/50`), RSI status badges, Bollinger Bands, Volume / Volume SMA, and Volatility (`ATR 14`, `HV Rank 20`).
+       - **Trading Playbook**: Key signals and tactical triggers (e.g. momentum upside targets and support levels).
+
+4. **Configurable Filters (`securities-filters.yml`)**:
+   - Filter criteria and display parameters are managed via a simplified YAML file:
+     ```yaml
+     filters:
+       rsi:
+         enabled: true
+         period: 14
+         oversold: 30.0
+         overbought: 70.0
+       bollinger:
+         enabled: true
+         period: 20
+         stdDev: 2.0
+       moving_averages:
+         enabled: true
+         periods: [20, 50, 100, 200]
+       exponential_moving_averages:
+         enabled: true
+         periods: [9, 21, 50]
+       volume:
+         enabled: true
+         sma_periods: [20, 50]
+       volatility:
+         enabled: true
+         atr_period: 14
+         hv_period: 20
+     ```
+
+5. **REST API Endpoints**:
+   - `GET /api/securities/groups`: Returns discovered securities blocks metadata (`id`, `fileName`, `displayName`, `symbolCount`, `symbols`).
+   - `GET /api/securities/filter-config`: Returns parsed active filter settings.
+   - `POST /api/securities/data`: Accepts `{ "symbols": ["NVDA", "AAPL", ...] }` and returns precalculated indicators from Supabase.
 
 ## Technical Indicator Strategies
 

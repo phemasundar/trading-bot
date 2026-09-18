@@ -59,6 +59,7 @@ public class TechnicalScreener {
         private double bollingerMiddle;
         private double bollingerUpper;
         private String allTechnicalIndicatorsSummary;
+        private String updatedAt;
         private Double atr;
         private Double volumeSmaShort;
         private Double volumeSmaLong;

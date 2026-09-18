@@ -28,6 +28,9 @@ if (typeof module !== 'undefined' && module.exports) {
     const earningsCalendar = require('./js/earnings-calendar');
     Object.assign(global, earningsCalendar);
 
+    const securities = require('./js/securities');
+    Object.assign(global, securities);
+
     module.exports = {
         ...utils,
         ...authApi,
@@ -36,6 +39,7 @@ if (typeof module !== 'undefined' && module.exports) {
         ...customExecute,
         ...configPage,
         ...logsPage,
-        ...earningsCalendar
+        ...earningsCalendar,
+        ...securities
     };
 }

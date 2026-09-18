@@ -25,6 +25,7 @@ public class SupabaseService {
     private final ScreenerResultRepository screenerResultRepository;
     private final CustomExecutionRepository customExecutionRepository;
     private final CustomScreenerRepository customScreenerRepository;
+    private final SecurityIndicatorsRepository securityIndicatorsRepository;
 
     /**
      * Tests connection to Supabase by making a simple GET request.
@@ -168,5 +169,30 @@ public class SupabaseService {
      */
     public void deleteCustomScreenerExecution(String id) throws IOException {
         customScreenerRepository.deleteCustomScreenerExecution(id);
+    }
+
+    // ==================== Security Technical Indicators Persistence ====================
+
+    /**
+     * Saves or updates calculated technical indicators for a collection of securities.
+     * Replaces existing records for matching symbols in latest_security_indicators.
+     */
+    public void saveSecurityIndicators(java.util.List<com.hemasundar.technical.TechnicalScreener.ScreeningResult> results) throws IOException {
+        securityIndicatorsRepository.saveSecurityIndicators(results);
+    }
+
+    /**
+     * Retrieves all saved security indicators from latest_security_indicators table.
+     */
+    public java.util.List<com.hemasundar.technical.TechnicalScreener.ScreeningResult> getAllSecurityIndicators() throws IOException {
+        return securityIndicatorsRepository.getAllSecurityIndicators();
+    }
+
+    /**
+     * Retrieves saved security indicators for a specified set of ticker symbols.
+     */
+    public java.util.Map<String, com.hemasundar.technical.TechnicalScreener.ScreeningResult> getSecurityIndicatorsForSymbols(
+            java.util.Collection<String> symbols) throws IOException {
+        return securityIndicatorsRepository.getSecurityIndicatorsForSymbols(symbols);
     }
 }
