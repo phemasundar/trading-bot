@@ -2,11 +2,13 @@ filters:
   rsi:
     enabled: true
     period: 14
+    periods: [14]
     oversold: 30.0
     overbought: 70.0
   bollinger:
     enabled: true
     period: 20
+    periods: [20]
     stdDev: 2.0
   moving_averages:
     enabled: true
@@ -20,4 +22,10 @@ filters:
   volatility:
     enabled: true
     atr_period: 14
+    atr_periods: [14]
     hv_period: 20
+    hv_periods: [20]
+  highs:
+    enabled: true
+    periods: [5, 20, 252]
+

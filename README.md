@@ -87,14 +87,15 @@ telegram_chat_id=YOUR_CHAT_ID_HERE
 
 ### IV Data Tracking & Filtering
 
-The bot can automatically collect and store daily Implied Volatility (IV) data for your securities. This data is used for calculating **IV Rank and IV Percentile** for better trade timing. Users can filter trades using either metric, and the UI provides a detailed "Volatility Context (1Y)" panel when clicking on individual trades.
+The bot can automatically collect and store daily Implied Volatility (IV) data for your securities. This data is used for calculating **IV Rank and IV Percentile** for better trade timing. Users can filter trades using either metric, and the UI provides a detailed "Volatility Context (1Y)" panel when clicking on individual trades. For full calculation details, see [docs/implied-volatility.md](docs/implied-volatility.md).
 
 **IV Rank** measures where current IV sits within its 1-year absolute high/low range:
 `(currentIV - minIV) / (maxIV - minIV) × 100`
 
-**IV Percentile** counts the percentage of trading days in the past year where IV was *lower* than today's IV. It is more robust to one-off outlier spikes (e.g., earnings panic) since it measures frequency, not distance from the extremes.
+**IV Percentile** counts the percentage of trading days in the past year where IV was *lower* than today's IV. It is more robust to one-off outlier spikes (e.g., earnings panic) since it measures frequency, not distance from the extremes:
+`(count of days where historical IV < current IV) / totalDays × 100`
 
-Both metrics are computed from the same single Supabase query per symbol (shared via `IVRankCache`), so there is no extra round-trip cost for enabling both filters simultaneously. A minimum of 20 historical daily records (~1 trading month) is required to calculate IV Rank and IV Percentile; if fewer than 20 records exist for a symbol, the system fails open (allows the trade). Configure them in `strategies-config.yml` via `minIVRank`, `maxIVRank`, `minIVPercentile`, and `maxIVPercentile`. All four are available as form fields in the Execute page (`/execute.html`).
+Both metrics are computed from the same single Supabase query per symbol (shared via `IVRankCache`), so there is no extra round-trip cost for enabling both filters simultaneously. A minimum of 20 historical daily records (~1 trading month) is required to calculate IV Rank and IV Percentile; if fewer than 20 records exist for a symbol, the system fails open (allows the trade). Configure them in `strategies-config.yml` via `minIVRank`, `maxIVRank`, `minIVPercentile`, and `maxIVPercentile`. All four are available as form fields in the Execute page (`/execute.html`). In addition, individual option leg filters validate contract IV via `minVolatility` and `maxVolatility` in `LegFilter`.
 
 **Supported Databases:**
 
@@ -239,44 +240,86 @@ A dedicated research interface accessible at `/securities.html` under the **Rese
    - Indicators and their respective configuration parameters are bundled together and upserted into the `latest_security_indicators` table (1 row per security).
    - Multi-config ready: Columns store JSONB structures keyed by configuration name (e.g. `default`: `{ period: 14, oversoldThreshold: 30.0, ... }`).
 
-3. **Non-Tabular Card / Tile Grid**:
+3. **Non-Tabular Card / Tile Grid & Calculation Specifications**:
    - When a block expands, each security is presented in a modern, 2-column card layout:
      - **Left Column**:
        - Alert pill badge (e.g. `⚡ PUSH PAST DAILY 50 SMA ($219.37)`, `⚡ RSI OVERSOLD (28.4)`, `⚡ TOUCHING LOWER BB`).
        - Ticker label and large bold company name.
        - Technical narrative summary.
-       - **Price Action Progression**: Visual step sequence showing Support Floor (`100 SMA` / `50 SMA`) → Intermediate Reference (`20 SMA` / `BB Mid`) → **Latest Close** highlighted in a glowing emerald green pill box.
+       - **Price Action Progression**: Visual step sequence showing Support Floor (`100 SMA` / `50 SMA` / `BB Lower`) → Intermediate Reference (`50 SMA` / `20 SMA` / `BB Mid`) → **Latest Close** highlighted in a glowing emerald green pill box.
      - **Right Column**:
        - **Dynamic Indicator Tracker**: Metrics list with Moving Averages (`SMA 20/50/100/200`, `EMA 9/21/50`), RSI status badges, Bollinger Bands, Volume / Volume SMA, and Volatility (`ATR 14`, `HV Rank 20`).
        - **Trading Playbook**: Key signals and tactical triggers (e.g. momentum upside targets and support levels).
 
-4. **Configurable Filters (`securities-filters.yml`)**:
-   - Filter criteria and display parameters are managed via a simplified YAML file:
+   - **Detailed Calculation Conditions & Priority Logic** (`securities.js`):
+     - **Primary Alert Pill (Top Badge) — Priority Waterfall**:
+       | Priority | Condition | Badge Text | Style / Color |
+       | :--- | :--- | :--- | :--- |
+       | **1 (Highest)** | `data.rsiOversold` (`RSI < 30.0`) | `⚡ RSI OVERSOLD (${rsi})` | Danger (Red) |
+       | **2** | `data.rsiBullishCrossover` (`prevRsi <= 30 && rsi > 30`) | `⚡ RSI BULLISH CROSSOVER` | Success (Green) |
+       | **3** | `sma50 != null && price > sma50` | `⚡ PUSH PAST DAILY 50 SMA ($${sma50})` | Success (Green) |
+       | **4** | `data.priceTouchingLowerBand` (`price <= bbLower`) | `⚡ TOUCHING LOWER BB` | Warning (Orange) |
+       | **5** | `sma20 != null && price > sma20` | `⚡ ABOVE DAILY 20 SMA ($${sma20})` | Success (Green) |
+       | **Fallback** | None of the above | `⚡ MOMENTUM TRACKER` | Neutral (Slate) |
+
+     - **Dynamic Indicator Tracker Status Badges**:
+       - `Daily EMA 50 / Daily SMA 50`: Displays `(Cleared)` in green when `price > ema50 && price > sma50`.
+       - `Daily EMA 21 / Daily SMA 20`: Displays `(Cleared)` in green when `price > ema21 && price > sma20`.
+       - `RSI (14)`: Displays `Oversold` (`rsi < 30`), `Overbought` (`rsi > 70`), or `Neutral` (`30 <= rsi <= 70`).
+       - `Bollinger Bands (20, 2σ)`: Displays `At Lower` (`priceTouchingLowerBand`), `At Upper` (`priceTouchingUpperBand`), or `Inside`.
+
+     - **Trading Playbook Content — Priority Decision Tree**:
+       | Priority | Condition | Tactical Message Generated | Formulas / Variables |
+       | :--- | :--- | :--- | :--- |
+       | **1 (Momentum)** | `sma50 && price > sma50` | `Reclaiming $${sma50} activates upside momentum toward $${targetPrice}. Catch dips into $${dipFloor}-$${dipCeiling}.` | `targetPrice = round(price * 1.10)`<br>`dipFloor = round(sma100 || sma50 * 0.96)`<br>`dipCeiling = round(sma50)` |
+       | **2 (Oversold)** | `data.rsiOversold` | `RSI reached oversold threshold (${rsi}). Watch for reversal wick near $${reversalLevel}.` | `reversalLevel = bbLower || round(price * 0.98)` |
+       | **3 (Reversion)** | `data.priceTouchingLowerBand` | `Testing Lower Bollinger Band ($${bbLower}). Mean reversion target towards BB Middle ($${bbMiddle}).` | `bbMiddle = bbMiddle || price` |
+       | **4 (Default)** | Fallback | `Consolidating above support $${floorVal}. Trend strength confirmed while above $${midVal}.` | `floorVal` & `midVal` from Price Action Progression |
+
+     - **Price Action Progression Hierarchy**:
+       - `Support Floor`: Highest priority to `100 SMA Floor` (`$${sma100}`); falls back to `50 SMA Floor` (`$${sma50}`), then `BB Lower` (`$${bbLower}`).
+       - `Intermediate Reference`: If both 50 & 100 SMA exist, evaluates `50 SMA` (`$${sma50}`); else `20 SMA` (`$${sma20}`), else `BB Mid` (`$${bbMiddle}`), else `Prev Ref`.
+       - `Latest Close`: Highlighted current close price (`$${price}`).
+
+4. **Master Indicator Catalog & Whitelist Registry (`securities-filters.yml`)**:
+   - `securities-filters.yml` serves as the authoritative single source of truth for all supported technical indicators, allowed periods, and universal pre-calculation:
      ```yaml
      filters:
        rsi:
          enabled: true
          period: 14
+         periods: [14]             # Allowed RSI periods across all strategies/screeners
          oversold: 30.0
          overbought: 70.0
        bollinger:
          enabled: true
          period: 20
+         periods: [20]             # Allowed Bollinger Bands periods
          stdDev: 2.0
        moving_averages:
          enabled: true
-         periods: [20, 50, 100, 200]
+         periods: [20, 50, 100, 200] # Allowed SMA periods
        exponential_moving_averages:
          enabled: true
-         periods: [9, 21, 50]
+         periods: [9, 21, 50]      # Allowed EMA periods
        volume:
          enabled: true
-         sma_periods: [20, 50]
+         sma_periods: [20, 50]     # Allowed Volume SMA periods
        volatility:
          enabled: true
          atr_period: 14
+         atr_periods: [14]         # Allowed ATR periods
          hv_period: 20
+         hv_periods: [20]          # Allowed Historical Volatility periods
+       highs:
+         enabled: true
+         periods: [5, 20, 252]     # Allowed High/Drop periods (HIGH_5D, HIGH_20D, HIGH_252D, etc.)
      ```
+   - **Startup & Runtime Validation**:
+     - `StrategiesConfigLoader` automatically validates all strategy and screener rules against `securities-filters.yml` during Spring Boot startup (`@PostConstruct init()`). If an invalid indicator or unconfigured period (e.g. `SMA17` or `RSI period 7`) is defined in `strategies-config.yml`, the application fails fast immediately on bootstrap.
+     - Custom screener executions submitted via REST (`POST /api/screeners/execute/custom-screener`) are validated at runtime; any unconfigured indicator or period rejects the request with `400 Bad Request`.
+   - **Deterministic Pre-Calculation**:
+     - `TechnicalIndicatorPreCalculationService` queries `SecuritiesFilterConfig` to generate the complete universal technical indicator suite and filter conditions, guaranteeing that all whitelisted indicators are calculated and cached into Supabase in a single pass.
 
 5. **REST API Endpoints**:
    - `GET /api/securities/groups`: Returns discovered securities blocks metadata (`id`, `fileName`, `displayName`, `symbolCount`, `symbols`).

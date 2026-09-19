@@ -46,22 +46,55 @@ import java.util.*;
  * POJO</li>
  * </ul>
  */
+import org.springframework.beans.factory.annotation.Autowired;
+import com.hemasundar.technical.SecuritiesFilterConfig;
+import com.hemasundar.utils.SecuritiesResolver;
+
 @Log4j2
 @Component
-@RequiredArgsConstructor
 public class StrategiesConfigLoader {
 
     private final List<AbstractTradingStrategy> availableStrategies;
-
-    /**
-     * Fetcher for dynamic Wikipedia index constituents (SPY, QQQ).
-     * Called lazily — only when a strategy references SPY or QQQ and is about to
-     * run.
-     */
     private final WikipediaSecuritiesFetcher wikipediaFetcher;
+    private final SecuritiesResolver securitiesResolver;
+    private SecuritiesFilterConfig filterConfig;
 
     private final Map<StrategyType, AbstractTradingStrategy> strategyMap = new HashMap<>();
     private final Map<StrategyType, Map<String, String>> strategyGreeksMap = new EnumMap<>(StrategyType.class);
+
+    @Autowired
+    public StrategiesConfigLoader(
+            List<AbstractTradingStrategy> availableStrategies,
+            WikipediaSecuritiesFetcher wikipediaFetcher,
+            SecuritiesResolver securitiesResolver) {
+        this.availableStrategies = availableStrategies != null ? availableStrategies : Collections.emptyList();
+        this.wikipediaFetcher = wikipediaFetcher;
+        this.securitiesResolver = securitiesResolver != null ? securitiesResolver : new SecuritiesResolver();
+    }
+
+    public StrategiesConfigLoader(
+            List<AbstractTradingStrategy> availableStrategies,
+            WikipediaSecuritiesFetcher wikipediaFetcher) {
+        this(availableStrategies, wikipediaFetcher, new SecuritiesResolver());
+    }
+
+    public void setFilterConfig(SecuritiesFilterConfig filterConfig) {
+        this.filterConfig = filterConfig;
+    }
+
+    public SecuritiesFilterConfig getFilterConfig() {
+        if (filterConfig != null) {
+            return filterConfig;
+        }
+        if (securitiesResolver != null) {
+            try {
+                filterConfig = securitiesResolver.loadSecuritiesFiltersConfig();
+            } catch (Exception e) {
+                log.warn("Could not load securities-filters.yml for indicator validation: {}", e.getMessage());
+            }
+        }
+        return filterConfig;
+    }
 
     @PostConstruct
     public void init() {
@@ -69,8 +102,28 @@ public class StrategiesConfigLoader {
             strategyMap.put(strategy.getStrategyType(), strategy);
         }
         loadStrategyGreeks(FilePaths.strategyGreeksConfig);
+        validateStrategiesConfig();
         log.info("Initialized StrategiesConfigLoader with {} strategies and {} strategy greeks",
                 strategyMap.size(), strategyGreeksMap.size());
+    }
+
+    /**
+     * Validates all strategies and screeners in strategies-config.yml on startup.
+     * Fails fast if an unconfigured or invalid indicator is found.
+     */
+    public void validateStrategiesConfig() {
+        try {
+            Map<String, List<String>> securitiesMap = securitiesResolver != null
+                    ? securitiesResolver.loadSecuritiesMaps() : Collections.emptyMap();
+            load(FilePaths.strategiesConfig, securitiesMap);
+            loadScreeners(FilePaths.strategiesConfig, securitiesMap);
+            log.info("Validated all strategy and screener technical filters against securities-filters.yml");
+        } catch (IllegalArgumentException e) {
+            log.error("Startup validation failed for strategies-config.yml: {}", e.getMessage());
+            throw new IllegalStateException("Startup configuration validation failed: " + e.getMessage(), e);
+        } catch (Exception e) {
+            log.warn("Could not validate strategies-config.yml during startup: {}", e.getMessage());
+        }
     }
 
     /**
@@ -447,6 +500,15 @@ public class StrategiesConfigLoader {
         RSIFilterEntry entry = JavaUtils.convertValue(rawEntry, RSIFilterEntry.class);
         RSIConfigParams cfg = resolveRSIConfig(entry.getConfig(), indicatorConfigs);
 
+        SecuritiesFilterConfig filterCfg = getFilterConfig();
+        if (filterCfg != null) {
+            List<Integer> allowedRsiPeriods = filterCfg.getAllowedRsiPeriods();
+            if (!allowedRsiPeriods.isEmpty() && !allowedRsiPeriods.contains(cfg.getPeriod())) {
+                throw new IllegalArgumentException(String.format("RSI period %d is not configured in securities-filters.yml. Allowed: %s",
+                        cfg.getPeriod(), allowedRsiPeriods));
+            }
+        }
+
         indicators.rsiFilter(RSIFilter.builder()
                 .period(cfg.getPeriod())
                 .oversoldThreshold(cfg.getOversoldThreshold())
@@ -557,6 +619,15 @@ public class StrategiesConfigLoader {
         BollingerFilterEntry entry = JavaUtils.convertValue(rawEntry, BollingerFilterEntry.class);
         BollingerConfigParams cfg = resolveBollingerConfig(entry.getConfig(), indicatorConfigs);
 
+        SecuritiesFilterConfig filterCfg = getFilterConfig();
+        if (filterCfg != null) {
+            List<Integer> allowedBbPeriods = filterCfg.getAllowedBollingerPeriods();
+            if (!allowedBbPeriods.isEmpty() && !allowedBbPeriods.contains(cfg.getBollingerPeriod())) {
+                throw new IllegalArgumentException(String.format("Bollinger Bands period %d is not configured in securities-filters.yml. Allowed: %s",
+                        cfg.getBollingerPeriod(), allowedBbPeriods));
+            }
+        }
+
         indicators.bollingerFilter(BollingerBandsFilter.builder()
                 .period(cfg.getBollingerPeriod())
                 .standardDeviations(cfg.getBollingerStdDev())
@@ -588,7 +659,12 @@ public class StrategiesConfigLoader {
 
     public void applyVolumeRules(List<String> rules, List<MathExpression> filterExpressions) {
         if (CollectionUtils.isEmpty(rules)) return;
-        filterExpressions.addAll(MathExpressionParser.parseRules(rules));
+        List<MathExpression> parsed = MathExpressionParser.parseRules(rules);
+        SecuritiesFilterConfig cfg = getFilterConfig();
+        for (MathExpression expr : parsed) {
+            validateExpression(expr, cfg);
+        }
+        filterExpressions.addAll(parsed);
     }
 
     public void applyMovingAverageFilters(
@@ -621,6 +697,7 @@ public class StrategiesConfigLoader {
                 log.warn("Unrecognized SIMPLE_MOVING_AVERAGE rule: {}", rule);
                 continue;
             }
+            validateExpression(expression, getFilterConfig());
             filterExpressions.add(expression);
             registerMovingAveragePeriods(expression, maFilters);
         }
@@ -658,6 +735,7 @@ public class StrategiesConfigLoader {
                 log.warn("Unrecognized EXP_MOVING_AVERAGE rule: {}", rule);
                 continue;
             }
+            validateExpression(expression, getFilterConfig());
             filterExpressions.add(expression);
             registerExponentialMovingAveragePeriods(expression, emaFilters);
         }
@@ -754,7 +832,12 @@ public class StrategiesConfigLoader {
     public void applyPriceDropRules(List<String> rules,
                                     List<MathExpression> filterExpressions) {
         if (CollectionUtils.isEmpty(rules)) return;
-        filterExpressions.addAll(MathExpressionParser.parseRules(rules));
+        List<MathExpression> parsed = MathExpressionParser.parseRules(rules);
+        SecuritiesFilterConfig cfg = getFilterConfig();
+        for (MathExpression expr : parsed) {
+            validateExpression(expr, cfg);
+        }
+        filterExpressions.addAll(parsed);
     }
 
     private void applyHistoricalVolatilityFilter(
@@ -766,7 +849,16 @@ public class StrategiesConfigLoader {
                 StrategiesConfig.HistoricalVolatilityFilterEntry.class);
         if (entry != null) {
             if (entry.getConfig() != null && entry.getConfig().getPeriod() != null) {
-                conditions.hvPeriod(entry.getConfig().getPeriod());
+                int period = entry.getConfig().getPeriod();
+                SecuritiesFilterConfig filterCfg = getFilterConfig();
+                if (filterCfg != null) {
+                    List<Integer> allowed = filterCfg.getAllowedHvPeriods();
+                    if (!allowed.isEmpty() && !allowed.contains(period)) {
+                        throw new IllegalArgumentException(String.format("Historical Volatility period %d is not configured in securities-filters.yml. Allowed: %s",
+                                period, allowed));
+                    }
+                }
+                conditions.hvPeriod(period);
             }
             if (entry.getConditions() != null && !entry.getConditions().isEmpty()) {
                 applyHistoricalVolatilityRules(entry.getConditions(), filterExpressions);
@@ -777,7 +869,12 @@ public class StrategiesConfigLoader {
     public void applyHistoricalVolatilityRules(List<String> rules,
                                                List<MathExpression> filterExpressions) {
         if (CollectionUtils.isEmpty(rules)) return;
-        filterExpressions.addAll(MathExpressionParser.parseRules(rules));
+        List<MathExpression> parsed = MathExpressionParser.parseRules(rules);
+        SecuritiesFilterConfig cfg = getFilterConfig();
+        for (MathExpression expr : parsed) {
+            validateExpression(expr, cfg);
+        }
+        filterExpressions.addAll(parsed);
     }
 
     private void applyAverageTrueRangeFilter(
@@ -789,13 +886,27 @@ public class StrategiesConfigLoader {
         if (entry != null) {
             if (entry.getConfig() != null) {
                 if (entry.getConfig().getPeriod() != null) {
-                    indicators.atrFilter(AverageTrueRangeFilter.builder().period(entry.getConfig().getPeriod()).build());
+                    int period = entry.getConfig().getPeriod();
+                    SecuritiesFilterConfig filterCfg = getFilterConfig();
+                    if (filterCfg != null) {
+                        List<Integer> allowed = filterCfg.getAllowedAtrPeriods();
+                        if (!allowed.isEmpty() && !allowed.contains(period)) {
+                            throw new IllegalArgumentException(String.format("Average True Range period %d is not configured in securities-filters.yml. Allowed: %s",
+                                    period, allowed));
+                        }
+                    }
+                    indicators.atrFilter(AverageTrueRangeFilter.builder().period(period).build());
                 } else {
                     log.warn("AVERAGE_TRUE_RANGE config is missing 'period'. ATR filter will not be applied.");
                 }
             }
             if (entry.getConditions() != null && !entry.getConditions().isEmpty()) {
-                filterExpressions.addAll(MathExpressionParser.parseRules(entry.getConditions()));
+                List<MathExpression> parsed = MathExpressionParser.parseRules(entry.getConditions());
+                SecuritiesFilterConfig cfg = getFilterConfig();
+                for (MathExpression expr : parsed) {
+                    validateExpression(expr, cfg);
+                }
+                filterExpressions.addAll(parsed);
             }
         }
     }
@@ -927,5 +1038,127 @@ public class StrategiesConfigLoader {
 
         log.debug("Resolved {} unique securities from '{}'", uniqueSecurities.size(), securitiesFile);
         return new ArrayList<>(uniqueSecurities);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // Validation helpers
+    // ─────────────────────────────────────────────────────────
+
+    /**
+     * Validates a parsed MathExpression against the allowed indicators and periods in SecuritiesFilterConfig.
+     *
+     * @param expr the expression to validate
+     * @param cfg the master securities filter config
+     * @throws IllegalArgumentException if an indicator or period is not allowed
+     */
+    public void validateExpression(MathExpression expr, SecuritiesFilterConfig cfg) {
+        if (expr == null || cfg == null) {
+            return;
+        }
+        validateVariable(expr.getLeftVariable(), cfg);
+        validateVariable(expr.getRightVariable(), cfg);
+    }
+
+    private void validateVariable(String variable, SecuritiesFilterConfig cfg) {
+        if (StringUtils.isBlank(variable) || cfg == null) {
+            return;
+        }
+        String key = variable.trim().toUpperCase();
+
+        try {
+            Double.parseDouble(key);
+            return;
+        } catch (NumberFormatException ignored) {
+            // Not a number, proceed to variable check
+        }
+
+        if (isKnownStaticVariable(key)) {
+            return;
+        }
+
+        if (key.startsWith("SMA")) {
+            Integer period = parsePeriod(key.substring(3));
+            if (period != null) {
+                List<Integer> allowed = cfg.getAllowedSmaPeriods();
+                if (!allowed.isEmpty() && !allowed.contains(period)) {
+                    throw new IllegalArgumentException(String.format("SMA period %d is not configured in securities-filters.yml. Allowed: %s",
+                            period, allowed));
+                }
+                return;
+            }
+        }
+
+        if (key.startsWith("EMA")) {
+            Integer period = parsePeriod(key.substring(3));
+            if (period != null) {
+                List<Integer> allowed = cfg.getAllowedEmaPeriods();
+                if (!allowed.isEmpty() && !allowed.contains(period)) {
+                    throw new IllegalArgumentException(String.format("EMA period %d is not configured in securities-filters.yml. Allowed: %s",
+                            period, allowed));
+                }
+                return;
+            }
+        }
+
+        if (key.startsWith("VOLUME_SMA")) {
+            Integer period = parsePeriod(key.substring(10));
+            if (period != null) {
+                List<Integer> allowed = cfg.getAllowedVolumeSmaPeriods();
+                if (!allowed.isEmpty() && !allowed.contains(period)) {
+                    throw new IllegalArgumentException(String.format("Volume SMA period %d is not configured in securities-filters.yml. Allowed: %s",
+                            period, allowed));
+                }
+                return;
+            }
+        }
+
+        Integer highPeriod = extractHighPeriod(key);
+        if (highPeriod != null) {
+            List<Integer> allowed = cfg.getAllowedHighPeriods();
+            if (!allowed.isEmpty() && !allowed.contains(highPeriod)) {
+                throw new IllegalArgumentException(String.format("High/Drop period %d is not configured in securities-filters.yml. Allowed: %s",
+                        highPeriod, allowed));
+            }
+            return;
+        }
+
+        log.debug("Unrecognized indicator or variable name in filter expression: {}", variable);
+    }
+
+    private boolean isKnownStaticVariable(String key) {
+        return switch (key) {
+            case "PRICE", "CURRENT_PRICE", "VOLUME",
+                 "RSI", "PREVIOUS_RSI",
+                 "BB_LOWER", "BB_MIDDLE", "BB_UPPER",
+                 "HV_RANK", "DROP_PCT", "MARKET_CAP_B", "ATR", "NATR",
+                 "DAYS_TO_NEXT_EARNINGS", "DTE" -> true;
+            default -> false;
+        };
+    }
+
+    private Integer extractHighPeriod(String key) {
+        try {
+            if (key.startsWith("ATR_DROP_FROM_HIGH_")) {
+                String sub = key.substring(19);
+                if (sub.endsWith("D")) sub = sub.substring(0, sub.length() - 1);
+                return Integer.parseInt(sub);
+            }
+            if (key.startsWith("PRICE_DROP_FROM_HIGH_")) {
+                String sub = key.substring(21);
+                if (sub.endsWith("D")) sub = sub.substring(0, sub.length() - 1);
+                return Integer.parseInt(sub);
+            }
+            if (key.startsWith("HIGH_")) {
+                String sub = key.substring(5);
+                if (sub.endsWith("D")) sub = sub.substring(0, sub.length() - 1);
+                return Integer.parseInt(sub);
+            }
+            if (key.startsWith("HIGH")) {
+                return Integer.parseInt(key.substring(4));
+            }
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+        return null;
     }
 }
