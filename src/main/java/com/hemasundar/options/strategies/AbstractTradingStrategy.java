@@ -12,7 +12,9 @@ import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.services.FilterLogStore;
 import com.hemasundar.services.SupabaseService;
 import com.hemasundar.services.EarningsDataResolver;
+import com.hemasundar.technical.MathExpression;
 import com.hemasundar.technical.MathExpressionEvaluator;
+import com.hemasundar.options.models.OptionFilterValueResolver;
 import org.apache.commons.collections4.CollectionUtils;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +23,9 @@ import lombok.extern.log4j.Log4j2;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -76,11 +80,39 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             FilterLogStore.getInstance().logFilter(strategyName, symbol, FilterStage.IV_PERCENTILE_FILTER.displayName(), 1, 1);
         }
 
-        int targetDTE = filter.getTargetDTE() != null ? filter.getTargetDTE() : 0;
-        int minDTE = filter.getMinDTE() != null ? filter.getMinDTE() : 0;
-        int maxDTE = filter.getMaxDTE() != null ? filter.getMaxDTE() : Integer.MAX_VALUE;
+        // ── IV Math Expressions ──
+        List<MathExpression> ivExpressions = filter.getIvExpressions();
+        if (CollectionUtils.isNotEmpty(ivExpressions)) {
+            Map<String, Double> ivVars = new HashMap<>();
+            if (ivRank != null) ivVars.put("IV_RANK", ivRank);
+            if (ivPercentile != null) ivVars.put("IV_PERCENTILE", ivPercentile);
 
-        List<String> expiryDates = chain.getExpiryDatesInRange(targetDTE, minDTE, maxDTE);
+            boolean passesIVExpressions = true;
+            for (MathExpression expr : ivExpressions) {
+                Double val = ivVars.get(expr.getLeftVariable().toUpperCase());
+                // Fail-open if historical data is unavailable
+                if (val != null && !expr.evaluate(ivVars::get)) {
+                    passesIVExpressions = false;
+                    log.info("[{}] IV condition failed: {} (actual: {}), skipping symbol", symbol, expr, val);
+                    break;
+                }
+            }
+            if (!passesIVExpressions) {
+                FilterLogStore.getInstance().logFilter(strategyName, symbol, FilterStage.IV_PERCENTILE_FILTER.displayName(), 1, 0);
+                return Collections.emptyList();
+            }
+        }
+
+        int targetDTE = filter.getTargetDTE() != null ? filter.getTargetDTE() : 0;
+        List<String> expiryDates;
+        List<MathExpression> dteExpressions = filter.getDteExpressions();
+        if (CollectionUtils.isNotEmpty(dteExpressions)) {
+            expiryDates = chain.getExpiryDatesMatching(targetDTE, dteExpressions);
+        } else {
+            int minDTE = filter.getMinDTE() != null ? filter.getMinDTE() : 0;
+            int maxDTE = filter.getMaxDTE() != null ? filter.getMaxDTE() : Integer.MAX_VALUE;
+            expiryDates = chain.getExpiryDatesInRange(targetDTE, minDTE, maxDTE);
+        }
 
         // ── DTE Filter ──
         int totalExpiries = 0;
@@ -89,8 +121,8 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
         FilterLogStore.getInstance().logFilter(strategyName, symbol, "DTE Filter", totalExpiries, expiryDates.size());
 
         if (expiryDates.isEmpty()) {
-            log.debug("[{}] No expiry dates found in range [{}-{}]",
-                    symbol, minDTE, maxDTE);
+            log.debug("[{}] No expiry dates found for targetDTE={} or expressions={}",
+                    symbol, targetDTE, dteExpressions);
             return new ArrayList<>();
         }
 
@@ -260,6 +292,29 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             OptionsStrategyFilter filter,
             java.util.function.Function<T, Double> creditExtractor) {
         return candidate -> filter.passesMinCredit(creditExtractor.apply(candidate));
+    }
+
+    /**
+     * Applies math filter expressions configured in the filter to the TradeSetup pipeline.
+     */
+    protected FilterPipeline<TradeSetup> applyTradeMathFilterExpressions(FilterPipeline<TradeSetup> pipeline,
+                                                                         OptionsStrategyFilter filter) {
+        if (filter == null || CollectionUtils.isEmpty(filter.getFilterExpressions())) {
+            return pipeline;
+        }
+
+        for (MathExpression expr : filter.getFilterExpressions()) {
+            String left = expr.getLeftVariable() != null ? expr.getLeftVariable().toUpperCase() : "";
+            // Skip symbol/expiry level expressions (already evaluated in execute)
+            if (left.equals("DTE") || left.equals("DAYS_TO_EXPIRATION")
+                    || left.equals("IV_RANK") || left.equals("IV_PERCENTILE")
+                    || left.contains("EARNINGS")) {
+                continue;
+            }
+
+            pipeline.step(expr.toString(), trade -> expr.evaluate(var -> OptionFilterValueResolver.resolveTradeValue(trade, var)));
+        }
+        return pipeline;
     }
 
 

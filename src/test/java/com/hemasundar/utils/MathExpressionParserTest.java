@@ -69,6 +69,35 @@ public class MathExpressionParserTest {
     }
 
     @Test
+    public void testParseExpression_DottedVariable() {
+        MathExpression expr = MathExpressionParser.parseExpression("SHORT_LEG.DELTA <= 0.2");
+        Assert.assertNotNull(expr);
+        Assert.assertEquals(expr.getLeftVariable(), "SHORT_LEG.DELTA");
+        Assert.assertEquals(expr.getOperator(), RelationalOperator.LESS_THAN_OR_EQUAL);
+        Assert.assertEquals(expr.getRightVariable(), "0.2");
+    }
+
+    @Test
+    public void testParseExpression_OffsetSub() {
+        MathExpression expr = MathExpressionParser.parseExpression("EARNINGS_NEAREST_TO_DTE <= DTE - 5");
+        Assert.assertNotNull(expr);
+        Assert.assertEquals(expr.getLeftVariable(), "EARNINGS_NEAREST_TO_DTE");
+        Assert.assertEquals(expr.getOperator(), RelationalOperator.LESS_THAN_OR_EQUAL);
+        Assert.assertEquals(expr.getRightVariable(), "DTE");
+        Assert.assertEquals(expr.getRightOffset(), -5.0, 0.0001);
+    }
+
+    @Test
+    public void testParseExpression_OffsetAdd() {
+        MathExpression expr = MathExpressionParser.parseExpression("EARNINGS_NEAREST_TO_DTE <= DTE + 10");
+        Assert.assertNotNull(expr);
+        Assert.assertEquals(expr.getLeftVariable(), "EARNINGS_NEAREST_TO_DTE");
+        Assert.assertEquals(expr.getOperator(), RelationalOperator.LESS_THAN_OR_EQUAL);
+        Assert.assertEquals(expr.getRightVariable(), "DTE");
+        Assert.assertEquals(expr.getRightOffset(), 10.0, 0.0001);
+    }
+
+    @Test
     public void testBlankInput() {
         Assert.assertNull(MathExpressionParser.parseExpression("  "));
         Assert.assertTrue(MathExpressionParser.parseRules(null).isEmpty());

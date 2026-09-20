@@ -28,6 +28,16 @@ public class LegFilter {
     private Double maxVolatility;
 
     /**
+     * Mathematical expression conditions for this leg.
+     * Example: ["DELTA <= 0.2", "OPEN_INTEREST >= 500"]
+     */
+    private java.util.List<String> conditions;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @lombok.Builder.Default
+    private java.util.List<com.hemasundar.technical.MathExpression> filterExpressions = new java.util.ArrayList<>();
+
+    /**
      * Returns true if delta passes the minDelta filter.
      * If minDelta is null, returns true (no restriction).
      */
@@ -84,18 +94,33 @@ public class LegFilter {
     }
 
     /**
-     * Comprehensive filter check - validates ALL fields in this filter.
+     * Comprehensive filter check - validates ALL fields and math expressions in this filter.
      * Returns true if the option leg passes all defined filter criteria.
      *
      * @param leg The option leg to validate
-     * @return true if leg passes all filters (or if all filters are null)
+     * @return true if leg passes all filters (or if all filters are null/empty)
      */
     public boolean passes(OptionChainResponse.OptionData leg) {
-        return passesDelta(leg) &&
+        return passesExpressions(leg) &&
+               passesDelta(leg) &&
                passesPremium(leg) &&
                passesVolume(leg) &&
                passesOpenInterest(leg) &&
                passesVolatility(leg);
+    }
+
+    /**
+     * Evaluates configured math expression conditions against this leg.
+     *
+     * @param leg The option leg to validate
+     * @return true if leg passes all expressions (or if no expressions are configured)
+     */
+    public boolean passesExpressions(OptionChainResponse.OptionData leg) {
+        if (leg == null) return false;
+        if (filterExpressions == null || filterExpressions.isEmpty()) return true;
+        return com.hemasundar.technical.MathExpressionEvaluator.evaluateAll(
+                filterExpressions,
+                var -> OptionFilterValueResolver.resolveLegValue(leg, var));
     }
 
     // ========== NULL-SAFE STATIC HELPERS ==========

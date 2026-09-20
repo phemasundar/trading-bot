@@ -64,24 +64,20 @@ public class FilterParser {
         applyIfPresent(filterMap, "minNetExtrinsicValueToPricePercentage",
                 v -> filter.setMinNetExtrinsicValueToPricePercentage(toDouble(v)));
 
+        // ── Math formula-like conditions ──
+        if (filterMap.containsKey("conditions") && filterMap.get("conditions") != null) {
+            List<String> stringRules = toStringList(filterMap.get("conditions"));
+            filter.setConditions(stringRules);
+            if (!stringRules.isEmpty()) {
+                filter.setFilterExpressions(MathExpressionParser.parseRules(stringRules));
+            }
+        }
+
         if (filterMap.containsKey("earningsFilters") && filterMap.get("earningsFilters") != null) {
             Object earningsFiltersObj = filterMap.get("earningsFilters");
             if (earningsFiltersObj instanceof Map<?, ?> earningsMap) {
                 if (earningsMap.containsKey("conditions") && earningsMap.get("conditions") != null) {
-                    Object condObj = earningsMap.get("conditions");
-                    List<String> stringRules = new ArrayList<>();
-                    if (condObj instanceof List<?> rules) {
-                        stringRules = rules.stream()
-                                .map(Object::toString)
-                                .map(String::trim)
-                                .filter(StringUtils::isNotBlank)
-                                .collect(Collectors.toList());
-                    } else if (condObj instanceof String str && StringUtils.isNotBlank(str)) {
-                        stringRules = Arrays.stream(str.split(","))
-                                .map(String::trim)
-                                .filter(StringUtils::isNotBlank)
-                                .collect(Collectors.toList());
-                    }
+                    List<String> stringRules = toStringList(earningsMap.get("conditions"));
                     if (!stringRules.isEmpty()) {
                         filter.setEarningsFilterExpressions(MathExpressionParser.parseRules(stringRules));
                     }
@@ -89,6 +85,19 @@ public class FilterParser {
             }
             // Also store the raw map for serialization/UI rendering if needed
             filter.setEarningsFilters((Map<String, Object>) earningsFiltersObj);
+        }
+
+        // Also route any earnings conditions in filter.filterExpressions to earningsFilterExpressions
+        if (filter.getFilterExpressions() != null) {
+            for (MathExpression expr : filter.getFilterExpressions()) {
+                String left = expr.getLeftVariable() != null ? expr.getLeftVariable().toUpperCase() : "";
+                String right = expr.getRightVariable() != null ? expr.getRightVariable().toUpperCase() : "";
+                if (left.contains("EARNINGS") || right.contains("EARNINGS")) {
+                    if (!filter.getEarningsFilterExpressions().contains(expr)) {
+                        filter.getEarningsFilterExpressions().add(expr);
+                    }
+                }
+            }
         }
 
         applyIfPresent(filterMap, "maxTotalDebit", v -> filter.setMaxTotalDebit(toDouble(v)));
@@ -110,7 +119,15 @@ public class FilterParser {
         // ── Strategy-specific fields ──
         if (filter instanceof CreditSpreadFilter csFilter) {
             applyLegFilter(filterMap, "shortLeg", csFilter::setShortLeg);
+            if (csFilter.getShortLeg() == null) {
+                applyLegFilter(filterMap, "shortPut", csFilter::setShortLeg);
+                applyLegFilter(filterMap, "shortCall", csFilter::setShortLeg);
+            }
             applyLegFilter(filterMap, "longLeg", csFilter::setLongLeg);
+            if (csFilter.getLongLeg() == null) {
+                applyLegFilter(filterMap, "longPut", csFilter::setLongLeg);
+                applyLegFilter(filterMap, "longCall", csFilter::setLongLeg);
+            }
         } else if (filter instanceof IronCondorFilter icFilter) {
             applyLegFilter(filterMap, "putShortLeg", icFilter::setPutShortLeg);
             applyLegFilter(filterMap, "putLongLeg", icFilter::setPutLongLeg);
@@ -118,6 +135,9 @@ public class FilterParser {
             applyLegFilter(filterMap, "callLongLeg", icFilter::setCallLongLeg);
         } else if (filter instanceof LongCallLeapFilter leapFilter) {
             applyLegFilter(filterMap, "longCall", leapFilter::setLongCall);
+            if (leapFilter.getLongCall() == null) {
+                applyLegFilter(filterMap, "longLeg", leapFilter::setLongCall);
+            }
             applyIfPresent(filterMap, "minCostSavingsPercent", v -> leapFilter.setMinCostSavingsPercent(toDouble(v)));
             applyIfPresent(filterMap, "relaxationPriority", v -> leapFilter.setRelaxationPriority(toStringList(v)));
             applyIfPresent(filterMap, "sortPriority", v -> leapFilter.setSortPriority(toStringList(v)));
@@ -127,11 +147,19 @@ public class FilterParser {
             applyLegFilter(filterMap, "leg3Long", bwbFilter::setLeg3Long);
         } else if (filter instanceof ZebraFilter zebraFilter) {
             applyLegFilter(filterMap, "shortCall", zebraFilter::setShortCall);
+            if (zebraFilter.getShortCall() == null) {
+                applyLegFilter(filterMap, "shortLeg", zebraFilter::setShortCall);
+            }
             applyLegFilter(filterMap, "longCall", zebraFilter::setLongCall);
+            if (zebraFilter.getLongCall() == null) {
+                applyLegFilter(filterMap, "longLeg", zebraFilter::setLongCall);
+            }
         } else if (filter instanceof ShortStrangleFilter strangleFilter) {
             applyLegFilter(filterMap, "putShortLeg", strangleFilter::setPutShortLeg);
             applyLegFilter(filterMap, "callShortLeg", strangleFilter::setCallShortLeg);
         }
+
+        routeLegExpressions(filter);
 
         return filter;
     }
@@ -150,6 +178,13 @@ public class FilterParser {
         if (legMap.isEmpty()) return;
 
         LegFilter.LegFilterBuilder builder = LegFilter.builder();
+        if (legMap.containsKey("conditions") && legMap.get("conditions") != null) {
+            List<String> stringRules = toStringList(legMap.get("conditions"));
+            builder.conditions(stringRules);
+            if (!stringRules.isEmpty()) {
+                builder.filterExpressions(MathExpressionParser.parseRules(stringRules));
+            }
+        }
         applyIfPresent(legMap, "minDelta", v -> builder.minDelta(toDouble(v)));
         applyIfPresent(legMap, "maxDelta", v -> builder.maxDelta(toDouble(v)));
         applyIfPresent(legMap, "minPremium", v -> builder.minPremium(toDouble(v)));
@@ -160,6 +195,90 @@ public class FilterParser {
         applyIfPresent(legMap, "maxVolatility", v -> builder.maxVolatility(toDouble(v)));
 
         setter.accept(builder.build());
+    }
+
+    private static void routeLegExpressions(OptionsStrategyFilter filter) {
+        if (filter.getFilterExpressions() == null || filter.getFilterExpressions().isEmpty()) {
+            return;
+        }
+
+        for (MathExpression expr : filter.getFilterExpressions()) {
+            String left = expr.getLeftVariable();
+            if (left != null && left.contains(".")) {
+                String[] parts = left.split("\\.", 2);
+                String legPrefix = parts[0].toUpperCase();
+                String legProp = parts[1];
+
+                MathExpression legExpr = MathExpression.builder()
+                        .leftVariable(legProp)
+                        .operator(expr.getOperator())
+                        .rightVariable(expr.getRightVariable())
+                        .rightScale(expr.getRightScale())
+                        .rightOffset(expr.getRightOffset())
+                        .build();
+
+                attachExprToLeg(filter, legPrefix, legExpr);
+            }
+        }
+    }
+
+    private static void attachExprToLeg(OptionsStrategyFilter filter, String legPrefix, MathExpression expr) {
+        String clean = legPrefix.replace("_", "").toUpperCase();
+        if (filter instanceof CreditSpreadFilter csFilter) {
+            if (clean.startsWith("SHORT")) {
+                if (csFilter.getShortLeg() == null) csFilter.setShortLeg(new LegFilter());
+                csFilter.getShortLeg().getFilterExpressions().add(expr);
+            } else if (clean.startsWith("LONG")) {
+                if (csFilter.getLongLeg() == null) csFilter.setLongLeg(new LegFilter());
+                csFilter.getLongLeg().getFilterExpressions().add(expr);
+            }
+        } else if (filter instanceof IronCondorFilter icFilter) {
+            if (clean.equals("PUTSHORT") || clean.equals("PUTSHORTLEG") || clean.equals("SHORTPUT") || clean.equals("SHORTPUTLEG")) {
+                if (icFilter.getPutShortLeg() == null) icFilter.setPutShortLeg(new LegFilter());
+                icFilter.getPutShortLeg().getFilterExpressions().add(expr);
+            } else if (clean.equals("PUTLONG") || clean.equals("PUTLONGLEG") || clean.equals("LONGPUT") || clean.equals("LONGPUTLEG")) {
+                if (icFilter.getPutLongLeg() == null) icFilter.setPutLongLeg(new LegFilter());
+                icFilter.getPutLongLeg().getFilterExpressions().add(expr);
+            } else if (clean.equals("CALLSHORT") || clean.equals("CALLSHORTLEG") || clean.equals("SHORTCALL") || clean.equals("SHORTCALLLEG")) {
+                if (icFilter.getCallShortLeg() == null) icFilter.setCallShortLeg(new LegFilter());
+                icFilter.getCallShortLeg().getFilterExpressions().add(expr);
+            } else if (clean.equals("CALLLONG") || clean.equals("CALLLONGLEG") || clean.equals("LONGCALL") || clean.equals("LONGCALLLEG")) {
+                if (icFilter.getCallLongLeg() == null) icFilter.setCallLongLeg(new LegFilter());
+                icFilter.getCallLongLeg().getFilterExpressions().add(expr);
+            }
+        } else if (filter instanceof BrokenWingButterflyFilter bwbFilter) {
+            if (clean.startsWith("LEG1")) {
+                if (bwbFilter.getLeg1Long() == null) bwbFilter.setLeg1Long(new LegFilter());
+                bwbFilter.getLeg1Long().getFilterExpressions().add(expr);
+            } else if (clean.startsWith("LEG2")) {
+                if (bwbFilter.getLeg2Short() == null) bwbFilter.setLeg2Short(new LegFilter());
+                bwbFilter.getLeg2Short().getFilterExpressions().add(expr);
+            } else if (clean.startsWith("LEG3")) {
+                if (bwbFilter.getLeg3Long() == null) bwbFilter.setLeg3Long(new LegFilter());
+                bwbFilter.getLeg3Long().getFilterExpressions().add(expr);
+            }
+        } else if (filter instanceof ZebraFilter zebraFilter) {
+            if (clean.startsWith("SHORT")) {
+                if (zebraFilter.getShortCall() == null) zebraFilter.setShortCall(new LegFilter());
+                zebraFilter.getShortCall().getFilterExpressions().add(expr);
+            } else if (clean.startsWith("LONG")) {
+                if (zebraFilter.getLongCall() == null) zebraFilter.setLongCall(new LegFilter());
+                zebraFilter.getLongCall().getFilterExpressions().add(expr);
+            }
+        } else if (filter instanceof ShortStrangleFilter strangleFilter) {
+            if (clean.startsWith("PUT")) {
+                if (strangleFilter.getPutShortLeg() == null) strangleFilter.setPutShortLeg(new LegFilter());
+                strangleFilter.getPutShortLeg().getFilterExpressions().add(expr);
+            } else if (clean.startsWith("CALL")) {
+                if (strangleFilter.getCallShortLeg() == null) strangleFilter.setCallShortLeg(new LegFilter());
+                strangleFilter.getCallShortLeg().getFilterExpressions().add(expr);
+            }
+        } else if (filter instanceof LongCallLeapFilter leapFilter) {
+            if (clean.startsWith("LONG")) {
+                if (leapFilter.getLongCall() == null) leapFilter.setLongCall(new LegFilter());
+                leapFilter.getLongCall().getFilterExpressions().add(expr);
+            }
+        }
     }
 
     @SuppressWarnings("unchecked")

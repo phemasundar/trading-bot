@@ -33,21 +33,35 @@ import java.util.regex.Pattern;
 @UtilityClass
 public final class MathExpressionParser {
 
-    private static final Pattern SCALED_RIGHT_PATTERN_PCT = Pattern.compile(
-            "^(\\w+)\\s*\\*\\s*(\\d+(?:\\.\\d+)?)%$");
-
-    private static final Pattern SCALED_RIGHT_PATTERN_MULT_1 = Pattern.compile(
-            "^(\\w+)\\s*\\*\\s*(\\d+(?:\\.\\d+)?)$"); // VAR * X
-
-    private static final Pattern SCALED_RIGHT_PATTERN_MULT_2 = Pattern.compile(
-            "^(\\d+(?:\\.\\d+)?)\\s*\\*\\s*(\\w+)$"); // X * VAR
+    private static final String IDENTIFIER_PATTERN = "[A-Za-z_][A-Za-z0-9_.]*";
 
     private static final Pattern FULL_EXPRESSION_PATTERN = Pattern.compile(
-            "^(\\w+)\\s*(>=|<=|==|>|<)\\s*(.+)$");
+            "^(" + IDENTIFIER_PATTERN + ")\\s*(>=|<=|==|>|<)\\s*(.+)$");
+
+    private static final Pattern SCALED_OFFSET_RIGHT_PATTERN = Pattern.compile(
+            "^(" + IDENTIFIER_PATTERN + ")\\s*\\*\\s*(\\d+(?:\\.\\d+)?)(%?)\\s*([+-])\\s*(\\d+(?:\\.\\d+)?)$");
+
+    private static final Pattern SCALED_RIGHT_PATTERN_PCT = Pattern.compile(
+            "^(" + IDENTIFIER_PATTERN + ")\\s*\\*\\s*(\\d+(?:\\.\\d+)?)%$");
+
+    private static final Pattern SCALED_RIGHT_PATTERN_MULT_1 = Pattern.compile(
+            "^(" + IDENTIFIER_PATTERN + ")\\s*\\*\\s*(\\d+(?:\\.\\d+)?)$"); // VAR * X
+
+    private static final Pattern SCALED_RIGHT_PATTERN_MULT_2 = Pattern.compile(
+            "^(\\d+(?:\\.\\d+)?)\\s*\\*\\s*(" + IDENTIFIER_PATTERN + ")$"); // X * VAR
+
+    private static final Pattern OFFSET_RIGHT_PATTERN_ADD = Pattern.compile(
+            "^(" + IDENTIFIER_PATTERN + ")\\s*\\+\\s*(\\d+(?:\\.\\d+)?)$"); // VAR + X
+
+    private static final Pattern OFFSET_RIGHT_PATTERN_SUB = Pattern.compile(
+            "^(" + IDENTIFIER_PATTERN + ")\\s*-\\s*(\\d+(?:\\.\\d+)?)$"); // VAR - X
+
+    private static final Pattern LITERAL_PCT_PATTERN = Pattern.compile(
+            "^(\\d+(?:\\.\\d+)?)%$"); // e.g. 20%
 
     /**
-     * Parses a full expression (e.g. {@code "PRICE >= SMA50"}) into a
-     * {@link MathExpression}.
+     * Parses a full expression (e.g. {@code "PRICE >= SMA50"} or {@code "SHORT_LEG.DELTA <= 0.2"} or {@code "EARNINGS_NEAREST_TO_DTE <= DTE - 5"})
+     * into a {@link MathExpression}.
      *
      * @param expression full expression string
      * @return parsed expression, or null if the expression is blank
@@ -68,13 +82,24 @@ public final class MathExpressionParser {
         String rightSide = matcher.group(3).trim();
 
         double scale = 1.0;
+        double offset = 0.0;
         String rightVariable = rightSide;
 
+        Matcher scaledOffsetMatcher = SCALED_OFFSET_RIGHT_PATTERN.matcher(rightSide);
         Matcher scalePctMatcher = SCALED_RIGHT_PATTERN_PCT.matcher(rightSide);
         Matcher scaleMult1Matcher = SCALED_RIGHT_PATTERN_MULT_1.matcher(rightSide);
         Matcher scaleMult2Matcher = SCALED_RIGHT_PATTERN_MULT_2.matcher(rightSide);
+        Matcher offsetAddMatcher = OFFSET_RIGHT_PATTERN_ADD.matcher(rightSide);
+        Matcher offsetSubMatcher = OFFSET_RIGHT_PATTERN_SUB.matcher(rightSide);
+        Matcher literalPctMatcher = LITERAL_PCT_PATTERN.matcher(rightSide);
 
-        if (scalePctMatcher.matches()) {
+        if (scaledOffsetMatcher.matches()) {
+            rightVariable = scaledOffsetMatcher.group(1);
+            boolean isPct = "%".equals(scaledOffsetMatcher.group(3));
+            scale = Double.parseDouble(scaledOffsetMatcher.group(2)) / (isPct ? 100.0 : 1.0);
+            double offsetVal = Double.parseDouble(scaledOffsetMatcher.group(5));
+            offset = "-".equals(scaledOffsetMatcher.group(4)) ? -offsetVal : offsetVal;
+        } else if (scalePctMatcher.matches()) {
             rightVariable = scalePctMatcher.group(1);
             scale = Double.parseDouble(scalePctMatcher.group(2)) / 100.0;
         } else if (scaleMult1Matcher.matches()) {
@@ -83,6 +108,14 @@ public final class MathExpressionParser {
         } else if (scaleMult2Matcher.matches()) {
             scale = Double.parseDouble(scaleMult2Matcher.group(1));
             rightVariable = scaleMult2Matcher.group(2);
+        } else if (offsetAddMatcher.matches()) {
+            rightVariable = offsetAddMatcher.group(1);
+            offset = Double.parseDouble(offsetAddMatcher.group(2));
+        } else if (offsetSubMatcher.matches()) {
+            rightVariable = offsetSubMatcher.group(1);
+            offset = -Double.parseDouble(offsetSubMatcher.group(2));
+        } else if (literalPctMatcher.matches()) {
+            rightVariable = literalPctMatcher.group(1);
         }
 
         Validate.isTrue(isVariableOrNumber(rightVariable),
@@ -93,6 +126,7 @@ public final class MathExpressionParser {
                 .operator(op)
                 .rightVariable(rightVariable)
                 .rightScale(scale)
+                .rightOffset(offset)
                 .build();
     }
 
@@ -120,6 +154,6 @@ public final class MathExpressionParser {
         if (StringUtils.isBlank(value)) {
             return false;
         }
-        return value.matches("^[A-Za-z_][A-Za-z0-9_]*$|^-?\\d+(?:\\.\\d+)?$");
+        return value.matches("^[A-Za-z_][A-Za-z0-9_.]*$|^-?\\d+(?:\\.\\d+)?$");
     }
 }

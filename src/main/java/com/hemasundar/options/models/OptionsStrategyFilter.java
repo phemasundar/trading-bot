@@ -68,6 +68,16 @@ public class OptionsStrategyFilter {
     private Double maxNetExtrinsicValueToPricePercentage;
     private Double minNetExtrinsicValueToPricePercentage;
 
+    /**
+     * Mathematical expression conditions for filtering trades, expiries, and options metrics.
+     * Example: ["DTE >= 25", "DTE <= 50", "MAX_LOSS <= 1000", "ROR >= 12", "SHORT_LEG.DELTA <= 0.2"]
+     */
+    private java.util.List<String> conditions;
+
+    @JsonIgnore
+    @lombok.Builder.Default
+    private java.util.List<com.hemasundar.technical.MathExpression> filterExpressions = new java.util.ArrayList<>();
+
     // Behavior flags
     @JsonIgnore
     @lombok.Builder.Default
@@ -281,5 +291,27 @@ public class OptionsStrategyFilter {
         if (this.minIVPercentile != null && ivPercentile < this.minIVPercentile) return false;
         if (this.maxIVPercentile != null && ivPercentile > this.maxIVPercentile) return false;
         return true;
+    }
+
+    /**
+     * Returns math expressions targeting DTE or DAYS_TO_EXPIRATION.
+     */
+    @JsonIgnore
+    public java.util.List<com.hemasundar.technical.MathExpression> getDteExpressions() {
+        if (filterExpressions == null) return java.util.Collections.emptyList();
+        return filterExpressions.stream()
+                .filter(e -> "DTE".equalsIgnoreCase(e.getLeftVariable()) || "DAYS_TO_EXPIRATION".equalsIgnoreCase(e.getLeftVariable()))
+                .toList();
+    }
+
+    /**
+     * Returns math expressions targeting IV Rank or IV Percentile.
+     */
+    @JsonIgnore
+    public java.util.List<com.hemasundar.technical.MathExpression> getIvExpressions() {
+        if (filterExpressions == null) return java.util.Collections.emptyList();
+        return filterExpressions.stream()
+                .filter(e -> "IV_RANK".equalsIgnoreCase(e.getLeftVariable()) || "IV_PERCENTILE".equalsIgnoreCase(e.getLeftVariable()))
+                .toList();
     }
 }

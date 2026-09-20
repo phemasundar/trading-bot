@@ -3,16 +3,16 @@ package com.hemasundar.options.strategies;
 import com.hemasundar.technical.MathExpression;
 import com.hemasundar.technical.MathExpressionEvaluator;
 import com.hemasundar.utils.MathExpressionParser;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
-class EarningsFilterIntegrationTest {
+public class EarningsFilterIntegrationTest {
 
     @Test
     void testSafeCloseScenario_EarningsTooCloseToDte() {

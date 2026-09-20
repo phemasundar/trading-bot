@@ -47,12 +47,8 @@ public class ZebraStrategy extends AbstractTradingStrategy {
             return new ArrayList<>();
 
         // Extract leg filters
-        LegFilter shortLegFilter = null, longLegFilter = null;
-
-        if (filter instanceof ZebraFilter zFilter) {
-            shortLegFilter = zFilter.getShortCall();
-            longLegFilter = zFilter.getLongCall();
-        }
+        LegFilter shortLegFilter = (filter instanceof ZebraFilter zFilter) ? zFilter.getShortCall() : null;
+        LegFilter longLegFilter = (filter instanceof ZebraFilter zFilter) ? zFilter.getLongCall() : null;
 
         List<Double> sortedStrikes = callMap.keySet().stream()
                 .map(Double::parseDouble)
@@ -72,6 +68,7 @@ public class ZebraStrategy extends AbstractTradingStrategy {
                 .step(FilterStage.VOLUME_FILTER,             volumeFilter(shortLegFilter, longLegFilter))
                 .step(FilterStage.OPEN_INTEREST_FILTER,      openInterestFilter(shortLegFilter, longLegFilter))
                 .step(FilterStage.LEG_VOLATILITY_FILTER,     volatilityFilter(shortLegFilter, longLegFilter))
+                .step("Leg Conditions Filter",               c -> LegFilter.passes(shortLegFilter, c.shortLeg()) && LegFilter.passes(longLegFilter, c.longLeg()))
                 .step(FilterStage.MAX_LOSS_FILTER,           commonMaxLossFilter(filter, ZebraCandidate::maxLoss))
                 .step(FilterStage.MAX_DEBIT_FILTER,          commonMaxTotalDebitFilter(filter, ZebraCandidate::netDebit))
                 .step(FilterStage.MIN_RETURN_ON_RISK_FILTER, commonMinReturnOnRiskFilter(filter, candidate -> candidate.maxLoss() > 0 ? 0.0 : 100.0, ZebraCandidate::maxLoss))
@@ -80,12 +77,13 @@ public class ZebraStrategy extends AbstractTradingStrategy {
 
         List<TradeSetup> mapped = survived.stream().map(this::buildTradeSetup).toList();
 
-        return FilterPipeline
+        FilterPipeline<TradeSetup> tradePipeline = FilterPipeline
                 .<TradeSetup>forContext(strategyName, symbol, expiryDate)
                 .step(FilterStage.MAX_EXTRINSIC_VALUE_FILTER, commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
                 .step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter))
-                .step(FilterStage.BREAK_EVEN_FILTER,          trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()))
-                .run(mapped);
+                .step(FilterStage.BREAK_EVEN_FILTER,          trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()));
+
+        return applyTradeMathFilterExpressions(tradePipeline, filter).run(mapped);
     }
 
     /**
