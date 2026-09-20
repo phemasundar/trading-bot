@@ -59,13 +59,8 @@ public class ShortStrangleStrategy extends AbstractTradingStrategy {
             return new ArrayList<>();
         }
 
-        LegFilter putShortLegFilter = null;
-        LegFilter callShortLegFilter = null;
-        
-        if (filter instanceof ShortStrangleFilter strangleFilter) {
-            putShortLegFilter = strangleFilter.getPutShortLeg();
-            callShortLegFilter = strangleFilter.getCallShortLeg();
-        }
+        LegFilter putShortLegFilter = (filter instanceof ShortStrangleFilter strangleFilter) ? strangleFilter.getPutShortLeg() : null;
+        LegFilter callShortLegFilter = (filter instanceof ShortStrangleFilter strangleFilter) ? strangleFilter.getCallShortLeg() : null;
 
         // Flatten all put options for this expiry into typed candidate records
         List<OptionData> putCandidates = putMap.values().stream()
@@ -90,6 +85,7 @@ public class ShortStrangleStrategy extends AbstractTradingStrategy {
                 .step("Put " + FilterStage.VOLUME_FILTER.displayName(),              volumeFilter(putShortLegFilter))
                 .step("Put " + FilterStage.OPEN_INTEREST_FILTER.displayName(),       openInterestFilter(putShortLegFilter))
                 .step("Put " + FilterStage.LEG_VOLATILITY_FILTER.displayName(),      volatilityFilter(putShortLegFilter))
+                .step("Put Leg Conditions Filter",                                   p -> LegFilter.passes(putShortLegFilter, p))
                 .run(putCandidates);
                 
         List<OptionData> survivedCalls = FilterPipeline
@@ -99,6 +95,7 @@ public class ShortStrangleStrategy extends AbstractTradingStrategy {
                 .step("Call " + FilterStage.VOLUME_FILTER.displayName(),              volumeFilter(callShortLegFilter))
                 .step("Call " + FilterStage.OPEN_INTEREST_FILTER.displayName(),       openInterestFilter(callShortLegFilter))
                 .step("Call " + FilterStage.LEG_VOLATILITY_FILTER.displayName(),      volatilityFilter(callShortLegFilter))
+                .step("Call Leg Conditions Filter",                                  c -> LegFilter.passes(callShortLegFilter, c))
                 .run(callCandidates);
 
         List<ShortStrangleCandidate> combinations = new ArrayList<>();
@@ -133,12 +130,13 @@ public class ShortStrangleStrategy extends AbstractTradingStrategy {
         List<TradeSetup> mapped = survivedCombinations.stream().map(this::buildTradeSetup).toList();
 
         // ── Phase 2: TradeSetup-level filters ────────────────────────────────
-        return FilterPipeline
+        FilterPipeline<TradeSetup> tradePipeline = FilterPipeline
                 .<TradeSetup>forContext(strategyName, symbol, expiryDate)
                 .step(FilterStage.MAX_EXTRINSIC_VALUE_FILTER, commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
                 .step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter))
-                .step(FilterStage.BREAK_EVEN_FILTER,          trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()) && filter.passesMaxBreakEvenPercentage(trade.getUpperBreakEvenPercentage()))
-                .run(mapped);
+                .step(FilterStage.BREAK_EVEN_FILTER,          trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()) && filter.passesMaxBreakEvenPercentage(trade.getUpperBreakEvenPercentage()));
+
+        return applyTradeMathFilterExpressions(tradePipeline, filter).run(mapped);
     }
 
     // ========== FILTER PREDICATES ==========

@@ -128,6 +128,7 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                 .step(FilterStage.VOLUME_FILTER,          volumeFilter(finalLongCallFilter))
                 .step(FilterStage.OPEN_INTEREST_FILTER,   openInterestFilter(finalLongCallFilter))
                 .step(FilterStage.LEG_VOLATILITY_FILTER,  volatilityFilter(finalLongCallFilter))
+                .step("Leg Conditions Filter",            candidate -> LegFilter.passes(finalLongCallFilter, candidate.call()))
                 .step(FilterStage.PREMIUM_LIMIT_FILTER,   premiumLimitFilter(filter))
                 .step(FilterStage.MAX_LOSS_FILTER,         maxLossFilter(filter))
                 .step(FilterStage.CAGR_FILTER,             cagrFilter(filter))
@@ -137,12 +138,13 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
 
         List<TradeSetup> mapped = survived.stream().map(this::buildTradeSetup).toList();
 
-        return FilterPipeline
+        FilterPipeline<TradeSetup> tradePipeline = FilterPipeline
                 .<TradeSetup>forContext(strategyName, symbol, expiryDate)
                 .step(FilterStage.MAX_EXTRINSIC_VALUE_FILTER, commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
                 .step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter))
-                .step(FilterStage.BREAK_EVEN_FILTER,          trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()))
-                .run(mapped);
+                .step(FilterStage.BREAK_EVEN_FILTER,          trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()));
+
+        return applyTradeMathFilterExpressions(tradePipeline, filter).run(mapped);
     }
 
     private Optional<LeapCandidate> createCandidate(OptionChainResponse.OptionData call,

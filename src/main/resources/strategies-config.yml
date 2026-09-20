@@ -62,13 +62,15 @@ optionsStrategies:
     descriptionFile: "put_credit_spread.md"
     filterType: "CreditSpreadFilter"
     filter:
-      minDTE: 25
-      maxDTE: 50
-      maxLossLimit: 1000
-      minReturnOnRisk: 12
+      conditions:
+        - "DTE >= 25"
+        - "DTE <= 50"
+        - "MAX_LOSS <= 1000"
+        - "RETURN_ON_RISK >= 12"
       shortLeg:
-        maxDelta: 0.2
-        minOpenInterest: 500
+        conditions:
+          - "DELTA <= 0.2"
+          - "OPEN_INTEREST >= 500"
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
@@ -86,13 +88,15 @@ optionsStrategies:
     descriptionFile: "put_credit_spread.md"
     filterType: "CreditSpreadFilter"
     filter:
-      minDTE: 55
-      maxDTE: 185
-      maxLossLimit: 2000
-      minReturnOnRisk: 24
+      conditions:
+        - "DTE >= 55"
+        - "DTE <= 185"
+        - "MAX_LOSS <= 2000"
+        - "RETURN_ON_RISK >= 24"
       shortLeg:
-        maxDelta: 0.2
-        minOpenInterest: 100
+        conditions:
+          - "DELTA <= 0.2"
+          - "OPEN_INTEREST >= 100"
     securitiesFile: "tracking, 2026"
     technicalFilters:
       HISTORICAL_VOLATILITY:
@@ -108,11 +112,13 @@ optionsStrategies:
     filterType: "CreditSpreadFilter"
     filter:
       targetDTE: 30
-      maxLossLimit: 1000
-      minReturnOnRisk: 12
+      conditions:
+        - "MAX_LOSS <= 1000"
+        - "RETURN_ON_RISK >= 12"
       shortLeg:
-        maxDelta: 0.3
-        minOpenInterest: 500
+        conditions:
+          - "DELTA <= 0.3"
+          - "OPEN_INTEREST >= 500"
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
@@ -126,11 +132,13 @@ optionsStrategies:
     filterType: "CreditSpreadFilter"
     filter:
       targetDTE: 30
-      maxLossLimit: 1000
-      minReturnOnRisk: 12
+      conditions:
+        - "MAX_LOSS <= 1000"
+        - "RETURN_ON_RISK >= 12"
       shortLeg:
-        maxDelta: 0.2
-        minOpenInterest: 500
+        conditions:
+          - "DELTA <= 0.2"
+          - "OPEN_INTEREST >= 500"
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
@@ -149,11 +157,13 @@ optionsStrategies:
     filterType: "CreditSpreadFilter"
     filter:
       targetDTE: 30
-      maxLossLimit: 1000
-      minReturnOnRisk: 12
+      conditions:
+        - "MAX_LOSS <= 1000"
+        - "RETURN_ON_RISK >= 12"
       shortLeg:
-        maxDelta: 0.3
-        minOpenInterest: 500
+        conditions:
+          - "DELTA <= 0.3"
+          - "OPEN_INTEREST >= 500"
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
@@ -166,16 +176,19 @@ optionsStrategies:
     descriptionFile: "iron_condor.md"
     filterType: "IronCondorFilter"
     filter:
-      minDTE: 0
-      maxDTE: 1
-      maxLossLimit: 500
-      minReturnOnRisk: 12
+      conditions:
+        - "DTE >= 0"
+        - "DTE <= 1"
+        - "MAX_LOSS <= 500"
+        - "RETURN_ON_RISK >= 12"
       putShortLeg:
-        maxDelta: 0.15
-        minOpenInterest: 100
+        conditions:
+          - "DELTA <= 0.15"
+          - "OPEN_INTEREST >= 100"
       callShortLeg:
-        maxDelta: 0.15
-        minOpenInterest: 100
+        conditions:
+          - "DELTA <= 0.15"
+          - "OPEN_INTEREST >= 100"
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
@@ -193,16 +206,19 @@ optionsStrategies:
     descriptionFile: "iron_condor.md"
     filterType: "IronCondorFilter"
     filter:
-      minDTE: 40
-      maxDTE: 65
-      maxLossLimit: 1000
-      minReturnOnRisk: 24
+      conditions:
+        - "DTE >= 40"
+        - "DTE <= 65"
+        - "MAX_LOSS <= 1000"
+        - "RETURN_ON_RISK >= 24"
       putShortLeg:
-        maxDelta: 0.15
-        minOpenInterest: 100
+        conditions:
+          - "DELTA <= 0.15"
+          - "OPEN_INTEREST >= 100"
       callShortLeg:
-        maxDelta: 0.15
-        minOpenInterest: 100
+        conditions:
+          - "DELTA <= 0.15"
+          - "OPEN_INTEREST >= 100"
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
@@ -220,16 +236,19 @@ optionsStrategies:
     descriptionFile: "iron_condor.md"
     filterType: "IronCondorFilter"
     filter:
-      minDTE: 55
-      maxDTE: 185
-      maxLossLimit: 2000
-      minReturnOnRisk: 36
+      conditions:
+        - "DTE >= 55"
+        - "DTE <= 185"
+        - "MAX_LOSS <= 2000"
+        - "RETURN_ON_RISK >= 36"
       putShortLeg:
-        maxDelta: 0.15
-        minOpenInterest: 100
+        conditions:
+          - "DELTA <= 0.15"
+          - "OPEN_INTEREST >= 100"
       callShortLeg:
-        maxDelta: 0.15
-        minOpenInterest: 100
+        conditions:
+          - "DELTA <= 0.15"
+          - "OPEN_INTEREST >= 100"
     securitiesFile: "bullish, 2026"
     technicalFilters:
       HISTORICAL_VOLATILITY:
@@ -254,8 +273,9 @@ optionsStrategies:
       maxLossLimit: 5000
       maxIVPercentile: 30
       longCall:
-        minDelta: 0.4
-        minOpenInterest: 1
+        conditions:
+          - "DELTA >= 0.4"
+          - "OPEN_INTEREST >= 1"
   - alias: "Tech Moderate LEAP"
     enabled: true
     termType: "Extra Long Term"
@@ -273,8 +293,9 @@ optionsStrategies:
       maxLossLimit: 5000
       maxIVPercentile: 30
       longCall:
-        minDelta: 0.4
-        minOpenInterest: 1
+        conditions:
+          - "DELTA >= 0.4"
+          - "OPEN_INTEREST >= 1"
     technicalFilters:
       RSI:
         config: "default"
@@ -306,8 +327,9 @@ optionsStrategies:
       maxLossLimit: 5000
       maxIVPercentile: 30
       longCall:
-        minDelta: 0.4
-        minOpenInterest: 1
+        conditions:
+          - "DELTA >= 0.4"
+          - "OPEN_INTEREST >= 1"
   - alias: "LEAP Top 5"
     enabled: true
     termType: "Extra Long Term"
@@ -326,8 +348,9 @@ optionsStrategies:
       minCostSavingsPercent: 5
       maxIVPercentile: 30
       longCall:
-        minDelta: 0.3
-        minOpenInterest: 1
+        conditions:
+          - "DELTA >= 0.3"
+          - "OPEN_INTEREST >= 1"
       relaxationPriority1:
         - "maxCAGRForBreakEven"
         - "maxOptionPricePercent"
@@ -349,11 +372,13 @@ optionsStrategies:
       maxLossLimit: 1000
       maxUpperBreakevenDelta: 0.15
       leg1Long:
-        minDelta: 0.5
-        minOpenInterest: 100
+        conditions:
+          - "DELTA >= 0.5"
+          - "OPEN_INTEREST >= 100"
       leg2Short:
-        maxDelta: 0.4
-        minOpenInterest: 100
+        conditions:
+          - "DELTA <= 0.4"
+          - "OPEN_INTEREST >= 100"
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
@@ -373,10 +398,12 @@ optionsStrategies:
       maxUpperBreakevenDelta: 0.2
       priceVsMaxDebitRatio: 1
       leg1Long:
-        minDelta: 0.5
-        minOpenInterest: 100
+        conditions:
+          - "DELTA >= 0.5"
+          - "OPEN_INTEREST >= 100"
       leg2Short:
-        minOpenInterest: 100
+        conditions:
+          - "OPEN_INTEREST >= 100"
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
@@ -388,17 +415,20 @@ optionsStrategies:
     descriptionFile: "bullish_zebra.md"
     filterType: "ZebraFilter"
     filter:
-      minDTE: 30
-      maxDTE: 45
-      maxNetExtrinsicValueToPricePercentage: 0.5
-      maxLossLimit: 5000
-      maxBreakEvenPercentage: 5
+      conditions:
+        - "DTE >= 30"
+        - "DTE <= 45"
+        - "ANNUALIZED_EXTRINSIC_PCT <= 0.5"
+        - "MAX_LOSS <= 5000"
+        - "BREAK_EVEN_PCT <= 5"
       shortCall:
-        minDelta: 0.45
-        minOpenInterest: 100
+        conditions:
+          - "DELTA >= 0.45"
+          - "OPEN_INTEREST >= 100"
       longCall:
-        minDelta: 0.65
-        minOpenInterest: 100
+        conditions:
+          - "DELTA >= 0.65"
+          - "OPEN_INTEREST >= 100"
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
@@ -410,14 +440,16 @@ optionsStrategies:
     descriptionFile: "short_put.md"
     filterType: "CreditSpreadFilter"
     filter:
-      minDTE: 25
-      maxDTE: 50
-      maxLossLimit: 20000
-      minReturnOnRisk: 6
-      minIVPercentile: 30
+      conditions:
+        - "DTE >= 25"
+        - "DTE <= 50"
+        - "MAX_LOSS <= 20000"
+        - "RETURN_ON_RISK >= 6"
+        - "IV_PERCENTILE >= 30"
       shortLeg:
-        maxDelta: 0.2
-        minOpenInterest: 100
+        conditions:
+          - "DELTA <= 0.2"
+          - "OPEN_INTEREST >= 100"
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
@@ -429,14 +461,16 @@ optionsStrategies:
     descriptionFile: "short_put.md"
     filterType: "CreditSpreadFilter"
     filter:
-      minDTE: 55
-      maxDTE: 185
-      maxLossLimit: 20000
-      minReturnOnRisk: 12
-      minIVPercentile: 30
+      conditions:
+        - "DTE >= 55"
+        - "DTE <= 185"
+        - "MAX_LOSS <= 20000"
+        - "RETURN_ON_RISK >= 12"
+        - "IV_PERCENTILE >= 30"
       shortLeg:
-        maxDelta: 0.2
-        minOpenInterest: 100
+        conditions:
+          - "DELTA <= 0.2"
+          - "OPEN_INTEREST >= 100"
     securitiesFile: "portfolio, tracking, 2026"
   - alias: "Short Put"
     enabled: true
@@ -445,13 +479,15 @@ optionsStrategies:
     descriptionFile: "short_put.md"
     filterType: "CreditSpreadFilter"
     filter:
-      minDTE: 330
-      maxLossLimit: 20000
-      minReturnOnRiskCAGR: 18
-      minIVPercentile: 30
+      conditions:
+        - "DTE >= 330"
+        - "MAX_LOSS <= 20000"
+        - "CAGR >= 18"
+        - "IV_PERCENTILE >= 30"
       shortLeg:
-        maxDelta: 0.2
-        minOpenInterest: 1
+        conditions:
+          - "DELTA <= 0.2"
+          - "OPEN_INTEREST >= 1"
     securitiesFile: "portfolio, tracking, 2026"
   - alias: "Short Strangle"
     enabled: true
@@ -460,19 +496,22 @@ optionsStrategies:
     descriptionFile: "short_strangle.md"
     filterType: "ShortStrangleFilter"
     filter:
-      minDTE: 0
-      maxDTE: 100
-      maxLossLimit: 20000
-      minReturnOnRisk: 12
-      minIVPercentile: 30
+      conditions:
+        - "DTE >= 0"
+        - "DTE <= 100"
+        - "MAX_LOSS <= 20000"
+        - "RETURN_ON_RISK >= 12"
+        - "IV_PERCENTILE >= 30"
+      putShortLeg:
+        conditions:
+          - "DELTA <= 0.2"
+      callShortLeg:
+        conditions:
+          - "DELTA <= 0.2"
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
           - "EARNINGS_NEAREST_TO_DTE <= DTE - 10"
-      putShortLeg:
-        maxDelta: 0.2
-      callShortLeg:
-        maxDelta: 0.2
     securitiesFile: "portfolio, 2026, tracking, top100"
     technicalFilters:
       HISTORICAL_VOLATILITY:

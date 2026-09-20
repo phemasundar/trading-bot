@@ -51,6 +51,13 @@ public class MathExpression {
     private Double rightScale = 1.0;
 
     /**
+     * Optional offset added to or subtracted from the right-hand side value.
+     * For example, {@code -5.0} for expressions like {@code DTE - 5}. Defaults to {@code 0.0}.
+     */
+    @Builder.Default
+    private Double rightOffset = 0.0;
+
+    /**
      * Evaluates this expression against a value provider.
      *
      * @param valueProvider provides numeric values for variable names
@@ -86,14 +93,22 @@ public class MathExpression {
             return null;
         }
         double scale = rightScale != null ? rightScale : 1.0;
-        return baseValue * scale;
+        double offset = rightOffset != null ? rightOffset : 0.0;
+        return (baseValue * scale) + offset;
     }
 
     @Override
     public String toString() {
-        String right = rightVariable;
+        StringBuilder right = new StringBuilder(rightVariable);
         if (rightScale != null && rightScale != 1.0) {
-            right = right + " * " + String.format("%.0f%%", rightScale * 100);
+            right.append(" * ").append(String.format("%.0f%%", rightScale * 100));
+        }
+        if (rightOffset != null && rightOffset != 0.0) {
+            if (rightOffset > 0) {
+                right.append(" + ").append(rightOffset % 1 == 0 ? String.format("%.0f", rightOffset) : rightOffset);
+            } else {
+                right.append(" - ").append(Math.abs(rightOffset) % 1 == 0 ? String.format("%.0f", Math.abs(rightOffset)) : Math.abs(rightOffset));
+            }
         }
         return leftVariable + " " + operator.getSymbol() + " " + right;
     }

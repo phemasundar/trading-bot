@@ -23,7 +23,7 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
   - Average True Range (ATR) Volatility filter
   - Multi-day Price Drop (Selectable lookback from 0-N days, with pre-configured Intraday Drop, 5-Day Drop, 1-Month Drop, and 3-Month Drop templates)
   - 52-Week High Drop (Percentage decline from yearly high)
-- **Object-Oriented Filter System**: Extensible filter hierarchy with strategy-specific and leg-specific filters, including annualized yield filters (`minReturnOnRiskCAGR`) and LEAP cost savings filtering (`minCostSavingsPercent`). Cost filters carry no hardcoded defaults in code; user input and YAML config take first priority, and unconfigured cost filters pass all candidate trades. Redundant cost efficiency checks have been removed.
+- **Unified Mathematical Filter System**: Options strategies, individual option legs, and technical screeners use a unified, declarative mathematical expression filtering engine (`MathExpression`, `MathExpressionParser`, `MathExpressionEvaluator`). Filter criteria are defined via declarative math expressions under `conditions: [...]` (e.g. `DTE >= 25`, `MAX_LOSS <= 1000`, `ROR >= 12%`, `SHORT_LEG.DELTA <= 0.2`, `DAYS_TO_NEXT_EARNINGS >= DTE`), with support for arithmetic offsets (`DTE - 10`), percentages, and multi-leg dotted navigation.
 - **Strategy History & Similar Trades**: Synchronously records historical trade executions into Supabase (`historical_trades` table) upon strategy completion using SHA-256 deterministic trade hashes for duplicate prevention. Trade hashes incorporate strategy ID, ticker symbol, expiry date, calendar day, and full leg details (`action`, `optionType`, `strike`, `quantity`) to ensure distinct strike setups on the same ticker and expiry are uniquely persisted. Uses PostgREST upsert (`on_conflict=trade_hash` with `resolution=merge-duplicates`) so that when the same trade opportunity is scanned multiple times on a specific day (e.g. morning vs. evening execution), the **latest** trade details (such as updated underlying price, return on risk, net credit, and execution timestamp) are saved into the history table rather than retaining stale earlier entries. In-memory batch deduplication prevents intra-batch PostgreSQL unique constraint conflicts. Any database save failure is recorded with `ERROR` severity and immediately surfaced on the frontend dashboard and fails scheduled GitHub Action workflows (exit code `1`). Each trade row on the dashboard includes a **History button (🕒)** that opens an interactive modal listing matching historical trades filtered dynamically by symbol, expiry date, and leg structure, with automatic candidate deduplication and a dedicated **Date Found** column.
 
 
@@ -391,6 +391,92 @@ FilterConditions overboughtConditions = FilterConditions.builder()
 // STEP 3: Combine indicators + conditions into filter chains
 TechnicalFilterChain oversoldFilterChain = TechnicalFilterChain.of(indicators, oversoldConditions);
 TechnicalFilterChain overboughtFilterChain = TechnicalFilterChain.of(indicators, overboughtConditions);
+```
+
+### Options Strategy Mathematical Expression Filters (`conditions`)
+
+Options strategy filters are configured using declarative mathematical expressions under `conditions: [...]` in `strategies-config.yml`. This unifies technical indicators and options filters under the same `MathExpression` evaluation engine, removing fragmented property fields and hardcoded thresholds.
+
+#### Supported Operators
+- `>=`, `<=`, `>`, `<`, `==`, `!=`
+- Percentage scaling: `* 90%` (e.g., `VOLUME_SMA20 >= VOLUME_SMA50 * 90%`)
+- Arithmetic offsets: `+ X`, `- X` (e.g., `EARNINGS_NEAREST_TO_DTE <= DTE - 10`)
+- Literal percentage values: `ROR >= 12%`, `IV_PERCENTILE >= 30%`
+
+#### Supported Variables
+
+| Category | Variable | Description |
+|:---|:---|:---|
+| **Expiry & IV** | `DTE`, `DAYS_TO_EXPIRATION` | Days until option contract expiration |
+| | `IV_RANK` | Implied Volatility rank (0–100) from historical IV cache |
+| | `IV_PERCENTILE` | Implied Volatility percentile (0–100) from historical IV cache |
+| **Earnings** | `DAYS_TO_NEXT_EARNINGS` | Calendar days until the company's next earnings announcement |
+| | `EARNINGS_NEAREST_TO_DTE` | Days until the earnings event closest to the expiry date |
+| **Trade Risk & Return** | `MAX_LOSS` | Maximum dollar loss for the trade setup |
+| | `NET_CREDIT`, `CREDIT` | Total credit received for the trade |
+| | `NET_DEBIT`, `DEBIT` | Total debit paid for the trade |
+| | `ROR`, `RETURN_ON_RISK` | Return on risk percentage (`netCredit / maxLoss * 100`) |
+| | `CAGR`, `ROR_CAGR` | Annualized compound return on risk percentage |
+| | `BREAK_EVEN_PRICE`, `BREAK_EVEN` | Trade breakeven stock price |
+| | `BREAK_EVEN_PCT` | Percentage distance from current stock price to breakeven |
+| | `UPPER_BREAK_EVEN_PRICE` | Upper breakeven price (Strangle, Iron Condor, BWB) |
+| | `UPPER_BREAK_EVEN_PCT` | Upper breakeven percentage distance |
+| | `ANNUALIZED_EXTRINSIC_PCT` | Annualized net extrinsic value to capital percentage |
+| | `CURRENT_PRICE`, `PRICE` | Current underlying stock price |
+| **Leg Metrics** | `DELTA`, `ABS_DELTA` | Absolute value of leg delta (e.g. `0.20`) |
+| *(Dotted or Leg-level)* | `RAW_DELTA`, `SIGNED_DELTA` | Signed delta (negative for puts, positive for calls) |
+| | `OPEN_INTEREST`, `OI` | Contract open interest |
+| | `VOLUME`, `TOTAL_VOLUME` | Contract trading volume |
+| | `PREMIUM`, `MARK` | Contract mark price |
+| | `BID`, `ASK` | Contract bid / ask quotes |
+| | `IV`, `VOLATILITY` | Contract implied volatility |
+| | `GAMMA`, `THETA`, `VEGA` | Option Greeks |
+| | `STRIKE` | Option strike price |
+
+#### Leg Prefix Routing
+Multi-leg conditions can be written directly on the strategy filter using dotted notation. The parser (`FilterParser`) automatically routes leg conditions to the corresponding `LegFilter` for early pruning and attaches them to `FilterPipeline<TradeSetup>`:
+
+| Strategy | Leg Prefix | Examples |
+|:---|:---|:---|
+| **Credit Spreads (PCS / CCS)** | `SHORT_LEG.*`, `LONG_LEG.*` | `SHORT_LEG.DELTA <= 0.2`, `SHORT_LEG.OPEN_INTEREST >= 500` |
+| **Iron Condor** | `PUT_SHORT.*`, `PUT_LONG.*`, `CALL_SHORT.*`, `CALL_LONG.*` | `PUT_SHORT.DELTA <= 0.15`, `CALL_SHORT.DELTA <= 0.15` |
+| **Short Strangle** | `PUT_SHORT.*`, `CALL_SHORT.*` | `PUT_SHORT.DELTA <= 0.2`, `CALL_SHORT.DELTA <= 0.2` |
+| **Broken Wing Butterfly** | `LEG1_LONG.*`, `LEG2_SHORT.*`, `LEG3_LONG.*` | `LEG1.DELTA >= 0.50`, `LEG2_SHORT.DELTA <= 0.40` |
+| **ZEBRA** | `SHORT_LEG.*`, `LONG_LEG.*` | `SHORT_LEG.DELTA >= 0.45`, `LONG_LEG.DELTA >= 0.65` |
+
+#### YAML Configuration Examples
+
+##### Nested Leg Objects (Recommended Standard)
+```yaml
+optionsStrategies:
+  - alias: "PCS"
+    enabled: true
+    termType: "Short Term"
+    strategyType: "PUT_CREDIT_SPREAD"
+    filterType: "CreditSpreadFilter"
+    filter:
+      conditions:
+        - "DTE >= 25"
+        - "DTE <= 50"
+        - "MAX_LOSS <= 1000"
+        - "ROR >= 12%"
+      shortLeg:
+        conditions:
+          - "DELTA <= 0.2"
+          - "OPEN_INTEREST >= 500"
+      earningsFilters:
+        conditions:
+          - "DAYS_TO_NEXT_EARNINGS >= DTE"
+    securitiesFile: "portfolio"
+```
+
+##### Flat Dotted Notation (Alternative)
+```yaml
+    filter:
+      conditions:
+        - "MAX_LOSS <= 1000"
+        - "SHORT_LEG.DELTA <= 0.2"
+        - "SHORT_LEG.OPEN_INTEREST >= 500"
 ```
 
 ## Testing & CI/CD Coverage

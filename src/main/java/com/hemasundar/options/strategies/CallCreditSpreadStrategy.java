@@ -47,11 +47,8 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
             return new ArrayList<>();
 
         // Extract leg filters
-        LegFilter shortLegFilter = null, longLegFilter = null;
-        if (filter instanceof CreditSpreadFilter csFilter) {
-            shortLegFilter = csFilter.getShortLeg();
-            longLegFilter = csFilter.getLongLeg();
-        }
+        LegFilter shortLegFilter = (filter instanceof CreditSpreadFilter csFilter) ? csFilter.getShortLeg() : null;
+        LegFilter longLegFilter = (filter instanceof CreditSpreadFilter csFilter) ? csFilter.getLongLeg() : null;
 
         List<Double> sortedStrikes = callMap.keySet().stream()
                 .map(Double::parseDouble)
@@ -71,6 +68,7 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
                 .step(FilterStage.VOLUME_FILTER,             volumeFilter(shortLegFilter, longLegFilter))
                 .step(FilterStage.OPEN_INTEREST_FILTER,      openInterestFilter(shortLegFilter, longLegFilter))
                 .step(FilterStage.LEG_VOLATILITY_FILTER,     volatilityFilter(shortLegFilter, longLegFilter))
+                .step("Leg Conditions Filter",               c -> LegFilter.passes(shortLegFilter, c.shortLeg()) && LegFilter.passes(longLegFilter, c.longLeg()))
                 .step(FilterStage.POSITIVE_CREDIT_FILTER,    creditFilter())
                 .step(FilterStage.MAX_CREDIT_FILTER,         commonMaxTotalCreditFilter(filter, CallSpreadCandidate::netCredit))
                 .step(FilterStage.MIN_CREDIT_FILTER,         commonMinTotalCreditFilter(filter, CallSpreadCandidate::netCredit))
@@ -81,12 +79,13 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
 
         List<TradeSetup> mapped = survived.stream().map(this::buildTradeSetup).toList();
 
-        return FilterPipeline
+        FilterPipeline<TradeSetup> tradePipeline = FilterPipeline
                 .<TradeSetup>forContext(strategyName, symbol, expiryDate)
                 .step(FilterStage.MAX_EXTRINSIC_VALUE_FILTER, commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
                 .step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter))
-                .step(FilterStage.BREAK_EVEN_FILTER,          trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()))
-                .run(mapped);
+                .step(FilterStage.BREAK_EVEN_FILTER,          trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()));
+
+        return applyTradeMathFilterExpressions(tradePipeline, filter).run(mapped);
     }
 
     /**

@@ -57,10 +57,7 @@ public class ShortPutStrategy extends AbstractTradingStrategy {
         }
 
         // Extract short-leg filter (longLeg is not applicable for a naked put)
-        LegFilter shortLegFilter = null;
-        if (filter instanceof CreditSpreadFilter csFilter) {
-            shortLegFilter = csFilter.getShortLeg();
-        }
+        LegFilter shortLegFilter = (filter instanceof CreditSpreadFilter csFilter) ? csFilter.getShortLeg() : null;
 
         // Flatten all put options for this expiry into typed candidate records
         List<ShortPutCandidate> candidates = putMap.values().stream()
@@ -84,6 +81,7 @@ public class ShortPutStrategy extends AbstractTradingStrategy {
                 .step(FilterStage.VOLUME_FILTER,              volumeFilter(shortLegFilter))
                 .step(FilterStage.OPEN_INTEREST_FILTER,       openInterestFilter(shortLegFilter))
                 .step(FilterStage.LEG_VOLATILITY_FILTER,      volatilityFilter(shortLegFilter))
+                .step("Leg Conditions Filter",                c -> LegFilter.passes(shortLegFilter, c.shortLeg()))
                 .step(FilterStage.POSITIVE_CREDIT_FILTER,     creditFilter())
                 .step(FilterStage.MAX_CREDIT_FILTER,          commonMaxTotalCreditFilter(filter, ShortPutCandidate::netCredit))
                 .step(FilterStage.MIN_CREDIT_FILTER,          commonMinTotalCreditFilter(filter, ShortPutCandidate::netCredit))
@@ -96,12 +94,13 @@ public class ShortPutStrategy extends AbstractTradingStrategy {
         List<TradeSetup> mapped = survived.stream().map(this::buildTradeSetup).toList();
 
         // ── Phase 2: TradeSetup-level filters ────────────────────────────────
-        return FilterPipeline
+        FilterPipeline<TradeSetup> tradePipeline = FilterPipeline
                 .<TradeSetup>forContext(strategyName, symbol, expiryDate)
                 .step(FilterStage.MAX_EXTRINSIC_VALUE_FILTER, commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
                 .step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter))
-                .step(FilterStage.BREAK_EVEN_FILTER,          trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()))
-                .run(mapped);
+                .step(FilterStage.BREAK_EVEN_FILTER,          trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()));
+
+        return applyTradeMathFilterExpressions(tradePipeline, filter).run(mapped);
     }
 
     // ========== FILTER PREDICATES ==========

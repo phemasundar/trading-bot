@@ -158,4 +158,92 @@ public class FilterParserTest {
         filterMap.put("maxLossLimit", "xyz");
         FilterParser.buildFilter(StrategyType.PUT_CREDIT_SPREAD, filterMap);
     }
+
+    @Test
+    public void testBuildFilter_WithConditions() {
+        Map<String, Object> filterMap = new HashMap<>();
+        filterMap.put("conditions", List.of(
+                "DTE >= 25",
+                "DTE <= 50",
+                "MAX_LOSS <= 1000",
+                "RETURN_ON_RISK >= 12%",
+                "IV_RANK >= 30",
+                "SHORT_LEG.DELTA <= 0.2",
+                "DAYS_TO_NEXT_EARNINGS >= DTE"
+        ));
+
+        Map<String, Object> legMap = new HashMap<>();
+        legMap.put("conditions", List.of("OPEN_INTEREST >= 500", "VOLUME >= 100"));
+        filterMap.put("shortLeg", legMap);
+
+        OptionsStrategyFilter filter = FilterParser.buildFilter(StrategyType.PUT_CREDIT_SPREAD, filterMap);
+
+        Assert.assertNotNull(filter.getConditions());
+        Assert.assertEquals(filter.getConditions().size(), 7);
+        Assert.assertNotNull(filter.getFilterExpressions());
+        Assert.assertEquals(filter.getFilterExpressions().size(), 7);
+
+        // Check DTE expressions
+        Assert.assertEquals(filter.getDteExpressions().size(), 2);
+        Assert.assertEquals(filter.getIvExpressions().size(), 1);
+
+        // Check auto-routed earnings expressions
+        Assert.assertNotNull(filter.getEarningsFilterExpressions());
+        Assert.assertFalse(filter.getEarningsFilterExpressions().isEmpty());
+
+        // Check leg filter and routed SHORT_LEG condition
+        Assert.assertTrue(filter instanceof CreditSpreadFilter);
+        CreditSpreadFilter csFilter = (CreditSpreadFilter) filter;
+        Assert.assertNotNull(csFilter.getShortLeg());
+        Assert.assertNotNull(csFilter.getShortLeg().getFilterExpressions());
+        // 2 from legMap conditions + 1 routed from SHORT_LEG.DELTA
+        Assert.assertEquals(csFilter.getShortLeg().getFilterExpressions().size(), 3);
+    }
+
+    @Test
+    public void testBuildFilter_IronCondorConditionsRouting() {
+        Map<String, Object> filterMap = new HashMap<>();
+        filterMap.put("conditions", List.of(
+                "PUT_SHORT.DELTA <= 0.15",
+                "PUT_SHORT_LEG.OPEN_INTEREST >= 100",
+                "CALL_SHORT.DELTA <= 0.15",
+                "CALL_SHORT_LEG.OPEN_INTEREST >= 100",
+                "PUT_LONG.DELTA <= 0.05",
+                "CALL_LONG.DELTA <= 0.05"
+        ));
+
+        OptionsStrategyFilter filter = FilterParser.buildFilter(StrategyType.IRON_CONDOR, filterMap);
+        Assert.assertTrue(filter instanceof IronCondorFilter);
+        IronCondorFilter icFilter = (IronCondorFilter) filter;
+
+        Assert.assertNotNull(icFilter.getPutShortLeg());
+        Assert.assertEquals(icFilter.getPutShortLeg().getFilterExpressions().size(), 2);
+        Assert.assertNotNull(icFilter.getCallShortLeg());
+        Assert.assertEquals(icFilter.getCallShortLeg().getFilterExpressions().size(), 2);
+        Assert.assertNotNull(icFilter.getPutLongLeg());
+        Assert.assertEquals(icFilter.getPutLongLeg().getFilterExpressions().size(), 1);
+        Assert.assertNotNull(icFilter.getCallLongLeg());
+        Assert.assertEquals(icFilter.getCallLongLeg().getFilterExpressions().size(), 1);
+    }
+
+    @Test
+    public void testBuildFilter_BWBConditionsRouting() {
+        Map<String, Object> filterMap = new HashMap<>();
+        filterMap.put("conditions", List.of(
+                "LEG1_LONG.DELTA >= 0.50",
+                "LEG2_SHORT.DELTA <= 0.40",
+                "LEG3_LONG.OPEN_INTEREST >= 50"
+        ));
+
+        OptionsStrategyFilter filter = FilterParser.buildFilter(StrategyType.BULLISH_BROKEN_WING_BUTTERFLY, filterMap);
+        Assert.assertTrue(filter instanceof BrokenWingButterflyFilter);
+        BrokenWingButterflyFilter bwbFilter = (BrokenWingButterflyFilter) filter;
+
+        Assert.assertNotNull(bwbFilter.getLeg1Long());
+        Assert.assertEquals(bwbFilter.getLeg1Long().getFilterExpressions().size(), 1);
+        Assert.assertNotNull(bwbFilter.getLeg2Short());
+        Assert.assertEquals(bwbFilter.getLeg2Short().getFilterExpressions().size(), 1);
+        Assert.assertNotNull(bwbFilter.getLeg3Long());
+        Assert.assertEquals(bwbFilter.getLeg3Long().getFilterExpressions().size(), 1);
+    }
 }

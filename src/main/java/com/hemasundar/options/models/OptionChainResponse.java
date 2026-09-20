@@ -11,6 +11,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import lombok.ToString;
+import org.apache.commons.collections4.CollectionUtils;
+import com.hemasundar.technical.MathExpression;
+import com.hemasundar.technical.MathExpressionEvaluator;
 
 @Data
 @Log4j2
@@ -148,6 +151,43 @@ public class OptionChainResponse {
                     this.symbol, expiryDates.size(), minDTE, maxDTE, expiryDates);
             return expiryDates;
         }
+    }
+
+    /**
+     * Returns all expiry dates matching DTE expressions or targetDays.
+     *
+     * @param targetDays     if > 0, returns the nearest expiry
+     * @param dteExpressions math expressions targeting DTE
+     * @return List of expiry date strings (YYYY-MM-DD format)
+     */
+    public List<String> getExpiryDatesMatching(int targetDays, List<MathExpression> dteExpressions) {
+        if (targetDays > 0) {
+            return List.of(this.getExpiryDateBasedOnDTE(targetDays));
+        }
+
+        Map<ExpirationDateKey, Map<String, List<OptionData>>> callMap = this.getCallExpDateMap();
+        Map<ExpirationDateKey, Map<String, List<OptionData>>> putMap = this.getPutExpDateMap();
+
+        List<String> expiryDates = Stream.of(putMap, callMap)
+                .filter(m -> m != null && !m.isEmpty())
+                .flatMap(m -> m.keySet().stream())
+                .distinct()
+                .filter(key -> {
+                    if (CollectionUtils.isEmpty(dteExpressions)) {
+                        return true;
+                    }
+                    return MathExpressionEvaluator.evaluateAll(
+                            dteExpressions,
+                            var -> "DTE".equalsIgnoreCase(var) || "DAYS_TO_EXPIRATION".equalsIgnoreCase(var)
+                                    ? (double) key.getDaysToExpiry() : null);
+                })
+                .sorted(Comparator.comparingInt(ExpirationDateKey::getDaysToExpiry))
+                .map(ExpirationDateKey::getDate)
+                .toList();
+
+        log.debug("[{}] Found {} expiry dates matching DTE expressions {}: {}",
+                this.symbol, expiryDates.size(), dteExpressions, expiryDates);
+        return expiryDates;
     }
 
     @Data

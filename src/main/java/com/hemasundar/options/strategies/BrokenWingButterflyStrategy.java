@@ -53,14 +53,9 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
         log.trace("[BWB] Found {} strike prices with CALL options", callMap.size());
 
         // Extract leg filters
-        LegFilter leg1Filter = null, leg2Filter = null, leg3Filter = null;
-        if (filter instanceof BrokenWingButterflyFilter bwbFilter) {
-            leg1Filter = bwbFilter.getLeg1Long();
-            leg2Filter = bwbFilter.getLeg2Short();
-            leg3Filter = bwbFilter.getLeg3Long();
-            log.trace("[BWB] Filter config - MaxLossLimit: {}, MaxTotalDebit: {}",
-                    filter.getMaxLossLimit(), filter.getMaxTotalDebit());
-        }
+        LegFilter leg1Filter = (filter instanceof BrokenWingButterflyFilter bwbFilter) ? bwbFilter.getLeg1Long() : null;
+        LegFilter leg2Filter = (filter instanceof BrokenWingButterflyFilter bwbFilter) ? bwbFilter.getLeg2Short() : null;
+        LegFilter leg3Filter = (filter instanceof BrokenWingButterflyFilter bwbFilter) ? bwbFilter.getLeg3Long() : null;
 
         List<Double> sortedStrikes = callMap.keySet().stream()
                 .map(Double::parseDouble)
@@ -82,6 +77,7 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
                 .step(FilterStage.VOLUME_FILTER,          volumeFilter(leg1Filter, leg2Filter, leg3Filter))
                 .step(FilterStage.OPEN_INTEREST_FILTER,   openInterestFilter(leg1Filter, leg2Filter, leg3Filter))
                 .step(FilterStage.LEG_VOLATILITY_FILTER,  volatilityFilter(leg1Filter, leg2Filter, leg3Filter))
+                .step("Leg Conditions Filter",            c -> LegFilter.passes(leg1Filter, c.leg1()) && LegFilter.passes(leg2Filter, c.leg2()) && LegFilter.passes(leg3Filter, c.leg3()))
                 .step(FilterStage.DEFAULT_DEBIT_FILTER,      defaultDebitFilter())
                 .step(FilterStage.WING_WIDTH_RATIO_FILTER,   wingWidthRatioFilter())
                 .step(FilterStage.DEBIT_VS_PRICE_FILTER,     debitVsPriceFilter(filter))
@@ -95,12 +91,13 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
 
         List<TradeSetup> mapped = survived.stream().map(this::buildTradeSetup).toList();
 
-        List<TradeSetup> result = FilterPipeline
+        FilterPipeline<TradeSetup> tradePipeline = FilterPipeline
                 .<TradeSetup>forContext(strategyName, symbol, expiryDate)
                 .step(FilterStage.MAX_EXTRINSIC_VALUE_FILTER, commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
                 .step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter))
-                .step(FilterStage.BREAK_EVEN_FILTER,          trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()))
-                .run(mapped);
+                .step(FilterStage.BREAK_EVEN_FILTER,          trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()));
+
+        List<TradeSetup> result = applyTradeMathFilterExpressions(tradePipeline, filter).run(mapped);
 
         log.debug("[BWB] Found {} valid trades", result.size());
         return result;
