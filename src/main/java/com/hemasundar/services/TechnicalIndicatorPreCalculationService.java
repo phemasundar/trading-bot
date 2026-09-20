@@ -186,19 +186,33 @@ public class TechnicalIndicatorPreCalculationService {
         log.info("[TechnicalIndicatorPreCalculationService] Starting pre-calculation for {} symbols", symbols.size());
         long t0 = System.currentTimeMillis();
 
-        List<ScreenerConfig> screeners = new ArrayList<>();
-        List<OptionsConfig> strategies = new ArrayList<>();
+        SecuritiesFilterConfig filterConfig = null;
         try {
-            Map<String, List<String>> securitiesMap = securitiesResolver.loadSecuritiesMaps();
-            screeners = strategiesConfigLoader.loadScreeners(FilePaths.strategiesConfig, securitiesMap);
-            strategies = strategiesConfigLoader.load(FilePaths.strategiesConfig, securitiesMap);
+            filterConfig = securitiesResolver.loadSecuritiesFiltersConfig();
         } catch (Exception e) {
-            log.error("Failed to load configs for indicator pre-calculation", e);
+            log.error("Failed to load securities filters config for indicator pre-calculation", e);
         }
 
-        TechnicalIndicators universalIndicators = buildUniversalIndicators(screeners, strategies);
-        TechFilterConditions universalConditions = augmentWithAllAvailableIndicators(
-                buildUniversalConditions(screeners, strategies));
+        TechnicalIndicators universalIndicators;
+        TechFilterConditions universalConditions;
+
+        if (filterConfig != null) {
+            universalIndicators = filterConfig.toUniversalTechnicalIndicators();
+            universalConditions = filterConfig.toUniversalTechFilterConditions();
+        } else {
+            List<ScreenerConfig> screeners = new ArrayList<>();
+            List<OptionsConfig> strategies = new ArrayList<>();
+            try {
+                Map<String, List<String>> securitiesMap = securitiesResolver.loadSecuritiesMaps();
+                screeners = strategiesConfigLoader.loadScreeners(FilePaths.strategiesConfig, securitiesMap);
+                strategies = strategiesConfigLoader.load(FilePaths.strategiesConfig, securitiesMap);
+            } catch (Exception e) {
+                log.error("Failed to load configs for indicator pre-calculation fallback", e);
+            }
+            universalIndicators = buildUniversalIndicators(screeners, strategies);
+            universalConditions = augmentWithAllAvailableIndicators(
+                    buildUniversalConditions(screeners, strategies));
+        }
 
         // Fetch unique symbols that aren't already cached
         List<String> uncachedSymbols = symbols.stream()

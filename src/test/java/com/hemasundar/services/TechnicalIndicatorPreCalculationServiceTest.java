@@ -163,4 +163,30 @@ public class TechnicalIndicatorPreCalculationServiceTest {
 
         verify(alertCallback, times(1)).accept(contains("FAIL_SYM"), contains("API error"));
     }
+
+    @Test
+    public void testPreCalculateAllWithFilterConfig() throws Exception {
+        SecuritiesFilterConfig cfg = SecuritiesFilterConfig.builder()
+                .filters(SecuritiesFilterConfig.FilterSettings.builder()
+                        .rsi(SecuritiesFilterConfig.RsiConfig.builder().enabled(true).period(14).build())
+                        .bollinger(SecuritiesFilterConfig.BollingerConfig.builder().enabled(true).period(20).stdDev(2.0).build())
+                        .movingAverages(SecuritiesFilterConfig.MovingAveragesConfig.builder().enabled(true).periods(List.of(20, 50)).build())
+                        .highs(SecuritiesFilterConfig.HighsConfig.builder().enabled(true).periods(List.of(5, 20, 252)).build())
+                        .build())
+                .build();
+
+        when(securitiesResolver.loadSecuritiesFiltersConfig()).thenReturn(cfg);
+
+        TechnicalScreener.ScreeningResult screeningResult = TechnicalScreener.ScreeningResult.builder()
+                .symbol("NVDA")
+                .currentPrice(120.0)
+                .build();
+
+        when(technicalScreener.analyzeStock(eq("NVDA"), any(), any())).thenReturn(screeningResult);
+
+        preCalculationService.preCalculateAll(List.of("NVDA"), null);
+
+        verify(technicalScreener, times(1)).analyzeStock(eq("NVDA"), any(), any());
+        verify(strategiesConfigLoader, never()).load(any(), any());
+    }
 }

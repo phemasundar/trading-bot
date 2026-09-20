@@ -111,4 +111,55 @@ public class StrategiesConfigLoaderTest {
         assertNotNull(icGreeks);
         assertEquals(icGreeks.get("delta"), "neutral");
     }
+
+    @Test
+    public void testTechnicalFilterValidation_AllowedSma_Success() {
+        Map<String, Object> filters = Map.of(
+                "SIMPLE_MOVING_AVERAGE", Map.of("conditions", List.of("SMA20 >= SMA50"))
+        );
+        com.hemasundar.technical.TechnicalFilterChain chain = configLoader.parseTechnicalFilters(filters);
+        assertNotNull(chain);
+        assertNotNull(chain.getIndicators().getMaFilters().get(20));
+        assertNotNull(chain.getIndicators().getMaFilters().get(50));
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = ".*SMA period 17 is not configured.*")
+    public void testTechnicalFilterValidation_UnconfiguredSma_ThrowsException() {
+        Map<String, Object> filters = Map.of(
+                "SIMPLE_MOVING_AVERAGE", Map.of("conditions", List.of("SMA17 >= SMA50"))
+        );
+        configLoader.parseTechnicalFilters(filters);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = ".*EMA period 15 is not configured.*")
+    public void testTechnicalFilterValidation_UnconfiguredEma_ThrowsException() {
+        Map<String, Object> filters = Map.of(
+                "EXP_MOVING_AVERAGE", Map.of("conditions", List.of("EMA15 >= EMA21"))
+        );
+        configLoader.parseTechnicalFilters(filters);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = ".*Volume SMA period 30 is not configured.*")
+    public void testTechnicalFilterValidation_UnconfiguredVolumeSma_ThrowsException() {
+        Map<String, Object> filters = Map.of(
+                "VOLUME", Map.of("conditions", List.of("VOLUME >= VOLUME_SMA30"))
+        );
+        configLoader.parseTechnicalFilters(filters);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = ".*High/Drop period 10 is not configured.*")
+    public void testTechnicalFilterValidation_UnconfiguredHighPeriod_ThrowsException() {
+        Map<String, Object> filters = Map.of(
+                "PRICE_DROP", Map.of("conditions", List.of("HIGH_10D >= PRICE"))
+        );
+        configLoader.parseTechnicalFilters(filters);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = ".*RSI period 7 is not configured.*")
+    public void testTechnicalFilterValidation_UnconfiguredRsiPeriod_ThrowsException() {
+        Map<String, Object> filters = Map.of(
+                "RSI", Map.of("config", Map.of("period", 7), "condition", "OVERSOLD")
+        );
+        configLoader.parseTechnicalFilters(filters);
+    }
 }

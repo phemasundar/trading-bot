@@ -254,34 +254,34 @@ public class TechnicalScreener {
                     return maValues.get(period);
                 }
             }
+            if (key.startsWith("EMA")) {
+                Integer period = parsePeriod(key.substring(3));
+                if (period != null && emaValues != null) {
+                    return emaValues.get(period);
+                }
+            }
             if (key.startsWith("VOLUME_SMA")) {
                 Integer period = parsePeriod(key.substring(10));
                 if (period != null && volumeMaValues != null) {
                     return volumeMaValues.get(period);
                 }
             }
-            if (key.startsWith("HIGH_") && key.endsWith("D")) {
-                Integer period = parsePeriod(key.substring(5, key.length() - 1));
-                if (period != null && highValues != null) {
-                    return highValues.get(period);
-                }
-            }
-            if (key.startsWith("ATR_DROP_FROM_HIGH_") && key.endsWith("D")) {
-                Integer period = parsePeriod(key.substring(19, key.length() - 1));
-                if (period != null && highValues != null && atr != null && atr > 0) {
-                    Double high = highValues.get(period);
-                    if (high != null) {
-                        return (high - currentPrice) / atr;
+            Integer highPeriod = extractHighPeriod(key);
+            if (highPeriod != null && highValues != null) {
+                if (key.startsWith("ATR_DROP_FROM_HIGH_")) {
+                    if (atr != null && atr > 0) {
+                        Double high = highValues.get(highPeriod);
+                        if (high != null) {
+                            return (high - currentPrice) / atr;
+                        }
                     }
-                }
-            }
-            if (key.startsWith("PRICE_DROP_FROM_HIGH_") && key.endsWith("D")) {
-                Integer period = parsePeriod(key.substring(21, key.length() - 1));
-                if (period != null && highValues != null) {
-                    Double high = highValues.get(period);
+                } else if (key.startsWith("PRICE_DROP_FROM_HIGH_")) {
+                    Double high = highValues.get(highPeriod);
                     if (high != null) {
                         return high - currentPrice;
                     }
+                } else {
+                    return highValues.get(highPeriod);
                 }
             }
             return null;
@@ -623,14 +623,23 @@ public class TechnicalScreener {
         }
         String key = variable.trim().toUpperCase();
         try {
-            if (key.startsWith("HIGH_") && key.endsWith("D")) {
-                return Integer.parseInt(key.substring(5, key.length() - 1));
+            if (key.startsWith("ATR_DROP_FROM_HIGH_")) {
+                String sub = key.substring(19);
+                if (sub.endsWith("D")) sub = sub.substring(0, sub.length() - 1);
+                return Integer.parseInt(sub);
             }
-            if (key.startsWith("ATR_DROP_FROM_HIGH_") && key.endsWith("D")) {
-                return Integer.parseInt(key.substring(19, key.length() - 1));
+            if (key.startsWith("PRICE_DROP_FROM_HIGH_")) {
+                String sub = key.substring(21);
+                if (sub.endsWith("D")) sub = sub.substring(0, sub.length() - 1);
+                return Integer.parseInt(sub);
             }
-            if (key.startsWith("PRICE_DROP_FROM_HIGH_") && key.endsWith("D")) {
-                return Integer.parseInt(key.substring(21, key.length() - 1));
+            if (key.startsWith("HIGH_")) {
+                String sub = key.substring(5);
+                if (sub.endsWith("D")) sub = sub.substring(0, sub.length() - 1);
+                return Integer.parseInt(sub);
+            }
+            if (key.startsWith("HIGH")) {
+                return Integer.parseInt(key.substring(4));
             }
         } catch (NumberFormatException e) {
             return null;
