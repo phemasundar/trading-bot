@@ -23,7 +23,7 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
   - Average True Range (ATR) Volatility filter
   - Multi-day Price Drop (Selectable lookback from 0-N days, with pre-configured Intraday Drop, 5-Day Drop, 1-Month Drop, and 3-Month Drop templates)
   - 52-Week High Drop (Percentage decline from yearly high)
-- **Unified Mathematical Filter System**: Options strategies, individual option legs, and technical screeners use a unified, declarative mathematical expression filtering engine (`MathExpression`, `MathExpressionParser`, `MathExpressionEvaluator`). Filter criteria are defined via declarative math expressions under `conditions: [...]` (e.g. `DTE >= 25`, `MAX_LOSS <= 1000`, `ROR >= 12%`, `SHORT_LEG.DELTA <= 0.2`, `DAYS_TO_NEXT_EARNINGS >= DTE`), with support for arithmetic offsets (`DTE - 10`), percentages, and multi-leg dotted navigation.
+- **Unified Mathematical Filter System**: Options strategies, individual option legs, and technical screeners use a unified, declarative mathematical expression filtering engine (`MathExpression`, `MathExpressionParser`, `MathExpressionEvaluator`). Filter criteria are defined via declarative math expressions under `conditions: [...]` (e.g. `DTE >= 25`, `MAX_LOSS <= 1000`, `RETURN_ON_RISK >= 12%`, `SHORT_LEG.DELTA <= 0.2`, `DAYS_TO_NEXT_EARNINGS >= DTE`), with support for arithmetic offsets (`DTE - 10`), percentages, and multi-leg dotted navigation. All historical strategy execution audit logs in Supabase (`strategy_executions`), custom execution history (`custom_execution_results`), and latest strategy results (`latest_strategy_results`) have been migrated from legacy property names (`minDTE`, `maxLossLimit`, etc.) to the unified expression condition syntax.
 - **Strategy History & Similar Trades**: Synchronously records historical trade executions into Supabase (`historical_trades` table) upon strategy completion using SHA-256 deterministic trade hashes for duplicate prevention. Trade hashes incorporate strategy ID, ticker symbol, expiry date, calendar day, and full leg details (`action`, `optionType`, `strike`, `quantity`) to ensure distinct strike setups on the same ticker and expiry are uniquely persisted. Uses PostgREST upsert (`on_conflict=trade_hash` with `resolution=merge-duplicates`) so that when the same trade opportunity is scanned multiple times on a specific day (e.g. morning vs. evening execution), the **latest** trade details (such as updated underlying price, return on risk, net credit, and execution timestamp) are saved into the history table rather than retaining stale earlier entries. In-memory batch deduplication prevents intra-batch PostgreSQL unique constraint conflicts. Any database save failure is recorded with `ERROR` severity and immediately surfaced on the frontend dashboard and fails scheduled GitHub Action workflows (exit code `1`). Each trade row on the dashboard includes a **History button (🕒)** that opens an interactive modal listing matching historical trades filtered dynamically by symbol, expiry date, and leg structure, with automatic candidate deduplication and a dedicated **Date Found** column.
 
 
@@ -459,7 +459,7 @@ optionsStrategies:
         - "DTE >= 25"
         - "DTE <= 50"
         - "MAX_LOSS <= 1000"
-        - "ROR >= 12%"
+        - "RETURN_ON_RISK >= 12%"
       shortLeg:
         conditions:
           - "DELTA <= 0.2"

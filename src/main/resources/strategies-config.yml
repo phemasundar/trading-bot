@@ -264,14 +264,15 @@ optionsStrategies:
     filterType: "LongCallLeapFilter"
     securitiesFile: "portfolio, tracking, 2026"
     filter:
-      minDTE: 330
       marginInterestRate: 6
       savingsInterestRate: 10
-      maxOptionPricePercent: 50
-      maxCAGRForBreakEven: 15
-      minCostSavingsPercent: 10
-      maxLossLimit: 5000
-      maxIVPercentile: 30
+      conditions:
+        - "DTE >= 330"
+        - "OPTION_PRICE_PERCENT <= 50"
+        - "BREAKEVEN_CAGR <= 15"
+        - "COST_SAVINGS_PERCENT >= 10"
+        - "MAX_LOSS <= 5000"
+        - "IV_PERCENTILE <= 30"
       longCall:
         conditions:
           - "DELTA >= 0.4"
@@ -284,14 +285,15 @@ optionsStrategies:
     filterType: "LongCallLeapFilter"
     securitiesFile: "portfolio, tracking, bullish, 2026, top100, SPY, QQQ"
     filter:
-      minDTE: 330
       marginInterestRate: 6
       savingsInterestRate: 10
-      maxOptionPricePercent: 50
-      maxCAGRForBreakEven: 15
-      minCostSavingsPercent: 10
-      maxLossLimit: 5000
-      maxIVPercentile: 30
+      conditions:
+        - "DTE >= 330"
+        - "OPTION_PRICE_PERCENT <= 50"
+        - "BREAKEVEN_CAGR <= 15"
+        - "COST_SAVINGS_PERCENT >= 10"
+        - "MAX_LOSS <= 5000"
+        - "IV_PERCENTILE <= 30"
       longCall:
         conditions:
           - "DELTA >= 0.4"
@@ -318,14 +320,15 @@ optionsStrategies:
     filterType: "LongCallLeapFilter"
     securitiesFile: "top100, SPY, QQQ"
     filter:
-      minDTE: 330
       marginInterestRate: 6
       savingsInterestRate: 10
-      maxOptionPricePercent: 40
-      maxCAGRForBreakEven: 10
-      minCostSavingsPercent: 10
-      maxLossLimit: 5000
-      maxIVPercentile: 30
+      conditions:
+        - "DTE >= 330"
+        - "OPTION_PRICE_PERCENT <= 40"
+        - "BREAKEVEN_CAGR <= 10"
+        - "COST_SAVINGS_PERCENT >= 10"
+        - "MAX_LOSS <= 5000"
+        - "IV_PERCENTILE <= 30"
       longCall:
         conditions:
           - "DELTA >= 0.4"
@@ -340,13 +343,14 @@ optionsStrategies:
     filter:
       topTradesCount: 5
       maxTradesToSend1: 5
-      minDTE: 330
       marginInterestRate: 6
       savingsInterestRate: 10
-      maxOptionPricePercent: 50
-      maxCAGRForBreakEven: 20
-      minCostSavingsPercent: 5
-      maxIVPercentile: 30
+      conditions:
+        - "DTE >= 330"
+        - "OPTION_PRICE_PERCENT <= 50"
+        - "BREAKEVEN_CAGR <= 20"
+        - "COST_SAVINGS_PERCENT >= 5"
+        - "IV_PERCENTILE <= 30"
       longCall:
         conditions:
           - "DELTA >= 0.3"
@@ -368,9 +372,10 @@ optionsStrategies:
     filterType: "BrokenWingButterflyFilter"
     filter:
       targetDTE: 30
-      maxTotalDebit: 100
-      maxLossLimit: 1000
-      maxUpperBreakevenDelta: 0.15
+      conditions:
+        - "TOTAL_DEBIT <= 100"
+        - "MAX_LOSS <= 1000"
+        - "UPPER_BREAK_EVEN_DELTA <= 0.15"
       leg1Long:
         conditions:
           - "DELTA >= 0.5"
@@ -391,11 +396,12 @@ optionsStrategies:
     descriptionFile: "bullish_bwb.md"
     filterType: "BrokenWingButterflyFilter"
     filter:
-      minDTE: 25
-      maxDTE: 55
-      maxTotalDebit: 100
-      maxLossLimit: 1000
-      maxUpperBreakevenDelta: 0.2
+      conditions:
+        - "DTE >= 25"
+        - "DTE <= 55"
+        - "TOTAL_DEBIT <= 100"
+        - "MAX_LOSS <= 1000"
+        - "UPPER_BREAK_EVEN_DELTA <= 0.2"
       priceVsMaxDebitRatio: 1
       leg1Long:
         conditions:
