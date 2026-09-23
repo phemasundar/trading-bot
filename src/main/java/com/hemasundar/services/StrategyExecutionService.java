@@ -207,7 +207,8 @@ public class StrategyExecutionService {
             OptionChainCache cache = new OptionChainCache(ThinkOrSwimAPIs);
 
             // ── Parallel Cache Pre-warm (Track A) ──
-            // Option chain pre-warming for strategies without technical filter (strategies with technical filters
+            // Option chain pre-warming for strategies without technical filter (strategies
+            // with technical filters
             // defer option chain fetching to the screened survivor set)
             List<String> optionChainSymbolsToPrewarm = selectedStrategies.stream()
                     .filter(c -> !c.hasTechnicalFilter())
@@ -221,7 +222,8 @@ public class StrategyExecutionService {
                 cache.prewarm(optionChainSymbolsToPrewarm, schwabApiExecutor);
             }
 
-            // For ALL symbols (including ones used in technical filters), pre-warm QuotesCache & run indicator pre-calculation
+            // For ALL symbols (including ones used in technical filters), pre-warm
+            // QuotesCache & run indicator pre-calculation
             List<String> allSymbolsAcrossStrategies = selectedStrategies.stream()
                     .flatMap(c -> c.getSecurities().stream())
                     .distinct()
@@ -229,7 +231,7 @@ public class StrategyExecutionService {
 
             if (!allSymbolsAcrossStrategies.isEmpty()) {
                 log.info("Pre-warming quotes cache for {} unique symbols", allSymbolsAcrossStrategies.size());
-                com.hemasundar.cache.QuotesCache.getInstance().prewarm(allSymbolsAcrossStrategies, schwabApiExecutor, 
+                com.hemasundar.cache.QuotesCache.getInstance().prewarm(allSymbolsAcrossStrategies, schwabApiExecutor,
                         symbol -> ThinkOrSwimAPIs.getQuote(symbol, null),
                         (sourceContext, errorMsg) -> log.warn("Quotes prewarm error: {}", errorMsg));
 
@@ -304,11 +306,14 @@ public class StrategyExecutionService {
 
     /**
      * Executes a single custom strategy configured via the Execute Strategy screen,
-     * bypassing the predefined strategies and saving the result to custom_execution_results.
-     * If customResultId is provided and positive, updates the existing execution result in-place.
+     * bypassing the predefined strategies and saving the result to
+     * custom_execution_results.
+     * If customResultId is provided and positive, updates the existing execution
+     * result in-place.
      *
-     * @param config the strategy configuration to execute
-     * @param customResultId optional database ID of existing custom result to update in-place
+     * @param config         the strategy configuration to execute
+     * @param customResultId optional database ID of existing custom result to
+     *                       update in-place
      * @return ExecutionResult containing the single custom StrategyResult
      */
     public ExecutionResult executeCustomStrategy(OptionsConfig config, Long customResultId) {
@@ -338,7 +343,7 @@ public class StrategyExecutionService {
                 }
 
                 log.info("Pre-warming quotes cache for {} unique symbols (custom execution)", customSymbols.size());
-                com.hemasundar.cache.QuotesCache.getInstance().prewarm(customSymbols, schwabApiExecutor, 
+                com.hemasundar.cache.QuotesCache.getInstance().prewarm(customSymbols, schwabApiExecutor,
                         symbol -> ThinkOrSwimAPIs.getQuote(symbol, null),
                         (sourceContext, errorMsg) -> log.warn("Quotes prewarm error: {}", errorMsg));
 
@@ -359,7 +364,8 @@ public class StrategyExecutionService {
                     .telegramSent(true) // Telegram is sent during strategy execution
                     .build();
 
-            // Save or update in Supabase custom_execution_results table (NOT the dashboard table)
+            // Save or update in Supabase custom_execution_results table (NOT the dashboard
+            // table)
             try {
                 if (customResultId != null && customResultId > 0) {
                     supabaseService.updateCustomExecutionResult(customResultId, result, config.getSecurities());
@@ -417,11 +423,11 @@ public class StrategyExecutionService {
 
             List<TechnicalScreener.ScreeningResult> screeningResults = technicalScreener.screenStocks(
                     securities, config.getTechnicalFilterChain(), alertCallback);
-            
+
             for (TechnicalScreener.ScreeningResult sr : screeningResults) {
                 techResultsMap.put(sr.getSymbol(), sr);
             }
-            
+
             securities = screeningResults.stream()
                     .map(TechnicalScreener.ScreeningResult::getSymbol)
                     .collect(Collectors.toList());
@@ -446,7 +452,8 @@ public class StrategyExecutionService {
         // Build StrategyResult from trades map (uses shared Trade.fromTradeSetup)
         long executionTime = System.currentTimeMillis() - strategyStartTime;
 
-        // Enrich the filter with technical filter summary so it gets persisted in filterConfig JSON
+        // Enrich the filter with technical filter summary so it gets persisted in
+        // filterConfig JSON
         if (config.hasTechnicalFilter() && config.getFilter() != null) {
             config.getFilter().setTechnicalFilterSummary(
                     config.getTechnicalFilterChain().getConditions() != null
@@ -454,7 +461,8 @@ public class StrategyExecutionService {
                             : null);
         }
 
-        StrategyResult result = StrategyResult.fromTrades(config.getStrategyId(), config.getName(), allTrades, executionTime,
+        StrategyResult result = StrategyResult.fromTrades(config.getStrategyId(), config.getName(), allTrades,
+                executionTime,
                 config.getFilter(), config.getDescriptionFile());
 
         // Attach technical indicators to trades
@@ -462,7 +470,9 @@ public class StrategyExecutionService {
             for (Trade trade : result.getTrades()) {
                 TechnicalScreener.ScreeningResult sr = techResultsMap.get(trade.getSymbol());
                 if (sr != null) {
-                    trade.setTechIndicators(sr.getAllTechnicalIndicatorsSummary() != null ? sr.getAllTechnicalIndicatorsSummary() : sr.getFormattedSummary());
+                    trade.setTechIndicators(
+                            sr.getAllTechnicalIndicatorsSummary() != null ? sr.getAllTechnicalIndicatorsSummary()
+                                    : sr.getFormattedSummary());
                 }
             }
         }
@@ -492,11 +502,14 @@ public class StrategyExecutionService {
         // Publish event for historical trade persistence
         if (result != null && result.getTradesFound() > 0) {
             try {
-                eventPublisher.publishEvent(new com.hemasundar.events.StrategyExecutionCompletedEvent(result, isCustomExecution));
+                eventPublisher.publishEvent(
+                        new com.hemasundar.events.StrategyExecutionCompletedEvent(result, isCustomExecution));
             } catch (Exception e) {
-                log.error("[{}] Failed to publish strategy execution completed event: {}", config.getName(), e.getMessage());
+                log.error("[{}] Failed to publish strategy execution completed event: {}", config.getName(),
+                        e.getMessage());
                 addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE,
-                        AlertMessages.SAVE_HISTORICAL_TRADES_FAILED + ": " + config.getName() + " (" + e.getMessage() + ")");
+                        AlertMessages.SAVE_HISTORICAL_TRADES_FAILED + ": " + config.getName() + " (" + e.getMessage()
+                                + ")");
             }
         }
 
@@ -540,7 +553,7 @@ public class StrategyExecutionService {
 
                 List<TradeSetup> trades = strategy.findTrades(optionChainResponse, filter);
 
-                trades.forEach(trade -> log.info("Trade: {}", trade));
+                // trades.forEach(trade -> log.info("Trade: {}", trade));
 
                 if (!trades.isEmpty()) {
                     // Sort by Return on Risk (Descending)

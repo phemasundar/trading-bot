@@ -41,6 +41,13 @@ public interface TradeSetup {
         return 0;
     }
 
+    /**
+     * Upper breakeven delta (delta of option nearest to upper breakeven price).
+     */
+    default double getUpperBreakEvenDelta() {
+        return 0;
+    }
+
     // Optional metric for strategies like LEAPs
     default Double getBreakevenCAGR() {
         return null;

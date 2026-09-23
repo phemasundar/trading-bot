@@ -28,6 +28,7 @@ public class BrokenWingButterfly implements TradeSetup {
     private double breakEvenPercentage;
     private double upperBreakEvenPrice;
     private double upperBreakEvenPercentage;
+    private double upperBreakEvenDelta;
 
     @Override
     public double getNetCredit() {

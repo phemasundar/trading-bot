@@ -246,4 +246,50 @@ public class FilterParserTest {
         Assert.assertNotNull(bwbFilter.getLeg3Long());
         Assert.assertEquals(bwbFilter.getLeg3Long().getFilterExpressions().size(), 1);
     }
+
+    @Test
+    public void testFilterType_ParseFilter_CreditSpread() {
+        Map<String, Object> filterMap = new HashMap<>();
+        filterMap.put("conditions", List.of("DTE >= 330", "MAX_LOSS <= 20000", "CAGR >= 18", "IV_PERCENTILE >= 30"));
+        Map<String, Object> shortLegMap = new HashMap<>();
+        shortLegMap.put("conditions", List.of("DELTA <= 0.2", "OPEN_INTEREST >= 1"));
+        filterMap.put("shortLeg", shortLegMap);
+
+        OptionsStrategyFilter filter = FilterType.CREDIT_SPREAD.parseFilter(filterMap);
+        Assert.assertTrue(filter instanceof CreditSpreadFilter);
+        CreditSpreadFilter csFilter = (CreditSpreadFilter) filter;
+
+        Assert.assertEquals(csFilter.getFilterExpressions().size(), 4);
+        Assert.assertEquals(csFilter.getDteExpressions().size(), 1);
+        Assert.assertEquals(csFilter.getIvExpressions().size(), 1);
+        Assert.assertNotNull(csFilter.getShortLeg());
+        Assert.assertEquals(csFilter.getShortLeg().getFilterExpressions().size(), 2);
+    }
+
+    @Test
+    public void testFilterType_ParseFilter_IronCondor() {
+        Map<String, Object> filterMap = new HashMap<>();
+        filterMap.put("conditions", List.of("DTE >= 0", "DTE <= 1", "MAX_LOSS <= 500", "RETURN_ON_RISK >= 12"));
+        filterMap.put("putShortLeg", Map.of("conditions", List.of("DELTA <= 0.15", "OPEN_INTEREST >= 100")));
+        filterMap.put("callShortLeg", Map.of("conditions", List.of("DELTA <= 0.15", "OPEN_INTEREST >= 100")));
+        filterMap.put("earningsFilters", Map.of("conditions", List.of("DAYS_TO_NEXT_EARNINGS >= DTE")));
+
+        OptionsStrategyFilter filter = FilterType.IRON_CONDOR.parseFilter(filterMap);
+        Assert.assertTrue(filter instanceof IronCondorFilter);
+        IronCondorFilter icFilter = (IronCondorFilter) filter;
+
+        Assert.assertEquals(icFilter.getFilterExpressions().size(), 4);
+        Assert.assertEquals(icFilter.getDteExpressions().size(), 2);
+        Assert.assertEquals(icFilter.getEarningsFilterExpressions().size(), 1);
+        Assert.assertNotNull(icFilter.getPutShortLeg());
+        Assert.assertEquals(icFilter.getPutShortLeg().getFilterExpressions().size(), 2);
+        Assert.assertNotNull(icFilter.getCallShortLeg());
+        Assert.assertEquals(icFilter.getCallShortLeg().getFilterExpressions().size(), 2);
+    }
+
+    @Test
+    public void testInitFilterExpressions_NullSafe() {
+        FilterParser.initFilterExpressions(null); // Should not throw
+    }
 }
+

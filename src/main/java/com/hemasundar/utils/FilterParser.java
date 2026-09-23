@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import com.hemasundar.technical.MathExpression;
 import lombok.experimental.UtilityClass;
@@ -159,9 +160,166 @@ public class FilterParser {
             applyLegFilter(filterMap, "callShortLeg", strangleFilter::setCallShortLeg);
         }
 
-        routeLegExpressions(filter);
+        initFilterExpressions(filter);
 
         return filter;
+    }
+
+    /**
+     * Initializes mathematical filter expressions, earnings expressions, and leg expressions
+     * on the given filter from its configured string conditions.
+     *
+     * @param filter The options strategy filter to initialize
+     */
+    public static void initFilterExpressions(OptionsStrategyFilter filter) {
+        if (filter == null) {
+            return;
+        }
+
+        // 1. Root conditions -> filterExpressions
+        if (CollectionUtils.isNotEmpty(filter.getConditions())) {
+            List<MathExpression> parsed = MathExpressionParser.parseRules(filter.getConditions());
+            if (parsed.size() != filter.getConditions().size()) {
+                throw new IllegalStateException(String.format(
+                        "Failed to parse all filter conditions: expected %d expressions from %s, but got %d",
+                        filter.getConditions().size(), filter.getConditions(), parsed.size()));
+            }
+            for (int i = 0; i < parsed.size(); i++) {
+                validateConditionVariables(parsed.get(i), filter.getConditions().get(i), false);
+            }
+            if (filter.getFilterExpressions() == null || filter.getFilterExpressions().isEmpty()) {
+                filter.setFilterExpressions(parsed);
+            } else {
+                for (MathExpression expr : parsed) {
+                    if (!filter.getFilterExpressions().contains(expr)) {
+                        filter.getFilterExpressions().add(expr);
+                    }
+                }
+            }
+        }
+
+        // 2. Earnings conditions
+        if (filter.getEarningsFilters() != null) {
+            Object earningsConditions = filter.getEarningsFilters().get("conditions");
+            if (earningsConditions != null) {
+                List<String> stringRules = toStringList(earningsConditions);
+                if (CollectionUtils.isNotEmpty(stringRules)) {
+                    List<MathExpression> parsed = MathExpressionParser.parseRules(stringRules);
+                    if (parsed.size() != stringRules.size()) {
+                        throw new IllegalStateException(String.format(
+                                "Failed to parse all earnings filter conditions: expected %d expressions from %s, but got %d",
+                                stringRules.size(), stringRules, parsed.size()));
+                    }
+                    for (int i = 0; i < parsed.size(); i++) {
+                        validateConditionVariables(parsed.get(i), stringRules.get(i), false);
+                    }
+                    if (filter.getEarningsFilterExpressions() == null || filter.getEarningsFilterExpressions().isEmpty()) {
+                        filter.setEarningsFilterExpressions(parsed);
+                    } else {
+                        for (MathExpression expr : parsed) {
+                            if (!filter.getEarningsFilterExpressions().contains(expr)) {
+                                filter.getEarningsFilterExpressions().add(expr);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Route any earnings conditions in filterExpressions to earningsFilterExpressions
+        if (filter.getFilterExpressions() != null) {
+            if (filter.getEarningsFilterExpressions() == null) {
+                filter.setEarningsFilterExpressions(new ArrayList<>());
+            }
+            for (MathExpression expr : filter.getFilterExpressions()) {
+                String left = expr.getLeftVariable() != null ? expr.getLeftVariable().toUpperCase() : "";
+                String right = expr.getRightVariable() != null ? expr.getRightVariable().toUpperCase() : "";
+                if (left.contains("EARNINGS") || right.contains("EARNINGS")) {
+                    if (!filter.getEarningsFilterExpressions().contains(expr)) {
+                        filter.getEarningsFilterExpressions().add(expr);
+                    }
+                }
+            }
+        }
+
+        // 4. Leg conditions
+        if (filter instanceof CreditSpreadFilter csFilter) {
+            initLegExpressions(csFilter.getShortLeg());
+            initLegExpressions(csFilter.getLongLeg());
+        } else if (filter instanceof IronCondorFilter icFilter) {
+            initLegExpressions(icFilter.getPutShortLeg());
+            initLegExpressions(icFilter.getPutLongLeg());
+            initLegExpressions(icFilter.getCallShortLeg());
+            initLegExpressions(icFilter.getCallLongLeg());
+        } else if (filter instanceof LongCallLeapFilter leapFilter) {
+            initLegExpressions(leapFilter.getLongCall());
+        } else if (filter instanceof BrokenWingButterflyFilter bwbFilter) {
+            initLegExpressions(bwbFilter.getLeg1Long());
+            initLegExpressions(bwbFilter.getLeg2Short());
+            initLegExpressions(bwbFilter.getLeg3Long());
+        } else if (filter instanceof ZebraFilter zebraFilter) {
+            initLegExpressions(zebraFilter.getShortCall());
+            initLegExpressions(zebraFilter.getLongCall());
+        } else if (filter instanceof ShortStrangleFilter strangleFilter) {
+            initLegExpressions(strangleFilter.getPutShortLeg());
+            initLegExpressions(strangleFilter.getCallShortLeg());
+        }
+
+        // 5. Route dotted expressions from root filter to legs
+        routeLegExpressions(filter);
+    }
+
+    private static void initLegExpressions(LegFilter leg) {
+        if (leg == null || CollectionUtils.isEmpty(leg.getConditions())) {
+            return;
+        }
+        List<MathExpression> parsed = MathExpressionParser.parseRules(leg.getConditions());
+        if (parsed.size() != leg.getConditions().size()) {
+            throw new IllegalStateException(String.format(
+                    "Failed to parse all leg conditions: expected %d expressions from %s, but got %d",
+                    leg.getConditions().size(), leg.getConditions(), parsed.size()));
+        }
+        for (int i = 0; i < parsed.size(); i++) {
+            validateConditionVariables(parsed.get(i), leg.getConditions().get(i), true);
+        }
+        if (leg.getFilterExpressions() == null || leg.getFilterExpressions().isEmpty()) {
+            leg.setFilterExpressions(parsed);
+        } else {
+            for (MathExpression expr : parsed) {
+                if (!leg.getFilterExpressions().contains(expr)) {
+                    leg.getFilterExpressions().add(expr);
+                }
+            }
+        }
+    }
+
+    private static void validateConditionVariables(MathExpression expr, String rule, boolean isLegCondition) {
+        if (expr == null) return;
+        String left = expr.getLeftVariable();
+        if (isLegCondition) {
+            if (!OptionFilterValueResolver.isSupportedLegVariable(left)) {
+                throw new IllegalArgumentException("Unknown leg filter variable '" + left + "' in condition: " + rule);
+            }
+        } else {
+            if (!OptionFilterValueResolver.isSupportedVariable(left)) {
+                throw new IllegalArgumentException("Unknown filter variable '" + left + "' in condition: " + rule);
+            }
+        }
+        String right = expr.getRightVariable();
+        if (StringUtils.isNotBlank(right) && !isNumeric(right)) {
+            if (!OptionFilterValueResolver.isSupportedVariable(right)) {
+                throw new IllegalArgumentException("Unknown filter variable '" + right + "' on right side of condition: " + rule);
+            }
+        }
+    }
+
+    private static boolean isNumeric(String str) {
+        try {
+            Double.parseDouble(str);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     /**
@@ -227,57 +385,66 @@ public class FilterParser {
         if (filter instanceof CreditSpreadFilter csFilter) {
             if (clean.startsWith("SHORT")) {
                 if (csFilter.getShortLeg() == null) csFilter.setShortLeg(new LegFilter());
-                csFilter.getShortLeg().getFilterExpressions().add(expr);
+                addExprIfAbsent(csFilter.getShortLeg(), expr);
             } else if (clean.startsWith("LONG")) {
                 if (csFilter.getLongLeg() == null) csFilter.setLongLeg(new LegFilter());
-                csFilter.getLongLeg().getFilterExpressions().add(expr);
+                addExprIfAbsent(csFilter.getLongLeg(), expr);
             }
         } else if (filter instanceof IronCondorFilter icFilter) {
             if (clean.equals("PUTSHORT") || clean.equals("PUTSHORTLEG") || clean.equals("SHORTPUT") || clean.equals("SHORTPUTLEG")) {
                 if (icFilter.getPutShortLeg() == null) icFilter.setPutShortLeg(new LegFilter());
-                icFilter.getPutShortLeg().getFilterExpressions().add(expr);
+                addExprIfAbsent(icFilter.getPutShortLeg(), expr);
             } else if (clean.equals("PUTLONG") || clean.equals("PUTLONGLEG") || clean.equals("LONGPUT") || clean.equals("LONGPUTLEG")) {
                 if (icFilter.getPutLongLeg() == null) icFilter.setPutLongLeg(new LegFilter());
-                icFilter.getPutLongLeg().getFilterExpressions().add(expr);
+                addExprIfAbsent(icFilter.getPutLongLeg(), expr);
             } else if (clean.equals("CALLSHORT") || clean.equals("CALLSHORTLEG") || clean.equals("SHORTCALL") || clean.equals("SHORTCALLLEG")) {
                 if (icFilter.getCallShortLeg() == null) icFilter.setCallShortLeg(new LegFilter());
-                icFilter.getCallShortLeg().getFilterExpressions().add(expr);
+                addExprIfAbsent(icFilter.getCallShortLeg(), expr);
             } else if (clean.equals("CALLLONG") || clean.equals("CALLLONGLEG") || clean.equals("LONGCALL") || clean.equals("LONGCALLLEG")) {
                 if (icFilter.getCallLongLeg() == null) icFilter.setCallLongLeg(new LegFilter());
-                icFilter.getCallLongLeg().getFilterExpressions().add(expr);
+                addExprIfAbsent(icFilter.getCallLongLeg(), expr);
             }
         } else if (filter instanceof BrokenWingButterflyFilter bwbFilter) {
             if (clean.startsWith("LEG1")) {
                 if (bwbFilter.getLeg1Long() == null) bwbFilter.setLeg1Long(new LegFilter());
-                bwbFilter.getLeg1Long().getFilterExpressions().add(expr);
+                addExprIfAbsent(bwbFilter.getLeg1Long(), expr);
             } else if (clean.startsWith("LEG2")) {
                 if (bwbFilter.getLeg2Short() == null) bwbFilter.setLeg2Short(new LegFilter());
-                bwbFilter.getLeg2Short().getFilterExpressions().add(expr);
+                addExprIfAbsent(bwbFilter.getLeg2Short(), expr);
             } else if (clean.startsWith("LEG3")) {
                 if (bwbFilter.getLeg3Long() == null) bwbFilter.setLeg3Long(new LegFilter());
-                bwbFilter.getLeg3Long().getFilterExpressions().add(expr);
+                addExprIfAbsent(bwbFilter.getLeg3Long(), expr);
             }
         } else if (filter instanceof ZebraFilter zebraFilter) {
             if (clean.startsWith("SHORT")) {
                 if (zebraFilter.getShortCall() == null) zebraFilter.setShortCall(new LegFilter());
-                zebraFilter.getShortCall().getFilterExpressions().add(expr);
+                addExprIfAbsent(zebraFilter.getShortCall(), expr);
             } else if (clean.startsWith("LONG")) {
                 if (zebraFilter.getLongCall() == null) zebraFilter.setLongCall(new LegFilter());
-                zebraFilter.getLongCall().getFilterExpressions().add(expr);
+                addExprIfAbsent(zebraFilter.getLongCall(), expr);
             }
         } else if (filter instanceof ShortStrangleFilter strangleFilter) {
             if (clean.startsWith("PUT")) {
                 if (strangleFilter.getPutShortLeg() == null) strangleFilter.setPutShortLeg(new LegFilter());
-                strangleFilter.getPutShortLeg().getFilterExpressions().add(expr);
+                addExprIfAbsent(strangleFilter.getPutShortLeg(), expr);
             } else if (clean.startsWith("CALL")) {
                 if (strangleFilter.getCallShortLeg() == null) strangleFilter.setCallShortLeg(new LegFilter());
-                strangleFilter.getCallShortLeg().getFilterExpressions().add(expr);
+                addExprIfAbsent(strangleFilter.getCallShortLeg(), expr);
             }
         } else if (filter instanceof LongCallLeapFilter leapFilter) {
             if (clean.startsWith("LONG")) {
                 if (leapFilter.getLongCall() == null) leapFilter.setLongCall(new LegFilter());
-                leapFilter.getLongCall().getFilterExpressions().add(expr);
+                addExprIfAbsent(leapFilter.getLongCall(), expr);
             }
+        }
+    }
+
+    private static void addExprIfAbsent(LegFilter leg, MathExpression expr) {
+        if (leg.getFilterExpressions() == null) {
+            leg.setFilterExpressions(new ArrayList<>());
+        }
+        if (!leg.getFilterExpressions().contains(expr)) {
+            leg.getFilterExpressions().add(expr);
         }
     }
 

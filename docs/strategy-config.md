@@ -88,7 +88,7 @@ Options strategies support declarative, mathematical formula-like filter conditi
 | **Trade Level** | `MAX_LOSS` | Maximum loss of the trade setup in dollars |
 | **Trade Level** | `NET_CREDIT` / `CREDIT` | Net credit collected for credit strategies |
 | **Trade Level** | `NET_DEBIT` / `DEBIT` | Net debit paid for debit strategies |
-| **Trade Level** | `ROR` / `RETURN_ON_RISK` | Return on risk percentage |
+| **Trade Level** | `RETURN_ON_RISK` / `ROR` | Return on risk percentage |
 | **Trade Level** | `CAGR` / `ROR_CAGR` | Annualized Return on Risk percentage |
 | **Trade Level** | `BREAK_EVEN` / `BREAK_EVEN_PRICE` | Trade breakeven stock price |
 | **Trade Level** | `BREAK_EVEN_PCT` | Breakeven distance as a percentage of current stock price |
@@ -144,7 +144,7 @@ Clean, modular, and directly reflects the domain model hierarchy. Leg-level metr
         - "DTE >= 25"
         - "DTE <= 50"
         - "MAX_LOSS <= 1000"
-        - "ROR >= 12"
+        - "RETURN_ON_RISK >= 12"
       shortLeg:
         conditions:
           - "DELTA <= 0.2"
@@ -163,7 +163,7 @@ Clean, modular, and directly reflects the domain model hierarchy. Leg-level metr
         - "DTE >= 40"
         - "DTE <= 65"
         - "MAX_LOSS <= 1000"
-        - "ROR >= 24"
+        - "RETURN_ON_RISK >= 24"
       putShortLeg:
         conditions:
           - "DELTA <= 0.15"
@@ -186,7 +186,7 @@ Clean, modular, and directly reflects the domain model hierarchy. Leg-level metr
         - "DTE >= 0"
         - "DTE <= 100"
         - "MAX_LOSS <= 20000"
-        - "ROR >= 12"
+        - "RETURN_ON_RISK >= 12"
         - "IV_PERCENTILE >= 30"
       putShortLeg:
         conditions:
@@ -213,7 +213,7 @@ Convenient for quick inline configurations, flat interfaces, or cross-leg expres
         - "DTE >= 25"
         - "DTE <= 50"
         - "MAX_LOSS <= 1000"
-        - "ROR >= 12"
+        - "RETURN_ON_RISK >= 12"
         - "SHORT_LEG.DELTA <= 0.2"
         - "SHORT_LEG.OPEN_INTEREST >= 500"
         - "DAYS_TO_NEXT_EARNINGS >= DTE"

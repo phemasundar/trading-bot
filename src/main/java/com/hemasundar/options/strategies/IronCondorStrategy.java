@@ -44,15 +44,21 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
 
         LegFilter putShortLegFilter = null;
         LegFilter callShortLegFilter = null;
+        LegFilter putLongLegFilter = null;
+        LegFilter callLongLegFilter = null;
 
         if (filter instanceof IronCondorFilter ironCondorFilter) {
-            // New format: use separate put and call short leg filters
+            // New format: use separate put and call short/long leg filters
             putShortLegFilter = ironCondorFilter.getPutShortLeg();
             callShortLegFilter = ironCondorFilter.getCallShortLeg();
+            putLongLegFilter = ironCondorFilter.getPutLongLeg();
+            callLongLegFilter = ironCondorFilter.getCallLongLeg();
         } else if (filter instanceof CreditSpreadFilter creditSpreadFilter) {
-            // Legacy format: use same shortLeg for both
+            // Legacy format: use same legs for both
             putShortLegFilter = creditSpreadFilter.getShortLeg();
             callShortLegFilter = creditSpreadFilter.getShortLeg();
+            putLongLegFilter = creditSpreadFilter.getLongLeg();
+            callLongLegFilter = creditSpreadFilter.getLongLeg();
         }
 
         // Create put leg filter
@@ -61,8 +67,7 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
                 .maxLossLimit(filter.getMaxLossLimit())
                 .minReturnOnRisk(0) // Get all valid spreads
                 .shortLeg(putShortLegFilter)
-                .conditions(filter.getConditions())
-                .filterExpressions(filter.getFilterExpressions())
+                .longLeg(putLongLegFilter)
                 .build();
 
         // Create call leg filter (may have different delta)
@@ -71,8 +76,7 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
                 .maxLossLimit(filter.getMaxLossLimit())
                 .minReturnOnRisk(0)
                 .shortLeg(callShortLegFilter)
-                .conditions(filter.getConditions())
-                .filterExpressions(filter.getFilterExpressions())
+                .longLeg(callLongLegFilter)
                 .build();
 
         List<TradeSetup> putSetups = putStrategy.findValidTrades(chain, expiryDate, putLegFilter);
