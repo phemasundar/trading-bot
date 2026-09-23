@@ -162,4 +162,61 @@ public class StrategiesConfigLoaderTest {
         );
         configLoader.parseTechnicalFilters(filters);
     }
+
+    @Test
+    public void testProductionStrategiesConfig_AllStrategiesLoadAndFiltersParseProperly() {
+        List<com.hemasundar.options.strategies.AbstractTradingStrategy> allStrategies = Arrays.stream(StrategyType.values())
+                .map(type -> {
+                    com.hemasundar.options.strategies.AbstractTradingStrategy mockStrategy = mock(com.hemasundar.options.strategies.AbstractTradingStrategy.class);
+                    when(mockStrategy.getStrategyType()).thenReturn(type);
+                    return mockStrategy;
+                })
+                .collect(java.util.stream.Collectors.toList());
+
+        StrategiesConfigLoader fullLoader = new StrategiesConfigLoader(allStrategies, wikipediaFetcher);
+        fullLoader.init();
+
+        Map<String, List<String>> securitiesMap = Map.of(
+                "portfolio", List.of("AAPL"),
+                "top100", List.of("MSFT"),
+                "tracking", List.of("GOOG"),
+                "2026", List.of("TSLA")
+        );
+
+        List<OptionsConfig> configs = fullLoader.load(com.hemasundar.utils.FilePaths.strategiesConfig, securitiesMap);
+        assertNotNull(configs);
+        assertFalse(configs.isEmpty(), "Production strategies-config.yml must load enabled strategies");
+
+        for (OptionsConfig config : configs) {
+            com.hemasundar.options.models.OptionsStrategyFilter filter = config.getFilter();
+            assertNotNull(filter, "Filter should not be null for " + config.getName());
+            if (org.apache.commons.collections4.CollectionUtils.isNotEmpty(filter.getConditions())) {
+                assertNotNull(filter.getFilterExpressions(), "filterExpressions should not be null for " + config.getName());
+                assertFalse(filter.getFilterExpressions().isEmpty(),
+                        "filterExpressions must be parsed for " + config.getName());
+                assertEquals(filter.getFilterExpressions().size(), filter.getConditions().size(),
+                        "All conditions must be parsed for " + config.getName());
+            }
+        }
+
+        List<com.hemasundar.technical.ScreenerConfig> screeners = fullLoader.loadScreeners(com.hemasundar.utils.FilePaths.strategiesConfig, securitiesMap);
+        assertNotNull(screeners);
+        assertFalse(screeners.isEmpty(), "Production screeners must load");
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = ".*Unknown filter variable.*")
+    public void testFilterParser_UnknownVariable_ThrowsException() {
+        com.hemasundar.options.models.CreditSpreadFilter filter = new com.hemasundar.options.models.CreditSpreadFilter();
+        filter.setConditions(List.of("INVALID_METRIC >= 10"));
+        com.hemasundar.utils.FilterParser.initFilterExpressions(filter);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = ".*Unknown leg filter variable.*")
+    public void testFilterParser_UnknownLegVariable_ThrowsException() {
+        com.hemasundar.options.models.CreditSpreadFilter filter = new com.hemasundar.options.models.CreditSpreadFilter();
+        com.hemasundar.options.models.LegFilter leg = new com.hemasundar.options.models.LegFilter();
+        leg.setConditions(List.of("MAX_LOSS <= 100"));
+        filter.setShortLeg(leg);
+        com.hemasundar.utils.FilterParser.initFilterExpressions(filter);
+    }
 }

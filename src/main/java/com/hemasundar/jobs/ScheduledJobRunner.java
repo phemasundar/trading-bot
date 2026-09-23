@@ -38,8 +38,8 @@ public class ScheduledJobRunner implements CommandLineRunner {
                 log.error("Unknown job name provided: {}", jobName);
                 exitCode = 1;
             }
-        } catch (Exception e) {
-            log.error("Job encountered a critical error: {}", e.getMessage(), e);
+        } catch (Throwable t) {
+            log.error("Job encountered a critical error: {}", t.getMessage(), t);
             exitCode = 1;
         } finally {
             log.info("Job {} execution finished. System exiting...", jobName);

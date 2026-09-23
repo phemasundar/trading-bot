@@ -1,5 +1,6 @@
 package com.hemasundar.options.models;
 
+import com.hemasundar.utils.FilterParser;
 import com.hemasundar.utils.JavaUtils;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +28,11 @@ public enum FilterType {
      * Parses a filter from an Object (e.g., Map from deserialized JSON).
      */
     public OptionsStrategyFilter parseFilter(Object filterObject) {
-        return JavaUtils.convertValue(filterObject, filterClass);
+        OptionsStrategyFilter filter = JavaUtils.convertValue(filterObject, filterClass);
+        if (filter != null) {
+            FilterParser.initFilterExpressions(filter);
+        }
+        return filter;
     }
 
     /**

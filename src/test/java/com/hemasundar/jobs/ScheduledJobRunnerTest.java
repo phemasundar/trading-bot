@@ -104,4 +104,15 @@ public class ScheduledJobRunnerTest {
         // Should catch exception and exit with 1
         verify(scheduledJobRunner).exit(1);
     }
+
+    @Test
+    public void testRun_Screener_OutOfMemoryErrorHandling() throws Exception {
+        when(jobConfig.getName()).thenReturn("SCREENER");
+        doThrow(new OutOfMemoryError("Test OOM")).when(screenerJobService).runScheduledScreeners();
+
+        scheduledJobRunner.run();
+
+        // Should catch Error/Throwable and exit with 1
+        verify(scheduledJobRunner).exit(1);
+    }
 }

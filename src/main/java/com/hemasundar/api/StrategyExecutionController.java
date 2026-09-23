@@ -158,7 +158,7 @@ public class StrategyExecutionController {
                     executionService.setCurrentExecutionTask("Initializing Screeners...");
                     screenerExecutionService.executeScreeners(screenerIndices, allScreeners);
                 }
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.error("Strategy execution failed", e);
                 executionService.addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_EXECUTION,
                         String.format(AlertMessages.UNEXPECTED_FAILURE_FMT, e.getMessage()));
@@ -258,7 +258,13 @@ public class StrategyExecutionController {
 
             Long customResultId = request.getCustomResultId();
             CompletableFuture.runAsync(() -> {
-                executionService.executeCustomStrategy(config, customResultId);
+                try {
+                    executionService.executeCustomStrategy(config, customResultId);
+                } catch (Throwable t) {
+                    log.error("Custom strategy execution failed", t);
+                    executionService.addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_EXECUTION,
+                            String.format(AlertMessages.UNEXPECTED_FAILURE_FMT, t.getMessage()));
+                }
             });
 
             return ResponseEntity.ok(Map.of(

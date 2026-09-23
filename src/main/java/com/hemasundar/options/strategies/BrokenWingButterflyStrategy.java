@@ -89,7 +89,7 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
                 .step(FilterStage.UPPER_BREAKEVEN_FILTER,    upperBreakevenFilter(filter, callMap, sortedStrikes))
                 .run(candidates);
 
-        List<TradeSetup> mapped = survived.stream().map(this::buildTradeSetup).toList();
+        List<TradeSetup> mapped = survived.stream().map(c -> buildTradeSetup(c, callMap, sortedStrikes)).toList();
 
         FilterPipeline<TradeSetup> tradePipeline = FilterPipeline
                 .<TradeSetup>forContext(strategyName, symbol, expiryDate)
@@ -287,13 +287,37 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
         };
     }
 
-    // ========== TRADE BUILDER ==========
+    /**
+     * Calculates the delta of the option at the nearest strike to Upper Breakeven Price.
+     */
+    private double calculateUpperBreakevenDelta(double upperBreakeven,
+            Map<String, List<OptionData>> callMap,
+            List<Double> sortedStrikes) {
+        Double nearestStrike = null;
+        double minDiff = Double.MAX_VALUE;
+
+        for (Double strike : sortedStrikes) {
+            double diff = Math.abs(strike - upperBreakeven);
+            if (diff < minDiff) {
+                minDiff = diff;
+                nearestStrike = strike;
+            }
+        }
+
+        if (nearestStrike == null) {
+            return Double.NaN;
+        }
+
+        OptionData optionAtBE = getOption(callMap, nearestStrike);
+        if (optionAtBE == null) {
+            return Double.NaN;
+        }
+
+        return Math.abs(optionAtBE.getAbsDelta());
+    }
 
     /**
-     * Filters candidates based on the delta of the option at the Upper Breakeven
-     * Price.
-     * Upper BE = Short Strike + (Lower Wing - Net Debit)
-     * Checks if delta of nearest strike <= maxUpperBreakevenDelta
+     * Filters candidates based on the delta of the option at the Upper Breakeven Price.
      */
     private Predicate<BWBCandidate> upperBreakevenFilter(OptionsStrategyFilter filter,
             Map<String, List<OptionData>> callMap,
@@ -305,44 +329,8 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
         double maxDelta = filter.getMaxUpperBreakevenDelta();
 
         return candidate -> {
-            double upperBreakeven = candidate.upperBreakevenPrice();
-
-            // Find nearest strike
-            Double nearestStrike = null;
-            double minDiff = Double.MAX_VALUE;
-
-            for (Double strike : sortedStrikes) {
-                double diff = Math.abs(strike - upperBreakeven);
-                if (diff < minDiff) {
-                    minDiff = diff;
-                    nearestStrike = strike;
-                }
-            }
-
-            if (nearestStrike == null)
-                return false;
-
-            OptionData optionAtBE = getOption(callMap, nearestStrike);
-            if (optionAtBE == null) {
-                return false;
-            }
-
-            // Validate delta (use absolute value to be safe, though calls are positive)
-            double currentDelta = Math.abs(optionAtBE.getAbsDelta());
-            // Note: OptionData has getAbsDelta() helper, use it if available or
-            // Math.abs(getDelta())
-            // Let's use getAbsDelta() directly if available from OptionData, otherwise
-            // abs(getDelta)
-            // OptionData in OptionChainResponse has getAbsDelta() per previous steps.
-
-            if (currentDelta > maxDelta) {
-                log.trace("[BWB] Rejected by Upper BE Delta: BE=${}, NearestStrike=${}, Delta={} > Max={}",
-                        String.format("%.2f", upperBreakeven), nearestStrike,
-                        String.format("%.2f", currentDelta), maxDelta);
-                return false;
-            }
-
-            return true;
+            double delta = calculateUpperBreakevenDelta(candidate.upperBreakevenPrice(), callMap, sortedStrikes);
+            return !Double.isNaN(delta) && delta <= maxDelta;
         };
     }
 
@@ -351,7 +339,9 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
     /**
      * Converts a valid candidate to a BrokenWingButterfly trade setup.
      */
-    private TradeSetup buildTradeSetup(BWBCandidate c) {
+    private TradeSetup buildTradeSetup(BWBCandidate c,
+            Map<String, List<OptionData>> callMap,
+            List<Double> sortedStrikes) {
         log.trace("[BWB] Combo {} ACCEPTED - Debit: ${}, MaxLoss: ${}, RoR: {}%",
                 c.strikeCombo(), String.format("%.2f", c.totalDebit()),
                 String.format("%.2f", c.maxLoss()), String.format("%.1f", c.returnOnRisk()));
@@ -372,6 +362,7 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
                 .breakEvenPercentage(c.breakEvenPercentage())
                 .upperBreakEvenPrice(c.upperBreakevenPrice())
                 .upperBreakEvenPercentage(c.upperBreakevenPercentage())
+                .upperBreakEvenDelta(calculateUpperBreakevenDelta(c.upperBreakevenPrice(), callMap, sortedStrikes))
                 .build();
     }
 
