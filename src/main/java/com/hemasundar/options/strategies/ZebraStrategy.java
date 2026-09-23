@@ -61,27 +61,57 @@ public class ZebraStrategy extends AbstractTradingStrategy {
         List<ZebraCandidate> candidates = generateCandidates(callMap, sortedStrikes, chain.getUnderlyingPrice()).toList();
         FilterLogStore.getInstance().logFilter(strategyName, symbol, expiryDate, FilterStage.GENERATED_CANDIDATES.displayName(), candidates.size(), candidates.size());
 
-        List<ZebraCandidate> survived = FilterPipeline
-                .<ZebraCandidate>forContext(strategyName, symbol, expiryDate)
-                .step(FilterStage.DELTA_FILTER,              deltaFilter(shortLegFilter, longLegFilter))
-                .step(FilterStage.LEG_PREMIUM_FILTER,        legPremiumFilter(shortLegFilter, longLegFilter))
-                .step(FilterStage.VOLUME_FILTER,             volumeFilter(shortLegFilter, longLegFilter))
-                .step(FilterStage.OPEN_INTEREST_FILTER,      openInterestFilter(shortLegFilter, longLegFilter))
-                .step(FilterStage.LEG_VOLATILITY_FILTER,     volatilityFilter(shortLegFilter, longLegFilter))
-                .step("Leg Conditions Filter",               c -> LegFilter.passes(shortLegFilter, c.shortLeg()) && LegFilter.passes(longLegFilter, c.longLeg()))
-                .step(FilterStage.MAX_LOSS_FILTER,           commonMaxLossFilter(filter, ZebraCandidate::maxLoss))
-                .step(FilterStage.MAX_DEBIT_FILTER,          commonMaxTotalDebitFilter(filter, ZebraCandidate::netDebit))
-                .step(FilterStage.MIN_RETURN_ON_RISK_FILTER, commonMinReturnOnRiskFilter(filter, candidate -> candidate.maxLoss() > 0 ? 0.0 : 100.0, ZebraCandidate::maxLoss))
-                .step(FilterStage.MIN_RETURN_ON_RISK_CAGR_FILTER, commonMinReturnOnRiskCAGRFilter(filter, candidate -> candidate.maxLoss() > 0 ? 0.0 : 100.0, ZebraCandidate::maxLoss, c -> c.shortLeg().getDaysToExpiration()))
-                .run(candidates);
+        FilterPipeline<ZebraCandidate> candidatePipeline = FilterPipeline
+                .<ZebraCandidate>forContext(strategyName, symbol, expiryDate);
+
+        if (hasLegacyDelta(shortLegFilter) || hasLegacyDelta(longLegFilter)) {
+            candidatePipeline.step(FilterStage.DELTA_FILTER, deltaFilter(shortLegFilter, longLegFilter));
+        }
+        if (hasLegacyPremium(shortLegFilter) || hasLegacyPremium(longLegFilter)) {
+            candidatePipeline.step(FilterStage.LEG_PREMIUM_FILTER, legPremiumFilter(shortLegFilter, longLegFilter));
+        }
+        if (hasLegacyVolume(shortLegFilter) || hasLegacyVolume(longLegFilter)) {
+            candidatePipeline.step(FilterStage.VOLUME_FILTER, volumeFilter(shortLegFilter, longLegFilter));
+        }
+        if (hasLegacyOpenInterest(shortLegFilter) || hasLegacyOpenInterest(longLegFilter)) {
+            candidatePipeline.step(FilterStage.OPEN_INTEREST_FILTER, openInterestFilter(shortLegFilter, longLegFilter));
+        }
+        if (hasLegacyVolatility(shortLegFilter) || hasLegacyVolatility(longLegFilter)) {
+            candidatePipeline.step(FilterStage.LEG_VOLATILITY_FILTER, volatilityFilter(shortLegFilter, longLegFilter));
+        }
+
+        applyLegFilterExpressions(candidatePipeline, shortLegFilter, "shortCall", ZebraCandidate::shortLeg);
+        applyLegFilterExpressions(candidatePipeline, longLegFilter, "longCall", ZebraCandidate::longLeg);
+
+        if (filter.getMaxLossLimit() != null) {
+            candidatePipeline.step(FilterStage.MAX_LOSS_FILTER, commonMaxLossFilter(filter, ZebraCandidate::maxLoss));
+        }
+        if (filter.getMaxTotalDebit() != null) {
+            candidatePipeline.step(FilterStage.MAX_DEBIT_FILTER, commonMaxTotalDebitFilter(filter, ZebraCandidate::netDebit));
+        }
+        if (filter.getMinReturnOnRisk() != null) {
+            candidatePipeline.step(FilterStage.MIN_RETURN_ON_RISK_FILTER, commonMinReturnOnRiskFilter(filter, candidate -> candidate.maxLoss() > 0 ? 0.0 : 100.0, ZebraCandidate::maxLoss));
+        }
+        if (filter.getMinReturnOnRiskCAGR() != null) {
+            candidatePipeline.step(FilterStage.MIN_RETURN_ON_RISK_CAGR_FILTER, commonMinReturnOnRiskCAGRFilter(filter, candidate -> candidate.maxLoss() > 0 ? 0.0 : 100.0, ZebraCandidate::maxLoss, c -> c.shortLeg().getDaysToExpiration()));
+        }
+
+        List<ZebraCandidate> survived = candidatePipeline.run(candidates);
 
         List<TradeSetup> mapped = survived.stream().map(this::buildTradeSetup).toList();
 
         FilterPipeline<TradeSetup> tradePipeline = FilterPipeline
-                .<TradeSetup>forContext(strategyName, symbol, expiryDate)
-                .step(FilterStage.MAX_EXTRINSIC_VALUE_FILTER, commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
-                .step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter))
-                .step(FilterStage.BREAK_EVEN_FILTER,          trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()));
+                .<TradeSetup>forContext(strategyName, symbol, expiryDate);
+
+        if (filter.getMaxNetExtrinsicValueToPricePercentage() != null) {
+            tradePipeline.step(FilterStage.MAX_EXTRINSIC_VALUE_FILTER, commonMaxNetExtrinsicValueToPricePercentageFilter(filter));
+        }
+        if (filter.getMinNetExtrinsicValueToPricePercentage() != null) {
+            tradePipeline.step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter));
+        }
+        if (filter.getMaxBreakEvenPercentage() != null) {
+            tradePipeline.step(FilterStage.BREAK_EVEN_FILTER, trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()));
+        }
 
         return applyTradeMathFilterExpressions(tradePipeline, filter).run(mapped);
     }

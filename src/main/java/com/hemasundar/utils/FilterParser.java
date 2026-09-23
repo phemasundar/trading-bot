@@ -244,29 +244,49 @@ public class FilterParser {
 
         // 4. Leg conditions
         if (filter instanceof CreditSpreadFilter csFilter) {
+            setLegNameIfPresent(csFilter.getShortLeg(), "shortLeg");
+            setLegNameIfPresent(csFilter.getLongLeg(), "longLeg");
             initLegExpressions(csFilter.getShortLeg());
             initLegExpressions(csFilter.getLongLeg());
         } else if (filter instanceof IronCondorFilter icFilter) {
+            setLegNameIfPresent(icFilter.getPutShortLeg(), "putShortLeg");
+            setLegNameIfPresent(icFilter.getPutLongLeg(), "putLongLeg");
+            setLegNameIfPresent(icFilter.getCallShortLeg(), "callShortLeg");
+            setLegNameIfPresent(icFilter.getCallLongLeg(), "callLongLeg");
             initLegExpressions(icFilter.getPutShortLeg());
             initLegExpressions(icFilter.getPutLongLeg());
             initLegExpressions(icFilter.getCallShortLeg());
             initLegExpressions(icFilter.getCallLongLeg());
         } else if (filter instanceof LongCallLeapFilter leapFilter) {
+            setLegNameIfPresent(leapFilter.getLongCall(), "longCall");
             initLegExpressions(leapFilter.getLongCall());
         } else if (filter instanceof BrokenWingButterflyFilter bwbFilter) {
+            setLegNameIfPresent(bwbFilter.getLeg1Long(), "leg1Long");
+            setLegNameIfPresent(bwbFilter.getLeg2Short(), "leg2Short");
+            setLegNameIfPresent(bwbFilter.getLeg3Long(), "leg3Long");
             initLegExpressions(bwbFilter.getLeg1Long());
             initLegExpressions(bwbFilter.getLeg2Short());
             initLegExpressions(bwbFilter.getLeg3Long());
         } else if (filter instanceof ZebraFilter zebraFilter) {
+            setLegNameIfPresent(zebraFilter.getShortCall(), "shortCall");
+            setLegNameIfPresent(zebraFilter.getLongCall(), "longCall");
             initLegExpressions(zebraFilter.getShortCall());
             initLegExpressions(zebraFilter.getLongCall());
         } else if (filter instanceof ShortStrangleFilter strangleFilter) {
+            setLegNameIfPresent(strangleFilter.getPutShortLeg(), "putShortLeg");
+            setLegNameIfPresent(strangleFilter.getCallShortLeg(), "callShortLeg");
             initLegExpressions(strangleFilter.getPutShortLeg());
             initLegExpressions(strangleFilter.getCallShortLeg());
         }
 
         // 5. Route dotted expressions from root filter to legs
         routeLegExpressions(filter);
+    }
+
+    private static void setLegNameIfPresent(LegFilter leg, String name) {
+        if (leg != null && StringUtils.isBlank(leg.getLegName())) {
+            leg.setLegName(name);
+        }
     }
 
     private static void initLegExpressions(LegFilter leg) {
@@ -336,6 +356,7 @@ public class FilterParser {
         if (legMap.isEmpty()) return;
 
         LegFilter.LegFilterBuilder builder = LegFilter.builder();
+        builder.legName(key);
         if (legMap.containsKey("conditions") && legMap.get("conditions") != null) {
             List<String> stringRules = toStringList(legMap.get("conditions"));
             builder.conditions(stringRules);

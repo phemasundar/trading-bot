@@ -219,3 +219,13 @@ Convenient for quick inline configurations, flat interfaces, or cross-leg expres
         - "DAYS_TO_NEXT_EARNINGS >= DTE"
 ```
 
+---
+
+## Execution Logs (`/logs.html`)
+
+When strategies execute, each filter step in the execution pipeline records entry and exit counts to `FilterLogStore`. Rather than generic aliases (e.g. `Leg Conditions Filter`, `Delta Filter`), the pipeline displays the exact mathematical expression configured in the YAML file:
+- **Leg Filters**: Prefixed by leg identifier, e.g. `shortLeg.DELTA <= 0.2`, `shortLeg.OPEN_INTEREST >= 500`, `putShortLeg.DELTA <= 0.2`.
+- **Chain / Expiry Filters**: Logged with exact criteria, e.g. `DTE >= 25`, `DTE <= 50`, or `targetDTE = 30`.
+- **Earnings & IV Filters**: Logged as evaluated, e.g. `DAYS_TO_NEXT_EARNINGS >= DTE`, `IV_RANK >= 50`.
+- **Trade Economics Filters**: Evaluated on candidate setups, e.g. `MAX_LOSS <= 1000`, `RETURN_ON_RISK >= 12%`, `NET_CREDIT > 0`.
+- **Clean Pipelines**: Unconfigured filter steps are pruned from the execution pipeline so only active rules appear in logs.

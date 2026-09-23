@@ -74,31 +74,63 @@ public class ShortPutStrategy extends AbstractTradingStrategy {
                 candidates.size(), candidates.size());
 
         // ── Phase 1: Candidate-level filters (before building TradeSetup) ──────
-        List<ShortPutCandidate> survived = FilterPipeline
-                .<ShortPutCandidate>forContext(strategyName, symbol, expiryDate)
-                .step(FilterStage.DELTA_FILTER,               deltaFilter(shortLegFilter))
-                .step(FilterStage.LEG_PREMIUM_FILTER,         legPremiumFilter(shortLegFilter))
-                .step(FilterStage.VOLUME_FILTER,              volumeFilter(shortLegFilter))
-                .step(FilterStage.OPEN_INTEREST_FILTER,       openInterestFilter(shortLegFilter))
-                .step(FilterStage.LEG_VOLATILITY_FILTER,      volatilityFilter(shortLegFilter))
-                .step("Leg Conditions Filter",                c -> LegFilter.passes(shortLegFilter, c.shortLeg()))
-                .step(FilterStage.POSITIVE_CREDIT_FILTER,     creditFilter())
-                .step(FilterStage.MAX_CREDIT_FILTER,          commonMaxTotalCreditFilter(filter, ShortPutCandidate::netCredit))
-                .step(FilterStage.MIN_CREDIT_FILTER,          commonMinTotalCreditFilter(filter, ShortPutCandidate::netCredit))
-                .step(FilterStage.MAX_LOSS_FILTER,            commonMaxLossFilter(filter, ShortPutCandidate::maxLoss))
-                .step(FilterStage.MIN_RETURN_ON_RISK_FILTER,  commonMinReturnOnRiskFilter(filter, ShortPutCandidate::netCredit, ShortPutCandidate::maxLoss))
-                .step(FilterStage.MIN_RETURN_ON_RISK_CAGR_FILTER, commonMinReturnOnRiskCAGRFilter(filter, ShortPutCandidate::netCredit, ShortPutCandidate::maxLoss, c -> c.shortLeg().getDaysToExpiration()))
-                .run(candidates);
+        FilterPipeline<ShortPutCandidate> candidatePipeline = FilterPipeline
+                .<ShortPutCandidate>forContext(strategyName, symbol, expiryDate);
+
+        if (hasLegacyDelta(shortLegFilter)) {
+            candidatePipeline.step(FilterStage.DELTA_FILTER, deltaFilter(shortLegFilter));
+        }
+        if (hasLegacyPremium(shortLegFilter)) {
+            candidatePipeline.step(FilterStage.LEG_PREMIUM_FILTER, legPremiumFilter(shortLegFilter));
+        }
+        if (hasLegacyVolume(shortLegFilter)) {
+            candidatePipeline.step(FilterStage.VOLUME_FILTER, volumeFilter(shortLegFilter));
+        }
+        if (hasLegacyOpenInterest(shortLegFilter)) {
+            candidatePipeline.step(FilterStage.OPEN_INTEREST_FILTER, openInterestFilter(shortLegFilter));
+        }
+        if (hasLegacyVolatility(shortLegFilter)) {
+            candidatePipeline.step(FilterStage.LEG_VOLATILITY_FILTER, volatilityFilter(shortLegFilter));
+        }
+
+        applyLegFilterExpressions(candidatePipeline, shortLegFilter, "shortLeg", ShortPutCandidate::shortLeg);
+
+        candidatePipeline.step("NET_CREDIT > 0", creditFilter());
+
+        if (filter.getMaxTotalCredit() != null) {
+            candidatePipeline.step(FilterStage.MAX_CREDIT_FILTER, commonMaxTotalCreditFilter(filter, ShortPutCandidate::netCredit));
+        }
+        if (filter.getMinTotalCredit() != null) {
+            candidatePipeline.step(FilterStage.MIN_CREDIT_FILTER, commonMinTotalCreditFilter(filter, ShortPutCandidate::netCredit));
+        }
+        if (filter.getMaxLossLimit() != null) {
+            candidatePipeline.step(FilterStage.MAX_LOSS_FILTER, commonMaxLossFilter(filter, ShortPutCandidate::maxLoss));
+        }
+        if (filter.getMinReturnOnRisk() != null) {
+            candidatePipeline.step(FilterStage.MIN_RETURN_ON_RISK_FILTER, commonMinReturnOnRiskFilter(filter, ShortPutCandidate::netCredit, ShortPutCandidate::maxLoss));
+        }
+        if (filter.getMinReturnOnRiskCAGR() != null) {
+            candidatePipeline.step(FilterStage.MIN_RETURN_ON_RISK_CAGR_FILTER, commonMinReturnOnRiskCAGRFilter(filter, ShortPutCandidate::netCredit, ShortPutCandidate::maxLoss, c -> c.shortLeg().getDaysToExpiration()));
+        }
+
+        List<ShortPutCandidate> survived = candidatePipeline.run(candidates);
 
         // ── Map to TradeSetup ─────────────────────────────────────────────────
         List<TradeSetup> mapped = survived.stream().map(this::buildTradeSetup).toList();
 
         // ── Phase 2: TradeSetup-level filters ────────────────────────────────
         FilterPipeline<TradeSetup> tradePipeline = FilterPipeline
-                .<TradeSetup>forContext(strategyName, symbol, expiryDate)
-                .step(FilterStage.MAX_EXTRINSIC_VALUE_FILTER, commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
-                .step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter))
-                .step(FilterStage.BREAK_EVEN_FILTER,          trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()));
+                .<TradeSetup>forContext(strategyName, symbol, expiryDate);
+
+        if (filter.getMaxNetExtrinsicValueToPricePercentage() != null) {
+            tradePipeline.step(FilterStage.MAX_EXTRINSIC_VALUE_FILTER, commonMaxNetExtrinsicValueToPricePercentageFilter(filter));
+        }
+        if (filter.getMinNetExtrinsicValueToPricePercentage() != null) {
+            tradePipeline.step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter));
+        }
+        if (filter.getMaxBreakEvenPercentage() != null) {
+            tradePipeline.step(FilterStage.BREAK_EVEN_FILTER, trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()));
+        }
 
         return applyTradeMathFilterExpressions(tradePipeline, filter).run(mapped);
     }

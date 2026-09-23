@@ -121,28 +121,59 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                 .toList();
         FilterLogStore.getInstance().logFilter(strategyName, symbol, expiryDate, FilterStage.GENERATED_CANDIDATES.displayName(), calls.size(), allCandidates.size());
 
-        List<LeapCandidate> survived = FilterPipeline
-                .<LeapCandidate>forContext(strategyName, symbol, expiryDate)
-                .step(FilterStage.DELTA_FILTER,           deltaFilter(finalLongCallFilter))
-                .step(FilterStage.LEG_PREMIUM_FILTER,     legPremiumFilter(finalLongCallFilter))
-                .step(FilterStage.VOLUME_FILTER,          volumeFilter(finalLongCallFilter))
-                .step(FilterStage.OPEN_INTEREST_FILTER,   openInterestFilter(finalLongCallFilter))
-                .step(FilterStage.LEG_VOLATILITY_FILTER,  volatilityFilter(finalLongCallFilter))
-                .step("Leg Conditions Filter",            candidate -> LegFilter.passes(finalLongCallFilter, candidate.call()))
-                .step(FilterStage.PREMIUM_LIMIT_FILTER,   premiumLimitFilter(filter))
-                .step(FilterStage.MAX_LOSS_FILTER,         maxLossFilter(filter))
-                .step(FilterStage.CAGR_FILTER,             cagrFilter(filter))
-                .step(FilterStage.COST_SAVINGS_FILTER,     costSavingsFilter(filter))
-                .step(FilterStage.DEBIT_LIMIT_FILTER,      candidate -> filter.passesDebitLimit(candidate.callPremium() * 100))
-                .run(allCandidates);
+        FilterPipeline<LeapCandidate> candidatePipeline = FilterPipeline
+                .<LeapCandidate>forContext(strategyName, symbol, expiryDate);
+
+        if (hasLegacyDelta(finalLongCallFilter)) {
+            candidatePipeline.step(FilterStage.DELTA_FILTER, deltaFilter(finalLongCallFilter));
+        }
+        if (hasLegacyPremium(finalLongCallFilter)) {
+            candidatePipeline.step(FilterStage.LEG_PREMIUM_FILTER, legPremiumFilter(finalLongCallFilter));
+        }
+        if (hasLegacyVolume(finalLongCallFilter)) {
+            candidatePipeline.step(FilterStage.VOLUME_FILTER, volumeFilter(finalLongCallFilter));
+        }
+        if (hasLegacyOpenInterest(finalLongCallFilter)) {
+            candidatePipeline.step(FilterStage.OPEN_INTEREST_FILTER, openInterestFilter(finalLongCallFilter));
+        }
+        if (hasLegacyVolatility(finalLongCallFilter)) {
+            candidatePipeline.step(FilterStage.LEG_VOLATILITY_FILTER, volatilityFilter(finalLongCallFilter));
+        }
+
+        applyLegFilterExpressions(candidatePipeline, finalLongCallFilter, "longCall", LeapCandidate::call);
+
+        if (filter.getMaxOptionPricePercent() != null) {
+            candidatePipeline.step(FilterStage.PREMIUM_LIMIT_FILTER, premiumLimitFilter(filter));
+        }
+        if (filter.getMaxLossLimit() != null) {
+            candidatePipeline.step(FilterStage.MAX_LOSS_FILTER, maxLossFilter(filter));
+        }
+        if (filter.getMaxCAGRForBreakEven() != null) {
+            candidatePipeline.step(FilterStage.CAGR_FILTER, cagrFilter(filter));
+        }
+        if (filter instanceof LongCallLeapFilter leapFilter && leapFilter.getMinCostSavingsPercent() != null) {
+            candidatePipeline.step(FilterStage.COST_SAVINGS_FILTER, costSavingsFilter(filter));
+        }
+        if (filter.getMaxTotalDebit() != null) {
+            candidatePipeline.step(FilterStage.DEBIT_LIMIT_FILTER, candidate -> filter.passesDebitLimit(candidate.callPremium() * 100));
+        }
+
+        List<LeapCandidate> survived = candidatePipeline.run(allCandidates);
 
         List<TradeSetup> mapped = survived.stream().map(this::buildTradeSetup).toList();
 
         FilterPipeline<TradeSetup> tradePipeline = FilterPipeline
-                .<TradeSetup>forContext(strategyName, symbol, expiryDate)
-                .step(FilterStage.MAX_EXTRINSIC_VALUE_FILTER, commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
-                .step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter))
-                .step(FilterStage.BREAK_EVEN_FILTER,          trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()));
+                .<TradeSetup>forContext(strategyName, symbol, expiryDate);
+
+        if (filter.getMaxNetExtrinsicValueToPricePercentage() != null) {
+            tradePipeline.step(FilterStage.MAX_EXTRINSIC_VALUE_FILTER, commonMaxNetExtrinsicValueToPricePercentageFilter(filter));
+        }
+        if (filter.getMinNetExtrinsicValueToPricePercentage() != null) {
+            tradePipeline.step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter));
+        }
+        if (filter.getMaxBreakEvenPercentage() != null) {
+            tradePipeline.step(FilterStage.BREAK_EVEN_FILTER, trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()));
+        }
 
         return applyTradeMathFilterExpressions(tradePipeline, filter).run(mapped);
     }
