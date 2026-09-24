@@ -11,6 +11,7 @@ import com.hemasundar.utils.TelegramUtils;
 import com.hemasundar.utils.WikipediaSecuritiesFetcher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Service;
 import org.yaml.snakeyaml.Yaml;
 
@@ -64,6 +65,7 @@ public class IVDataJobService {
         log.info("Loaded {} unique securities", allSecurities.size());
 
         executeCollection();
+        refreshCachedIVIndicators();
         sendTelegramSummary();
 
         if (failCount > 0) {
@@ -109,6 +111,18 @@ public class IVDataJobService {
                 failCount++;
                 failedSymbols.add(symbol);
             }
+        }
+    }
+
+    private void refreshCachedIVIndicators() {
+        if (supabaseService.isEmpty() || CollectionUtils.isEmpty(allSecurities)) {
+            return;
+        }
+        try {
+            log.info("Refreshing IV metrics in cached security indicators for {} securities...", allSecurities.size());
+            supabaseService.get().updateSecurityIndicatorsIV(allSecurities);
+        } catch (Exception e) {
+            log.warn("Failed to refresh IV metrics in cached security indicators: {}", e.getMessage());
         }
     }
 

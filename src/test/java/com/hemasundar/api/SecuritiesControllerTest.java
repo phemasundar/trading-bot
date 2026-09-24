@@ -104,6 +104,8 @@ public class SecuritiesControllerTest {
                 .currentPrice(120.5)
                 .rsi(28.4)
                 .rsiOversold(true)
+                .ivPercentile(45.0)
+                .ivRank(35.5)
                 .build();
         when(supabaseService.getSecurityIndicatorsForSymbols(any())).thenReturn(Map.of("NVDA", res));
 
@@ -113,7 +115,9 @@ public class SecuritiesControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.NVDA.symbol").value("NVDA"))
                 .andExpect(jsonPath("$.NVDA.currentPrice").value(120.5))
-                .andExpect(jsonPath("$.NVDA.rsiOversold").value(true));
+                .andExpect(jsonPath("$.NVDA.rsiOversold").value(true))
+                .andExpect(jsonPath("$.NVDA.ivPercentile").value(45.0))
+                .andExpect(jsonPath("$.NVDA.ivRank").value(35.5));
     }
 
     @Test

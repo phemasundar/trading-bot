@@ -119,6 +119,14 @@ public class SecurityIndicatorsRepository {
                     hvNode.put("hvRank", r.getHistoricalVolatilityRank());
                     volaContainer.set("historicalVolatility", hvNode);
                 }
+                if (r.getIvPercentile() != null || r.getIvRank() != null || r.getCurrentIV() != null || r.getIvDays() != null) {
+                    ObjectNode ivNode = mapper.createObjectNode();
+                    if (r.getIvPercentile() != null) ivNode.put("ivPercentile", r.getIvPercentile());
+                    if (r.getIvRank() != null) ivNode.put("ivRank", r.getIvRank());
+                    if (r.getCurrentIV() != null) ivNode.put("currentIV", r.getCurrentIV());
+                    if (r.getIvDays() != null) ivNode.put("recordCount", r.getIvDays());
+                    volaContainer.set("impliedVolatility", ivNode);
+                }
                 node.set("volatility", volaContainer);
 
                 // Summaries
@@ -300,6 +308,34 @@ public class SecurityIndicatorsRepository {
                 if (volaNode.path("historicalVolatility").hasNonNull("hvRank")) {
                     builder.historicalVolatilityRank(volaNode.path("historicalVolatility").get("hvRank").asDouble());
                 }
+                if (volaNode.path("impliedVolatility").hasNonNull("ivPercentile")) {
+                    builder.ivPercentile(volaNode.path("impliedVolatility").get("ivPercentile").asDouble());
+                }
+                if (volaNode.path("impliedVolatility").hasNonNull("ivRank")) {
+                    builder.ivRank(volaNode.path("impliedVolatility").get("ivRank").asDouble());
+                }
+                if (volaNode.path("impliedVolatility").hasNonNull("currentIV")) {
+                    builder.currentIV(volaNode.path("impliedVolatility").get("currentIV").asDouble());
+                }
+                if (volaNode.path("impliedVolatility").hasNonNull("recordCount")) {
+                    builder.ivDays(volaNode.path("impliedVolatility").get("recordCount").asInt());
+                } else if (volaNode.path("impliedVolatility").hasNonNull("ivDays")) {
+                    builder.ivDays(volaNode.path("impliedVolatility").get("ivDays").asInt());
+                }
+            }
+            if (node.hasNonNull("iv_percentile")) {
+                builder.ivPercentile(node.get("iv_percentile").asDouble());
+            }
+            if (node.hasNonNull("iv_rank")) {
+                builder.ivRank(node.get("iv_rank").asDouble());
+            }
+            if (node.hasNonNull("current_iv")) {
+                builder.currentIV(node.get("current_iv").asDouble());
+            }
+            if (node.hasNonNull("iv_days")) {
+                builder.ivDays(node.get("iv_days").asInt());
+            } else if (node.hasNonNull("record_count")) {
+                builder.ivDays(node.get("record_count").asInt());
             }
 
             return builder.build();
