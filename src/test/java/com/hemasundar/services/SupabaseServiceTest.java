@@ -221,7 +221,5 @@ public class SupabaseServiceTest {
         Assert.assertEquals(res.getIvDays(), Integer.valueOf(200));
         verify(securityIndicatorsRepository).saveSecurityIndicators(anyList());
     }
-        verify(securityIndicatorsRepository).saveSecurityIndicators(anyList());
-    }
 }
 
