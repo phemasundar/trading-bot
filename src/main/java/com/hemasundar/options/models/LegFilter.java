@@ -28,6 +28,19 @@ public class LegFilter {
     private Double maxVolatility;
 
     /**
+     * Canonical YAML leg property name (e.g. "shortLeg", "longLeg", "putShortLeg", "callShortLeg", "longCall", etc.)
+     */
+    private String legName;
+
+    /**
+     * Checks if any legacy fields (min/max delta, premium, volume, OI, volatility) are configured.
+     */
+    public boolean hasLegacyFilters() {
+        return minDelta != null || maxDelta != null || minPremium != null || maxPremium != null
+                || minOpenInterest != null || minVolume != null || minVolatility != null || maxVolatility != null;
+    }
+
+    /**
      * Mathematical expression conditions for this leg.
      * Example: ["DELTA <= 0.2", "OPEN_INTEREST >= 500"]
      */

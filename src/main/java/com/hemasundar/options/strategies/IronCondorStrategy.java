@@ -63,6 +63,7 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
 
         // Create put leg filter
         CreditSpreadFilter putLegFilter = CreditSpreadFilter.builder()
+                .strategyId(getStrategyName(filter))
                 .targetDTE(filter.getTargetDTE())
                 .maxLossLimit(filter.getMaxLossLimit())
                 .minReturnOnRisk(0) // Get all valid spreads
@@ -72,6 +73,7 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
 
         // Create call leg filter (may have different delta)
         CreditSpreadFilter callLegFilter = CreditSpreadFilter.builder()
+                .strategyId(getStrategyName(filter))
                 .targetDTE(filter.getTargetDTE())
                 .maxLossLimit(filter.getMaxLossLimit())
                 .minReturnOnRisk(0)
@@ -154,14 +156,29 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
         List<TradeSetup> mapped = new ArrayList<>(combinations);
 
         FilterPipeline<TradeSetup> tradePipeline = FilterPipeline
-                .<TradeSetup>forContext(getStrategyName(filter), symbol, expiryDate)
-                .step(FilterStage.MAX_LOSS_FILTER,          commonMaxLossFilter(filter, TradeSetup::getMaxLoss))
-                .step(FilterStage.MIN_RETURN_ON_RISK_FILTER,commonMinReturnOnRiskFilter(filter, TradeSetup::getNetCredit, TradeSetup::getMaxLoss))
-                .step(FilterStage.MAX_CREDIT_FILTER,        commonMaxTotalCreditFilter(filter, TradeSetup::getNetCredit))
-                .step(FilterStage.MIN_CREDIT_FILTER,        commonMinTotalCreditFilter(filter, TradeSetup::getNetCredit))
-                .step(FilterStage.MAX_EXTRINSIC_VALUE_FILTER, commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
-                .step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter))
-                .step(FilterStage.BREAK_EVEN_FILTER,        trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()) && filter.passesMaxBreakEvenPercentage(trade.getUpperBreakEvenPercentage()));
+                .<TradeSetup>forContext(getStrategyName(filter), symbol, expiryDate);
+
+        if (filter.getMaxLossLimit() != null) {
+            tradePipeline.step(FilterStage.MAX_LOSS_FILTER, commonMaxLossFilter(filter, TradeSetup::getMaxLoss));
+        }
+        if (filter.getMinReturnOnRisk() != null) {
+            tradePipeline.step(FilterStage.MIN_RETURN_ON_RISK_FILTER, commonMinReturnOnRiskFilter(filter, TradeSetup::getNetCredit, TradeSetup::getMaxLoss));
+        }
+        if (filter.getMaxTotalCredit() != null) {
+            tradePipeline.step(FilterStage.MAX_CREDIT_FILTER, commonMaxTotalCreditFilter(filter, TradeSetup::getNetCredit));
+        }
+        if (filter.getMinTotalCredit() != null) {
+            tradePipeline.step(FilterStage.MIN_CREDIT_FILTER, commonMinTotalCreditFilter(filter, TradeSetup::getNetCredit));
+        }
+        if (filter.getMaxNetExtrinsicValueToPricePercentage() != null) {
+            tradePipeline.step(FilterStage.MAX_EXTRINSIC_VALUE_FILTER, commonMaxNetExtrinsicValueToPricePercentageFilter(filter));
+        }
+        if (filter.getMinNetExtrinsicValueToPricePercentage() != null) {
+            tradePipeline.step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter));
+        }
+        if (filter.getMaxBreakEvenPercentage() != null) {
+            tradePipeline.step(FilterStage.BREAK_EVEN_FILTER, trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()) && filter.passesMaxBreakEvenPercentage(trade.getUpperBreakEvenPercentage()));
+        }
 
         return applyTradeMathFilterExpressions(tradePipeline, filter).run(mapped);
     }

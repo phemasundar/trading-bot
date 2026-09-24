@@ -70,32 +70,70 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
         List<BWBCandidate> candidates = generateCandidates(callMap, sortedStrikes, chain.getUnderlyingPrice()).toList();
         FilterLogStore.getInstance().logFilter(strategyName, symbol, expiryDate, FilterStage.GENERATED_CANDIDATES.displayName(), candidates.size(), candidates.size());
 
-        List<BWBCandidate> survived = FilterPipeline
-                .<BWBCandidate>forContext(strategyName, symbol, expiryDate)
-                .step(FilterStage.DELTA_FILTER,           deltaFilter(leg1Filter, leg2Filter, leg3Filter))
-                .step(FilterStage.LEG_PREMIUM_FILTER,     legPremiumFilter(leg1Filter, leg2Filter, leg3Filter))
-                .step(FilterStage.VOLUME_FILTER,          volumeFilter(leg1Filter, leg2Filter, leg3Filter))
-                .step(FilterStage.OPEN_INTEREST_FILTER,   openInterestFilter(leg1Filter, leg2Filter, leg3Filter))
-                .step(FilterStage.LEG_VOLATILITY_FILTER,  volatilityFilter(leg1Filter, leg2Filter, leg3Filter))
-                .step("Leg Conditions Filter",            c -> LegFilter.passes(leg1Filter, c.leg1()) && LegFilter.passes(leg2Filter, c.leg2()) && LegFilter.passes(leg3Filter, c.leg3()))
-                .step(FilterStage.DEFAULT_DEBIT_FILTER,      defaultDebitFilter())
-                .step(FilterStage.WING_WIDTH_RATIO_FILTER,   wingWidthRatioFilter())
-                .step(FilterStage.DEBIT_VS_PRICE_FILTER,     debitVsPriceFilter(filter))
-                .step(FilterStage.DEBIT_LIMIT_FILTER,        debitFilter(filter))
-                .step(FilterStage.CREDIT_FILTER,             creditFilter(filter))
-                .step(FilterStage.MAX_LOSS_FILTER,           maxLossFilter(filter))
-                .step(FilterStage.MIN_RETURN_ON_RISK_FILTER, commonMinReturnOnRiskFilter(filter, BWBCandidate::maxProfit, BWBCandidate::maxLoss))
-                .step(FilterStage.MIN_RETURN_ON_RISK_CAGR_FILTER, commonMinReturnOnRiskCAGRFilter(filter, BWBCandidate::maxProfit, BWBCandidate::maxLoss, c -> c.leg1().getDaysToExpiration()))
-                .step(FilterStage.UPPER_BREAKEVEN_FILTER,    upperBreakevenFilter(filter, callMap, sortedStrikes))
-                .run(candidates);
+        FilterPipeline<BWBCandidate> candidatePipeline = FilterPipeline
+                .<BWBCandidate>forContext(strategyName, symbol, expiryDate);
+
+        if (hasLegacyDelta(leg1Filter, leg2Filter, leg3Filter)) {
+            candidatePipeline.step(FilterStage.DELTA_FILTER, deltaFilter(leg1Filter, leg2Filter, leg3Filter));
+        }
+        if (hasLegacyPremium(leg1Filter, leg2Filter, leg3Filter)) {
+            candidatePipeline.step(FilterStage.LEG_PREMIUM_FILTER, legPremiumFilter(leg1Filter, leg2Filter, leg3Filter));
+        }
+        if (hasLegacyVolume(leg1Filter, leg2Filter, leg3Filter)) {
+            candidatePipeline.step(FilterStage.VOLUME_FILTER, volumeFilter(leg1Filter, leg2Filter, leg3Filter));
+        }
+        if (hasLegacyOpenInterest(leg1Filter, leg2Filter, leg3Filter)) {
+            candidatePipeline.step(FilterStage.OPEN_INTEREST_FILTER, openInterestFilter(leg1Filter, leg2Filter, leg3Filter));
+        }
+        if (hasLegacyVolatility(leg1Filter, leg2Filter, leg3Filter)) {
+            candidatePipeline.step(FilterStage.LEG_VOLATILITY_FILTER, volatilityFilter(leg1Filter, leg2Filter, leg3Filter));
+        }
+
+        applyLegFilterExpressions(candidatePipeline, leg1Filter, "leg1Long", BWBCandidate::leg1);
+        applyLegFilterExpressions(candidatePipeline, leg2Filter, "leg2Short", BWBCandidate::leg2);
+        applyLegFilterExpressions(candidatePipeline, leg3Filter, "leg3Long", BWBCandidate::leg3);
+
+        candidatePipeline.step(FilterStage.DEFAULT_DEBIT_FILTER, defaultDebitFilter())
+                .step(FilterStage.WING_WIDTH_RATIO_FILTER, wingWidthRatioFilter());
+
+        if (filter.getPriceVsMaxDebitRatio() != null) {
+            candidatePipeline.step(FilterStage.DEBIT_VS_PRICE_FILTER, debitVsPriceFilter(filter));
+        }
+        if (filter.getMaxTotalDebit() != null) {
+            candidatePipeline.step(FilterStage.DEBIT_LIMIT_FILTER, debitFilter(filter));
+        }
+        if (filter.getMinTotalCredit() != null || filter.getMaxTotalCredit() != null) {
+            candidatePipeline.step(FilterStage.CREDIT_FILTER, creditFilter(filter));
+        }
+        if (filter.getMaxLossLimit() != null) {
+            candidatePipeline.step(FilterStage.MAX_LOSS_FILTER, maxLossFilter(filter));
+        }
+        if (filter.getMinReturnOnRisk() != null) {
+            candidatePipeline.step(FilterStage.MIN_RETURN_ON_RISK_FILTER, commonMinReturnOnRiskFilter(filter, BWBCandidate::maxProfit, BWBCandidate::maxLoss));
+        }
+        if (filter.getMinReturnOnRiskCAGR() != null) {
+            candidatePipeline.step(FilterStage.MIN_RETURN_ON_RISK_CAGR_FILTER, commonMinReturnOnRiskCAGRFilter(filter, BWBCandidate::maxProfit, BWBCandidate::maxLoss, c -> c.leg1().getDaysToExpiration()));
+        }
+        if (filter.getMaxUpperBreakevenDelta() != null) {
+            candidatePipeline.step(FilterStage.UPPER_BREAKEVEN_FILTER, upperBreakevenFilter(filter, callMap, sortedStrikes));
+        }
+
+        List<BWBCandidate> survived = candidatePipeline.run(candidates);
 
         List<TradeSetup> mapped = survived.stream().map(c -> buildTradeSetup(c, callMap, sortedStrikes)).toList();
 
         FilterPipeline<TradeSetup> tradePipeline = FilterPipeline
-                .<TradeSetup>forContext(strategyName, symbol, expiryDate)
-                .step(FilterStage.MAX_EXTRINSIC_VALUE_FILTER, commonMaxNetExtrinsicValueToPricePercentageFilter(filter))
-                .step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter))
-                .step(FilterStage.BREAK_EVEN_FILTER,          trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()));
+                .<TradeSetup>forContext(strategyName, symbol, expiryDate);
+
+        if (filter.getMaxNetExtrinsicValueToPricePercentage() != null) {
+            tradePipeline.step(FilterStage.MAX_EXTRINSIC_VALUE_FILTER, commonMaxNetExtrinsicValueToPricePercentageFilter(filter));
+        }
+        if (filter.getMinNetExtrinsicValueToPricePercentage() != null) {
+            tradePipeline.step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter));
+        }
+        if (filter.getMaxBreakEvenPercentage() != null) {
+            tradePipeline.step(FilterStage.BREAK_EVEN_FILTER, trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()));
+        }
 
         List<TradeSetup> result = applyTradeMathFilterExpressions(tradePipeline, filter).run(mapped);
 
