@@ -297,6 +297,12 @@ function createSecurityCardHtml(symbol, data) {
     const volSma20 = data.volumeMaValues?.[20] ?? null;
     const atr = data.atr ?? null;
     const hvRank = data.historicalVolatilityRank ?? null;
+    const ivPercentile = data.ivPercentile ?? null;
+    const ivRank = data.ivRank ?? null;
+    const ivDays = data.ivDays ?? data.recordCount ?? null;
+    const hasIvData = ivPercentile != null || ivRank != null;
+    const isLessThanOneYear = ivDays != null && ivDays > 0 && ivDays < 252;
+    const ivLabel = `IV Percentile / IV Rank${isLessThanOneYear ? ` (${ivDays})` : ''}`;
 
     // 1. Primary Alert Pill
     let pillText = '⚡ MOMENTUM TRACKER';
@@ -461,6 +467,17 @@ function createSecurityCardHtml(symbol, data) {
                             <span class="sec-metric-label">ATR (14) / HV Rank</span>
                             <span class="sec-metric-values">${atr ? '$' + atr.toFixed(2) : '—'} / ${hvRank != null ? hvRank.toFixed(1) + '%' : '—'}</span>
                         </div>` : ''}
+
+                        <div class="sec-metric-row">
+                            <span class="sec-metric-label">
+                                ${ivLabel}
+                                ${hasIvData && ivPercentile != null ? `
+                                <span class="badge ${ivPercentile < 30 ? 'badge-subtle' : (ivPercentile > 70 ? 'badge-warning' : 'badge-subtle')} badge-inline">
+                                    ${ivPercentile < 30 ? 'Low IV' : (ivPercentile > 70 ? 'High IV' : 'Normal')}
+                                </span>` : ''}
+                            </span>
+                            <span class="sec-metric-values">${hasIvData ? `${ivPercentile != null ? ivPercentile.toFixed(1) + '%' : '—'} / ${ivRank != null ? ivRank.toFixed(1) + '%' : '—'}` : 'NA'}</span>
+                        </div>
                     </div>
 
                     <div class="sec-playbook-callout">

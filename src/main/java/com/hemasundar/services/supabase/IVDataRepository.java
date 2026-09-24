@@ -6,13 +6,18 @@ import io.restassured.response.Response;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * Repository for handling IV data operations with Supabase.
@@ -26,6 +31,7 @@ public class IVDataRepository {
     private static final int MIN_RECORDS_REQUIRED = 20;
 
     private final SupabaseClient client;
+    private final Map<String, Map<String, Object>> ivStatsCache = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * Upserts (inserts or updates) IV data point to Supabase.
@@ -54,6 +60,7 @@ public class IVDataRepository {
                 int statusCode = response.getStatusCode();
 
                 if (statusCode == 200 || statusCode == 201) {
+                    ivStatsCache.remove(symbol.toUpperCase());
                     log.info("[{}] Successfully upserted IV data for {} - PUT: {}%, CALL: {}%",
                             symbol, date, dataPoint.getAtmPutIV(), dataPoint.getAtmCallIV());
                     return; // Success
@@ -252,6 +259,13 @@ public class IVDataRepository {
      * @throws IOException if the Supabase API call fails
      */
     public Map<String, Object> getIVStats(String symbol) throws IOException {
+        if (symbol == null) return null;
+        String symUpper = symbol.toUpperCase();
+        Map<String, Object> cached = ivStatsCache.get(symUpper);
+        if (cached != null) {
+            return cached;
+        }
+
         List<Map<String, Object>> rows = fetchIVRows(symbol);
         if (rows == null)
             return null;
@@ -271,13 +285,49 @@ public class IVDataRepository {
                 .filter(row -> toAvgIV(row, symbol) < currentIV)
                 .count();
         double ivPercentile = (double) daysBelow / rows.size() * 100.0;
+        double ivRank = (maxIV > minIV) ? ((currentIV - minIV) / (maxIV - minIV) * 100.0) : 0.0;
 
         Map<String, Object> stats = new java.util.LinkedHashMap<>();
         stats.put("currentIV", Math.round(currentIV * 100.0) / 100.0);
         stats.put("minIV", Math.round(minIV * 100.0) / 100.0);
         stats.put("maxIV", Math.round(maxIV * 100.0) / 100.0);
         stats.put("ivPercentile", Math.round(ivPercentile * 10.0) / 10.0);
+        stats.put("ivRank", Math.round(ivRank * 10.0) / 10.0);
         stats.put("recordCount", rows.size());
+        ivStatsCache.put(symUpper, stats);
         return stats;
+    }
+
+    /**
+     * Clears the in-memory IV stats cache.
+     */
+    public void clearIVStatsCache() {
+        ivStatsCache.clear();
+    }
+
+    /**
+     * Computes IV statistics for multiple symbols in parallel.
+     *
+     * @param symbols collection of stock tickers
+     * @return map of uppercase symbol to IV stats map
+     */
+    public Map<String, Map<String, Object>> getIVStatsForSymbols(Collection<String> symbols) {
+        if (CollectionUtils.isEmpty(symbols)) {
+            return Collections.emptyMap();
+        }
+        return symbols.parallelStream()
+                .map(symbol -> {
+                    try {
+                        Map<String, Object> stats = getIVStats(symbol);
+                        if (stats != null) {
+                            return Map.entry(symbol.toUpperCase(), stats);
+                        }
+                    } catch (Exception e) {
+                        log.debug("[{}] Unable to fetch IV stats: {}", symbol, e.getMessage());
+                    }
+                    return null;
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toConcurrentMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 }

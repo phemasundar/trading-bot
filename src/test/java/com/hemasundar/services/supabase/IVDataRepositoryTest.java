@@ -226,7 +226,13 @@ public class IVDataRepositoryTest {
         assertEquals(stats.get("currentIV"), 0.35);
         assertEquals(stats.get("minIV"), 0.15);
         assertEquals(stats.get("maxIV"), 0.55);
+        assertEquals(stats.get("ivRank"), 50.0);
         assertEquals(stats.get("recordCount"), 20);
+
+        // Second call should hit the cache without calling client again
+        java.util.Map<String, Object> cachedStats = repository.getIVStats("AAPL");
+        assertEquals(cachedStats, stats);
+        verify(requestSpec, times(1)).get(anyString());
     }
 
     @Test
@@ -299,6 +305,31 @@ public class IVDataRepositoryTest {
         Double ivPercentile = repository.getIVPercentile("AAPL");
 
         assertNull(ivPercentile);
+    }
+
+    @Test
+    public void testGetIVStatsForSymbols_Success() throws IOException {
+        StringBuilder sb = new StringBuilder("[");
+        sb.append("{\"date\":\"2026-07-20\",\"put_iv\":0.40,\"call_iv\":0.30},");
+        sb.append("{\"date\":\"2026-07-19\",\"put_iv\":0.20,\"call_iv\":0.10},");
+        sb.append("{\"date\":\"2026-07-18\",\"put_iv\":0.60,\"call_iv\":0.50}");
+        for (int i = 3; i < 20; i++) {
+            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.35,\"call_iv\":0.35}", 20 - i));
+        }
+        sb.append("]");
+        String mockResponseString = sb.toString();
+
+        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
+        when(requestSpec.get(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn(mockResponseString);
+
+        java.util.Map<String, java.util.Map<String, Object>> map = repository.getIVStatsForSymbols(java.util.List.of("AAPL"));
+        assertNotNull(map);
+        assertTrue(map.containsKey("AAPL"));
+        assertEquals(map.get("AAPL").get("currentIV"), 0.35);
+        assertEquals(map.get("AAPL").get("ivRank"), 50.0);
     }
 
     private IVDataPoint createSampleDataPoint() {

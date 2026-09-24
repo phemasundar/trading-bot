@@ -3,12 +3,23 @@ package com.hemasundar.services;
 import com.hemasundar.dto.ExecutionResult;
 import com.hemasundar.pojos.IVDataPoint;
 import com.hemasundar.services.supabase.*;
+import com.hemasundar.technical.TechnicalScreener.ScreeningResult;
 import lombok.extern.log4j.Log4j2;
 
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Service to interact with Supabase REST API for storing IV data and strategy
@@ -66,6 +77,17 @@ public class SupabaseService {
      */
     public Double getIVPercentile(String symbol) throws IOException {
         return ivDataRepository.getIVPercentile(symbol);
+    }
+
+    /**
+     * Computes the IV statistics (including IV Rank and IV Percentile) for a symbol.
+     *
+     * @param symbol stock ticker
+     * @return map of IV stats, or null if fewer than 20 data points are available
+     * @throws IOException if the Supabase API call fails
+     */
+    public Map<String, Object> getIVStats(String symbol) throws IOException {
+        return ivDataRepository.getIVStats(symbol);
     }
 
     /**
@@ -175,24 +197,98 @@ public class SupabaseService {
 
     /**
      * Saves or updates calculated technical indicators for a collection of securities.
-     * Replaces existing records for matching symbols in latest_security_indicators.
+     * Enriches them with IV metrics (IV Percentile, IV Rank, Current IV) so they are
+     * pre-cached into Supabase latest_security_indicators.
      */
-    public void saveSecurityIndicators(java.util.List<com.hemasundar.technical.TechnicalScreener.ScreeningResult> results) throws IOException {
+    public void saveSecurityIndicators(List<ScreeningResult> results) throws IOException {
+        if (CollectionUtils.isNotEmpty(results)) {
+            enrichListWithIVData(results);
+        }
         securityIndicatorsRepository.saveSecurityIndicators(results);
+    }
+
+    /**
+     * Refreshes and caches IV metrics into latest_security_indicators table for the specified symbols.
+     *
+     * @param symbols collection of stock tickers
+     * @throws IOException if Supabase API calls fail
+     */
+    public void updateSecurityIndicatorsIV(Collection<String> symbols) throws IOException {
+        if (CollectionUtils.isEmpty(symbols)) {
+            return;
+        }
+        Map<String, ScreeningResult> existing = securityIndicatorsRepository.getSecurityIndicatorsForSymbols(symbols);
+        if (MapUtils.isNotEmpty(existing)) {
+            List<ScreeningResult> toUpdate = new ArrayList<>(existing.values());
+            enrichListWithIVData(toUpdate);
+            securityIndicatorsRepository.saveSecurityIndicators(toUpdate);
+            log.info("Refreshed IV metrics in latest_security_indicators for {} securities", toUpdate.size());
+        }
     }
 
     /**
      * Retrieves all saved security indicators from latest_security_indicators table.
      */
-    public java.util.List<com.hemasundar.technical.TechnicalScreener.ScreeningResult> getAllSecurityIndicators() throws IOException {
+    public List<ScreeningResult> getAllSecurityIndicators() throws IOException {
         return securityIndicatorsRepository.getAllSecurityIndicators();
     }
 
     /**
      * Retrieves saved security indicators for a specified set of ticker symbols.
+     * All indicators (technical filters and IV values) are read directly from the
+     * latest_security_indicators table with no on-the-fly calculations.
      */
-    public java.util.Map<String, com.hemasundar.technical.TechnicalScreener.ScreeningResult> getSecurityIndicatorsForSymbols(
-            java.util.Collection<String> symbols) throws IOException {
+    public Map<String, ScreeningResult> getSecurityIndicatorsForSymbols(
+            Collection<String> symbols) throws IOException {
         return securityIndicatorsRepository.getSecurityIndicatorsForSymbols(symbols);
+    }
+
+    /**
+     * Enriches a list of screening results with IV data before persistence.
+     *
+     * @param results list of ScreeningResult objects
+     */
+    private void enrichListWithIVData(List<ScreeningResult> results) {
+        if (CollectionUtils.isEmpty(results)) {
+            return;
+        }
+        try {
+            Set<String> symbols = results.stream()
+                    .filter(Objects::nonNull)
+                    .map(ScreeningResult::getSymbol)
+                    .filter(StringUtils::isNotBlank)
+                    .map(String::toUpperCase)
+                    .collect(Collectors.toSet());
+
+            Map<String, Map<String, Object>> ivStatsMap = ivDataRepository.getIVStatsForSymbols(symbols);
+            if (MapUtils.isNotEmpty(ivStatsMap)) {
+                for (ScreeningResult res : results) {
+                    if (res != null && res.getSymbol() != null) {
+                        Map<String, Object> stats = ivStatsMap.get(res.getSymbol().toUpperCase());
+                        applyStatsToResult(res, stats);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to enrich securities list with IV data: {}", e.getMessage());
+        }
+    }
+
+    private void applyStatsToResult(ScreeningResult res, Map<String, Object> stats) {
+        if (res == null || stats == null) {
+            return;
+        }
+        if (stats.get("ivPercentile") instanceof Number num) {
+            res.setIvPercentile(num.doubleValue());
+        }
+        if (stats.get("ivRank") instanceof Number num) {
+            res.setIvRank(num.doubleValue());
+        }
+        if (stats.get("currentIV") instanceof Number num) {
+            res.setCurrentIV(num.doubleValue());
+        }
+        if (stats.get("recordCount") instanceof Number num) {
+            res.setIvDays(num.intValue());
+        }
     }
 }

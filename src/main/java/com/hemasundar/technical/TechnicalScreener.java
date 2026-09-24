@@ -85,6 +85,18 @@ public class TechnicalScreener {
         private boolean rsiBearishCrossover;
         private Double historicalVolatilityRank;
 
+        /** Implied Volatility Percentile (0-100) computed from Supabase historical IV data. */
+        private Double ivPercentile;
+
+        /** Implied Volatility Rank (0-100) computed from Supabase historical IV data. */
+        private Double ivRank;
+
+        /** Current 30-day ATM implied volatility. */
+        private Double currentIV;
+
+        /** Number of historical IV records used for calculations (up to 1 year, ~252 trading days). */
+        private Integer ivDays;
+
         // Price drop screener fields
         private double dropPercent;
         private double referencePrice;

@@ -56,6 +56,8 @@ describe('Securities Screen JS Tests', () => {
             volumeMaValues: { 20: 9800000 },
             atr: 8.5,
             historicalVolatilityRank: 34.0,
+            ivPercentile: 45.2,
+            ivRank: 38.0,
             allTechnicalIndicatorsSummary: 'NBIS expanded to $226.00, pushing past its Daily 50 SMA ($219.37).'
         };
 
@@ -66,7 +68,49 @@ describe('Securities Screen JS Tests', () => {
         expect(html).toContain('PRICE ACTION PROGRESSION');
         expect(html).toContain('DYNAMIC MOVING AVERAGE TRACKER');
         expect(html).toContain('Daily EMA 50 / Daily SMA 50');
+        expect(html).toContain('IV Percentile / IV Rank');
+        expect(html).toContain('45.2%');
+        expect(html).toContain('38.0%');
         expect(html).toContain('Trading Playbook');
+    });
+
+    test('createSecurityCardHtml formats IV bracket count when records < 1 year', () => {
+        const mockData = {
+            symbol: 'AAPL',
+            currentPrice: 150.0,
+            ivPercentile: 65.0,
+            ivRank: 55.0,
+            ivDays: 120
+        };
+        const html = createSecurityCardHtml('AAPL', mockData);
+        expect(html).toContain('IV Percentile / IV Rank (120)');
+        expect(html).toContain('65.0% / 55.0%');
+    });
+
+    test('createSecurityCardHtml omits bracket when records >= 252 (1 year)', () => {
+        const mockData = {
+            symbol: 'AAPL',
+            currentPrice: 150.0,
+            ivPercentile: 65.0,
+            ivRank: 55.0,
+            ivDays: 252
+        };
+        const html = createSecurityCardHtml('AAPL', mockData);
+        expect(html).toContain('IV Percentile / IV Rank');
+        expect(html).not.toContain('IV Percentile / IV Rank (252)');
+        expect(html).toContain('65.0% / 55.0%');
+    });
+
+    test('createSecurityCardHtml displays NA when min IV records not available', () => {
+        const mockData = {
+            symbol: 'XYZ',
+            currentPrice: 50.0,
+            ivPercentile: null,
+            ivRank: null
+        };
+        const html = createSecurityCardHtml('XYZ', mockData);
+        expect(html).toContain('IV Percentile / IV Rank');
+        expect(html).toContain('NA');
     });
 
     test('createPendingCardHtml generates waiting card for uncalculated security', () => {

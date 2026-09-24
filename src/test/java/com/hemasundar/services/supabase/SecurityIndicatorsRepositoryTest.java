@@ -105,4 +105,24 @@ public class SecurityIndicatorsRepositoryTest {
         Assert.assertTrue(map.containsKey("AAPL"));
         Assert.assertEquals(map.get("AAPL").getCurrentPrice(), 224.0);
     }
+
+    @Test
+    public void testGetSecurityIndicatorsForSymbols_WithImpliedVolatility() throws IOException {
+        String json = "[{\"symbol\":\"AAPL\",\"company_name\":\"Apple Inc\",\"current_price\":224.0,"
+                + "\"volatility\":{\"impliedVolatility\":{\"ivPercentile\":55.0,\"ivRank\":42.0,\"currentIV\":0.32,\"recordCount\":120}}}]";
+
+        when(requestSpec.get(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(response);
+        when(response.asString()).thenReturn(json);
+
+        Map<String, ScreeningResult> map = repository.getSecurityIndicatorsForSymbols(List.of("AAPL"));
+        Assert.assertNotNull(map);
+        ScreeningResult res = map.get("AAPL");
+        Assert.assertNotNull(res);
+        Assert.assertEquals(res.getIvPercentile(), 55.0);
+        Assert.assertEquals(res.getIvRank(), 42.0);
+        Assert.assertEquals(res.getCurrentIV(), 0.32);
+        Assert.assertEquals(res.getIvDays(), Integer.valueOf(120));
+    }
 }
