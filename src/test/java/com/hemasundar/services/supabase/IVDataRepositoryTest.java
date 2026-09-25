@@ -90,13 +90,14 @@ public class IVDataRepositoryTest {
 
     @Test
     public void testGetIVRank_Success() throws IOException {
-        // 20 records: row 0 avg=0.35, row 1 avg=0.15 (min), row 2 avg=0.55 (max), rows 3-19 avg=0.35
+        // 21 records: row 0 (today) avg=0.35, row 1 avg=0.15 (min), row 2 avg=0.55 (max), rows 3-20 avg=0.35
+        // Historical baseline: 20 rows (indices 1-20). IV Rank = (0.35 - 0.15) / (0.55 - 0.15) * 100 = 50.0%
         StringBuilder sb = new StringBuilder("[");
-        sb.append("{\"date\":\"2026-07-20\",\"put_iv\":0.40,\"call_iv\":0.30},");
-        sb.append("{\"date\":\"2026-07-19\",\"put_iv\":0.20,\"call_iv\":0.10},");
-        sb.append("{\"date\":\"2026-07-18\",\"put_iv\":0.60,\"call_iv\":0.50}");
-        for (int i = 3; i < 20; i++) {
-            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.35,\"call_iv\":0.35}", 20 - i));
+        sb.append("{\"date\":\"2026-07-21\",\"put_iv\":0.40,\"call_iv\":0.30},");
+        sb.append("{\"date\":\"2026-07-20\",\"put_iv\":0.20,\"call_iv\":0.10},");
+        sb.append("{\"date\":\"2026-07-19\",\"put_iv\":0.60,\"call_iv\":0.50}");
+        for (int i = 3; i < 21; i++) {
+            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.35,\"call_iv\":0.35}", 21 - i));
         }
         sb.append("]");
         String mockResponseString = sb.toString();
@@ -115,9 +116,9 @@ public class IVDataRepositoryTest {
 
     @Test
     public void testGetIVRank_InsufficientData() throws IOException {
-        // Only 19 records (< 20 required threshold)
+        // 20 rows total → only 19 historical rows after excluding today → insufficient
         StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < 19; i++) {
+        for (int i = 0; i < 20; i++) {
             if (i > 0) sb.append(",");
             sb.append(String.format(java.util.Locale.US, "{\"date\":\"2026-07-%02d\",\"put_iv\":0.40,\"call_iv\":0.30}", i + 1));
         }
@@ -157,9 +158,9 @@ public class IVDataRepositoryTest {
 
     @Test
     public void testGetIVRank_MaxEqualsMin() throws IOException {
-        // 20 records all identical
+        // 21 records all identical → historical baseline has 20 identical rows
         StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 21; i++) {
             if (i > 0) sb.append(",");
             sb.append(String.format(java.util.Locale.US, "{\"date\":\"2026-07-%02d\",\"put_iv\":0.30,\"call_iv\":0.30}", i + 1));
         }
@@ -180,9 +181,9 @@ public class IVDataRepositoryTest {
 
     @Test
     public void testGetIVRank_NullPutAndCallIV() throws IOException {
-        // 20 records with null put/call IV
+        // 21 records with null put/call IV
         StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 21; i++) {
             if (i > 0) sb.append(",");
             sb.append(String.format(java.util.Locale.US, "{\"date\":\"2026-07-%02d\"}", i + 1));
         }
@@ -203,13 +204,14 @@ public class IVDataRepositoryTest {
 
     @Test
     public void testGetIVStats_Success() throws IOException {
-        // 20 records: row 0 avg=0.35, row 1 avg=0.15 (min), row 2 avg=0.55 (max), rows 3-19 avg=0.35
+        // 21 records: row 0 (today) avg=0.35, row 1 avg=0.15 (min), row 2 avg=0.55 (max), rows 3-20 avg=0.35
+        // Historical baseline: 20 rows. IV Rank = 50%, recordCount = 20
         StringBuilder sb = new StringBuilder("[");
-        sb.append("{\"date\":\"2026-07-20\",\"put_iv\":0.40,\"call_iv\":0.30},");
-        sb.append("{\"date\":\"2026-07-19\",\"put_iv\":0.20,\"call_iv\":0.10},");
-        sb.append("{\"date\":\"2026-07-18\",\"put_iv\":0.60,\"call_iv\":0.50}");
-        for (int i = 3; i < 20; i++) {
-            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.35,\"call_iv\":0.35}", 20 - i));
+        sb.append("{\"date\":\"2026-07-21\",\"put_iv\":0.40,\"call_iv\":0.30},");
+        sb.append("{\"date\":\"2026-07-20\",\"put_iv\":0.20,\"call_iv\":0.10},");
+        sb.append("{\"date\":\"2026-07-19\",\"put_iv\":0.60,\"call_iv\":0.50}");
+        for (int i = 3; i < 21; i++) {
+            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.35,\"call_iv\":0.35}", 21 - i));
         }
         sb.append("]");
         String mockResponseString = sb.toString();
@@ -237,9 +239,9 @@ public class IVDataRepositoryTest {
 
     @Test
     public void testGetIVStats_InsufficientData() throws IOException {
-        // 19 records (< 20 required threshold)
+        // 20 rows total → 19 historical rows after excluding today → insufficient
         StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < 19; i++) {
+        for (int i = 0; i < 20; i++) {
             if (i > 0) sb.append(",");
             sb.append(String.format(java.util.Locale.US, "{\"date\":\"2026-07-%02d\",\"put_iv\":0.40,\"call_iv\":0.30}", i + 1));
         }
@@ -259,16 +261,16 @@ public class IVDataRepositoryTest {
 
     @Test
     public void testGetIVPercentile_Success() throws IOException {
-        // 20 records: row 0 is current (avg 0.35).
-        // 5 records below 0.35 (avg 0.20), 14 records above or equal 0.35 (avg 0.50).
+        // 21 records: row 0 is current (avg 0.35). Historical: 20 rows.
+        // 5 historical records below 0.35 (avg 0.20), 15 historical at or above 0.35.
         // Percentile = 5 / 20 * 100 = 25.0%
         StringBuilder sb = new StringBuilder("[");
-        sb.append("{\"date\":\"2026-07-20\",\"put_iv\":0.35,\"call_iv\":0.35}");
+        sb.append("{\"date\":\"2026-07-21\",\"put_iv\":0.35,\"call_iv\":0.35}");
         for (int i = 1; i <= 5; i++) {
-            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.20,\"call_iv\":0.20}", 20 - i));
+            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.20,\"call_iv\":0.20}", 21 - i));
         }
-        for (int i = 6; i < 20; i++) {
-            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.50,\"call_iv\":0.50}", 20 - i));
+        for (int i = 6; i <= 20; i++) {
+            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.50,\"call_iv\":0.50}", 21 - i));
         }
         sb.append("]");
         String mockResponseString = sb.toString();
@@ -287,9 +289,9 @@ public class IVDataRepositoryTest {
 
     @Test
     public void testGetIVPercentile_InsufficientData() throws IOException {
-        // 19 records (< 20 required threshold)
+        // 20 rows total → 19 historical rows after excluding today → insufficient
         StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < 19; i++) {
+        for (int i = 0; i < 20; i++) {
             if (i > 0) sb.append(",");
             sb.append(String.format(java.util.Locale.US, "{\"date\":\"2026-07-%02d\",\"put_iv\":0.40,\"call_iv\":0.30}", i + 1));
         }
@@ -308,13 +310,61 @@ public class IVDataRepositoryTest {
     }
 
     @Test
+    public void testGetIVPercentile_CurrentHighest_Returns100() throws IOException {
+        // 21 records: row 0 (today) avg=0.60, all 20 historical rows avg=0.30 (all below)
+        // Percentile = 20 / 20 * 100 = 100.0%
+        StringBuilder sb = new StringBuilder("[");
+        sb.append("{\"date\":\"2026-07-21\",\"put_iv\":0.60,\"call_iv\":0.60}");
+        for (int i = 1; i <= 20; i++) {
+            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.30,\"call_iv\":0.30}", 21 - i));
+        }
+        sb.append("]");
+        String mockResponseString = sb.toString();
+
+        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
+        when(requestSpec.get(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn(mockResponseString);
+
+        Double ivPercentile = repository.getIVPercentile("AAPL");
+
+        assertNotNull(ivPercentile);
+        assertEquals(ivPercentile, 100.0, 0.01);
+    }
+
+    @Test
+    public void testGetIVPercentile_CurrentLowest_Returns0() throws IOException {
+        // 21 records: row 0 (today) avg=0.10, all 20 historical rows avg=0.50 (all above)
+        // Percentile = 0 / 20 * 100 = 0.0%
+        StringBuilder sb = new StringBuilder("[");
+        sb.append("{\"date\":\"2026-07-21\",\"put_iv\":0.10,\"call_iv\":0.10}");
+        for (int i = 1; i <= 20; i++) {
+            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.50,\"call_iv\":0.50}", 21 - i));
+        }
+        sb.append("]");
+        String mockResponseString = sb.toString();
+
+        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
+        when(requestSpec.get(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn(mockResponseString);
+
+        Double ivPercentile = repository.getIVPercentile("AAPL");
+
+        assertNotNull(ivPercentile);
+        assertEquals(ivPercentile, 0.0, 0.01);
+    }
+
+    @Test
     public void testGetIVStatsForSymbols_Success() throws IOException {
         StringBuilder sb = new StringBuilder("[");
-        sb.append("{\"date\":\"2026-07-20\",\"put_iv\":0.40,\"call_iv\":0.30},");
-        sb.append("{\"date\":\"2026-07-19\",\"put_iv\":0.20,\"call_iv\":0.10},");
-        sb.append("{\"date\":\"2026-07-18\",\"put_iv\":0.60,\"call_iv\":0.50}");
-        for (int i = 3; i < 20; i++) {
-            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.35,\"call_iv\":0.35}", 20 - i));
+        sb.append("{\"date\":\"2026-07-21\",\"put_iv\":0.40,\"call_iv\":0.30},");
+        sb.append("{\"date\":\"2026-07-20\",\"put_iv\":0.20,\"call_iv\":0.10},");
+        sb.append("{\"date\":\"2026-07-19\",\"put_iv\":0.60,\"call_iv\":0.50}");
+        for (int i = 3; i < 21; i++) {
+            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.35,\"call_iv\":0.35}", 21 - i));
         }
         sb.append("]");
         String mockResponseString = sb.toString();

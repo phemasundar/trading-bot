@@ -127,9 +127,14 @@ public class IVDataRepository {
             return null;
 
         double currentIV = toAvgIV(rows.get(0), symbol);
+        List<Map<String, Object>> historicalRows = getHistoricalBaseline(rows);
+        if (historicalRows.size() < MIN_RECORDS_REQUIRED) {
+            return null;
+        }
+
         double minIV = currentIV;
         double maxIV = currentIV;
-        for (Map<String, Object> row : rows) {
+        for (Map<String, Object> row : historicalRows) {
             double avg = toAvgIV(row, symbol);
             if (avg < minIV)
                 minIV = avg;
@@ -144,7 +149,7 @@ public class IVDataRepository {
 
         double ivRank = (currentIV - minIV) / (maxIV - minIV) * 100.0;
         log.debug("[{}] IV Rank = {:.1f}% (current={}, min={}, max={}, {} records)",
-                symbol, ivRank, currentIV, minIV, maxIV, rows.size());
+                symbol, ivRank, currentIV, minIV, maxIV, historicalRows.size());
         return ivRank;
     }
 
@@ -173,13 +178,18 @@ public class IVDataRepository {
             return null;
 
         double currentIV = toAvgIV(rows.get(0), symbol);
-        long daysBelow = rows.stream()
+        List<Map<String, Object>> historicalRows = getHistoricalBaseline(rows);
+        if (historicalRows.size() < MIN_RECORDS_REQUIRED) {
+            return null;
+        }
+
+        long daysBelow = historicalRows.stream()
                 .filter(row -> toAvgIV(row, symbol) < currentIV)
                 .count();
 
-        double ivPercentile = (double) daysBelow / rows.size() * 100.0;
+        double ivPercentile = (double) daysBelow / historicalRows.size() * 100.0;
         log.debug("[{}] IV Percentile = {:.1f}% ({} of {} days below current IV {})",
-                symbol, ivPercentile, daysBelow, rows.size(), currentIV);
+                symbol, ivPercentile, daysBelow, historicalRows.size(), currentIV);
         return ivPercentile;
     }
 
@@ -247,6 +257,15 @@ public class IVDataRepository {
     }
 
     /**
+     * Extracts the trailing historical baseline (excluding today's row) capped at 252 trading days.
+     * Commercial platforms evaluate IV metrics on a rolling 252-day window (1 calendar year of market sessions).
+     */
+    private List<Map<String, Object>> getHistoricalBaseline(List<Map<String, Object>> rows) {
+        // rows is ordered newest-first; rows.get(0) is today's observation
+        return rows.subList(1, Math.min(rows.size(), 253));
+    }
+
+    /**
      * Returns a map of IV statistics for a symbol over the past 1 year:
      * {@code minIV}, {@code maxIV}, {@code currentIV}, {@code recordCount}, and
      * {@code ivPercentile}.
@@ -271,9 +290,14 @@ public class IVDataRepository {
             return null;
 
         double currentIV = toAvgIV(rows.get(0), symbol);
+        List<Map<String, Object>> historicalRows = getHistoricalBaseline(rows);
+        if (historicalRows.size() < MIN_RECORDS_REQUIRED) {
+            return null;
+        }
+
         double minIV = currentIV;
         double maxIV = currentIV;
-        for (Map<String, Object> row : rows) {
+        for (Map<String, Object> row : historicalRows) {
             double avg = toAvgIV(row, symbol);
             if (avg < minIV)
                 minIV = avg;
@@ -281,10 +305,10 @@ public class IVDataRepository {
                 maxIV = avg;
         }
 
-        long daysBelow = rows.stream()
+        long daysBelow = historicalRows.stream()
                 .filter(row -> toAvgIV(row, symbol) < currentIV)
                 .count();
-        double ivPercentile = (double) daysBelow / rows.size() * 100.0;
+        double ivPercentile = (double) daysBelow / historicalRows.size() * 100.0;
         double ivRank = (maxIV > minIV) ? ((currentIV - minIV) / (maxIV - minIV) * 100.0) : 0.0;
 
         Map<String, Object> stats = new java.util.LinkedHashMap<>();
@@ -293,7 +317,7 @@ public class IVDataRepository {
         stats.put("maxIV", Math.round(maxIV * 100.0) / 100.0);
         stats.put("ivPercentile", Math.round(ivPercentile * 10.0) / 10.0);
         stats.put("ivRank", Math.round(ivRank * 10.0) / 10.0);
-        stats.put("recordCount", rows.size());
+        stats.put("recordCount", historicalRows.size());
         ivStatsCache.put(symUpper, stats);
         return stats;
     }
