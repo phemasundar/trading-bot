@@ -82,4 +82,13 @@ public class LongCallLeap implements TradeSetup {
         return (finalCostOfOption / currentPrice) * 100.0;
     }
 
+    @Override
+    public String getStrategyType() {
+        return "LONG_CALL_LEAP";
+    }
+
+    @Override
+    public Double getCostSavingsPercent() {
+        return costSavingsPercent;
+    }
 }

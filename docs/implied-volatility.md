@@ -44,6 +44,41 @@ flowchart TD
 5. **Timestamping**: Converts the option quote millisecond timestamp into a `LocalDate` (market date) rather than local system date to preserve accurate trading session alignment.
 6. **Supabase Upsert**: Saves records via [IVDataRepository.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java) using PostgreSQL `ON CONFLICT (symbol, date) DO UPDATE`, setting `dte = 30` and `put_iv = call_iv = \sigma_{30}`.
 
+### Constant-Maturity Variance Interpolation (Deep Dive)
+
+Commercial derivatives platforms (CBOE VIX, ThinkorSwim, Market Chameleon) synthesize constant 30-day volatility using **total variance additivity** rather than simple linear volatility interpolation.
+
+#### Why Linear IV Interpolation is Flawed
+Implied volatility $\sigma$ does not scale linearly with time; **total variance** ($\sigma^2 \times T$) is the additive quantity under Brownian motion:
+$$\text{Total Variance} = \sigma^2 \cdot T$$
+
+Interpolating $\sigma$ linearly underestimates or overestimates cumulative option market risk whenever term structure exhibits curvature or contango/backwardation.
+
+#### Variance Interpolation Derivation
+To obtain a synthetic 30-day maturity ($T_{30} = 30 / 365$):
+$$\sigma_{30}^2 \cdot T_{30} = w_1 \cdot (\sigma_1^2 \cdot T_1) + w_2 \cdot (\sigma_2^2 \cdot T_2)$$
+
+Where the time weights are proportional to distance from 30 DTE:
+$$w_1 = \frac{\text{DTE}_2 - 30}{\text{DTE}_2 - \text{DTE}_1}, \quad w_2 = \frac{30 - \text{DTE}_1}{\text{DTE}_2 - \text{DTE}_1}$$
+
+Because the year fraction factor ($365$) cancels across numerator and denominator, the 30-day annualized volatility simplifies cleanly:
+$$\sigma_{30} = \sqrt{\frac{\sigma_1^2 \cdot \text{DTE}_1 \cdot w_1 + \sigma_2^2 \cdot \text{DTE}_2 \cdot w_2}{30}}$$
+
+#### Worked Comparison: Linear vs. Variance Interpolation
+Consider an asset with:
+- Near-term ($T_1$): $\text{DTE}_1 = 25$ days, $\sigma_1 = 30.0\%$
+- Next-term ($T_2$): $\text{DTE}_2 = 35$ days, $\sigma_2 = 40.0\%$
+
+1. **Linear Interpolation (Naive)**:
+   $$\sigma_{\text{linear}} = 30.0 + (40.0 - 30.0) \times \frac{30 - 25}{35 - 25} = 35.00\%$$
+
+2. **Total Variance Interpolation (Project Implementation)**:
+   $$w_1 = \frac{35 - 30}{35 - 25} = 0.5, \quad w_2 = \frac{30 - 25}{35 - 25} = 0.5$$
+   $$\text{Numerator} = (30.0^2 \times 25 \times 0.5) + (40.0^2 \times 35 \times 0.5) = 11{,}250 + 28{,}000 = 39{,}250$$
+   $$\sigma_{30} = \sqrt{\frac{39{,}250}{30}} = \sqrt{1{,}308.33} \approx \mathbf{36.17\%}$$
+
+The constant-maturity variance method accurately accounts for the greater total variance carried by the longer-dated options.
+
 ---
 
 ## 2. How IV Percentile Is Calculated

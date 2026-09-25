@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
@@ -30,6 +31,7 @@ public class FilePaths {
 
     public static final String strategiesConfig = "strategies-config.yml";
     public static final String strategyGreeksConfig = "strategy-greeks.yml";
+    public static final String strategyColumnsConfig = "strategy-columns.yml";
     public static final String securitiesFiltersConfig = "securities-filters.yml";
 
     /**
@@ -43,6 +45,10 @@ public class FilePaths {
      * @throws IOException if the resource is not found or cannot be read
      */
     public static String readResource(String resourcePath) throws IOException {
+        Path localPath = Path.of("src/main/resources", resourcePath);
+        if (Files.exists(localPath)) {
+            return Files.readString(localPath, StandardCharsets.UTF_8);
+        }
         try (InputStream is = FilePaths.class.getClassLoader().getResourceAsStream(resourcePath)) {
             if (is == null) {
                 throw new IOException("Classpath resource not found: " + resourcePath);

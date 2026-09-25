@@ -28,6 +28,16 @@ public class Trade {
     private String symbol;
 
     /**
+     * Strategy type (e.g., "LONG_CALL_LEAP")
+     */
+    private String strategyType;
+
+    /**
+     * Cost savings percentage comparing option route vs buying stock.
+     */
+    private Double costSavingsPercent;
+
+    /**
      * Company full name
      */
     private String companyName;
@@ -187,10 +197,18 @@ public class Trade {
             details.append(" [CAGR: ").append(String.format("%.2f", cagr)).append("%]");
         }
 
+        Double costSavings = setup.getCostSavingsPercent();
+        String strategyType = setup.getStrategyType();
         if (setup instanceof LongCallLeap leap) {
+            if (costSavings == null) {
+                costSavings = leap.getCostSavingsPercent();
+            }
+            if (strategyType == null) {
+                strategyType = "LONG_CALL_LEAP";
+            }
             double costOpt = leap.getFinalCostOfOption();
             double costStock = leap.getFinalCostOfBuying();
-            double diffPct = costStock > 0 ? ((costStock - costOpt) / costStock) * 100 : 0;
+            double diffPct = costSavings != null ? costSavings : (costStock > 0 ? ((costStock - costOpt) / costStock) * 100 : 0);
             details.append("\nCost (Opt/Stock): $").append(String.format("%.2f", costOpt))
                     .append(" / $").append(String.format("%.2f", costStock))
                     .append(" (").append(String.format("%.1f", diffPct)).append("% cheaper)");
@@ -212,6 +230,8 @@ public class Trade {
         return Trade.builder()
                 .companyName(compName)
                 .symbol(symbol)
+                .strategyType(strategyType)
+                .costSavingsPercent(costSavings)
                 .underlyingPrice(setup.getCurrentPrice())
                 .expiryDate(setup.getExpiryDate())
                 .dte(setup.getDaysToExpiration())
