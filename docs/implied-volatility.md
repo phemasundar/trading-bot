@@ -13,7 +13,7 @@ To compute IV Rank and IV Percentile without incurring heavy real-time option ch
 ```mermaid
 flowchart TD
     Job[IVDataJobService<br>Daily Scheduled Run / Manual] --> Schwab[Schwab API<br>ThinkOrSwim Option Chain]
-    Schwab --> Collector[IVDataCollector<br>Extract ~30 DTE ATM Put & Call IV]
+    Schwab --> Collector[IVDataCollector<br>Bracket 30 DTE & Variance Interpolate]
     Collector --> Repo[IVDataRepository<br>Upsert into public.iv_data]
     Repo --> Supabase[(Supabase DB<br>public.iv_data table)]
     
@@ -26,25 +26,31 @@ flowchart TD
 
 ### Collection Mechanics ([IVDataCollector.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/IVDataCollector.java))
 
-1. **Option Chain Retrieval**: Calls `ThinkOrSwimAPIs.getOptionChain(symbol)`.
-2. **Expiry Selection**: Finds the expiration cycle closest to 30 DTE:
-   - Target: `TARGET_DTE = 30`, with a search window of `[0, 60]` DTE (`DTE_TOLERANCE = 30`).
-3. **ATM Strike Selection**: Locates the strike price minimizing absolute distance to current underlying price:
-   $$\text{ATM Strike} = \arg\min_{\text{strike}} |\text{strike} - \text{underlyingPrice}|$$
-4. **IV Extraction & Normalization**:
-   - Reads the option contract volatility (`option.getVolatility()`).
-   - Normalizes decimal values ($< 5.0$) to percentage form ($\times 100$).
-   - Captures both `atmPutIV` and `atmCallIV`.
+1. **Option Chain Retrieval**: Calls [`ThinkOrSwimAPIs.getOptionChain(symbol)`](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/apis/ThinkOrSwimAPIs.java) to retrieve all expiries and strikes.
+2. **Dual-Expiry Bracketing**: Finds the two expiration cycles bracketing 30 DTE:
+   - **Near-term ($T_1$)**: Largest DTE $\le 30$ with DTE $\ge 7$ (relaxed to $\ge 1$ if no expiration exists in $[7, 30]$ to suppress near-expiry gamma/expiration noise).
+   - **Next-term ($T_2$)**: Smallest DTE $> 30$.
+   - **Exact Match**: If an expiry has exactly 30 DTE, it is used directly without interpolation.
+3. **Per-Expiry ATM Strike & Liquidity Validation**:
+   - Locates ATM strike minimizing distance to underlying:
+     $$\text{ATM Strike} = \arg\min_{\text{strike}} |\text{strike} - \text{underlyingPrice}|$$
+   - Validates quote liquidity: requires $\text{bid} > 0$, $\text{ask} \ge \text{bid}$, and $\text{volatility} > 0$.
+   - Averages valid Call and Put ATM IV: $\sigma = \frac{\sigma_{\text{call}} + \sigma_{\text{put}}}{2.0}$ (or falls back to single valid side if one side lacks bid liquidity).
+4. **Constant-Maturity Total Variance Interpolation**:
+   - Synthesizes constant 30-day IV using CBOE VIX variance additivity:
+     $$w_1 = \frac{\text{DTE}_2 - 30}{\text{DTE}_2 - \text{DTE}_1}, \quad w_2 = \frac{30 - \text{DTE}_1}{\text{DTE}_2 - \text{DTE}_1}$$
+     $$\sigma_{30} = \sqrt{\frac{\sigma_1^2 \cdot \text{DTE}_1 \cdot w_1 + \sigma_2^2 \cdot \text{DTE}_2 \cdot w_2}{30}}$$
+   - Fallback: If only one bracketing expiry is available or valid, falls back gracefully to that expiry's blended ATM IV.
 5. **Timestamping**: Converts the option quote millisecond timestamp into a `LocalDate` (market date) rather than local system date to preserve accurate trading session alignment.
-6. **Supabase Upsert**: Saves records via [IVDataRepository.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java) using PostgreSQL `ON CONFLICT (symbol, date) DO UPDATE`.
+6. **Supabase Upsert**: Saves records via [IVDataRepository.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java) using PostgreSQL `ON CONFLICT (symbol, date) DO UPDATE`, setting `dte = 30` and `put_iv = call_iv = \sigma_{30}`.
 
 ---
 
 ## 2. How IV Percentile Is Calculated
 
-**IV Percentile** measures the percentage of historical trading days over the past 1 year where the asset's implied volatility was **lower** than today's implied volatility.
+**IV Percentile** measures the percentage of historical trading days over the trailing 1-year baseline where the asset's implied volatility was **lower** than today's implied volatility.
 
-### Implementation Details ([IVDataRepository.java:L145-L177](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java#L145-L177))
+### Implementation Details ([IVDataRepository.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java))
 
 #### Step 1: Historical Data Fetch
 Fetches up to 1 year of historical daily IV records from Supabase:
@@ -56,10 +62,14 @@ WHERE symbol = :symbol
 ORDER BY date DESC;
 ```
 
-#### Step 2: Minimum Record Threshold (Fail-Open)
-A minimum of **20 historical trading records** (~1 trading month) is required:
+#### Step 2: Historical Baseline & Minimum Record Threshold
+To eliminate self-comparison bias (today-bias) and adhere to commercial platform standards:
+1. `rows.get(0)` is today's current observation (`currentIV`).
+2. The trailing historical baseline is extracted as `rows.subList(1, Math.min(rows.size(), 253))`, capping at exactly **252 historical trading days** (1 standard market year) and explicitly **excluding today**.
+3. A minimum of **20 historical trading records** (~1 trading month) is required:
 ```java
-if (rows == null || rows.size() < MIN_RECORDS_REQUIRED) { // MIN_RECORDS_REQUIRED = 20
+List<Map<String, Object>> historicalRows = getHistoricalBaseline(rows);
+if (historicalRows.size() < MIN_RECORDS_REQUIRED) { // MIN_RECORDS_REQUIRED = 20
     return null; // Returns null to fail-open (trade is permitted)
 }
 ```
@@ -73,39 +83,47 @@ $$\text{avgIV}(\text{row}) = \begin{cases}
 0.0, & \text{if both are null}
 \end{cases}$$
 
-Current IV is defined as the most recent day's blended average:
+Current IV is defined as today's observation:
 $$\text{currentIV} = \text{avgIV}(\text{rows}[0])$$
 
 #### Step 4: Frequency Count & Percentile Calculation
-The system counts the number of historical days where average IV was strictly less than `currentIV`:
-$$\text{daysBelow} = \sum_{i=0}^{N-1} \mathbf{1}_{[\text{avgIV}(\text{rows}[i]) < \text{currentIV}]}$$
+The system counts the number of historical baseline days where average IV was strictly less than `currentIV`:
+$$\text{daysBelow} = \sum_{i=1}^{M} \mathbf{1}_{[\text{avgIV}(\text{historicalRows}[i-1]) < \text{currentIV}]}$$
 
-$$\text{IV Percentile} = \left( \frac{\text{daysBelow}}{N} \right) \times 100.0$$
+$$\text{IV Percentile} = \left( \frac{\text{daysBelow}}{M} \right) \times 100.0$$
 
-Where $N = \text{rows.size()}$ (total available records in the 1-year lookback).
+Where $M = \text{historicalRows.size()}$ ($20 \le M \le 252$).
+
+Because today's row is excluded from the denominator:
+- If current IV is higher than all trailing days, IV Percentile reaches a true **100.0%**.
+- If current IV is lower than all trailing days, IV Percentile is **0.0%**.
 
 ### Code in [IVDataRepository.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java):
 ```java
 public Double getIVPercentile(String symbol) throws IOException {
     List<Map<String, Object>> rows = fetchIVRows(symbol);
-    if (rows == null) return null;
+    if (rows == null || rows.isEmpty()) return null;
 
     double currentIV = toAvgIV(rows.get(0), symbol);
-    long daysBelow = rows.stream()
+    List<Map<String, Object>> historicalRows = getHistoricalBaseline(rows);
+    if (historicalRows.size() < MIN_RECORDS_REQUIRED) {
+        return null;
+    }
+
+    long daysBelow = historicalRows.stream()
             .filter(row -> toAvgIV(row, symbol) < currentIV)
             .count();
 
-    double ivPercentile = (double) daysBelow / rows.size() * 100.0;
-    return ivPercentile;
+    return (double) daysBelow / historicalRows.size() * 100.0;
 }
 ```
 
 ### Numerical Example
-Suppose an asset has $N = 250$ trading days of IV data over the past year:
+Suppose an asset has $M = 250$ trailing historical trading days of IV data:
 - Today's Average IV: `32.0%`
-- Days where historical average IV was $< 32.0\%$: `175 days`
+- Historical days where average IV was $< 32.0\%$: `175 days`
 $$\text{IV Percentile} = \frac{175}{250} \times 100.0 = 70.0\%$$
-*(Meaning today's IV is higher than 70% of days in the past year).*
+*(Meaning today's IV is higher than 70% of days in the trailing baseline).*
 
 ---
 
@@ -114,19 +132,19 @@ $$\text{IV Percentile} = \frac{175}{250} \times 100.0 = 70.0\%$$
 The system calculates several complementary volatility metrics:
 
 ### 1. IV Rank (Implied Volatility Rank)
-- **Purpose**: Measures where current IV sits relative to its absolute 52-week High and Low extremes.
-- **Code**: [IVDataRepository.java:L100-L142](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java#L100-L142)
+- **Purpose**: Measures where current IV sits relative to its absolute 52-week High and Low extremes across the trailing historical baseline.
+- **Code**: [IVDataRepository.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java)
 - **Formula**:
   $$\text{IV Rank} = \frac{\text{currentIV} - \text{minIV}}{\text{maxIV} - \text{minIV}} \times 100.0$$
-  - $\text{minIV} = \min_{i}(\text{avgIV}_i)$ over the 1-year lookback.
-  - $\text{maxIV} = \max_{i}(\text{avgIV}_i)$ over the 1-year lookback.
+  - $\text{minIV} = \min_{i}(\text{avgIV}_i)$ over the trailing historical baseline (`historicalRows`, up to 252 trading days, excluding today).
+  - $\text{maxIV} = \max_{i}(\text{avgIV}_i)$ over the trailing historical baseline (`historicalRows`, up to 252 trading days, excluding today).
   - Edge case: If $\text{maxIV} == \text{minIV}$, returns `0.0`.
-  - Fail-open: Returns `null` if fewer than 20 records exist.
+  - Fail-open: Returns `null` if fewer than 20 historical records exist.
 
 #### Comparison: IV Rank vs. IV Percentile
 | Feature | IV Rank | IV Percentile |
 | :--- | :--- | :--- |
-| **Mathematical Basis** | Linear distance between extremes: $\frac{IV - Min}{Max - Min}$ | Cumulative frequency distribution: $\frac{\text{Count}(IV_i < IV)}{N}$ |
+| **Mathematical Basis** | Linear distance between extremes: $\frac{IV - Min}{Max - Min}$ | Cumulative frequency distribution: $\frac{\text{Count}(IV_i < IV)}{M}$ |
 | **Outlier Sensitivity** | **High**: One single earnings spike skews the denominator for an entire year. | **Low / Robust**: A single spike only counts as 1 day out of 252. |
 | **Typical Use Case** | Best when tracking cyclical mean-reverting ranges. | Preferred for buying options (LEAPs) or short premium where regime frequency matters. |
 
@@ -134,16 +152,16 @@ The system calculates several complementary volatility metrics:
 
 ### 2. IV Statistics Package (`getIVStats`)
 - **Purpose**: Used for the UI dashboard's "Volatility Context (1Y)" card/modal and API endpoint.
-- **Code**: [IVDataRepository.java:L254-L282](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java#L254-L282)
+- **Code**: [IVDataRepository.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java)
 - **Endpoint**: `GET /api/iv-rank?symbol={symbol}` in [StrategyExecutionController.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/api/StrategyExecutionController.java#L447-L470)
 - **Payload Fields**:
   - `symbol`: Stock ticker symbol
   - `currentIV`: Current ATM blended IV (rounded to 2 decimals)
-  - `minIV`: 52-week lowest ATM IV
-  - `maxIV`: 52-week highest ATM IV
+  - `minIV`: 52-week lowest ATM IV over trailing historical baseline
+  - `maxIV`: 52-week highest ATM IV over trailing historical baseline
   - `ivRank`: Calculated IV Rank ($0.0 - 100.0$)
   - `ivPercentile`: Calculated IV Percentile ($0.0 - 100.0$)
-  - `recordCount`: Total daily samples used ($N \ge 20$)
+  - `recordCount`: Total historical daily baseline samples used ($20 \le M \le 252$)
 
 ---
 
