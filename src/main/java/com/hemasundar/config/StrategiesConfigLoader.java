@@ -325,6 +325,7 @@ public class StrategiesConfigLoader {
         OptionsStrategyFilter filter = filterType.parseFilter(entry.getFilter());
         Map<String, String> greeks = getGreeks(entry.getStrategyType());
         if (filter != null) {
+            filter.setStrategyType(entry.getStrategyType().name());
             filter.setSecuritiesFile(entry.getSecuritiesFile());
             if (entry.getTermType() != null) {
                 filter.setTermType(entry.getTermType());

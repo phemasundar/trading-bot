@@ -23,4 +23,10 @@ public class ConfigControllerTest {
         mockMvc.perform(get("/api/config"))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    public void testGetStrategyColumnsConfig_Success() throws Exception {
+        mockMvc.perform(get("/api/config/columns"))
+                .andExpect(status().isOk());
+    }
 }

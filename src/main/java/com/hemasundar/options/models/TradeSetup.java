@@ -58,4 +58,18 @@ public interface TradeSetup {
         double rawRoR = getReturnOnRisk() / 100.0;
         return (Math.pow(1.0 + rawRoR, 365.0 / getDaysToExpiration()) - 1.0) * 100.0;
     }
+
+    /**
+     * Strategy type name (e.g., "LONG_CALL_LEAP").
+     */
+    default String getStrategyType() {
+        return null;
+    }
+
+    /**
+     * Cost savings percentage comparing option route vs buying stock.
+     */
+    default Double getCostSavingsPercent() {
+        return null;
+    }
 }

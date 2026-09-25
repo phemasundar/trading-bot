@@ -11,6 +11,10 @@ const {
     buildDropScreenerTable,
     buildTradeTable,
     handleTableSort,
+    AVAILABLE_TRADE_COLUMNS,
+    DEFAULT_STRATEGY_COLUMNS,
+    getTradeColumns,
+    getTradeCostSavings,
     injectTodayPerformance,
     fetchAndInjectTodayPerformance,
     renderOptionDataTable,
@@ -723,5 +727,114 @@ describe('Dashboard & Table Rendering Tests', () => {
             expect(group1Dte).toBe('| 40 - 185');
         });
     });
+
+    describe('Configurable Strategy Columns & LONG_CALL_LEAP Cost Savings', () => {
+        beforeEach(() => {
+            window.strategyColumnsConfig = null;
+            window.tableSortState = {};
+            window.tradeDataMap = {};
+            window.tradeStrategyTypeMap = {};
+        });
+
+        test('getTradeCostSavings returns numeric costSavingsPercent from trade', () => {
+            expect(getTradeCostSavings({ costSavingsPercent: 18.5 })).toBe(18.5);
+            expect(getTradeCostSavings({ costSavingsPercent: -22.3 })).toBe(-22.3);
+            expect(getTradeCostSavings({ costSavingsPercent: 0 })).toBe(0);
+        });
+
+        test('getTradeCostSavings falls back to regex matching from tradeDetails', () => {
+            const trade = { tradeDetails: 'Cost (Opt/Stock): $12.50 / $45.00 (27.8% cheaper)' };
+            expect(getTradeCostSavings(trade)).toBe(27.8);
+            expect(getTradeCostSavings({})).toBeNull();
+        });
+
+        test('getTradeColumns returns default columns without costSavings for standard strategies', () => {
+            const defaultCols = getTradeColumns('PUT_CREDIT_SPREAD');
+            const keys = defaultCols.map(c => c.key);
+            expect(keys).toContain('ticker');
+            expect(keys).toContain('company');
+            expect(keys).toContain('breakeven');
+            expect(keys).toContain('ror');
+            expect(keys).not.toContain('costSavings');
+        });
+
+        test('getTradeColumns includes costSavings for LONG_CALL_LEAP', () => {
+            const leapCols = getTradeColumns('LONG_CALL_LEAP');
+            const keys = leapCols.map(c => c.key);
+            expect(keys).toContain('ticker');
+            expect(keys).toContain('costSavings');
+            expect(keys).toContain('ror');
+        });
+
+        test('getTradeColumns respects dynamic window.strategyColumnsConfig', () => {
+            window.strategyColumnsConfig = {
+                default: ['ticker', 'price'],
+                CUSTOM_STRAT: ['ticker', 'breakeven', 'costSavings']
+            };
+
+            const customCols = getTradeColumns('CUSTOM_STRAT');
+            expect(customCols.map(c => c.key)).toEqual(['ticker', 'breakeven', 'costSavings']);
+
+            const fallbackCols = getTradeColumns('UNKNOWN_STRAT');
+            expect(fallbackCols.map(c => c.key)).toEqual(['ticker', 'price']);
+        });
+
+        test('buildTradeTable renders Savings % column only for LONG_CALL_LEAP', () => {
+            const leapTrades = [
+                {
+                    symbol: 'MSFT',
+                    strategyType: 'LONG_CALL_LEAP',
+                    costSavingsPercent: 35.5,
+                    underlyingPrice: 420.0,
+                    returnOnRisk: 0,
+                    maxLoss: 5000,
+                    dte: 400
+                }
+            ];
+
+            const leapHtml = buildTradeTable(leapTrades, 'card-leap', 'LONG_CALL_LEAP', false, 'LONG_CALL_LEAP');
+            expect(leapHtml).toContain('Savings %');
+            expect(leapHtml).toContain('35.5%');
+
+            const pcsTrades = [
+                {
+                    symbol: 'AAPL',
+                    strategyType: 'PUT_CREDIT_SPREAD',
+                    underlyingPrice: 150.0,
+                    returnOnRisk: 15.0,
+                    maxLoss: 100,
+                    dte: 30
+                }
+            ];
+
+            const pcsHtml = buildTradeTable(pcsTrades, 'card-pcs', 'PUT_CREDIT_SPREAD', false, 'PUT_CREDIT_SPREAD');
+            expect(pcsHtml).not.toContain('Savings %');
+        });
+
+        test('handleTableSort sorts costSavings column properly', () => {
+            const cardId = 'test-leap-sort';
+            const trades = [
+                { symbol: 'LOW', costSavingsPercent: 10.0 },
+                { symbol: 'HIGH', costSavingsPercent: 45.0 },
+                { symbol: 'MID', costSavingsPercent: 25.0 }
+            ];
+            window.tradeDataMap[cardId] = [...trades];
+            window.tradeStrategyTypeMap[cardId] = 'LONG_CALL_LEAP';
+
+            document.body.innerHTML = `<div id="content-${cardId}"></div>`;
+
+            // Sort asc
+            handleTableSort(cardId, 'costSavings');
+            const sortedDataAsc = window.tradeDataMap[cardId];
+            expect(window.tableSortState[cardId].direction).toBe('asc');
+
+            // Sort desc
+            handleTableSort(cardId, 'costSavings');
+            expect(window.tableSortState[cardId].direction).toBe('desc');
+            const content = document.getElementById(`content-${cardId}`).innerHTML;
+            expect(content).toContain('Savings %');
+        });
+    });
 });
+
 

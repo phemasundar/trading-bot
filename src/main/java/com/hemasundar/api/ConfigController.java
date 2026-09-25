@@ -38,4 +38,23 @@ public class ConfigController {
                     .body(Map.of("error", "Failed to read config: " + e.getMessage()));
         }
     }
+
+    /**
+     * Returns the strategy columns configuration formatted as JSON.
+     */
+    @GetMapping("/config/columns")
+    public ResponseEntity<?> getStrategyColumnsConfig() {
+        try {
+            String yamlContent = FilePaths.readResource(FilePaths.strategyColumnsConfig);
+            String jsonContent = JavaUtils.convertYamlToJson(yamlContent);
+            return ResponseEntity.ok()
+                    .header("Content-Type", "application/json")
+                    .header("Cache-Control", "no-cache, no-store, must-revalidate")
+                    .body(jsonContent);
+        } catch (Exception e) {
+            log.error("Failed to read strategy columns config", e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Failed to read strategy columns config: " + e.getMessage()));
+        }
+    }
 }

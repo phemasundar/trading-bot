@@ -1,0 +1,55 @@
+---
+# Configuration for results table columns per Strategy Type
+# Available column keys:
+#   - ticker: Stock ticker symbol
+#   - company: Company name
+#   - price: Current stock price
+#   - todayPct: Today's performance percentage
+#   - type: Trade legs description
+#   - expiry: Expiration date and DTE
+#   - creditDebit: Net credit or debit amount
+#   - maxLoss: Maximum potential loss
+#   - extrinsic: Net extrinsic value and annualized percentage
+#   - breakeven: Breakeven price and percentage / CAGR
+#   - ror: Return on risk percentage and CAGR
+#   - costSavings: Cost savings percentage comparing option route vs buying stock
+
+availableColumns:
+  - ticker
+  - company
+  - price
+  - todayPct
+  - type
+  - expiry
+  - creditDebit
+  - maxLoss
+  - extrinsic
+  - breakeven
+  - ror
+  - costSavings
+
+default:
+  - ticker
+  - company
+  - price
+  - todayPct
+  - type
+  - expiry
+  - creditDebit
+  - maxLoss
+  - extrinsic
+  - breakeven
+  - ror
+
+LONG_CALL_LEAP:
+  - ticker
+  - company
+  - price
+  - todayPct
+  - type
+  - expiry
+  - creditDebit
+  - maxLoss
+  - extrinsic
+  - breakeven
+  - costSavings

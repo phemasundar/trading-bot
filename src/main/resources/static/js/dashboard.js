@@ -7,6 +7,8 @@
 window.tableSortState = window.tableSortState || {};
 window.tradeDataMap = window.tradeDataMap || {};
 window.tradeStrategyIdMap = window.tradeStrategyIdMap || {};
+window.tradeStrategyTypeMap = window.tradeStrategyTypeMap || {};
+window.strategyColumnsConfig = window.strategyColumnsConfig || null;
 
 // ── Card Builder ──
 
@@ -18,6 +20,21 @@ function buildResultCard(result, badgeText = 'Standard') {
     const cardId = String(result.strategyId || result.screenerId || 'card-' + Math.random()).replace(/\s+/g, '-');
     const actualStrategyId = result.strategyId || result.strategyName || '';
     window.tradeStrategyIdMap[cardId] = actualStrategyId;
+
+    let strategyType = result.strategyType;
+    if (!strategyType && result.filterConfig) {
+        try {
+            const cfg = typeof result.filterConfig === 'string' ? JSON.parse(result.filterConfig) : result.filterConfig;
+            if (cfg && cfg.strategyType) strategyType = cfg.strategyType;
+        } catch (e) {}
+    }
+    if (!strategyType && result.trades && result.trades.length > 0 && result.trades[0].strategyType) {
+        strategyType = result.trades[0].strategyType;
+    }
+    if (cardId && strategyType) {
+        window.tradeStrategyTypeMap[cardId] = strategyType;
+    }
+
     const arrow = `<span class="card-arrow" id="arrow-${cardId}">▶</span>`;
     const filterId = `filters-${cardId}`;
 
@@ -84,7 +101,7 @@ function buildResultCard(result, badgeText = 'Standard') {
 
         ${filterDetailsHtml}
         <div class="card-content" id="content-${cardId}">
-            ${buildTradeTable(result.trades || [], cardId, actualStrategyId)}
+            ${buildTradeTable(result.trades || [], cardId, actualStrategyId, false, strategyType)}
         </div>`;
 
     window.tradeDataMap[cardId] = result.trades || [];
@@ -615,10 +632,176 @@ function buildDropScreenerTable(results, cardId = null) {
     return html;
 }
 
-function buildTradeTable(trades, cardId = null, strategyId = null, isHistoryModal = false) {
+// ── Configurable Strategy Columns ──
+
+function getTradeCostSavings(t) {
+    if (typeof t.costSavingsPercent === 'number') {
+        return t.costSavingsPercent;
+    }
+    if (t.tradeDetails) {
+        const match = t.tradeDetails.match(/([+-]?\d+(?:\.\d+)?)%\s+cheaper/i);
+        if (match) {
+            return parseFloat(match[1]);
+        }
+    }
+    return null;
+}
+
+const AVAILABLE_TRADE_COLUMNS = {
+    ticker: {
+        header: 'Ticker',
+        sortable: true,
+        render: (t) => `<td><strong>${t.symbol || ''}</strong></td>`,
+        getSortVal: (t) => t.symbol || ''
+    },
+    company: {
+        header: 'Company',
+        sortable: false,
+        render: (t) => `<td><span class="text-muted" title="${t.companyName || ''}">${formatCompanyName(t.companyName)}</span></td>`
+    },
+    price: {
+        header: 'Price',
+        sortable: false,
+        render: (t) => `<td class="text-mono">$${(t.underlyingPrice || 0).toFixed(2)}</td>`,
+        getSortVal: (t) => t.currentPrice || t.underlyingPrice || 0
+    },
+    todayPct: {
+        header: 'Today',
+        sortable: true,
+        render: (t) => `<td class="today-perf" data-symbol="${escapeAttr(t.symbol || '')}"><span class="text-muted">--</span></td>`,
+        getSortVal: (t) => t._todayPct != null ? t._todayPct : -Infinity
+    },
+    type: {
+        header: 'Type',
+        sortable: false,
+        render: (t) => `<td>${formatLegs(t)}</td>`
+    },
+    expiry: {
+        header: 'Expiry',
+        sortable: true,
+        render: (t) => `<td>${formatExpiryDate(t.expiryDate)} <span class="text-muted">(${t.dte || 0}d)</span></td>`,
+        getSortVal: (t) => t.dte || 0
+    },
+    creditDebit: {
+        header: 'Credit/Debit',
+        sortable: false,
+        render: (t) => {
+            const credit = t.netCredit || 0;
+            const creditStr = credit >= 0
+                ? `<span class="text-success">$${credit.toFixed(2)}</span>`
+                : `<span class="text-danger">-$${Math.abs(credit).toFixed(2)}</span>`;
+            return `<td>${creditStr}</td>`;
+        }
+    },
+    maxLoss: {
+        header: 'Max Loss',
+        sortable: true,
+        render: (t) => `<td class="text-danger">$${(t.maxLoss || 0).toFixed(2)}</td>`,
+        getSortVal: (t) => t.maxLoss || 0
+    },
+    extrinsic: {
+        header: 'Extrinsic',
+        sortable: true,
+        render: (t) => `<td>$${(t.netExtrinsicValue || 0).toFixed(2)} <span class="text-muted">(${(t.anulizedNetExtrinsicValueToCapitalPercentage || 0).toFixed(1)}%)</span></td>`,
+        getSortVal: (t) => t.anulizedNetExtrinsicValueToCapitalPercentage || 0
+    },
+    breakeven: {
+        header: 'Breakeven',
+        sortable: true,
+        render: (t) => `<td>${formatBreakeven(t)}</td>`,
+        getSortVal: (t) => {
+            const hasCagr = t.breakevenCAGR != null;
+            return hasCagr ? t.breakevenCAGR : (t.breakEvenPercent || 0);
+        }
+    },
+    ror: {
+        header: 'ROR%',
+        sortable: true,
+        render: (t) => {
+            const rorClass = (t.returnOnRisk || 0) >= 0 ? 'text-success' : 'text-danger';
+            let rorCagr = t.returnOnRiskCAGR;
+            if (typeof rorCagr === 'string') rorCagr = parseFloat(rorCagr);
+            if (rorCagr == null && t.returnOnRisk != null && t.dte > 0 && t.maxLoss > 0) {
+                const rawRoR = t.returnOnRisk / 100.0;
+                rorCagr = (Math.pow(1.0 + rawRoR, 365.0 / t.dte) - 1.0) * 100.0;
+            }
+            let rorCagrDisplay = '';
+            if (rorCagr != null && !isNaN(rorCagr) && isFinite(rorCagr)) {
+                rorCagrDisplay = ` <span class="text-muted">(${rorCagr.toFixed(1)}% CAGR)</span>`;
+            }
+            return `<td class="${rorClass}">${(t.returnOnRisk || 0).toFixed(1)}%${rorCagrDisplay}</td>`;
+        },
+        getSortVal: (t) => {
+            let c = t.returnOnRiskCAGR;
+            if (typeof c === 'string') c = parseFloat(c);
+            if (c == null && t.returnOnRisk != null && t.dte > 0 && t.maxLoss > 0) {
+                c = (Math.pow(1.0 + (t.returnOnRisk / 100.0), 365.0 / t.dte) - 1.0) * 100.0;
+            }
+            if (c == null || isNaN(c) || !isFinite(c)) {
+                c = t.maxReturnOnRiskPercentage || t.returnOnRisk || 0;
+            }
+            return c;
+        }
+    },
+    costSavings: {
+        header: 'Savings %',
+        sortable: true,
+        render: (t) => {
+            const savings = getTradeCostSavings(t);
+            if (savings == null) return '<td><span class="text-muted">-</span></td>';
+            const cls = savings >= 0 ? 'text-success' : 'text-danger';
+            return `<td class="${cls}">${savings.toFixed(1)}%</td>`;
+        },
+        getSortVal: (t) => getTradeCostSavings(t) ?? -Infinity
+    }
+};
+
+const DEFAULT_STRATEGY_COLUMNS = {
+    availableColumns: [
+        'ticker', 'company', 'price', 'todayPct', 'type', 'expiry',
+        'creditDebit', 'maxLoss', 'extrinsic', 'breakeven', 'ror', 'costSavings'
+    ],
+    default: [
+        'ticker', 'company', 'price', 'todayPct', 'type', 'expiry',
+        'creditDebit', 'maxLoss', 'extrinsic', 'breakeven', 'ror'
+    ],
+    LONG_CALL_LEAP: [
+        'ticker', 'company', 'price', 'todayPct', 'type', 'expiry',
+        'creditDebit', 'maxLoss', 'extrinsic', 'breakeven', 'costSavings', 'ror'
+    ]
+};
+
+async function loadStrategyColumnsConfig() {
+    if (window.strategyColumnsConfig) return window.strategyColumnsConfig;
+    try {
+        const data = await API.get('/api/config/columns');
+        if (data && (data.default || data.LONG_CALL_LEAP)) {
+            window.strategyColumnsConfig = data;
+        }
+    } catch (e) {
+        // Fallback to DEFAULT_STRATEGY_COLUMNS
+    }
+    return window.strategyColumnsConfig || DEFAULT_STRATEGY_COLUMNS;
+}
+
+function getTradeColumns(strategyType) {
+    const cfg = window.strategyColumnsConfig || DEFAULT_STRATEGY_COLUMNS;
+    const colKeys = (strategyType && cfg[strategyType]) || cfg.default || DEFAULT_STRATEGY_COLUMNS.default;
+    return colKeys
+        .map(k => AVAILABLE_TRADE_COLUMNS[k] ? { key: k, ...AVAILABLE_TRADE_COLUMNS[k] } : null)
+        .filter(Boolean);
+}
+
+function buildTradeTable(trades, cardId = null, strategyId = null, isHistoryModal = false, strategyType = null) {
     if (!trades || trades.length === 0) {
         return '<div class="empty-state"><div class="empty-state-icon">📊</div>No trades found</div>';
     }
+
+    const resolvedStrategyType = strategyType
+        || (window.tradeStrategyTypeMap && cardId ? window.tradeStrategyTypeMap[cardId] : null)
+        || (trades && trades[0] && trades[0].strategyType)
+        || (strategyId && /LONG_CALL_LEAP|LEAP/i.test(strategyId) ? 'LONG_CALL_LEAP' : null)
+        || (trades && trades.some(t => t.costSavingsPercent != null) ? 'LONG_CALL_LEAP' : null);
 
     const state = cardId ? (window.tableSortState[cardId] || { column: null, direction: 'asc' }) : null;
 
@@ -630,48 +813,22 @@ function buildTradeTable(trades, cardId = null, strategyId = null, isHistoryModa
         return `<th class="${cls}" onclick="handleTableSort('${cardId}', '${key}')" title="Sort by ${label}">${label}${arrow}</th>`;
     };
 
+    const columns = getTradeColumns(resolvedStrategyType);
+
     let html = `<table class="data-table">
         <thead><tr>
             ${isHistoryModal ? '<th>Date Found</th>' : ''}
-            ${th('ticker', 'Ticker')}
-            <th>Company</th>
-            <th>Price</th>
-            ${th('todayPct', 'Today')}
-            <th>Type</th>
-            ${th('expiry', 'Expiry')}
-            <th>Credit/Debit</th>
-            ${th('maxLoss', 'Max Loss')}
-            ${th('extrinsic', 'Extrinsic')}
-            ${th('breakeven', 'Breakeven')}
-            ${th('ror', 'ROR%')}
+            ${columns.map(col => col.sortable ? th(col.key, col.header) : `<th>${col.header}</th>`).join('\n            ')}
             ${!isHistoryModal ? '<th>History</th>' : ''}
         </tr></thead><tbody>`;
 
     for (const t of trades) {
-        const rorClass = (t.returnOnRisk || 0) >= 0 ? 'text-success' : 'text-danger';
-        const credit = t.netCredit || 0;
-        const creditStr = credit >= 0
-            ? `<span class="text-success">$${credit.toFixed(2)}</span>`
-            : `<span class="text-danger">-$${Math.abs(credit).toFixed(2)}</span>`;
-
         const detailsEscaped = escapeAttr(t.tradeDetails || '');
         const techIndicatorsAttr = t.techIndicators ? escapeAttr(t.techIndicators) : '';
         const sym = t.symbol || '';
         const legsOptionData = (t.legs || []).map(l => ({ action: l.action, optionType: l.optionType, optionData: l.optionData || null }));
         const legsAttr = escapeAttr(JSON.stringify(legsOptionData));
         const tradeEscaped = escapeAttr(JSON.stringify(t));
-
-        let rorCagr = t.returnOnRiskCAGR;
-        if (typeof rorCagr === 'string') rorCagr = parseFloat(rorCagr);
-        if (rorCagr == null && t.returnOnRisk != null && t.dte > 0 && t.maxLoss > 0) {
-            const rawRoR = t.returnOnRisk / 100.0;
-            rorCagr = (Math.pow(1.0 + rawRoR, 365.0 / t.dte) - 1.0) * 100.0;
-        }
-        
-        let rorCagrDisplay = '';
-        if (rorCagr != null && !isNaN(rorCagr) && isFinite(rorCagr)) {
-            rorCagrDisplay = ` <span class="text-muted">(${rorCagr.toFixed(1)}% CAGR)</span>`;
-        }
 
         const effectiveStrategyId = strategyId || (cardId && window.tradeStrategyIdMap ? window.tradeStrategyIdMap[cardId] : '') || cardId || '';
         const foundDateDisplay = (t.foundDate && t.foundDate !== '1969-12-31' && t.foundDate !== '1970-01-01' && t.foundDate !== 'null')
@@ -682,17 +839,7 @@ function buildTradeTable(trades, cardId = null, strategyId = null, isHistoryModa
 
         html += `<tr class="trade-row" data-details="${detailsEscaped}" data-tech-indicators="${techIndicatorsAttr}" data-legs-option-data="${legsAttr}" data-symbol="${escapeAttr(sym)}">
             ${isHistoryModal ? `<td><span class="text-muted text-mono">${escapeHtmlContent(foundDateDisplay)}</span></td>` : ''}
-            <td><strong>${sym}</strong></td>
-            <td><span class="text-muted" title="${t.companyName || ''}">${formatCompanyName(t.companyName)}</span></td>
-            <td class="text-mono">$${(t.underlyingPrice || 0).toFixed(2)}</td>
-            <td class="today-perf" data-symbol="${escapeAttr(sym)}"><span class="text-muted">--</span></td>
-            <td>${formatLegs(t)}</td>
-            <td>${formatExpiryDate(t.expiryDate)} <span class="text-muted">(${t.dte || 0}d)</span></td>
-            <td>${creditStr}</td>
-            <td class="text-danger">$${(t.maxLoss || 0).toFixed(2)}</td>
-            <td>$${(t.netExtrinsicValue || 0).toFixed(2)} <span class="text-muted">(${(t.anulizedNetExtrinsicValueToCapitalPercentage || 0).toFixed(1)}%)</span></td>
-            <td>${formatBreakeven(t)}</td>
-            <td class="${rorClass}">${(t.returnOnRisk || 0).toFixed(1)}%${rorCagrDisplay}</td>
+            ${columns.map(col => col.render(t)).join('\n            ')}
             ${!isHistoryModal ? `<td onclick="event.stopPropagation(); showTradeHistoryModal('${escapeAttr(effectiveStrategyId)}', this.dataset.trade, event)" data-trade="${tradeEscaped}">
                 <button class="btn-history-icon" title="View Similar Historical Trades" style="background:none;border:none;cursor:pointer;font-size:1.1rem;padding:2px 6px;">🕒</button>
             </td>` : ''}
@@ -768,6 +915,10 @@ function handleTableSort(cardId, column) {
                     valA = getRoRCagr(a);
                     valB = getRoRCagr(b);
                     break;
+                case 'costSavings':
+                    valA = getTradeCostSavings(a) ?? -Infinity;
+                    valB = getTradeCostSavings(b) ?? -Infinity;
+                    break;
                 case 'marketCapB':
                     valA = a.marketCapB || 0;
                     valB = b.marketCapB || 0;
@@ -813,6 +964,12 @@ function handleTableSort(cardId, column) {
                     break;
 
                 default:
+                    const colDef = AVAILABLE_TRADE_COLUMNS[state.column];
+                    if (colDef && colDef.getSortVal) {
+                        valA = colDef.getSortVal(a);
+                        valB = colDef.getSortVal(b);
+                        break;
+                    }
                     return 0;
             }
             return (valA - valB) * dirMultiplier;
@@ -828,7 +985,8 @@ function handleTableSort(cardId, column) {
             contentDiv.innerHTML = buildScreenerTable(data, cardId);
         } else {
             const actualStrategyId = window.tradeStrategyIdMap ? window.tradeStrategyIdMap[cardId] : null;
-            contentDiv.innerHTML = buildTradeTable(data, cardId, actualStrategyId);
+            const strategyType = window.tradeStrategyTypeMap ? window.tradeStrategyTypeMap[cardId] : null;
+            contentDiv.innerHTML = buildTradeTable(data, cardId, actualStrategyId, false, strategyType);
             const symbols = [...new Set(data.map(t => t.symbol).filter(Boolean))];
             if (symbols.length > 0) {
                 injectTodayPerformance(symbols, contentDiv);
@@ -1368,6 +1526,7 @@ function renderFundamentalFiltersGrid(fundamentalFilters) {
 async function initDashboard() {
     const authed = await initAuth();
     if (!authed) return;
+    await loadStrategyColumnsConfig();
     await loadFilterDescriptions();
     await loadOptionsStrategies();
     await loadOptionsResults();
@@ -1939,6 +2098,11 @@ if (typeof module !== 'undefined' && module.exports) {
         buildDropScreenerTable,
         buildTradeTable,
         handleTableSort,
+        AVAILABLE_TRADE_COLUMNS,
+        DEFAULT_STRATEGY_COLUMNS,
+        loadStrategyColumnsConfig,
+        getTradeColumns,
+        getTradeCostSavings,
         injectTodayPerformance,
         fetchAndInjectTodayPerformance,
         renderOptionDataTable,

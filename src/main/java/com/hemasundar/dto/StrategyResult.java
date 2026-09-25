@@ -36,6 +36,11 @@ public class StrategyResult {
     private String strategyName;
 
     /**
+     * Type of trading strategy (e.g., "LONG_CALL_LEAP")
+     */
+    private String strategyType;
+
+    /**
      * Execution time for this strategy in milliseconds
      */
     private long executionTimeMs;
@@ -85,12 +90,17 @@ public class StrategyResult {
             long executionTimeMs,
             OptionsStrategyFilter filter,
             String descriptionFile) {
+        String stratType = filter != null ? filter.getStrategyType() : null;
         List<Trade> tradeDTOs = new ArrayList<>();
         for (Map.Entry<String, List<TradeSetup>> entry : allTrades.entrySet()) {
             String key = entry.getKey();
             String symbol = key.contains("_") ? key.substring(0, key.indexOf("_")) : key;
             for (TradeSetup setup : entry.getValue()) {
-                tradeDTOs.add(Trade.fromTradeSetup(setup, symbol));
+                Trade trade = Trade.fromTradeSetup(setup, symbol);
+                if (trade.getStrategyType() == null && stratType != null) {
+                    trade.setStrategyType(stratType);
+                }
+                tradeDTOs.add(trade);
             }
         }
 
@@ -107,6 +117,7 @@ public class StrategyResult {
         return StrategyResult.builder()
                 .strategyId(strategyId)
                 .strategyName(strategyName)
+                .strategyType(stratType)
                 .executionTimeMs(executionTimeMs)
                 .tradesFound(tradeDTOs.size())
                 .trades(tradeDTOs)

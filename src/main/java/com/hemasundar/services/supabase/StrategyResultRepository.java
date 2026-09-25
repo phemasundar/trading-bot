@@ -134,14 +134,22 @@ public class StrategyResultRepository {
             Instant updatedAt = Instant.parse(updatedAtStr);
 
             String filterConfig = null;
+            String strategyType = null;
             JsonNode filterNode = node.get("filter_config");
             if (filterNode != null && !filterNode.isNull()) {
                 filterConfig = filterNode.toString();
+                if (filterNode.has("strategyType")) {
+                    strategyType = filterNode.get("strategyType").asText();
+                }
+            }
+            if (strategyType == null && !trades.isEmpty() && trades.get(0).getStrategyType() != null) {
+                strategyType = trades.get(0).getStrategyType();
             }
 
             return StrategyResult.builder()
                     .strategyId(strategyId)
                     .strategyName(strategyName)
+                    .strategyType(strategyType)
                     .executionTimeMs(executionTimeMs)
                     .tradesFound(tradesFound)
                     .trades(trades)
