@@ -764,18 +764,13 @@ const DEFAULT_STRATEGY_COLUMNS = {
     default: [
         'ticker', 'company', 'price', 'todayPct', 'type', 'expiry',
         'creditDebit', 'maxLoss', 'extrinsic', 'breakeven', 'ror'
-    ],
-    LONG_CALL_LEAP: [
-        'ticker', 'company', 'price', 'todayPct', 'type', 'expiry',
-        'creditDebit', 'maxLoss', 'extrinsic', 'breakeven', 'costSavings', 'ror'
     ]
 };
 
 async function loadStrategyColumnsConfig() {
-    if (window.strategyColumnsConfig) return window.strategyColumnsConfig;
     try {
         const data = await API.get('/api/config/columns');
-        if (data && (data.default || data.LONG_CALL_LEAP)) {
+        if (data && typeof data === 'object') {
             window.strategyColumnsConfig = data;
         }
     } catch (e) {

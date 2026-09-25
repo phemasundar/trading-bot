@@ -123,6 +123,9 @@ async function initExecutePage() {
         select.appendChild(opt);
     });
 
+    if (typeof loadStrategyColumnsConfig === 'function') {
+        await loadStrategyColumnsConfig();
+    }
     loadFilterDescriptions();
     syncEarningsPresetFromInput();
 

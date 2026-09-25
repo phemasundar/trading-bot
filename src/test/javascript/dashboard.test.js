@@ -758,12 +758,14 @@ describe('Dashboard & Table Rendering Tests', () => {
             expect(keys).not.toContain('costSavings');
         });
 
-        test('getTradeColumns includes costSavings for LONG_CALL_LEAP', () => {
+        test('getTradeColumns dynamically resolves strategy columns from loaded config', () => {
+            window.strategyColumnsConfig = {
+                LONG_CALL_LEAP: ['ticker', 'company', 'price', 'costSavings']
+            };
             const leapCols = getTradeColumns('LONG_CALL_LEAP');
             const keys = leapCols.map(c => c.key);
-            expect(keys).toContain('ticker');
-            expect(keys).toContain('costSavings');
-            expect(keys).toContain('ror');
+            expect(keys).toEqual(['ticker', 'company', 'price', 'costSavings']);
+            expect(keys).not.toContain('ror');
         });
 
         test('getTradeColumns respects dynamic window.strategyColumnsConfig', () => {
@@ -779,7 +781,10 @@ describe('Dashboard & Table Rendering Tests', () => {
             expect(fallbackCols.map(c => c.key)).toEqual(['ticker', 'price']);
         });
 
-        test('buildTradeTable renders Savings % column only for LONG_CALL_LEAP', () => {
+        test('buildTradeTable renders columns dynamically based on loaded strategyColumnsConfig', () => {
+            window.strategyColumnsConfig = {
+                LONG_CALL_LEAP: ['ticker', 'price', 'costSavings']
+            };
             const leapTrades = [
                 {
                     symbol: 'MSFT',
@@ -795,6 +800,7 @@ describe('Dashboard & Table Rendering Tests', () => {
             const leapHtml = buildTradeTable(leapTrades, 'card-leap', 'LONG_CALL_LEAP', false, 'LONG_CALL_LEAP');
             expect(leapHtml).toContain('Savings %');
             expect(leapHtml).toContain('35.5%');
+            expect(leapHtml).not.toContain('ROR%');
 
             const pcsTrades = [
                 {
@@ -812,6 +818,9 @@ describe('Dashboard & Table Rendering Tests', () => {
         });
 
         test('handleTableSort sorts costSavings column properly', () => {
+            window.strategyColumnsConfig = {
+                LONG_CALL_LEAP: ['ticker', 'costSavings']
+            };
             const cardId = 'test-leap-sort';
             const trades = [
                 { symbol: 'LOW', costSavingsPercent: 10.0 },
