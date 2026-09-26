@@ -557,6 +557,11 @@ a:hover {
     transition: border-color 0.15s;
 }
 
+.form-select {
+    min-width: 160px;
+    field-sizing: content;
+}
+
 .form-input:focus,
 .form-select:focus {
     outline: none;
@@ -1450,7 +1455,7 @@ textarea::placeholder {
 .tooltip-balloon {
     position: fixed;
     z-index: 2000;
-    background: rgba(30, 41, 59, 0.98);
+    background: #1e293b;
     backdrop-filter: blur(8px);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -1479,7 +1484,6 @@ textarea::placeholder {
     height: 0;
     border-left: 8px solid transparent;
     border-right: 8px solid transparent;
-    border-top: 8px solid rgba(30, 41, 59, 0.98);
     bottom: -8px;
     left: 50%;
     transform: translateX(-50%);
@@ -1488,13 +1492,43 @@ textarea::placeholder {
 /* For when tooltip is above the icon */
 .tooltip-balloon[data-placement="top"] .tooltip-arrow {
     bottom: -8px;
-    border-top: 8px solid rgba(30, 41, 59, 0.98);
+    top: auto;
+    border-top: 8px solid #1e293b;
+    border-bottom: none;
 }
 
 /* For when tooltip is below the icon */
 .tooltip-balloon[data-placement="bottom"] .tooltip-arrow {
     top: -8px;
+    bottom: auto;
     border-top: none;
+    border-bottom: 8px solid #1e293b;
+}
+
+[data-theme="light"] .tooltip-balloon {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.06));
+    color: #0f172a;
+}
+
+[data-theme="light"] .tooltip-balloon[data-placement="top"] .tooltip-arrow {
+    border-top-color: #ffffff;
+}
+
+[data-theme="light"] .tooltip-balloon[data-placement="bottom"] .tooltip-arrow {
+    border-bottom-color: #ffffff;
+}
+
+[data-theme="light"] .markdown-body code {
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--text-primary);
+}
+
+[data-theme="light"] .markdown-body pre {
+    background: #f1f5f9;
+    border: 1px solid var(--border);
 }
 
 /* ── Market Status Badge ── */
@@ -2951,6 +2985,100 @@ textarea::placeholder {
         transform: rotate(90deg);
         align-self: center;
     }
+}
+
+/* ── Dynamic Condition Builder ── */
+.condition-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+    width: fit-content;
+    max-width: 100%;
+}
+
+.condition-var-select {
+    width: auto;
+    min-width: 140px;
+    max-width: 280px;
+    flex: 0 1 auto;
+    field-sizing: content;
+}
+
+.condition-info-btn {
+    flex: 0 0 28px;
+    height: 36px;
+    padding: 0;
+    margin: 0 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: transform 0.2s ease, background 0.15s ease;
+}
+
+.condition-info-btn:hover {
+    transform: scale(1.15);
+    background: rgba(19, 127, 236, 0.1);
+}
+
+.condition-info-btn .info-icon {
+    width: 16px;
+    height: 16px;
+    stroke: var(--text-muted);
+    transition: stroke 0.2s ease;
+}
+
+.condition-info-btn:hover .info-icon {
+    stroke: var(--primary);
+}
+
+.condition-op-select {
+    width: auto;
+    min-width: 60px;
+    flex: 0 0 auto;
+    text-align: center;
+    font-weight: 600;
+    field-sizing: content;
+}
+
+.condition-val-input {
+    width: 100px;
+    min-width: 80px;
+    max-width: 180px;
+    flex: 0 1 auto;
+    field-sizing: content;
+}
+
+.condition-remove-btn {
+    flex: 0 0 32px;
+    height: 36px;
+    padding: 0;
+    font-size: 1.2rem;
+    line-height: 1;
+    color: var(--text-muted);
+    border-radius: var(--radius-sm);
+}
+
+.condition-remove-btn:hover {
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.conditions-list:empty::after {
+    content: 'No conditions added. Click "+ Add Condition" to filter.';
+    display: block;
+    padding: 10px 14px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-style: italic;
+    background: var(--bg-input);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
 }
 
 

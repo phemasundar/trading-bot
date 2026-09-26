@@ -90,20 +90,20 @@
             <!-- Config Panel -->
             <div class="card">
                 <div class="form-grid">
-                    <div class="form-group">
-                        <label class="form-label">Screener Type *</label>
+                    <div class="form-group" style="grid-column: span 2">
+                        <label class="form-label">Screener Type * <button type="button" class="info-btn" id="screener-type-info-btn" onclick="showScreenerTypeHelp(event)"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
                         <select id="screener-type" class="form-select" onchange="onScreenerTypeChange()">
-                            <option value="">Select a screener...</option>
-                            <option value="RSI_BB_BULLISH_CROSSOVER">RSI BB Bullish Crossover</option>
-                            <option value="RSI_BB_BEARISH_CROSSOVER">RSI BB Bearish Crossover</option>
-                            <option value="RSI_OVERSOLD">RSI Oversold</option>
-                            <option value="BB_LOWER">Bollinger Band Lower</option>
-                            <option value="BELOW_200_DAY_SMA">Below 200 Day SMA</option>
-                            <option value="PRICE_DROP">Price Drop</option>
-                            <option value="HIGH_52W_DROP">52-Week High Drop</option>
+                            <option value="" title="Select a technical screening pattern">Select a screener...</option>
+                            <option value="RSI_BB_BULLISH_CROSSOVER" title="RSI crossed upward through 30 while at lower Bollinger band">RSI BB Bullish Crossover</option>
+                            <option value="RSI_BB_BEARISH_CROSSOVER" title="RSI crossed downward through 70 while at upper Bollinger band">RSI BB Bearish Crossover</option>
+                            <option value="RSI_OVERSOLD" title="14-day RSI is below 30">RSI Oversold</option>
+                            <option value="BB_LOWER" title="Price is at or below the 20-day lower Bollinger Band">Bollinger Band Lower</option>
+                            <option value="BELOW_200_DAY_SMA" title="Price is below the 200-day Simple Moving Average">Below 200 Day SMA</option>
+                            <option value="PRICE_DROP" title="Price dropped by a specific percentage over lookback window">Price Drop</option>
+                            <option value="HIGH_52W_DROP" title="Price dropped significantly from 52-week high">52-Week High Drop</option>
                         </select>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="grid-column: span 2">
                         <label class="form-label">Alias (optional)</label>
                         <input type="text" id="screener-alias-input" class="form-input" placeholder="e.g., My RSI Scan">
                     </div>
@@ -112,13 +112,13 @@
                 <div id="screener-templates" style="margin-top: 16px;"></div>
 
                 <div class="form-grid" style="margin-top: 16px;">
-                    <div class="form-group">
-                        <label class="form-label">Securities File (comma-separated file names)</label>
+                    <div class="form-group" style="grid-column: span 2">
+                        <label class="form-label">Securities File <button type="button" class="info-btn" onclick="showFilterHelp(event, 'securitiesFile', 'Securities File')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button> <span style="font-size:0.75rem; color:var(--text-muted);">(comma-separated file names)</span></label>
                         <input type="text" id="screener-securities-file-input" class="form-input"
                             placeholder="portfolio, top100, tracking">
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Securities (comma-separated tickers)</label>
+                    <div class="form-group" style="grid-column: span 2">
+                        <label class="form-label">Securities <button type="button" class="info-btn" onclick="showFilterHelp(event, 'securities', 'Securities')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button> <span style="font-size:0.75rem; color:var(--text-muted);">(comma-separated tickers)</span></label>
                         <input type="text" id="screener-securities-input" class="form-input"
                             placeholder="AAPL, MSFT, GOOG, AMZN, META">
                     </div>
@@ -131,66 +131,66 @@
             <!-- Technical Conditions -->
             <div class="card">
                 <div class="card-header" onclick="this.nextElementSibling.classList.toggle('open'); this.querySelector('.card-arrow').classList.toggle('open')">
-                    <h3 style="font-size:0.9rem; margin-bottom:0; color:var(--text-secondary)"><span class="card-arrow open">▶</span> Filter Conditions</h3>
+                    <h3 style="font-size:0.9rem; margin-bottom:0; color:var(--text-secondary)"><span class="card-arrow open">▶</span> Filter Conditions <button type="button" class="info-btn" onclick="showFilterHelp(event, 'technicalFilters', 'Filter Conditions')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></h3>
                 </div>
                 <div class="card-content open" style="overflow-x: visible;" id="screener-tech-filters-container">
                     <div class="form-grid">
-                        <div class="form-group">
-                            <label class="form-label">RSI Condition</label>
+                        <div class="form-group" style="grid-column: span 2">
+                            <label class="form-label">RSI Condition <button type="button" class="info-btn" onclick="showTechFilterHelp(event, 'RSI')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
                             <select id="execute-rsiCondition" class="form-select" data-tech-filter="RSI" data-tech-field="condition" onchange="document.getElementById('rsi-custom-range-inputs').style.display = this.value === 'CUSTOM_RANGE' ? 'flex' : 'none'">
-                                <option value="">— None —</option>
-                                <option value="OVERSOLD">Oversold (&lt;30)</option>
-                                <option value="BULLISH_CROSSOVER">Bullish Crossover (RSI crossed ↑30)</option>
-                                <option value="OVERBOUGHT">Overbought (&gt;70)</option>
-                                <option value="BEARISH_CROSSOVER">Bearish Crossover (RSI crossed ↓70)</option>
-                                <option value="CUSTOM_RANGE">Custom Range</option>
+                                <option value="" title="No RSI filter applied">— None —</option>
+                                <option value="OVERSOLD" title="RSI < 30 (oversold bounce)">Oversold (&lt;30)</option>
+                                <option value="BULLISH_CROSSOVER" title="RSI crossed upward through 30">Bullish Crossover (RSI crossed ↑30)</option>
+                                <option value="OVERBOUGHT" title="RSI > 70 (overbought pullback)">Overbought (&gt;70)</option>
+                                <option value="BEARISH_CROSSOVER" title="RSI crossed downward through 70">Bearish Crossover (RSI crossed ↓70)</option>
+                                <option value="CUSTOM_RANGE" title="Specify custom Min and Max RSI bounds">Custom Range</option>
                             </select>
                         </div>
-                        <div id="rsi-custom-range-inputs" style="display:none; gap: 1rem; grid-column: span 1;">
+                        <div id="rsi-custom-range-inputs" style="display:none; gap: 1rem; grid-column: span 2;">
                             <div style="flex: 1;">
-                                <label class="form-label">Min RSI</label>
+                                <label class="form-label">Min RSI <button type="button" class="info-btn" onclick="showFilterHelp(event, 'RSI.CUSTOM_RANGE', 'Min RSI')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
                                 <input type="number" id="execute-minRsi" class="form-input" data-tech-filter="RSI" data-tech-field="min" placeholder="e.g. 40" step="0.1">
                             </div>
                             <div style="flex: 1;">
-                                <label class="form-label">Max RSI</label>
+                                <label class="form-label">Max RSI <button type="button" class="info-btn" onclick="showFilterHelp(event, 'RSI.CUSTOM_RANGE', 'Max RSI')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
                                 <input type="number" id="execute-maxRsi" class="form-input" data-tech-filter="RSI" data-tech-field="max" placeholder="e.g. 60" step="0.1">
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Bollinger Band Condition</label>
+                        <div class="form-group" style="grid-column: span 2">
+                            <label class="form-label">Bollinger Band Condition <button type="button" class="info-btn" onclick="showTechFilterHelp(event, 'BOLLINGER_BAND')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
                             <select class="form-select" data-tech-filter="BOLLINGER_BAND" data-tech-field="condition">
-                                <option value="">— None —</option>
-                                <option value="LOWER_BAND">At/below lower band</option>
-                                <option value="UPPER_BAND">At/above upper band</option>
+                                <option value="" title="No Bollinger Band filter applied">— None —</option>
+                                <option value="LOWER_BAND" title="Price is at or below lower Bollinger Band (2 std dev below 20 SMA)">At/below lower band</option>
+                                <option value="UPPER_BAND" title="Price is at or above upper Bollinger Band (2 std dev above 20 SMA)">At/above upper band</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Volume Rules</label>
+                            <label class="form-label">Volume Rules <button type="button" class="info-btn" onclick="showFilterHelp(event, 'volumeRules', 'Volume Rules')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
                             <input type="text" class="form-input" data-tech-filter="VOLUME" data-tech-field="rules"
                                 placeholder=">= 1000000, SMA20 >= SMA50 * 90%">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">HV Period (Days)</label>
+                            <label class="form-label">HV Period (Days) <button type="button" class="info-btn" onclick="showFilterHelp(event, 'hvPeriod', 'HV Period (Days)')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
                             <input type="number" class="form-input" data-tech-filter="HISTORICAL_VOLATILITY" data-tech-field="period"
                                 placeholder="20" step="1">
                         </div>
                         <div class="form-group" style="grid-column: span 2">
-                            <label class="form-label">HV Rules</label>
+                            <label class="form-label">HV Rules <button type="button" class="info-btn" onclick="showFilterHelp(event, 'hvRules', 'HV Rules')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
                             <input type="text" class="form-input" data-tech-filter="HISTORICAL_VOLATILITY" data-tech-field="rules"
                                 placeholder=">= 25, <= 75">
                         </div>
                         <div class="form-group" id="sc-priceDropRules-group">
-                            <label class="form-label">Price Drop Rules</label>
+                            <label class="form-label">Price Drop Rules <button type="button" class="info-btn" onclick="showFilterHelp(event, 'priceDropRules', 'Price Drop Rules')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
                             <input type="text" id="sc-priceDropRules" class="form-input" data-tech-filter="PRICE_DROP" data-tech-field="rules"
                                 placeholder=">= 3.0">
                         </div>
                         <div class="form-group" id="sc-lookbackDays-group">
-                            <label class="form-label">Lookback Days (0=intraday)</label>
+                            <label class="form-label">Lookback Days (0=intraday) <button type="button" class="info-btn" onclick="showFilterHelp(event, 'lookbackDays', 'Lookback Days')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
                             <input type="number" id="sc-lookbackDays" class="form-input" data-tech-filter="PRICE_DROP" data-tech-field="lookbackDays"
                                 placeholder="0" min="0">
                         </div>
                         <div class="form-group" style="grid-column: 1 / -1">
-                            <label class="form-label">Moving Average Rules <span style="font-size:0.75rem; color:var(--text-muted);">(comma-separated: PRICE >= SMA50, SMA50 >= SMA200, etc.)</span></label>
+                            <label class="form-label">Moving Average Rules <button type="button" class="info-btn" onclick="showFilterHelp(event, 'movingAverageRules', 'Moving Average Rules')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button> <span style="font-size:0.75rem; color:var(--text-muted);">(comma-separated: PRICE >= SMA50, SMA50 >= SMA200, etc.)</span></label>
                             <input type="text" class="form-input" data-tech-filter="SIMPLE_MOVING_AVERAGE" data-tech-field="rules"
                                 placeholder="PRICE >= SMA50, SMA50 >= SMA200">
                         </div>

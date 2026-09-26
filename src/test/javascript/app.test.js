@@ -104,6 +104,8 @@ const {
     initTradeRowClicks,
     loadStrategies,
     showFilterHelp,
+    showTechFilterHelp,
+    showScreenerTypeHelp,
     loadFilterDescriptions,
     initAuth,
     injectTodayPerformance,
@@ -1229,7 +1231,8 @@ describe('Execute Strategy Configuration', () => {
 
         const container = document.getElementById('specific-filters');
         expect(container.innerHTML).toContain('Iron Condor Specific Leg Filters');
-        expect(container.innerHTML).toContain('data-filter="putShortLeg.minDelta"');
+        expect(container.innerHTML).toContain('putShortLeg-conditions');
+        expect(container.innerHTML).toContain('Put Short Leg Conditions');
     });
 
     test('executeCustom should post custom strategy execution body', async () => {
@@ -1693,6 +1696,58 @@ describe('Filter Help Tooltip Balloon', () => {
         const tooltip = document.querySelector('.tooltip-balloon');
         expect(tooltip).not.toBeNull();
         expect(tooltip.innerHTML).toContain('Min Delta');
+    });
+
+    test('showTechFilterHelp handles RSI, Bollinger Band, and generic filters', () => {
+        document.body.innerHTML = `
+            <button id="btn-rsi"></button>
+            <select data-tech-filter="RSI" data-tech-field="condition">
+                <option value="OVERSOLD">Oversold (&lt;30)</option>
+            </select>
+            <button id="btn-bb"></button>
+            <select data-tech-filter="BOLLINGER_BAND" data-tech-field="condition">
+                <option value="LOWER_BAND">At/below lower band</option>
+            </select>
+        `;
+        const btnRsi = document.getElementById('btn-rsi');
+        const eventRsi = { stopPropagation: jest.fn(), preventDefault: jest.fn(), currentTarget: btnRsi };
+        showTechFilterHelp(eventRsi, 'RSI');
+        let tooltip = document.querySelector('.tooltip-balloon');
+        expect(tooltip).not.toBeNull();
+        expect(tooltip.dataset.key).toBe('RSI.OVERSOLD');
+
+        const btnBb = document.getElementById('btn-bb');
+        const eventBb = { stopPropagation: jest.fn(), preventDefault: jest.fn(), currentTarget: btnBb };
+        showTechFilterHelp(eventBb, 'BOLLINGER_BAND');
+        tooltip = document.querySelector('.tooltip-balloon');
+        expect(tooltip).not.toBeNull();
+        expect(tooltip.dataset.key).toBe('BOLLINGER_BAND.LOWER_BAND');
+
+        showTechFilterHelp(eventBb, 'volumeRules');
+        tooltip = document.querySelector('.tooltip-balloon');
+        expect(tooltip.dataset.key).toBe('volumeRules');
+    });
+
+    test('showScreenerTypeHelp handles selected screener type and default', () => {
+        document.body.innerHTML = `
+            <button id="btn-sc"></button>
+            <select id="screener-type">
+                <option value="">Select a screener...</option>
+                <option value="RSI_BB_BULLISH_CROSSOVER" selected>RSI BB Bullish Crossover</option>
+            </select>
+        `;
+        const btnSc = document.getElementById('btn-sc');
+        const eventSc = { stopPropagation: jest.fn(), preventDefault: jest.fn(), currentTarget: btnSc };
+        showScreenerTypeHelp(eventSc);
+        let tooltip = document.querySelector('.tooltip-balloon');
+        expect(tooltip).not.toBeNull();
+        expect(tooltip.dataset.key).toBe('RSI_BB_BULLISH_CROSSOVER');
+
+        document.getElementById('screener-type').selectedIndex = 0;
+        document.getElementById('screener-type').value = '';
+        showScreenerTypeHelp(eventSc);
+        tooltip = document.querySelector('.tooltip-balloon');
+        expect(tooltip.dataset.key).toBe('screenerType');
     });
 });
 

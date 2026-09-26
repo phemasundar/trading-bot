@@ -22,7 +22,8 @@ const {
     stopTimer,
     showFilterHelp,
     loadFilterDescriptions,
-    showInfo
+    showInfo,
+    autoAdjustSelectWidth
 } = require('../../main/resources/static/app');
 
 Element.prototype.scrollIntoView = jest.fn();
@@ -206,5 +207,29 @@ describe('App Utility Functions', () => {
 
         document.querySelector('.modal-close').click();
         expect(document.querySelector('.info-modal-overlay')).toBeNull();
+    });
+
+    test('autoAdjustSelectWidth resizes select element based on option text length', () => {
+        const select = document.createElement('select');
+        const opt1 = document.createElement('option');
+        opt1.value = 'short';
+        opt1.text = 'Short';
+        const opt2 = document.createElement('option');
+        opt2.value = 'long';
+        opt2.text = 'A Very Long Strategy Name Option Description';
+        select.appendChild(opt1);
+        select.appendChild(opt2);
+
+        // When field-sizing is not supported (default in jestdom)
+        autoAdjustSelectWidth(select);
+        expect(select.style.width).toBe('130px');
+
+        select.selectedIndex = 1;
+        autoAdjustSelectWidth(select);
+        expect(parseInt(select.style.width, 10)).toBeGreaterThan(200);
+
+        // Null and non-element safety
+        expect(() => autoAdjustSelectWidth(null)).not.toThrow();
+        expect(() => autoAdjustSelectWidth({})).not.toThrow();
     });
 });
