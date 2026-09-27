@@ -55,7 +55,7 @@ public class PriceDropScreener {
 
         List<TechnicalScreener.ScreeningResult> results = new ArrayList<>();
 
-        log.info("Screening {} symbols for 52-week high drop rules", symbols.size());
+        log.debug("Screening {} symbols for 52-week high drop rules", symbols.size());
 
         // Fetch quotes in batches of 50 (API limit consideration)
         for (int i = 0; i < symbols.size(); i += 50) {
@@ -87,7 +87,7 @@ public class PriceDropScreener {
                     if (passes) {
                         results.add(buildResult(symbol, currentPrice, quote.getTotalVolume(),
                                 dropPct, high52w, "52W_HIGH"));
-                        log.info("[{}] Down {}% from 52W high (${} -> ${})",
+                        log.debug("[{}] Down {}% from 52W high (${} -> ${})",
                                 symbol, String.format("%.2f", dropPct),
                                 String.format("%.2f", high52w), String.format("%.2f", currentPrice));
                     }
@@ -112,7 +112,7 @@ public class PriceDropScreener {
 
         List<TechnicalScreener.ScreeningResult> results = new ArrayList<>();
 
-        log.info("Screening {} symbols for intraday drop rules", symbols.size());
+        log.debug("Screening {} symbols for intraday drop rules", symbols.size());
 
         for (int i = 0; i < symbols.size(); i += 50) {
             List<String> batch = symbols.subList(i, Math.min(i + 50, symbols.size()));
@@ -140,7 +140,7 @@ public class PriceDropScreener {
 
                     if (passes) {
                         results.add(result);
-                        log.info("[{}] Down {}% intraday (${} -> ${})",
+                        log.debug("[{}] Down {}% intraday (${} -> ${})",
                                 symbol, String.format("%.2f", dropPct),
                                 String.format("%.2f", closePrice), String.format("%.2f", currentPrice));
                     }
@@ -163,7 +163,7 @@ public class PriceDropScreener {
     private List<TechnicalScreener.ScreeningResult> screenMultiDayDrop(
             List<String> symbols, List<com.hemasundar.technical.MathExpression> dropRules, int lookbackDays, BiConsumer<String, String> alertCallback) {
 
-        log.info("Screening {} symbols for drop rules over {} days (parallel)",
+        log.debug("Screening {} symbols for drop rules over {} days (parallel)",
                 symbols.size(), lookbackDays);
 
         long screenT0 = System.currentTimeMillis();
@@ -214,7 +214,7 @@ public class PriceDropScreener {
                     boolean passes = evaluateDropRules(dropRules, result);
 
                     if (passes) {
-                        log.info("[{}] Down {}% over {} days (${} -> ${})",
+                        log.debug("[{}] Down {}% over {} days (${} -> ${})",
                                 symbol, String.format("%.2f", dropPct), lookbackDays,
                                 String.format("%.2f", referencePrice),
                                 String.format("%.2f", currentPrice));

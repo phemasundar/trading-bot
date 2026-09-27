@@ -48,7 +48,7 @@ public class IVDataCollector {
      */
     public IVDataPoint collectIVDataPoint(String symbol) {
         try {
-            log.info("[{}] Collecting IV data", symbol);
+            log.debug("[{}] Collecting IV data", symbol);
 
             OptionChainResponse chain = ThinkOrSwimAPIs.getOptionChain(symbol);
             if (chain == null) {
@@ -57,7 +57,7 @@ public class IVDataCollector {
             }
 
             if (!chain.hasOptions()) {
-                log.info("[{}] No options available - skipping", symbol);
+                log.debug("[{}] No options available - skipping", symbol);
                 return IVDataPoint.builder()
                         .symbol(symbol)
                         .noOptions(true)
@@ -86,17 +86,17 @@ public class IVDataCollector {
                 if (sigma1 != null && sigma2 != null) {
                     sigma30 = interpolate30DayIV(sigma1, bracket.getNearTerm().getDaysToExpiry(),
                             sigma2, bracket.getNextTerm().getDaysToExpiry());
-                    log.info("[{}] Interpolated 30-day IV: {}% (T1: DTE={} σ={}%, T2: DTE={} σ={}%)",
+                    log.debug("[{}] Interpolated 30-day IV: {}% (T1: DTE={} σ={}%, T2: DTE={} σ={}%)",
                             symbol, String.format("%.2f", sigma30),
                             bracket.getNearTerm().getDaysToExpiry(), String.format("%.2f", sigma1),
                             bracket.getNextTerm().getDaysToExpiry(), String.format("%.2f", sigma2));
                 } else if (sigma1 != null) {
                     sigma30 = sigma1;
-                    log.info("[{}] Fallback to near-term IV: {}% (DTE={})", symbol,
+                    log.debug("[{}] Fallback to near-term IV: {}% (DTE={})", symbol,
                             String.format("%.2f", sigma30), bracket.getNearTerm().getDaysToExpiry());
                 } else if (sigma2 != null) {
                     sigma30 = sigma2;
-                    log.info("[{}] Fallback to next-term IV: {}% (DTE={})", symbol,
+                    log.debug("[{}] Fallback to next-term IV: {}% (DTE={})", symbol,
                             String.format("%.2f", sigma30), bracket.getNextTerm().getDaysToExpiry());
                 } else {
                     log.warn("[{}] Failed to extract IV from either bracketing expiry", symbol);
@@ -113,7 +113,7 @@ public class IVDataCollector {
                             symbol, singleExpiry.getDaysToExpiry());
                     return null;
                 }
-                log.info("[{}] Single-expiry IV: {}% (DTE={})", symbol,
+                log.debug("[{}] Single-expiry IV: {}% (DTE={})", symbol,
                         String.format("%.2f", sigma30), singleExpiry.getDaysToExpiry());
                 primaryExpiry = singleExpiry;
             }

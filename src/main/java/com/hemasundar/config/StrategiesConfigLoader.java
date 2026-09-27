@@ -1026,9 +1026,9 @@ public class StrategiesConfigLoader {
 
             // Lazy path: dynamic keyword — fetch from Wikipedia on demand.
             if (key.equalsIgnoreCase("SPY") || key.equalsIgnoreCase("QQQ")) {
-                log.info("Lazily fetching dynamic securities for keyword '{}' from Wikipedia", key);
+                log.debug("Lazily fetching dynamic securities for keyword '{}' from Wikipedia", key);
                 List<String> tickers = wikipediaFetcher.fetch(key);
-                log.info("Fetched {} tickers for '{}' from Wikipedia", tickers.size(), key);
+                log.debug("Fetched {} tickers for '{}' from Wikipedia", tickers.size(), key);
                 uniqueSecurities.addAll(tickers);
                 continue;
             }

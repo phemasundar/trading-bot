@@ -368,9 +368,9 @@ public class TechnicalScreener {
             TechnicalFilterChain filterChain,
             FundamentalFilterConditions fundamentalConditions,
             java.util.function.BiConsumer<String, String> alertCallback) {
-        log.info("\n{}", filterChain.getFiltersSummary());
+        log.debug("\n{}", filterChain.getFiltersSummary());
 
-        log.info("Screening {} symbols in parallel", symbols.size());
+        log.debug("Screening {} symbols in parallel", symbols.size());
         long screenT0 = System.currentTimeMillis();
 
         List<ScreeningResult> parallelResults = schwabApiExecutor.executeParallel(symbols, symbol -> {
@@ -384,7 +384,7 @@ public class TechnicalScreener {
                     && meetsAllCriteria(result, filterChain.getConditions())
                     && meetsFundamentalCriteria(result, fundamentalConditions)) {
                 results.add(result);
-                log.info("\n{}", result);
+                log.debug("\n{}", result);
             }
         }
 
@@ -586,7 +586,7 @@ public class TechnicalScreener {
         QuotesResponse.QuoteData quoteData = QuotesCache.getInstance().get(symbol);
         if (quoteData == null && ThinkOrSwimAPIs != null) {
             try {
-                log.info("Symbol {}: quoteData missing in cache, fetching on-demand", symbol);
+                log.debug("Symbol {}: quoteData missing in cache, fetching on-demand", symbol);
                 quoteData = ThinkOrSwimAPIs.getQuote(symbol, null);
                 if (quoteData != null) {
                     QuotesCache.getInstance().put(symbol, quoteData);
@@ -602,13 +602,13 @@ public class TechnicalScreener {
                 builder.marketCapB(mcap);
                 log.debug("Symbol {}: Calculated Market Cap B: {}", symbol, mcap);
             } else {
-                log.info("Symbol {}: Market Cap data missing in quote", symbol);
+                log.debug("Symbol {}: Market Cap data missing in quote", symbol);
             }
             if (quoteData.getReference() != null) {
                 builder.companyName(quoteData.getReference().getDescription());
             }
         } else {
-            log.info("Symbol {}: quoteData is null", symbol);
+            log.debug("Symbol {}: quoteData is null", symbol);
         }
 
         return builder.build();

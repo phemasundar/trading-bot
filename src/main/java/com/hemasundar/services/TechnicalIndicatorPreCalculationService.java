@@ -183,7 +183,7 @@ public class TechnicalIndicatorPreCalculationService {
             return;
         }
 
-        log.info("[TechnicalIndicatorPreCalculationService] Starting pre-calculation for {} symbols", symbols.size());
+        log.debug("[TechnicalIndicatorPreCalculationService] Starting pre-calculation for {} symbols", symbols.size());
         long t0 = System.currentTimeMillis();
 
         SecuritiesFilterConfig filterConfig = null;
@@ -221,7 +221,7 @@ public class TechnicalIndicatorPreCalculationService {
                 .collect(Collectors.toList());
 
         if (uncachedSymbols.isEmpty()) {
-            log.info("[TechnicalIndicatorPreCalculationService] All {} symbols already pre-calculated in memory", symbols.size());
+            log.debug("[TechnicalIndicatorPreCalculationService] All {} symbols already pre-calculated in memory", symbols.size());
             saveAllToSupabase(symbols);
             return;
         }
@@ -241,7 +241,7 @@ public class TechnicalIndicatorPreCalculationService {
         });
 
         long t1 = System.currentTimeMillis();
-        log.info("[TechnicalIndicatorPreCalculationService] Pre-calculated {} symbols in {}ms", uncachedSymbols.size(), (t1 - t0));
+        log.debug("[TechnicalIndicatorPreCalculationService] Pre-calculated {} symbols in {}ms", uncachedSymbols.size(), (t1 - t0));
 
         // Save all evaluated indicators into Supabase table latest_security_indicators (1 row per security)
         saveAllToSupabase(symbols);
@@ -260,7 +260,7 @@ public class TechnicalIndicatorPreCalculationService {
         if (!resultsToSave.isEmpty()) {
             try {
                 supabaseService.get().saveSecurityIndicators(resultsToSave);
-                log.info("[TechnicalIndicatorPreCalculationService] Persisted {} security indicators to Supabase", resultsToSave.size());
+                log.debug("[TechnicalIndicatorPreCalculationService] Persisted {} security indicators to Supabase", resultsToSave.size());
             } catch (Exception e) {
                 log.error("[TechnicalIndicatorPreCalculationService] Failed to persist security indicators to Supabase: {}", e.getMessage(), e);
             }

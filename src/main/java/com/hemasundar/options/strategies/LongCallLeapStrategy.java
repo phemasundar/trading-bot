@@ -38,7 +38,7 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
     public List<TradeSetup> findTrades(OptionChainResponse chain, OptionsStrategyFilter filter) {
         // Step 1: Find strict trades using the base strategy logic (findValidTrades)
         List<TradeSetup> strictTrades = super.findTrades(chain, filter);
-        log.info("[{}] Found {} trades with strict filters", chain.getSymbol(), strictTrades.size());
+        log.debug("[{}] Found {} trades with strict filters", chain.getSymbol(), strictTrades.size());
 
         // Step 2: Identify target N from filter
         Integer topTradesCount = null;
@@ -48,14 +48,14 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
 
         // Case A: No limit set - return all strict trades (sorted using strategy preference)
         if (topTradesCount == null) {
-            log.info("[{}] No topTradesCount limit set. Returning all {} strict trades.",
+            log.debug("[{}] No topTradesCount limit set. Returning all {} strict trades.",
                     chain.getSymbol(), strictTrades.size());
             return getTopNTrades(strictTrades, Integer.MAX_VALUE, filter);
         }
 
         // Case B: Limit set - apply Top N logic with optional relaxation
         int topN = topTradesCount;
-        log.info("[{}] Finding Top {} Long LEAP trades", chain.getSymbol(), topN);
+        log.debug("[{}] Finding Top {} Long LEAP trades", chain.getSymbol(), topN);
 
         // If we already have enough trades meeting strict criteria, return them
         if (strictTrades.size() >= topN) {
@@ -67,23 +67,23 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
 
         if (CollectionUtils.isEmpty(relaxationOrder)) {
             // No relaxation configured - return whatever strict results we found
-            log.info("[{}] No relaxationPriority configured. Returning {} strict trades (target was {})",
+            log.debug("[{}] No relaxationPriority configured. Returning {} strict trades (target was {})",
                     chain.getSymbol(), strictTrades.size(), topN);
             return getTopNTrades(strictTrades, topN, filter);
         }
 
         // Progressive relaxation is enabled
-        log.info("[{}] Applying progressive relaxation with order: {}", chain.getSymbol(), relaxationOrder);
+        log.debug("[{}] Applying progressive relaxation with order: {}", chain.getSymbol(), relaxationOrder);
         List<TradeSetup> allTrades = new ArrayList<>(strictTrades);
 
         // Apply relaxation levels based on configured priority until target N is reached
         for (int i = 0; i < relaxationOrder.size() && allTrades.size() < topN; i++) {
             String filterToRelax = relaxationOrder.get(i);
-            log.info("[{}] Applying relaxation level {} ({})", chain.getSymbol(), i + 1, filterToRelax);
+            log.debug("[{}] Applying relaxation level {} ({})", chain.getSymbol(), i + 1, filterToRelax);
 
             List<TradeSetup> relaxedTrades = findTradesWithRelaxation(chain, filter, relaxationOrder.subList(0, i + 1));
             allTrades = combineAndDeduplicate(allTrades, relaxedTrades);
-            log.info("[{}] Total trades after level {}: {}", chain.getSymbol(), i + 1, allTrades.size());
+            log.debug("[{}] Total trades after level {}: {}", chain.getSymbol(), i + 1, allTrades.size());
         }
 
         // Sort and return top N from the combined (strict + relaxed) list

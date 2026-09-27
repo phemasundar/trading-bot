@@ -71,7 +71,7 @@ public class ScreenerExecutionService {
 
     private void executeScreenersInternal(Set<Integer> screenerIndices, List<ScreenerConfig> allScreeners, boolean isCustom, Map<String, Object> requestParams) {
         if (CollectionUtils.isEmpty(screenerIndices) || allScreeners == null) {
-            log.info("No screener indices provided, skipping technical screeners");
+            log.debug("No screener indices provided, skipping technical screeners");
             return;
         }
 
@@ -99,7 +99,7 @@ public class ScreenerExecutionService {
                     prewarmAlertCallback);
 
             // Prewarm QuotesCache — parallel fetch using single-symbol Quote API
-            log.info("[Prewarm] Starting QuotesCache prewarm for {} symbols", allSymbolsToPrewarm.size());
+            log.debug("[Prewarm] Starting QuotesCache prewarm for {} symbols", allSymbolsToPrewarm.size());
             QuotesCache.getInstance().prewarm(allSymbolsToPrewarm, schwabApiExecutor,
                     symbol -> ThinkOrSwimAPIs.getQuote(symbol, null),
                     prewarmAlertCallback);
@@ -164,7 +164,7 @@ public class ScreenerExecutionService {
             log.info("[{}] Found {} stocks matching criteria", screenerConfig.getName(), screenerResults.size());
 
             if (!screenerResults.isEmpty()) {
-                log.info("[{}] Matching stocks: {}", screenerConfig.getName(),
+                log.debug("[{}] Matching stocks: {}", screenerConfig.getName(),
                         screenerResults.stream().map(TechnicalScreener.ScreeningResult::getSymbol)
                                 .toList());
                 try {
@@ -188,10 +188,10 @@ public class ScreenerExecutionService {
             try {
                 if (isCustom) {
                     supabaseService.saveCustomScreenerResult(scrResult, securitiesToScan, requestParams);
-                    log.info("[{}] Saved custom screener result to Supabase", screenerConfig.getName());
+                    log.debug("[{}] Saved custom screener result to Supabase", screenerConfig.getName());
                 } else {
                     supabaseService.saveScreenerResult(scrResult);
-                    log.info("[{}] Saved global screener result to Supabase", screenerConfig.getName());
+                    log.debug("[{}] Saved global screener result to Supabase", screenerConfig.getName());
                 }
             } catch (Exception e) {
                 strategyExecutionService.addAlert(ExecutionAlert.Severity.WARNING,

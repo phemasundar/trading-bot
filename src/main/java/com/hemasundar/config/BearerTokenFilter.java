@@ -128,7 +128,7 @@ public class BearerTokenFilter implements Filter {
 
         // [DEBUG] Check token structure since we are getting "> 3 parts" errors
         long dotCount = token.chars().filter(ch -> ch == '.').count();
-        log.info("[DEBUG] Received Token Length: {}, Dot count: {}", token.length(), dotCount);
+        log.debug("[DEBUG] Received Token Length: {}, Dot count: {}", token.length(), dotCount);
 
         try {
             DecodedJWT decoded  = JWT.decode(token);
@@ -148,14 +148,14 @@ public class BearerTokenFilter implements Filter {
                         .collect(Collectors.toSet());
 
                 if (email == null || !allowed.contains(email.toLowerCase())) {
-                    log.info("[AUTH ERROR] Email '{}' not in allowlist — denying {}", email, path);
+                    log.debug("[AUTH ERROR] Email '{}' not in allowlist — denying {}", email, path);
                     sendError(response, HttpServletResponse.SC_FORBIDDEN,
                             "User not authorized. Contact the administrator.");
                     return;
                 }
             }
 
-            log.info("[AUTH SUCCESS] JWT verified for {} on {}", email, path);
+            log.debug("[AUTH SUCCESS] JWT verified for {} on {}", email, path);
             // Auth passed — let the request continue to the controller/servlet.
             // Any IOException or ServletException thrown by downstream code will
             // propagate through here naturally and be handled by Spring's own
@@ -163,7 +163,7 @@ public class BearerTokenFilter implements Filter {
             chain.doFilter(request, response);
 
         } catch (JWTVerificationException e) {
-            log.info("[AUTH ERROR] JWT verification failed for {}: {}", path, e.getMessage());
+            log.debug("[AUTH ERROR] JWT verification failed for {}: {}", path, e.getMessage());
             sendError(response, HttpServletResponse.SC_UNAUTHORIZED,
                     "Invalid or expired token. Please sign in again.");
         } catch (IOException | ServletException e) {

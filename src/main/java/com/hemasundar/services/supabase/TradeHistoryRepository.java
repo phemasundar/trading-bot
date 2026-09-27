@@ -88,7 +88,7 @@ public class TradeHistoryRepository {
 
             int statusCode = response.getStatusCode();
             if (statusCode == 200 || statusCode == 201) {
-                log.info("Successfully persisted {} historical trades for strategy: {}", payloadArray.size(), strategyId);
+                log.debug("Successfully persisted {} historical trades for strategy: {}", payloadArray.size(), strategyId);
             } else {
                 String errorBody = response.getBody().asString();
                 throw new IOException(String.format("Failed to save historical trades: %d - %s. Body: %s",

@@ -84,6 +84,6 @@ public class OptionChainCache extends AbstractApiCache<OptionChainResponse> {
      * Prints cache statistics.
      */
     public void printStats() {
-        log.info("Cache Stats - Total API calls: {} | Cached symbols: {}", apiCallCounter.get(), cache.size());
+        log.debug("Cache Stats - Total API calls: {} | Cached symbols: {}", apiCallCounter.get(), cache.size());
     }
 }

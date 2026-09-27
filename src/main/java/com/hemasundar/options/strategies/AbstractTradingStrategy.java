@@ -60,7 +60,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
         // ── IV Rank Filter ──
         Double ivRank = ivRankFuture.join();
         if (!filter.passesIVRank(ivRank)) {
-            log.info("[{}] IV Rank {:.1f}% outside configured bounds [min={}, max={}], skipping symbol",
+            log.debug("[{}] IV Rank {:.1f}% outside configured bounds [min={}, max={}], skipping symbol",
                     symbol, ivRank, filter.getMinIVRank(), filter.getMaxIVRank());
             FilterLogStore.getInstance().logFilter(strategyName, symbol, FilterStage.IV_RANK_FILTER.displayName(), 1, 0);
             return Collections.emptyList();
@@ -72,7 +72,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
         // ── IV Percentile Filter ──
         Double ivPercentile = ivPercentileFuture.join();
         if (!filter.passesIVPercentile(ivPercentile)) {
-            log.info("[{}] IV Percentile {:.1f}% outside configured bounds [min={}, max={}], skipping symbol",
+            log.debug("[{}] IV Percentile {:.1f}% outside configured bounds [min={}, max={}], skipping symbol",
                     symbol, ivPercentile, filter.getMinIVPercentile(), filter.getMaxIVPercentile());
             FilterLogStore.getInstance().logFilter(strategyName, symbol, FilterStage.IV_PERCENTILE_FILTER.displayName(), 1, 0);
             return Collections.emptyList();
@@ -94,7 +94,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
                 // Fail-open if historical data is unavailable
                 if (val != null && !expr.evaluate(ivVars::get)) {
                     passesIVExpressions = false;
-                    log.info("[{}] IV condition failed: {} (actual: {}), skipping symbol", symbol, expr, val);
+                    log.debug("[{}] IV condition failed: {} (actual: {}), skipping symbol", symbol, expr, val);
                     FilterLogStore.getInstance().logFilter(strategyName, symbol, expr.toString(), 1, 0);
                     break;
                 } else if (val != null) {
@@ -156,7 +156,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             return new ArrayList<>();
         }
 
-        log.info("[{}] Processing {} expiry dates: {}", symbol, expiryDates.size(), expiryDates);
+        log.debug("[{}] Processing {} expiry dates: {}", symbol, expiryDates.size(), expiryDates);
 
         List<TradeSetup> allTrades = new ArrayList<>();
 
@@ -174,18 +174,18 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
                     }
                 }
                 if (!passesEarnings) {
-                    log.info("[{}] Skipping expiry {} due to earnings filter condition mismatch", symbol, expiryDate);
+                    log.debug("[{}] Skipping expiry {} due to earnings filter condition mismatch", symbol, expiryDate);
                     continue;
                 }
             }
 
             // Find trades for this expiry
             List<TradeSetup> trades = findValidTrades(chain, expiryDate, filter);
-            log.info("[{}] Found {} trades for expiry {}", symbol, trades.size(), expiryDate);
+            log.debug("[{}] Found {} trades for expiry {}", symbol, trades.size(), expiryDate);
             allTrades.addAll(trades);
         }
 
-        log.info("[{}] Total trades found: {}", symbol, allTrades.size());
+        log.debug("[{}] Total trades found: {}", symbol, allTrades.size());
         return allTrades;
     }
 

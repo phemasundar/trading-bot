@@ -217,7 +217,7 @@ public class StrategyExecutionService {
                     .collect(Collectors.toList());
 
             if (!optionChainSymbolsToPrewarm.isEmpty()) {
-                log.info("Pre-warming option chain cache for {} unique symbols across {} strategies",
+                log.debug("Pre-warming option chain cache for {} unique symbols across {} strategies",
                         optionChainSymbolsToPrewarm.size(), selectedStrategies.size());
                 cache.prewarm(optionChainSymbolsToPrewarm, schwabApiExecutor);
             }
@@ -230,7 +230,7 @@ public class StrategyExecutionService {
                     .collect(Collectors.toList());
 
             if (!allSymbolsAcrossStrategies.isEmpty()) {
-                log.info("Pre-warming quotes cache for {} unique symbols", allSymbolsAcrossStrategies.size());
+                log.debug("Pre-warming quotes cache for {} unique symbols", allSymbolsAcrossStrategies.size());
                 com.hemasundar.cache.QuotesCache.getInstance().prewarm(allSymbolsAcrossStrategies, schwabApiExecutor,
                         symbol -> ThinkOrSwimAPIs.getQuote(symbol, null),
                         (sourceContext, errorMsg) -> log.warn("Quotes prewarm error: {}", errorMsg));
@@ -275,7 +275,7 @@ public class StrategyExecutionService {
             // Save to Supabase
             try {
                 supabaseService.saveExecutionResult(executionResult);
-                log.info("Saved execution result to Supabase: {}", executionId);
+                log.debug("Saved execution result to Supabase: {}", executionId);
             } catch (IOException e) {
                 addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE,
                         AlertMessages.SAVE_EXEC_RESULT_FAILED + " (" + e.getMessage() + ")");
@@ -338,11 +338,11 @@ public class StrategyExecutionService {
 
             if (!customSymbols.isEmpty()) {
                 if (!config.hasTechnicalFilter()) {
-                    log.info("Pre-warming option chain cache for {} symbols (custom execution)", customSymbols.size());
+                    log.debug("Pre-warming option chain cache for {} symbols (custom execution)", customSymbols.size());
                     cache.prewarm(customSymbols, schwabApiExecutor);
                 }
 
-                log.info("Pre-warming quotes cache for {} unique symbols (custom execution)", customSymbols.size());
+                log.debug("Pre-warming quotes cache for {} unique symbols (custom execution)", customSymbols.size());
                 com.hemasundar.cache.QuotesCache.getInstance().prewarm(customSymbols, schwabApiExecutor,
                         symbol -> ThinkOrSwimAPIs.getQuote(symbol, null),
                         (sourceContext, errorMsg) -> log.warn("Quotes prewarm error: {}", errorMsg));
@@ -369,10 +369,10 @@ public class StrategyExecutionService {
             try {
                 if (customResultId != null && customResultId > 0) {
                     supabaseService.updateCustomExecutionResult(customResultId, result, config.getSecurities());
-                    log.info("Updated custom execution result in Supabase: id={}", customResultId);
+                    log.debug("Updated custom execution result in Supabase: id={}", customResultId);
                 } else {
                     supabaseService.saveCustomExecutionResult(result, config.getSecurities());
-                    log.info("Saved custom execution result to Supabase: {}", executionId);
+                    log.debug("Saved custom execution result to Supabase: {}", executionId);
                 }
             } catch (IOException e) {
                 addAlert(ExecutionAlert.Severity.WARNING, AlertMessages.SRC_SUPABASE,
@@ -431,12 +431,12 @@ public class StrategyExecutionService {
             securities = screeningResults.stream()
                     .map(TechnicalScreener.ScreeningResult::getSymbol)
                     .collect(Collectors.toList());
-            log.info("[{}] Found {} stocks matching technical criteria: {}",
+            log.debug("[{}] Found {} stocks matching technical criteria: {}",
                     config.getName(), securities.size(), securities);
 
             // Pre-warm option chain cache in parallel for surviving symbols
             if (!securities.isEmpty()) {
-                log.info("[{}] Pre-warming option chain cache for {} technical filter survivors",
+                log.debug("[{}] Pre-warming option chain cache for {} technical filter survivors",
                         config.getName(), securities.size());
                 cache.prewarm(securities, schwabApiExecutor);
             }
@@ -492,7 +492,7 @@ public class StrategyExecutionService {
         if (!isCustomExecution) {
             try {
                 supabaseService.saveStrategyResult(result);
-                log.info("[{}] Saved strategy result to database", config.getName());
+                log.debug("[{}] Saved strategy result to database", config.getName());
             } catch (IOException e) {
                 addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE,
                         AlertMessages.SAVE_STRATEGY_RESULT_FAILED + " (" + e.getMessage() + ")");
@@ -528,7 +528,7 @@ public class StrategyExecutionService {
         AbstractTradingStrategy strategy = config.getStrategy();
         int maxTradesToSend = config.getMaxTradesToSend();
 
-        log.info("\\n" +
+        log.debug("\\n" +
                 "******************************************************************\\n" +
                 "************* {} **************\\n" +
                 "****************************************************************",
@@ -544,7 +544,7 @@ public class StrategyExecutionService {
             try {
                 OptionChainResponse optionChainResponse = cache.get(symbol);
 
-                log.info("Processing symbol: {}", symbol);
+                log.debug("Processing symbol: {}", symbol);
 
                 OptionsStrategyFilter filter = config.getFilter();
                 if (filter != null) {
@@ -553,7 +553,7 @@ public class StrategyExecutionService {
 
                 List<TradeSetup> trades = strategy.findTrades(optionChainResponse, filter);
 
-                // trades.forEach(trade -> log.info("Trade: {}", trade));
+                // trades.forEach(trade -> log.debug("Trade: {}", trade));
 
                 if (!trades.isEmpty()) {
                     // Sort by Return on Risk (Descending)
@@ -563,7 +563,7 @@ public class StrategyExecutionService {
                     List<TradeSetup> topTrades = trades;
                     if (trades.size() > maxTradesToSend) {
                         topTrades = trades.subList(0, maxTradesToSend);
-                        log.info("[{}] Found {} trades, limiting to top {} for Telegram",
+                        log.debug("[{}] Found {} trades, limiting to top {} for Telegram",
                                 symbol, trades.size(), maxTradesToSend);
                     }
 
