@@ -225,7 +225,7 @@ describe('Dashboard & Table Rendering Tests', () => {
 
         const techHtml = renderTechFiltersGrid({ RSI: { condition: 'OVERSOLD' } });
         expect(techHtml).toContain('RSI');
-        expect(techHtml).toContain('OVERSOLD');
+        expect(techHtml).toContain('Oversold (<30)');
     });
 
     test('renderFundamentalFiltersGrid formats fundamental grid', () => {
@@ -260,7 +260,7 @@ describe('Dashboard & Table Rendering Tests', () => {
             config: 'default',
             condition: 'BULLISH_CROSSOVER'
         });
-        expect(rsiCross).toBe('BULLISH_CROSSOVER');
+        expect(rsiCross).toBe('Bullish Crossover (RSI ↑30)');
         expect(rsiCross).not.toContain('[object Object]');
 
         // indicator with CUSTOM_RANGE condition object
@@ -271,7 +271,7 @@ describe('Dashboard & Table Rendering Tests', () => {
                 max: 70
             }
         });
-        expect(rsiRange).toBe('CUSTOM_RANGE (30 - 70)');
+        expect(rsiRange).toBe('Custom Range (30 - 70)');
         expect(rsiRange).not.toContain('[object Object]');
 
         // indicator with conditions containing object
@@ -329,13 +329,13 @@ describe('Dashboard & Table Rendering Tests', () => {
 
         // Technical Filters section should exist
         expect(html).toContain('🔬 Technical Filters');
-        expect(html).toContain('HISTORICAL_VOLATILITY');
+        expect(html).toContain('Historical Volatility');
         expect(html).toContain('HV_RANK >= 25 (Period: 20)');
         expect(html).toContain('RSI');
-        expect(html).toContain('BULLISH_CROSSOVER');
-        expect(html).toContain('BOLLINGER_BAND');
-        expect(html).toContain('LOWER_BAND');
-        expect(html).toContain('VOLUME');
+        expect(html).toContain('Bullish Crossover (RSI ↑30)');
+        expect(html).toContain('Bollinger Band');
+        expect(html).toContain('At/below lower band');
+        expect(html).toContain('Volume Rules');
         expect(html).toContain('VOLUME >= 1000000');
 
         // Duplicate summary item in rootHtml should be omitted when detailed technicalFilters exists
