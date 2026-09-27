@@ -1309,26 +1309,28 @@ function formatTechFilterValue(val) {
         } else if (val.condition !== undefined && val.condition !== null && val.condition !== '') {
             if (typeof val.condition === 'object') {
                 if (val.condition.type === 'CUSTOM_RANGE' && (val.condition.min !== undefined || val.condition.max !== undefined)) {
-                    condStr = `CUSTOM_RANGE (${val.condition.min ?? ''} - ${val.condition.max ?? ''})`;
+                    condStr = `Custom Range (${val.condition.min ?? ''} - ${val.condition.max ?? ''})`;
                 } else if (val.condition.type) {
+                    const condLabel = TECH_CONDITION_LABELS[val.condition.type] || val.condition.type;
                     const extra = Object.entries(val.condition)
                         .filter(([k]) => k !== 'type')
                         .map(([k, v]) => `${k}: ${typeof v === 'object' ? formatTechFilterValue(v) : v}`)
                         .join(', ');
-                    condStr = extra ? `${val.condition.type} (${extra})` : String(val.condition.type);
+                    condStr = extra ? `${condLabel} (${extra})` : condLabel;
                 } else {
                     condStr = Object.entries(val.condition)
                         .map(([k, v]) => `${k}: ${typeof v === 'object' ? formatTechFilterValue(v) : v}`)
                         .join(', ');
                 }
             } else {
-                condStr = String(val.condition);
+                condStr = TECH_CONDITION_LABELS[String(val.condition)] || String(val.condition);
             }
         } else if (val.type === 'CUSTOM_RANGE' && (val.min !== undefined || val.max !== undefined)) {
-            condStr = `CUSTOM_RANGE (${val.min ?? ''} - ${val.max ?? ''})`;
+            condStr = `Custom Range (${val.min ?? ''} - ${val.max ?? ''})`;
         } else if (val.type && (val.min !== undefined || val.max !== undefined)) {
             const rangeParts = [val.min !== undefined ? `min: ${val.min}` : '', val.max !== undefined ? `max: ${val.max}` : ''].filter(Boolean);
-            condStr = `${val.type} (${rangeParts.join(', ')})`;
+            const condLabel = TECH_CONDITION_LABELS[val.type] || val.type;
+            condStr = `${condLabel} (${rangeParts.join(', ')})`;
         } else if (val.rules !== undefined && val.rules !== null) {
             condStr = Array.isArray(val.rules) ? val.rules.join(', ') : String(val.rules);
         } else if (val.min !== undefined && val.max !== undefined) {
@@ -1476,6 +1478,27 @@ function renderFilterGrid(cfg) {
     return html;
 }
 
+/** Human-friendly labels for technical filter keys. */
+const TECH_FILTER_LABELS = {
+    RSI:                   'RSI Condition',
+    BOLLINGER_BAND:        'Bollinger Band',
+    VOLUME:                'Volume Rules',
+    HISTORICAL_VOLATILITY: 'Historical Volatility',
+    PRICE_DROP:            'Price Drop',
+    SIMPLE_MOVING_AVERAGE: 'Moving Average Rules',
+};
+
+/** Human-friendly labels for technical filter condition values. */
+const TECH_CONDITION_LABELS = {
+    OVERSOLD:          'Oversold (<30)',
+    BULLISH_CROSSOVER: 'Bullish Crossover (RSI ↑30)',
+    OVERBOUGHT:        'Overbought (>70)',
+    BEARISH_CROSSOVER: 'Bearish Crossover (RSI ↓70)',
+    CUSTOM_RANGE:      'Custom Range',
+    LOWER_BAND:        'At/below lower band',
+    UPPER_BAND:        'At/above upper band',
+};
+
 function renderTechFiltersGrid(technicalFilters) {
     if (!technicalFilters) return '';
     if (typeof technicalFilters === 'string') {
@@ -1487,12 +1510,14 @@ function renderTechFiltersGrid(technicalFilters) {
     for (const [key, val] of Object.entries(technicalFilters)) {
         const formatted = formatTechFilterValue(val);
         if (formatted !== null && formatted !== undefined && formatted !== '') {
-            parts.push(`<div class="config-item"><span class="config-item-label">${key}</span><span class="config-item-value">${formatted}</span></div>`);
+            const label = TECH_FILTER_LABELS[key] || key;
+            parts.push(`<div class="config-item"><span class="config-item-label">${label}</span><span class="config-item-value">${formatted}</span></div>`);
         }
     }
     if (parts.length === 0) return '';
     return `<div class="nested-section"><div class="nested-heading">🔬 Technical Filters</div><div class="config-grid">${parts.join('')}</div></div>`;
 }
+
 
 function renderFundamentalFiltersGrid(fundamentalFilters) {
     if (!fundamentalFilters || typeof fundamentalFilters !== 'object') return '';

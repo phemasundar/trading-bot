@@ -370,6 +370,46 @@ function showFilterHelp(event, key, label) {
     setTimeout(() => document.addEventListener('click', closeHandler), 10);
 }
 
+function showTechFilterHelp(event, filterKey) {
+    if (filterKey === 'RSI') {
+        const sel = document.querySelector('[data-tech-filter="RSI"][data-tech-field="condition"]');
+        const cond = sel && sel.value;
+        const key = cond ? `RSI.${cond}` : 'RSI';
+        const label = cond && sel.options[sel.selectedIndex] ? `RSI (${sel.options[sel.selectedIndex].text})` : 'RSI Condition';
+        showFilterHelp(event, key, label);
+    } else if (filterKey === 'BOLLINGER_BAND') {
+        const sel = document.querySelector('[data-tech-filter="BOLLINGER_BAND"][data-tech-field="condition"]');
+        const cond = sel && sel.value;
+        const key = cond ? `BOLLINGER_BAND.${cond}` : 'BOLLINGER_BAND';
+        const label = cond && sel.options[sel.selectedIndex] ? `Bollinger Band (${sel.options[sel.selectedIndex].text})` : 'Bollinger Band Condition';
+        showFilterHelp(event, key, label);
+    } else {
+        const label = filterKey.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
+        showFilterHelp(event, filterKey, label);
+    }
+}
+
+function showScreenerTypeHelp(event) {
+    const sel = document.getElementById('screener-type');
+    const type = sel && sel.value;
+    const key = type || 'screenerType';
+    const label = type && sel.options[sel.selectedIndex] && sel.selectedIndex > 0 ? sel.options[sel.selectedIndex].text : 'Screener Type';
+    showFilterHelp(event, key, label);
+}
+
+function autoAdjustSelectWidth(selectEl) {
+    if (!selectEl) return;
+    if (typeof CSS !== 'undefined' && CSS.supports && CSS.supports('field-sizing', 'content')) {
+        return;
+    }
+    const idx = selectEl.selectedIndex;
+    const text = idx >= 0 && selectEl.options && selectEl.options[idx] ? selectEl.options[idx].text : '';
+    if (text) {
+        const approxWidth = Math.min(Math.max(text.length * 8 + 44, 130), 450);
+        selectEl.style.width = `${approxWidth}px`;
+    }
+}
+
 // ── Timers & Polling Helpers ──
 
 function startTimer(startTimeMs) {
@@ -531,6 +571,9 @@ if (typeof module !== 'undefined' && module.exports) {
         showInfo,
         loadFilterDescriptions,
         showFilterHelp,
+        showTechFilterHelp,
+        showScreenerTypeHelp,
+        autoAdjustSelectWidth,
         startTimer,
         stopTimer,
         showErrorPanel,

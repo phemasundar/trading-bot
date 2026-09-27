@@ -214,4 +214,47 @@ describe('Technical Screener Execution Tests', () => {
         await new Promise(resolve => setTimeout(resolve, 10));
         expect(API.delete).toHaveBeenCalledWith('/api/results/custom/screeners/scr-123');
     });
+
+    test('onScreenerTypeChange updates screener-type-info-btn title and inputs', () => {
+        document.body.innerHTML = `
+            <button id="screener-type-info-btn"></button>
+            <select id="screener-type">
+                <option value="PRICE_DROP" selected>Price Drop</option>
+            </select>
+            <div id="sc-priceDropRules-group" style="display:none"></div>
+            <div id="sc-lookbackDays-group" style="display:none"></div>
+            <div id="screener-templates"></div>
+        `;
+        window.FILTER_DESCRIPTIONS = { PRICE_DROP: 'Drop filter desc' };
+        onScreenerTypeChange();
+
+        const btn = document.getElementById('screener-type-info-btn');
+        expect(btn.title).toBe('Drop filter desc');
+        expect(document.getElementById('sc-priceDropRules-group').style.display).toBe('');
+    });
+
+    test('initExecuteScreenerPage initializes authed and loads screener results', async () => {
+        window.supabase = {
+            createClient: () => ({
+                auth: {
+                    getSession: () => Promise.resolve({ data: { session: { access_token: 'tok' } } }),
+                    onAuthStateChange: jest.fn()
+                }
+            })
+        };
+        API.get = jest.fn().mockImplementation(url => {
+            if (url === '/api/results/custom/screeners') return Promise.resolve([]);
+            if (url === '/api/status') return Promise.resolve({ running: false });
+            return Promise.resolve([]);
+        });
+
+        document.body.innerHTML = `
+            <select id="screener-type"><option value="RSI_OVERSOLD" selected>RSI Oversold</option></select>
+            <div id="screener-custom-results"></div>
+            <div id="screener-templates"></div>
+        `;
+
+        await initExecuteScreenerPage();
+        expect(API.get).toHaveBeenCalledWith('/api/results/custom/screeners');
+    });
 });

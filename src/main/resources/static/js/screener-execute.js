@@ -125,6 +125,9 @@ async function executeScreenersSelected() {
 async function initExecuteScreenerPage() {
     const authed = await initAuth();
     if (!authed) return;
+    if (typeof loadFilterDescriptions === 'function') {
+        await loadFilterDescriptions();
+    }
     await loadCustomScreenerResults();
     await checkCustomScreenerExecutionStatus();
     
@@ -132,11 +135,28 @@ async function initExecuteScreenerPage() {
     if (select && select.value) {
         onScreenerTypeChange();
     }
+
+    document.querySelectorAll('.form-select').forEach(sel => {
+        if (typeof autoAdjustSelectWidth === 'function') autoAdjustSelectWidth(sel);
+        sel.addEventListener('change', () => {
+            if (typeof autoAdjustSelectWidth === 'function') autoAdjustSelectWidth(sel);
+        });
+    });
 }
 
 function onScreenerTypeChange() {
     const type = document.getElementById('screener-type').value;
     const meta = SCREENER_TYPE_META[type];
+
+    const infoBtn = document.getElementById('screener-type-info-btn');
+    if (infoBtn) {
+        const sel = document.getElementById('screener-type');
+        const label = type && sel.selectedOptions[0] ? sel.selectedOptions[0].text : 'Screener Type';
+        infoBtn.title = (typeof FILTER_DESCRIPTIONS !== 'undefined' && FILTER_DESCRIPTIONS[type])
+            ? FILTER_DESCRIPTIONS[type]
+            : `${label} details`;
+        if (typeof autoAdjustSelectWidth === 'function') autoAdjustSelectWidth(sel);
+    }
 
     const dropGroup = document.getElementById('sc-priceDropRules-group');
     const lookbackGroup = document.getElementById('sc-lookbackDays-group');
@@ -242,46 +262,20 @@ function loadScreenerTemplateParams(screenerJson) {
         if (secFileInput) secFileInput.value = screener.securitiesFile || '';
 
         const techFilters = screener.technicalFilters || {};
+        fillTechFiltersForm(techFilters);
 
+        // Fallback for elements using legacy sc-* IDs (e.g. tests or custom markup)
         const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val !== undefined && val !== null ? val : ''; };
-        
-        const extractField = (filterKey, fieldType, prop) => {
-            if (!techFilters[filterKey]) return undefined;
-            if (fieldType === 'root') return techFilters[filterKey];
-            if (!techFilters[filterKey][fieldType]) return undefined;
-            if (typeof techFilters[filterKey][fieldType] !== 'object') {
-                return prop ? undefined : techFilters[filterKey][fieldType];
-            }
-            return techFilters[filterKey][fieldType][prop];
-        };
-
-        setVal('sc-rsiCondition', extractField('RSI', 'condition'));
-        setVal('sc-bollingerCondition', extractField('BOLLINGER_BAND', 'condition'));
-        const volConditions = extractField('VOLUME', 'conditions');
-        if (volConditions && Array.isArray(volConditions) && volConditions.length > 0) {
-            const rulesStrs = volConditions.map(vc => {
-                if (typeof vc === 'string') return vc;
-                if (vc.type === 'MIN_VOLUME') return `>= ${vc.min}`;
-                if (vc.type === 'SMA_COMPARISON') return `SMA${vc.volumeShortSmaPeriod || 20} >= SMA${vc.volumeLongSmaPeriod || 50} * ${vc.volumeThresholdPercent || 90}%`;
-                return '';
-            }).filter(Boolean);
-            setVal('sc-volumeRules', rulesStrs.join(', '));
+        if (techFilters.RSI) {
+            setVal('sc-rsiCondition', techFilters.RSI.condition || techFilters.RSI);
         }
-        let pdRules = extractField('PRICE_DROP', 'root');
-        if (pdRules && pdRules.conditions) pdRules = pdRules.conditions;
-        setVal('sc-priceDropRules', pdRules && Array.isArray(pdRules) ? pdRules.join(', ') : pdRules || '');
-        setVal('sc-lookbackDays', extractField('PRICE_DROP', 'config', 'lookbackDays'));
-
-        let maRules = extractField('SIMPLE_MOVING_AVERAGE', 'root');
-        if (maRules && maRules.conditions) maRules = maRules.conditions;
-        setVal('sc-movingAverageRules', maRules && Array.isArray(maRules) ? maRules.join(', ') : maRules || '');
-        setVal('sc-hvPeriod', extractField('HISTORICAL_VOLATILITY', 'config', 'period'));
-        let hvRules = extractField('HISTORICAL_VOLATILITY', 'root');
-        if (hvRules && hvRules.conditions) hvRules = hvRules.conditions;
-        setVal('sc-hvRules', hvRules && Array.isArray(hvRules) ? hvRules.join(', ') : hvRules || '');
+        if (techFilters.BOLLINGER_BAND) {
+            setVal('sc-bollingerCondition', techFilters.BOLLINGER_BAND.condition || techFilters.BOLLINGER_BAND);
+        }
 
         showToast('Template filters loaded!');
     } catch (e) {
+        console.error('Error loading screener template:', e);
         showToast('Error loading template', 'error');
     }
 }

@@ -1,5 +1,13 @@
 const {
     STRATEGY_TYPES,
+    TRADE_VARIABLES,
+    LEG_VARIABLES,
+    CONDITION_OPERATORS,
+    STRATEGY_LEG_CONFIG,
+    STRATEGY_SCALAR_FIELDS,
+    parseConditionString,
+    addConditionRow,
+    getConditionsFromContainer,
     getLegFilters,
     STRATEGY_SPECIFIC_FILTERS,
     initExecutePage,
@@ -63,13 +71,13 @@ describe('Custom Options Execute Tests', () => {
     test('renderSpecificFilters renders for all strategy groups', () => {
         document.body.innerHTML = '<div id="specific-filters"></div>';
         renderSpecificFilters('PUT_CREDIT_SPREAD');
-        expect(document.getElementById('specific-filters').innerHTML).toContain('Short Leg Min Delta');
+        expect(document.getElementById('specific-filters').innerHTML).toContain('Short Leg Conditions');
 
         renderSpecificFilters('IRON_CONDOR');
         expect(document.getElementById('specific-filters').innerHTML).toContain('Min Combined Credit');
 
         renderSpecificFilters('LONG_CALL_LEAP');
-        expect(document.getElementById('specific-filters').innerHTML).toContain('Min Cost Savings %');
+        expect(document.getElementById('specific-filters').innerHTML).toContain('Long Call Conditions');
 
         renderSpecificFilters('BULLISH_BROKEN_WING_BUTTERFLY');
         expect(document.getElementById('specific-filters').innerHTML).toContain('Price/Debit Ratio');
@@ -403,4 +411,256 @@ describe('Custom Options Execute Tests', () => {
         expect(card100Content.classList.contains('open')).toBe(true);
         expect(card200Content.classList.contains('open')).toBe(true);
     });
+
+    test('parseConditionString parses valid rules and handles invalid inputs', () => {
+        expect(parseConditionString('DTE >= 25')).toEqual({ variable: 'DTE', operator: '>=', value: '25' });
+        expect(parseConditionString('MAX_LOSS <= 1000')).toEqual({ variable: 'MAX_LOSS', operator: '<=', value: '1000' });
+        expect(parseConditionString('EARNINGS_NEAREST_TO_DTE <= DTE - 10')).toEqual({
+            variable: 'EARNINGS_NEAREST_TO_DTE',
+            operator: '<=',
+            value: 'DTE - 10'
+        });
+        expect(parseConditionString('INVALID')).toBeNull();
+        expect(parseConditionString('')).toBeNull();
+        expect(parseConditionString(null)).toBeNull();
+    });
+
+    test('addConditionRow and getConditionsFromContainer manage dynamic rows', () => {
+        document.body.innerHTML = '<div id="trade-conditions"></div>';
+        
+        // Non-existent container returns null / empty
+        expect(addConditionRow('non-existent', TRADE_VARIABLES)).toBeNull();
+        expect(getConditionsFromContainer('non-existent')).toEqual([]);
+
+        // Add row with prefill string
+        const row1 = addConditionRow('trade-conditions', TRADE_VARIABLES, 'DTE >= 30');
+        expect(row1).not.toBeNull();
+        expect(row1.querySelector('.condition-var-select').value).toBe('DTE');
+        expect(row1.querySelector('.condition-op-select').value).toBe('>=');
+        expect(row1.querySelector('.condition-val-input').value).toBe('30');
+
+        // Condition info button
+        const infoBtn1 = row1.querySelector('.condition-info-btn');
+        expect(infoBtn1).not.toBeNull();
+        expect(infoBtn1.dataset.key).toBe('DTE');
+        expect(infoBtn1.dataset.label).toBe('DTE');
+
+        // Changing variable updates info button key and label
+        const varSel1 = row1.querySelector('.condition-var-select');
+        varSel1.value = 'MAX_LOSS';
+        varSel1.dispatchEvent(new Event('change'));
+        expect(infoBtn1.dataset.key).toBe('MAX_LOSS');
+        expect(infoBtn1.dataset.label).toBe('MAX_LOSS ($)');
+
+        // Clicking info button invokes showFilterHelp
+        const origShowFilterHelp = window.showFilterHelp;
+        window.showFilterHelp = jest.fn();
+        infoBtn1.click();
+        expect(window.showFilterHelp).toHaveBeenCalledWith(expect.anything(), 'MAX_LOSS', 'MAX_LOSS ($)');
+        window.showFilterHelp = origShowFilterHelp;
+
+        // Add row with custom variable
+        const row2 = addConditionRow('trade-conditions', TRADE_VARIABLES, 'CUSTOM_VAR <= 50');
+        expect(row2.querySelector('.condition-var-select').value).toBe('CUSTOM_VAR');
+
+        // Add empty row
+        const row3 = addConditionRow('trade-conditions', TRADE_VARIABLES);
+        expect(row3.querySelector('.condition-var-select').value).toBe(TRADE_VARIABLES[0].value);
+        expect(row3.querySelector('.condition-op-select').value).toBe(CONDITION_OPERATORS[0]);
+        expect(row3.querySelector('.condition-val-input').value).toBe('');
+
+        // getConditionsFromContainer ignores row with empty value
+        let conds = getConditionsFromContainer('trade-conditions');
+        expect(conds).toEqual(['MAX_LOSS >= 30', 'CUSTOM_VAR <= 50']);
+
+        // Remove button removes row
+        const removeBtn = row2.querySelector('.condition-remove-btn');
+        removeBtn.click();
+        conds = getConditionsFromContainer('trade-conditions');
+        expect(conds).toEqual(['MAX_LOSS >= 30']);
+    });
+
+    test('loadTemplateParams with conditions populates condition rows', () => {
+        document.body.innerHTML = `
+            <input id="alias-input">
+            <input id="securities-input">
+            <input id="securities-file-input">
+            <input data-filter="targetDTE">
+            <input id="earnings-conditions-input" data-filter="earningsFilters.conditions">
+            <select id="earnings-preset-select"><option value=""></option></select>
+            <div id="trade-conditions"></div>
+            <div id="specific-filters"></div>
+            <div id="shortLeg-conditions"></div>
+            <div id="longLeg-conditions"></div>
+        `;
+
+        const template = {
+            strategyType: 'PUT_CREDIT_SPREAD',
+            alias: 'PCS Conditions Template',
+            securities: 'AAPL, MSFT',
+            securitiesFile: 'portfolio',
+            filter: {
+                targetDTE: 45,
+                conditions: ['DTE >= 25', 'MAX_LOSS <= 1000', 'RETURN_ON_RISK >= 12'],
+                shortLeg: {
+                    conditions: ['DELTA <= 0.2', 'OPEN_INTEREST >= 500']
+                },
+                earningsFilters: {
+                    conditions: ['DAYS_TO_NEXT_EARNINGS >= DTE']
+                }
+            }
+        };
+
+        loadTemplateParams(escapeAttr(JSON.stringify(template)));
+
+        expect(document.getElementById('alias-input').value).toBe('PCS Conditions Template (Custom)');
+        expect(document.getElementById('securities-input').value).toBe('AAPL, MSFT');
+        expect(document.querySelector('[data-filter="targetDTE"]').value).toBe('45');
+        expect(document.getElementById('earnings-conditions-input').value).toBe('DAYS_TO_NEXT_EARNINGS >= DTE');
+
+        const tradeConds = getConditionsFromContainer('trade-conditions');
+        expect(tradeConds).toEqual(['DTE >= 25', 'MAX_LOSS <= 1000', 'RETURN_ON_RISK >= 12']);
+
+        const legConds = getConditionsFromContainer('shortLeg-conditions');
+        expect(legConds).toEqual(['DELTA <= 0.2', 'OPEN_INTEREST >= 500']);
+    });
+
+    test('loadFiltersFromResult populates condition rows directly and supports legacy fallback', () => {
+        document.body.innerHTML = `
+            <select id="strategy-type"><option value="PUT_CREDIT_SPREAD">PCS</option></select>
+            <input id="alias-input">
+            <input id="securities-file-input">
+            <input id="securities-input">
+            <input data-filter="targetDTE">
+            <input id="earnings-conditions-input" data-filter="earningsFilters.conditions">
+            <select id="earnings-preset-select"><option value=""></option></select>
+            <div id="trade-conditions"></div>
+            <div id="specific-filters"></div>
+            <div id="shortLeg-conditions"></div>
+            <div id="longLeg-conditions"></div>
+        `;
+
+        // Case A: Result with conditions array
+        const modernResult = {
+            strategyType: 'PUT_CREDIT_SPREAD',
+            targetDTE: 30,
+            conditions: ['DTE >= 20', 'MAX_LOSS <= 800'],
+            shortLeg: {
+                conditions: ['DELTA <= 0.15']
+            }
+        };
+
+        const btnA = document.createElement('button');
+        btnA.dataset.filterConfig = escapeAttr(JSON.stringify(modernResult));
+        btnA.dataset.strategyName = 'PCS Modern Run';
+
+        loadFiltersFromResult(btnA);
+        expect(getConditionsFromContainer('trade-conditions')).toEqual(['DTE >= 20', 'MAX_LOSS <= 800']);
+        expect(getConditionsFromContainer('shortLeg-conditions')).toEqual(['DELTA <= 0.15']);
+
+        // Case B: Legacy result without conditions array (historical fallback)
+        const legacyResult = {
+            strategyType: 'PUT_CREDIT_SPREAD',
+            minDTE: 25,
+            maxDTE: 50,
+            maxLossLimit: 600,
+            minReturnOnRisk: 15,
+            minReturnOnRiskCAGR: 40,
+            minIVRank: 20,
+            maxIVRank: 85,
+            minIVPercentile: 30,
+            maxIVPercentile: 90,
+            maxBreakEvenPercentage: 4.5,
+            maxUpperBreakevenDelta: 0.2,
+            maxTotalDebit: 500,
+            maxTotalCredit: 1500,
+            minTotalCredit: 100,
+            maxNetExtrinsicValueToPricePercentage: 0.6,
+            minNetExtrinsicValueToPricePercentage: 0.1,
+            maxCAGRForBreakEven: 12.0,
+            maxOptionPricePercent: 25.0,
+            minCostSavingsPercent: 15.0,
+            shortLeg: {
+                minDelta: 0.12,
+                maxDelta: 0.25,
+                minOpenInterest: 200,
+                minVolume: 20,
+                minPremium: 0.75,
+                maxPremium: 4.00,
+                minVolatility: 15.0,
+                maxVolatility: 60.0
+            }
+        };
+
+        const btnB = document.createElement('button');
+        btnB.dataset.filterConfig = escapeAttr(JSON.stringify(legacyResult));
+        btnB.dataset.strategyName = 'PCS Legacy Run';
+
+        loadFiltersFromResult(btnB);
+        const legacyTradeConds = getConditionsFromContainer('trade-conditions');
+        expect(legacyTradeConds).toContain('DTE >= 25');
+        expect(legacyTradeConds).toContain('DTE <= 50');
+        expect(legacyTradeConds).toContain('MAX_LOSS <= 600');
+        expect(legacyTradeConds).toContain('RETURN_ON_RISK >= 15');
+        expect(legacyTradeConds).toContain('CAGR >= 40');
+        expect(legacyTradeConds).toContain('IV_RANK >= 20');
+        expect(legacyTradeConds).toContain('IV_RANK <= 85');
+        expect(legacyTradeConds).toContain('IV_PERCENTILE >= 30');
+        expect(legacyTradeConds).toContain('IV_PERCENTILE <= 90');
+        expect(legacyTradeConds).toContain('BREAK_EVEN_PCT <= 4.5');
+        expect(legacyTradeConds).toContain('UPPER_BREAK_EVEN_DELTA <= 0.2');
+        expect(legacyTradeConds).toContain('TOTAL_DEBIT <= 500');
+        expect(legacyTradeConds).toContain('NET_CREDIT <= 1500');
+        expect(legacyTradeConds).toContain('NET_CREDIT >= 100');
+        expect(legacyTradeConds).toContain('ANNUALIZED_EXTRINSIC_PCT <= 0.6');
+        expect(legacyTradeConds).toContain('ANNUALIZED_EXTRINSIC_PCT >= 0.1');
+        expect(legacyTradeConds).toContain('BREAKEVEN_CAGR <= 12');
+        expect(legacyTradeConds).toContain('OPTION_PRICE_PERCENT <= 25');
+        expect(legacyTradeConds).toContain('COST_SAVINGS_PERCENT >= 15');
+
+        const legacyLegConds = getConditionsFromContainer('shortLeg-conditions');
+        expect(legacyLegConds).toContain('DELTA >= 0.12');
+        expect(legacyLegConds).toContain('DELTA <= 0.25');
+        expect(legacyLegConds).toContain('OPEN_INTEREST >= 200');
+        expect(legacyLegConds).toContain('VOLUME >= 20');
+        expect(legacyLegConds).toContain('MARK >= 0.75');
+        expect(legacyLegConds).toContain('MARK <= 4');
+        expect(legacyLegConds).toContain('IV >= 15');
+        expect(legacyLegConds).toContain('IV <= 60');
+    });
+
+    test('executeCustom collects trade and leg condition containers into payload', async () => {
+        document.body.innerHTML = `
+            <select id="strategy-type"><option value="PUT_CREDIT_SPREAD" selected>PCS</option></select>
+            <input id="securities-input" value="AAPL">
+            <input id="securities-file-input" value="">
+            <input id="alias-input" value="Condition PCS Run">
+            <input data-filter="targetDTE" value="45" type="number">
+            <div id="trade-conditions"></div>
+            <div id="shortLeg-conditions"></div>
+            <div id="longLeg-conditions"></div>
+            <div id="custom-progress"></div>
+        `;
+
+        addConditionRow('trade-conditions', TRADE_VARIABLES, 'DTE >= 30');
+        addConditionRow('trade-conditions', TRADE_VARIABLES, 'MAX_LOSS <= 1000');
+        addConditionRow('shortLeg-conditions', LEG_VARIABLES, 'DELTA <= 0.20');
+
+        API.post = jest.fn().mockResolvedValueOnce({ message: 'Started' });
+
+        await executeCustom();
+
+        expect(API.post).toHaveBeenCalledWith('/api/execute/custom', expect.objectContaining({
+            strategyType: 'PUT_CREDIT_SPREAD',
+            alias: 'Condition PCS Run',
+            filter: expect.objectContaining({
+                targetDTE: 45,
+                conditions: ['DTE >= 30', 'MAX_LOSS <= 1000'],
+                shortLeg: {
+                    conditions: ['DELTA <= 0.20']
+                }
+            })
+        }));
+    });
 });
+

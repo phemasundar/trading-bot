@@ -90,13 +90,13 @@
             <!-- Config Panel -->
             <div class="card">
                 <div class="form-grid">
-                    <div class="form-group">
+                    <div class="form-group" style="grid-column: span 2">
                         <label class="form-label">Strategy Type *</label>
                         <select id="strategy-type" class="form-select">
                             <option value="">Select a strategy...</option>
                         </select>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="grid-column: span 2">
                         <label class="form-label">Alias (optional)</label>
                         <input type="text" id="alias-input" class="form-input" placeholder="e.g., My PCS Test">
                     </div>
@@ -105,7 +105,7 @@
                 <div id="strategy-templates" style="margin-top: 16px;"></div>
 
                 <div class="form-grid" style="margin-top: 16px;">
-                    <div class="form-group">
+                    <div class="form-group" style="grid-column: span 2">
                         <label class="form-label">Securities File (comma-separated file names) <button type="button" class="info-btn"
                                 onclick="showFilterHelp(event, 'securitiesFile', 'Securities File')"><svg class="info-icon"
                                     xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -118,7 +118,7 @@
                         <input type="text" id="securities-file-input" class="form-input"
                             placeholder="portfolio, top100, tracking, bullish, 2026">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="grid-column: span 2">
                         <label class="form-label">Securities (comma-separated tickers)</label>
                         <input type="text" id="securities-input" class="form-input"
                             placeholder="AAPL, MSFT, GOOG, AMZN, META">
@@ -147,207 +147,6 @@
                                     <line x1="12" y1="8" x2="12.01" y2="8"></line>
                                 </svg></button></label>
                         <input type="number" class="form-input" data-filter="targetDTE" placeholder="45">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Min DTE <button type="button" class="info-btn"
-                                onclick="showFilterHelp(event, 'minDTE', 'Min DTE')"><svg class="info-icon"
-                                    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                </svg></button></label>
-                        <input type="number" class="form-input" data-filter="minDTE" placeholder="20">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Max DTE <button type="button" class="info-btn"
-                                onclick="showFilterHelp(event, 'maxDTE', 'Max DTE')"><svg class="info-icon"
-                                    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                </svg></button></label>
-                        <input type="number" class="form-input" data-filter="maxDTE" placeholder="60">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Max Loss ($) <button type="button" class="info-btn"
-                                onclick="showFilterHelp(event, 'maxLossLimit', 'Max Loss ($)')"><svg class="info-icon"
-                                    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                </svg></button></label>
-                        <input type="number" class="form-input" data-filter="maxLossLimit" placeholder="500">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Max Total Debit ($) <button type="button" class="info-btn"
-                                onclick="showFilterHelp(event, 'maxTotalDebit', 'Max Total Debit ($)')"><svg
-                                    class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                </svg></button></label>
-                        <input type="number" class="form-input" data-filter="maxTotalDebit" placeholder="1000">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Max Total Credit ($) <button type="button" class="info-btn"
-                                onclick="showFilterHelp(event, 'maxTotalCredit', 'Max Total Credit ($)')"><svg
-                                    class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                </svg></button></label>
-                        <input type="number" class="form-input" data-filter="maxTotalCredit" placeholder="2000">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Min Total Credit ($) <button type="button" class="info-btn"
-                                onclick="showFilterHelp(event, 'minTotalCredit', 'Min Total Credit ($)')"><svg
-                                    class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                </svg></button></label>
-                        <input type="number" class="form-input" data-filter="minTotalCredit" placeholder="50">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Min Return on Risk (%) <button type="button" class="info-btn"
-                                onclick="showFilterHelp(event, 'minReturnOnRisk', 'Min Return on Risk (%)')"><svg
-                                    class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                </svg></button></label>
-                        <input type="number" class="form-input" data-filter="minReturnOnRisk" placeholder="10">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Min Return on Risk CAGR (%) <button type="button" class="info-btn"
-                                onclick="showFilterHelp(event, 'minReturnOnRiskCAGR', 'Min Return on Risk CAGR (%)')"><svg
-                                    class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                </svg></button></label>
-                        <input type="number" class="form-input" data-filter="minReturnOnRiskCAGR" placeholder="50">
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Min IV Rank <button type="button" class="info-btn"
-                                onclick="showFilterHelp(event, 'minIVRank', 'Min IV Rank')"><svg
-                                    class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                </svg></button></label>
-                        <input type="number" class="form-input" data-filter="minIVRank" placeholder="10"
-                            step="0.1">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Max IV Rank <button type="button" class="info-btn"
-                                onclick="showFilterHelp(event, 'maxIVRank', 'Max IV Rank')"><svg
-                                    class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                </svg></button></label>
-                        <input type="number" class="form-input" data-filter="maxIVRank" placeholder="90"
-                            step="0.1">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Min IV Percentile <button type="button" class="info-btn"
-                                onclick="showFilterHelp(event, 'minIVPercentile', 'Min IV Percentile')"><svg
-                                    class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                </svg></button></label>
-                        <input type="number" class="form-input" data-filter="minIVPercentile" placeholder="40"
-                            step="0.1">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Max IV Percentile <button type="button" class="info-btn"
-                                onclick="showFilterHelp(event, 'maxIVPercentile', 'Max IV Percentile')"><svg
-                                    class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                </svg></button></label>
-                        <input type="number" class="form-input" data-filter="maxIVPercentile" placeholder="95"
-                            step="0.1">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Max Break-Even % <button type="button" class="info-btn"
-                                onclick="showFilterHelp(event, 'maxBreakEvenPercentage', 'Max Break-Even %')"><svg
-                                    class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                </svg></button></label>
-                        <input type="number" class="form-input" data-filter="maxBreakEvenPercentage" placeholder="5.0"
-                            step="0.1">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Max Breakeven Delta <button type="button" class="info-btn"
-                                onclick="showFilterHelp(event, 'maxUpperBreakevenDelta', 'Max Breakeven Delta')"><svg
-                                    class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                </svg></button></label>
-                        <input type="number" class="form-input" data-filter="maxUpperBreakevenDelta" placeholder="0.30"
-                            step="0.01">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Max Extrinsic % <button type="button" class="info-btn"
-                                onclick="showFilterHelp(event, 'maxNetExtrinsicValueToPricePercentage', 'Max Extrinsic %')"><svg
-                                    class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                </svg></button></label>
-                        <input type="number" class="form-input" data-filter="maxNetExtrinsicValueToPricePercentage"
-                            placeholder="0.5" step="0.1">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Min Extrinsic % <button type="button" class="info-btn"
-                                onclick="showFilterHelp(event, 'minNetExtrinsicValueToPricePercentage', 'Min Extrinsic %')"><svg
-                                    class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                </svg></button></label>
-                        <input type="number" class="form-input" data-filter="minNetExtrinsicValueToPricePercentage"
-                            placeholder="0.0" step="0.1">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Top Trades Count <button type="button" class="info-btn"
@@ -385,7 +184,7 @@
                                 </svg></button></label>
                         <input type="text" class="form-input" data-filter="excludeIf" placeholder="TSLA, NVDA">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="grid-column: span 2">
                         <label class="form-label">Earnings Filter <button type="button" class="info-btn"
                                 onclick="showFilterHelp(event, 'earningsFilters', 'Earnings Filter')"><svg
                                     class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -411,6 +210,23 @@
                             placeholder="DAYS_TO_NEXT_EARNINGS >= DTE, EARNINGS_NEAREST_TO_DTE <= DTE - 10"
                             oninput="syncEarningsPresetFromInput()">
                     </div>
+                    <!-- Trade-level Conditions -->
+                    <div class="form-group" style="grid-column: 1 / -1; margin-top: 8px;">
+                        <div class="flex items-center justify-between" style="margin-bottom: 8px;">
+                            <label class="form-label" style="margin: 0;">Trade Conditions <button type="button" class="info-btn"
+                                    onclick="showFilterHelp(event, 'tradeConditions', 'Trade Conditions')"><svg class="info-icon"
+                                        xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                    </svg></button></label>
+                            <button type="button" class="btn btn-ghost" style="padding: 2px 10px; font-size: 0.8rem;"
+                                onclick="addConditionRow('trade-conditions', TRADE_VARIABLES)">+ Add Condition</button>
+                        </div>
+                        <div id="trade-conditions" class="conditions-list"></div>
+                    </div>
                     <!-- Strategy-specific filters are injected here -->
                     <div id="specific-filters" class="form-grid" style="grid-column: 1 / -1"></div>
                 </div>
@@ -420,66 +236,66 @@
             <!-- Technical Filters -->
             <div class="card">
                 <div class="card-header" onclick="this.nextElementSibling.classList.toggle('open'); this.querySelector('.card-arrow').classList.toggle('open')">
-                    <h3 style="font-size:0.9rem; margin-bottom:0; color:var(--text-secondary)"><span class="card-arrow">▶</span> Technical Filters <span style="font-size:0.75rem; font-weight:400; color:var(--text-muted);">(pre-screens stocks before options analysis)</span></h3>
+                    <h3 style="font-size:0.9rem; margin-bottom:0; color:var(--text-secondary)"><span class="card-arrow">▶</span> Technical Filters <button type="button" class="info-btn" onclick="showFilterHelp(event, 'technicalFilters', 'Technical Filters')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button> <span style="font-size:0.75rem; font-weight:400; color:var(--text-muted);">(pre-screens stocks before options analysis)</span></h3>
                 </div>
                 <div class="card-content" style="overflow-x: visible;">
                     <div class="form-grid">
-                        <div class="form-group">
-                            <label class="form-label">RSI Condition</label>
+                        <div class="form-group" style="grid-column: span 2">
+                            <label class="form-label">RSI Condition <button type="button" class="info-btn" onclick="showTechFilterHelp(event, 'RSI')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
                             <select id="execute-rsiCondition" class="form-select" data-tech-filter="RSI" data-tech-field="condition" onchange="document.getElementById('rsi-custom-range-inputs').style.display = this.value === 'CUSTOM_RANGE' ? 'flex' : 'none'">
-                                <option value="">— None —</option>
-                                <option value="OVERSOLD">Oversold (&lt;30)</option>
-                                <option value="BULLISH_CROSSOVER">Bullish Crossover (RSI crossed ↑30)</option>
-                                <option value="OVERBOUGHT">Overbought (&gt;70)</option>
-                                <option value="BEARISH_CROSSOVER">Bearish Crossover (RSI crossed ↓70)</option>
-                                <option value="CUSTOM_RANGE">Custom Range</option>
+                                <option value="" title="No RSI filter applied">— None —</option>
+                                <option value="OVERSOLD" title="RSI < 30 (oversold bounce)">Oversold (&lt;30)</option>
+                                <option value="BULLISH_CROSSOVER" title="RSI crossed upward through 30">Bullish Crossover (RSI crossed ↑30)</option>
+                                <option value="OVERBOUGHT" title="RSI > 70 (overbought pullback)">Overbought (&gt;70)</option>
+                                <option value="BEARISH_CROSSOVER" title="RSI crossed downward through 70">Bearish Crossover (RSI crossed ↓70)</option>
+                                <option value="CUSTOM_RANGE" title="Specify custom Min and Max RSI bounds">Custom Range</option>
                             </select>
                         </div>
-                        <div id="rsi-custom-range-inputs" style="display:none; gap: 1rem; grid-column: span 1;">
+                        <div id="rsi-custom-range-inputs" style="display:none; gap: 1rem; grid-column: span 2;">
                             <div style="flex: 1;">
-                                <label class="form-label">Min RSI</label>
+                                <label class="form-label">Min RSI <button type="button" class="info-btn" onclick="showFilterHelp(event, 'RSI.CUSTOM_RANGE', 'Min RSI')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
                                 <input type="number" id="execute-minRsi" class="form-input" data-tech-filter="RSI" data-tech-field="min" placeholder="e.g. 40" step="0.1">
                             </div>
                             <div style="flex: 1;">
-                                <label class="form-label">Max RSI</label>
+                                <label class="form-label">Max RSI <button type="button" class="info-btn" onclick="showFilterHelp(event, 'RSI.CUSTOM_RANGE', 'Max RSI')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
                                 <input type="number" id="execute-maxRsi" class="form-input" data-tech-filter="RSI" data-tech-field="max" placeholder="e.g. 60" step="0.1">
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Bollinger Band Condition</label>
+                        <div class="form-group" style="grid-column: span 2">
+                            <label class="form-label">Bollinger Band Condition <button type="button" class="info-btn" onclick="showTechFilterHelp(event, 'BOLLINGER_BAND')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
                             <select class="form-select" data-tech-filter="BOLLINGER_BAND" data-tech-field="condition">
-                                <option value="">— None —</option>
-                                <option value="LOWER_BAND">At/below lower band</option>
-                                <option value="UPPER_BAND">At/above upper band</option>
+                                <option value="" title="No Bollinger Band filter applied">— None —</option>
+                                <option value="LOWER_BAND" title="Price is at or below lower Bollinger Band (2 std dev below 20 SMA)">At/below lower band</option>
+                                <option value="UPPER_BAND" title="Price is at or above upper Bollinger Band (2 std dev above 20 SMA)">At/above upper band</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Volume Rules</label>
+                            <label class="form-label">Volume Rules <button type="button" class="info-btn" onclick="showFilterHelp(event, 'volumeRules', 'Volume Rules')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
                             <input type="text" class="form-input" data-tech-filter="VOLUME" data-tech-field="rules"
                                 placeholder=">= 1000000, SMA20 >= SMA50 * 90%">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">HV Period (Days)</label>
+                            <label class="form-label">HV Period (Days) <button type="button" class="info-btn" onclick="showFilterHelp(event, 'hvPeriod', 'HV Period (Days)')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
                             <input type="number" class="form-input" data-tech-filter="HISTORICAL_VOLATILITY" data-tech-field="period"
                                 placeholder="20" step="1">
                         </div>
                         <div class="form-group" style="grid-column: span 2">
-                            <label class="form-label">HV Rules</label>
+                            <label class="form-label">HV Rules <button type="button" class="info-btn" onclick="showFilterHelp(event, 'hvRules', 'HV Rules')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
                             <input type="text" class="form-input" data-tech-filter="HISTORICAL_VOLATILITY" data-tech-field="rules"
                                 placeholder=">= 25, <= 75">
                         </div>
                         <div class="form-group" id="sc-priceDropRules-group">
-                            <label class="form-label">Price Drop Rules</label>
+                            <label class="form-label">Price Drop Rules <button type="button" class="info-btn" onclick="showFilterHelp(event, 'priceDropRules', 'Price Drop Rules')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
                             <input type="text" id="sc-priceDropRules" class="form-input" data-tech-filter="PRICE_DROP" data-tech-field="rules"
                                 placeholder=">= 3.0">
                         </div>
                         <div class="form-group" id="sc-lookbackDays-group">
-                            <label class="form-label">Lookback Days (0=intraday)</label>
+                            <label class="form-label">Lookback Days (0=intraday) <button type="button" class="info-btn" onclick="showFilterHelp(event, 'lookbackDays', 'Lookback Days')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
                             <input type="number" id="sc-lookbackDays" class="form-input" data-tech-filter="PRICE_DROP" data-tech-field="lookbackDays"
                                 placeholder="0" min="0">
                         </div>
                         <div class="form-group" style="grid-column: 1 / -1">
-                            <label class="form-label">Moving Average Rules <span style="font-size:0.75rem; color:var(--text-muted);">(comma-separated: PRICE >= SMA50, SMA50 >= SMA200, etc.)</span></label>
+                            <label class="form-label">Moving Average Rules <button type="button" class="info-btn" onclick="showFilterHelp(event, 'movingAverageRules', 'Moving Average Rules')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button> <span style="font-size:0.75rem; color:var(--text-muted);">(comma-separated: PRICE >= SMA50, SMA50 >= SMA200, etc.)</span></label>
                             <input type="text" class="form-input" data-tech-filter="SIMPLE_MOVING_AVERAGE" data-tech-field="rules"
                                 placeholder="PRICE >= SMA50, SMA50 >= SMA200">
                         </div>
