@@ -65,7 +65,7 @@ public class StrategyResultRepository {
 
             int statusCode = response.getStatusCode();
             if (statusCode == 200 || statusCode == 201) {
-                log.info("Successfully saved strategy result: {} with {} trades",
+                log.debug("Successfully saved strategy result: {} with {} trades",
                         result.getStrategyId(), result.getTradesFound());
             } else {
                 String errorBody = response.getBody().asString();
@@ -93,7 +93,7 @@ public class StrategyResultRepository {
                 String body = response.getBody().asString();
 
                 if (body.equals("[]") || body.isEmpty()) {
-                    log.info("No strategy results found in database");
+                    log.debug("No strategy results found in database");
                     return Collections.emptyList();
                 }
 
@@ -104,7 +104,7 @@ public class StrategyResultRepository {
                     results.add(parseStrategyResult(node));
                 }
 
-                log.info("Retrieved {} strategy results from database", results.size());
+                log.debug("Retrieved {} strategy results from database", results.size());
                 return results;
             } else {
                 String errorBody = response.getBody().asString();

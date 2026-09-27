@@ -50,11 +50,11 @@ public abstract class AbstractApiCache<T> {
                 .toList();
 
         if (uncached.isEmpty()) {
-            log.info("Cache pre-warm: all {} symbols already cached", symbols.size());
+            log.debug("Cache pre-warm: all {} symbols already cached", symbols.size());
             return;
         }
 
-        log.info("Cache pre-warm: fetching {} symbols in parallel (skipping {} already cached)",
+        log.debug("Cache pre-warm: fetching {} symbols in parallel (skipping {} already cached)",
                 uncached.size(), symbols.size() - uncached.size());
 
         long t0 = System.currentTimeMillis();
@@ -74,7 +74,7 @@ public abstract class AbstractApiCache<T> {
             }
         }
 
-        log.info("Cache pre-warm complete: {}/{} symbols fetched in {}ms",
+        log.debug("Cache pre-warm complete: {}/{} symbols fetched in {}ms",
                 uncached.size(), symbols.size(), System.currentTimeMillis() - t0);
     }
 
@@ -145,6 +145,6 @@ public abstract class AbstractApiCache<T> {
     }
 
     public void printStats() {
-        log.info(getStats());
+        log.debug(getStats());
     }
 }

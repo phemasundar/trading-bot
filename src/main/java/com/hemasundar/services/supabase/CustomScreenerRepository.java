@@ -71,7 +71,7 @@ public class CustomScreenerRepository {
 
             int statusCode = response.getStatusCode();
             if (statusCode == 200 || statusCode == 201) {
-                log.info("Saved custom screener result: {} with {} results",
+                log.debug("Saved custom screener result: {} with {} results",
                         result.getScreenerName(), result.getResultsFound());
             } else {
                 String errorBody = response.getBody().asString();
@@ -106,7 +106,7 @@ public class CustomScreenerRepository {
                 results.add(parseCustomScreenerResult(node));
             }
 
-            log.info("Retrieved {} custom screener execution results from database", results.size());
+            log.debug("Retrieved {} custom screener execution results from database", results.size());
             return results;
         } catch (Exception e) {
             if (e instanceof IOException) throw (IOException) e;
@@ -123,7 +123,7 @@ public class CustomScreenerRepository {
             Response response = client.request().delete(url);
             int statusCode = response.getStatusCode();
             if (statusCode == 200 || statusCode == 204) {
-                log.info("Deleted custom screener result with id={}", id);
+                log.debug("Deleted custom screener result with id={}", id);
             } else {
                 String errorBody = response.getBody().asString();
                 throw new IOException(String.format(

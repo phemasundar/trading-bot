@@ -134,7 +134,7 @@ public class ScreenerController {
                     if (fileSymbols != null) {
                         symbolSet.addAll(fileSymbols);
                     } else if (key.equalsIgnoreCase("SPY") || key.equalsIgnoreCase("QQQ")) {
-                        log.info("Lazily fetching dynamic securities for custom screener: {}", key);
+                        log.debug("Lazily fetching dynamic securities for custom screener: {}", key);
                         try {
                             symbolSet.addAll(wikipediaFetcher.fetch(key.toUpperCase()));
                         } catch (IllegalStateException e) {

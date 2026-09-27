@@ -94,14 +94,14 @@ public class IVDataJobService {
             IVDataPoint dataPoint = results.get(i);
 
             if (dataPoint != null && dataPoint.isNoOptions()) {
-                log.info("[{}] ⏭ Skipped - no options available", symbol);
+                log.debug("[{}] ⏭ Skipped - no options available", symbol);
                 skipCount++;
                 skippedSymbols.add(symbol);
             } else if (dataPoint != null) {
                 if (supabaseService.isPresent()) {
                     try {
                         supabaseService.get().upsertIVData(dataPoint);
-                        log.info("[{}] ✓ Saved to Supabase", symbol);
+                        log.debug("[{}] ✓ Saved to Supabase", symbol);
                     } catch (Exception e) {
                         log.error("[{}] Error saving to Supabase: {}", symbol, e.getMessage());
                     }
@@ -170,14 +170,14 @@ public class IVDataJobService {
         Set<String> securities = new LinkedHashSet<>();
         
         try {
-            log.info("Fetching SPY securities for IV Data Collection...");
+            log.debug("Fetching SPY securities for IV Data Collection...");
             securities.addAll(wikipediaFetcher.fetch("SPY"));
         } catch (Exception e) {
             log.error("Error loading SPY securities: {}", e.getMessage());
         }
 
         try {
-            log.info("Fetching QQQ securities for IV Data Collection...");
+            log.debug("Fetching QQQ securities for IV Data Collection...");
             securities.addAll(wikipediaFetcher.fetch("QQQ"));
         } catch (Exception e) {
             log.error("Error loading QQQ securities: {}", e.getMessage());

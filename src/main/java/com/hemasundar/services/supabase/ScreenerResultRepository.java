@@ -61,7 +61,7 @@ public class ScreenerResultRepository {
 
             int statusCode = response.getStatusCode();
             if (statusCode == 200 || statusCode == 201) {
-                log.info("Successfully saved screener result: {} finding {} stocks",
+                log.debug("Successfully saved screener result: {} finding {} stocks",
                         result.getScreenerId(), result.getResultsFound());
             } else {
                 String errorBody = response.getBody().asString();
@@ -89,7 +89,7 @@ public class ScreenerResultRepository {
                 String body = response.getBody().asString();
 
                 if (body.equals("[]") || body.isEmpty()) {
-                    log.info("No screener results found in database");
+                    log.debug("No screener results found in database");
                     return Collections.emptyList();
                 }
 
@@ -100,7 +100,7 @@ public class ScreenerResultRepository {
                     results.add(parseScreenerResult(node));
                 }
 
-                log.info("Retrieved {} screener results from database", results.size());
+                log.debug("Retrieved {} screener results from database", results.size());
                 return results;
             } else {
                 String errorBody = response.getBody().asString();

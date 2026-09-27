@@ -222,7 +222,7 @@ public class SupabaseService {
             List<ScreeningResult> toUpdate = new ArrayList<>(existing.values());
             enrichListWithIVData(toUpdate);
             securityIndicatorsRepository.saveSecurityIndicators(toUpdate);
-            log.info("Refreshed IV metrics in latest_security_indicators for {} securities", toUpdate.size());
+            log.debug("Refreshed IV metrics in latest_security_indicators for {} securities", toUpdate.size());
         }
     }
 

@@ -65,7 +65,7 @@ public class EarningsCacheManager {
         long daysSinceFetch = ChronoUnit.DAYS.between(lastFetched, LocalDate.now());
 
         if (daysSinceFetch > CACHE_VALIDITY_DAYS) {
-            log.info("Cache stale for {} (fetched {} days ago). Requesting fresh data.", symbol, daysSinceFetch);
+            log.debug("Cache stale for {} (fetched {} days ago). Requesting fresh data.", symbol, daysSinceFetch);
             return null;
         }
 
@@ -104,7 +104,7 @@ public class EarningsCacheManager {
         try (InputStream is = EarningsCacheManager.class.getClassLoader().getResourceAsStream("earnings_cache.json")) {
             if (is != null) {
                 earningsCache = objectMapper.readValue(is, EarningsCache.class);
-                log.info("Seeded initial earnings cache from classpath");
+                log.debug("Seeded initial earnings cache from classpath");
                 return;
             }
         } catch (Exception e) {

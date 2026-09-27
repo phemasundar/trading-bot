@@ -45,7 +45,7 @@ public class FinnHubAPIs {
             return new EarningsCalendarResponse(filteredCached);
         }
 
-        log.info("Fetching fresh earnings for: {}", ticker);
+        log.debug("Fetching fresh earnings for: {}", ticker);
 
         // 2. Fetch Fresh Data (Always fetch 1 year ahead for better caching)
         LocalDate oneYearFromNow = LocalDate.now().plusYears(1);

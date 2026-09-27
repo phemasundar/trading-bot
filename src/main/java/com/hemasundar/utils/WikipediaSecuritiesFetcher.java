@@ -104,7 +104,7 @@ public class WikipediaSecuritiesFetcher {
             return cached.tickers();
         }
 
-        log.info("Fetching constituent list for '{}' from Wikipedia…", keyword);
+        log.debug("Fetching constituent list for '{}' from Wikipedia…", keyword);
         List<String> tickers = switch (keyword) {
             case "SPY" -> fetchSP500();
             case "QQQ" -> fetchNasdaq100();
@@ -113,20 +113,20 @@ public class WikipediaSecuritiesFetcher {
         };
 
         cache.put(keyword, new CachedEntry(tickers, Instant.now()));
-        log.info("Fetched and cached {} tickers for '{}'", tickers.size(), keyword);
+        log.debug("Fetched and cached {} tickers for '{}'", tickers.size(), keyword);
         return tickers;
     }
 
     /** Evicts the cached entry for the given keyword, forcing a re-fetch on next call. */
     public void evict(String keyword) {
         cache.remove(keyword);
-        log.info("Evicted Wikipedia cache for '{}'", keyword);
+        log.debug("Evicted Wikipedia cache for '{}'", keyword);
     }
 
     /** Evicts all cached entries. */
     public void evictAll() {
         cache.clear();
-        log.info("Evicted all Wikipedia securities cache entries");
+        log.debug("Evicted all Wikipedia securities cache entries");
     }
 
     // ── Private fetch methods ───────────────────────────────────────────────────

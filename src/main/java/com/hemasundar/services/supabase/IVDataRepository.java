@@ -61,7 +61,7 @@ public class IVDataRepository {
 
                 if (statusCode == 200 || statusCode == 201) {
                     ivStatsCache.remove(symbol.toUpperCase());
-                    log.info("[{}] Successfully upserted IV data for {} - PUT: {}%, CALL: {}%",
+                    log.debug("[{}] Successfully upserted IV data for {} - PUT: {}%, CALL: {}%",
                             symbol, date, dataPoint.getAtmPutIV(), dataPoint.getAtmCallIV());
                     return; // Success
                 } else if (statusCode == 429 && retryCount < maxRetries) {

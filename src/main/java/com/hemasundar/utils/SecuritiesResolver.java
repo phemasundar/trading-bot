@@ -145,7 +145,7 @@ public class SecuritiesResolver {
     private List<String> loadSecurities(String resourcePath) throws IOException {
         String yaml = FilePaths.readResource(resourcePath);
         Securities securities = JavaUtils.convertYamlToPojo(yaml, Securities.class);
-        log.info("Loading securities from: {} - Found {} symbols", resourcePath, securities.securities().size());
+        log.debug("Loading securities from: {} - Found {} symbols", resourcePath, securities.securities().size());
         return securities.securities();
     }
 }

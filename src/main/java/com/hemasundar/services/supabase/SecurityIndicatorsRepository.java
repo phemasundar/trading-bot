@@ -158,7 +158,7 @@ public class SecurityIndicatorsRepository {
                             "Failed to save security indicators batch [%d-%d]: %d - %s. Body: %s",
                             i, end, statusCode, response.getStatusLine(), response.getBody().asString()));
                 }
-                log.info("Successfully saved/updated indicators for {} securities in Supabase", arrayNode.size());
+                log.debug("Successfully saved/updated indicators for {} securities in Supabase", arrayNode.size());
             } catch (Exception e) {
                 if (e instanceof IOException) throw (IOException) e;
                 throw new IOException("Failed to save security indicators batch: " + e.getMessage(), e);

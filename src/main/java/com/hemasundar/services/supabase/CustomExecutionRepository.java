@@ -66,7 +66,7 @@ public class CustomExecutionRepository {
 
             int statusCode = response.getStatusCode();
             if (statusCode == 200 || statusCode == 201) {
-                log.info("Successfully saved execution result: {} with {} trades",
+                log.debug("Successfully saved execution result: {} with {} trades",
                         result.getExecutionId(), result.getTotalTradesFound());
             } else {
                 String errorBody = response.getBody().asString();
@@ -91,7 +91,7 @@ public class CustomExecutionRepository {
             if (statusCode == 200) {
                 String body = response.getBody().asString();
                 if (body.equals("[]") || body.isEmpty()) {
-                    log.info("No execution results found in database");
+                    log.debug("No execution results found in database");
                     return Optional.empty();
                 }
 
@@ -99,7 +99,7 @@ public class CustomExecutionRepository {
                 if (arrayNode.isArray() && arrayNode.size() > 0) {
                     JsonNode resultNode = arrayNode.get(0);
                     ExecutionResult executionResult = parseExecutionResult(resultNode);
-                    log.info("Retrieved latest execution result: {} from {}",
+                    log.debug("Retrieved latest execution result: {} from {}",
                             executionResult.getExecutionId(), executionResult.getTimestamp());
                     return Optional.of(executionResult);
                 }
@@ -174,7 +174,7 @@ public class CustomExecutionRepository {
 
             int statusCode = response.getStatusCode();
             if (statusCode == 200 || statusCode == 201) {
-                log.info("Saved custom execution result: {} with {} trades",
+                log.debug("Saved custom execution result: {} with {} trades",
                         result.getStrategyName(), result.getTradesFound());
             } else {
                 String errorBody = response.getBody().asString();
@@ -231,7 +231,7 @@ public class CustomExecutionRepository {
                     log.warn("Custom execution result id={} not found for update, falling back to insert", id);
                     saveCustomExecutionResult(result, securities);
                 } else {
-                    log.info("Updated custom execution result: id={} {} with {} trades",
+                    log.debug("Updated custom execution result: id={} {} with {} trades",
                             id, result.getStrategyName(), result.getTradesFound());
                 }
             } else {
@@ -267,7 +267,7 @@ public class CustomExecutionRepository {
                 results.add(parseCustomExecutionResult(node));
             }
 
-            log.info("Retrieved {} custom execution results from database", results.size());
+            log.debug("Retrieved {} custom execution results from database", results.size());
             return results;
         } catch (Exception e) {
             if (e instanceof IOException) throw (IOException) e;
@@ -287,7 +287,7 @@ public class CustomExecutionRepository {
             Response response = client.request().delete(url);
             int statusCode = response.getStatusCode();
             if (statusCode == 200 || statusCode == 204) {
-                log.info("Deleted custom execution result with id={}", id);
+                log.debug("Deleted custom execution result with id={}", id);
             } else {
                 String errorBody = response.getBody().asString();
                 throw new IOException(String.format(

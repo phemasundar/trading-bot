@@ -42,7 +42,7 @@ public class FilterLogStore {
      */
     public void logFilter(String strategyName, String symbol, String expiry, String filterStage, int tradesIn, int tradesOut) {
         int filtered = tradesIn - tradesOut;
-        log.info("[FILTER][{}][{}][{}] {} — in: {}, passed: {}, filtered: {}",
+        log.debug("[FILTER][{}][{}][{}] {} — in: {}, passed: {}, filtered: {}",
                 strategyName, symbol, expiry != null ? expiry : "symbol-level",
                 filterStage, tradesIn, tradesOut, filtered);
 
@@ -68,6 +68,6 @@ public class FilterLogStore {
      */
     public void clear() {
         entries.clear();
-        log.info("[FILTER] Filter log store cleared for new execution");
+        log.debug("[FILTER] Filter log store cleared for new execution");
     }
 }
