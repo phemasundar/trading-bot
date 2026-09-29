@@ -26,6 +26,10 @@ function escapeHtmlContent(str) {
     return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function escapeHtml(str) {
+    return escapeHtmlContent(str);
+}
+
 function decodeAttr(str) {
     return (str || '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
 }
@@ -548,6 +552,7 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         escapeAttr,
         escapeHtmlContent,
+        escapeHtml,
         decodeAttr,
         showToast,
         timeAgo,

@@ -11,6 +11,7 @@ const {
     formatBreakeven,
     formatExpiryDate,
     escapeHtmlContent,
+    escapeHtml,
     decodeAttr,
     formatRevenue,
     formatHourBadge,
@@ -81,9 +82,11 @@ describe('App Utility Functions', () => {
         expect(decodeAttr(null)).toBe('');
     });
 
-    test('escapeHtmlContent should escape sensitive HTML characters', () => {
+    test('escapeHtmlContent and escapeHtml should escape sensitive HTML characters', () => {
         expect(escapeHtmlContent('<script>alert("xss")</script>')).toContain('&lt;script&gt;');
         expect(escapeHtmlContent(null)).toBe('');
+        expect(escapeHtml('<span>Test & Demo</span>')).toBe('&lt;span&gt;Test &amp; Demo&lt;/span&gt;');
+        expect(escapeHtml(null)).toBe('');
     });
 
     test('showToast should create toast notifications and auto-remove', () => {

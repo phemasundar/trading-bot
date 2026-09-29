@@ -3,6 +3,11 @@
  * Options custom execution form logic, leg filters, strategy templates, and custom results loading.
  */
 
+function escapeHtml(str) {
+    if (typeof escapeHtmlContent === 'function') return escapeHtmlContent(str);
+    return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 const STRATEGY_TYPES = [
     { value: 'PUT_CREDIT_SPREAD', label: 'Put Credit Spread', group: 'credit_spread' },
     { value: 'TECH_PUT_CREDIT_SPREAD', label: 'Technical Put Credit Spread', group: 'credit_spread' },
@@ -1477,6 +1482,7 @@ if (typeof window !== 'undefined') {
     window.CONDITION_OPERATORS = CONDITION_OPERATORS;
     window.STRATEGY_LEG_CONFIG = STRATEGY_LEG_CONFIG;
     window.STRATEGY_SCALAR_FIELDS = STRATEGY_SCALAR_FIELDS;
+    window.escapeHtml = escapeHtml;
 }
 
 // CommonJS Exports
@@ -1516,7 +1522,8 @@ if (typeof module !== 'undefined' && module.exports) {
         loadCustomResults,
         EARNINGS_PRESETS,
         onEarningsPresetChange,
-        syncEarningsPresetFromInput
+        syncEarningsPresetFromInput,
+        escapeHtml
     };
 }
 
