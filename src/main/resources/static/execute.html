@@ -211,9 +211,9 @@
                             oninput="syncEarningsPresetFromInput()">
                     </div>
                     <!-- Trade-level Conditions -->
-                    <div class="form-group" style="grid-column: 1 / -1; margin-top: 8px;">
-                        <div class="flex items-center justify-between" style="margin-bottom: 8px;">
-                            <label class="form-label" style="margin: 0;">Trade Conditions <button type="button" class="info-btn"
+                    <div class="condition-section">
+                        <div class="condition-section-header">
+                            <label class="condition-section-title">Trade Conditions <button type="button" class="info-btn"
                                     onclick="showFilterHelp(event, 'tradeConditions', 'Trade Conditions')"><svg class="info-icon"
                                         xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                         stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -222,7 +222,7 @@
                                         <line x1="12" y1="16" x2="12" y2="12"></line>
                                         <line x1="12" y1="8" x2="12.01" y2="8"></line>
                                     </svg></button></label>
-                            <button type="button" class="btn btn-ghost" style="padding: 2px 10px; font-size: 0.8rem;"
+                            <button type="button" class="btn btn-ghost btn-sm condition-add-btn"
                                 onclick="addConditionRow('trade-conditions', TRADE_VARIABLES)">+ Add Condition</button>
                         </div>
                         <div id="trade-conditions" class="conditions-list"></div>
@@ -239,6 +239,7 @@
                     <h3 style="font-size:0.9rem; margin-bottom:0; color:var(--text-secondary)"><span class="card-arrow">▶</span> Technical Filters <button type="button" class="info-btn" onclick="showFilterHelp(event, 'technicalFilters', 'Technical Filters')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button> <span style="font-size:0.75rem; font-weight:400; color:var(--text-muted);">(pre-screens stocks before options analysis)</span></h3>
                 </div>
                 <div class="card-content" style="overflow-x: visible;">
+                    <!-- RSI & Bollinger Bands Grid -->
                     <div class="form-grid">
                         <div class="form-group" style="grid-column: span 2">
                             <label class="form-label">RSI Condition <button type="button" class="info-btn" onclick="showTechFilterHelp(event, 'RSI')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
@@ -269,36 +270,50 @@
                                 <option value="UPPER_BAND" title="Price is at or above upper Bollinger Band (2 std dev above 20 SMA)">At/above upper band</option>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Volume Rules <button type="button" class="info-btn" onclick="showFilterHelp(event, 'volumeRules', 'Volume Rules')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
-                            <input type="text" class="form-input" data-tech-filter="VOLUME" data-tech-field="rules"
-                                placeholder=">= 1000000, SMA20 >= SMA50 * 90%">
+                    </div>
+
+                    <!-- Moving Average Conditions -->
+                    <div class="condition-section">
+                        <div class="condition-section-header">
+                            <label class="condition-section-title">Moving Average Conditions <button type="button" class="info-btn" onclick="showFilterHelp(event, 'movingAverageRules', 'Moving Average Conditions')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
+                            <button type="button" class="btn btn-ghost btn-sm condition-add-btn" onclick="addConditionRow('ma-conditions', MA_VARIABLES)">+ Add Condition</button>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">HV Period (Days) <button type="button" class="info-btn" onclick="showFilterHelp(event, 'hvPeriod', 'HV Period (Days)')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
-                            <input type="number" class="form-input" data-tech-filter="HISTORICAL_VOLATILITY" data-tech-field="period"
-                                placeholder="20" step="1">
+                        <div id="ma-conditions" class="conditions-list"></div>
+                    </div>
+
+                    <!-- Volume Conditions -->
+                    <div class="condition-section">
+                        <div class="condition-section-header">
+                            <label class="condition-section-title">Volume Conditions <button type="button" class="info-btn" onclick="showFilterHelp(event, 'volumeRules', 'Volume Conditions')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
+                            <button type="button" class="btn btn-ghost btn-sm condition-add-btn" onclick="addConditionRow('volume-conditions', VOLUME_VARIABLES)">+ Add Condition</button>
                         </div>
-                        <div class="form-group" style="grid-column: span 2">
-                            <label class="form-label">HV Rules <button type="button" class="info-btn" onclick="showFilterHelp(event, 'hvRules', 'HV Rules')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
-                            <input type="text" class="form-input" data-tech-filter="HISTORICAL_VOLATILITY" data-tech-field="rules"
-                                placeholder=">= 25, <= 75">
+                        <div id="volume-conditions" class="conditions-list"></div>
+                    </div>
+
+                    <!-- Historical Volatility -->
+                    <div class="condition-section">
+                        <div class="condition-section-header">
+                            <label class="condition-section-title">Historical Volatility Conditions <button type="button" class="info-btn" onclick="showFilterHelp(event, 'hvRules', 'Historical Volatility Conditions')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
+                            <div class="condition-section-controls">
+                                <span class="form-label" style="margin: 0; font-size: 0.75rem; white-space: nowrap;">Period (Days):</span>
+                                <input type="number" class="form-input form-input-compact" data-tech-filter="HISTORICAL_VOLATILITY" data-tech-field="period" placeholder="20" step="1">
+                                <button type="button" class="btn btn-ghost btn-sm condition-add-btn" onclick="addConditionRow('hv-conditions', HV_VARIABLES)">+ Add Condition</button>
+                            </div>
                         </div>
-                        <div class="form-group" id="sc-priceDropRules-group">
-                            <label class="form-label">Price Drop Rules <button type="button" class="info-btn" onclick="showFilterHelp(event, 'priceDropRules', 'Price Drop Rules')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
-                            <input type="text" id="sc-priceDropRules" class="form-input" data-tech-filter="PRICE_DROP" data-tech-field="rules"
-                                placeholder=">= 3.0">
+                        <div id="hv-conditions" class="conditions-list"></div>
+                    </div>
+
+                    <!-- Price Drop -->
+                    <div class="condition-section" id="sc-priceDropRules-group">
+                        <div class="condition-section-header">
+                            <label class="condition-section-title">Price Drop Conditions <button type="button" class="info-btn" onclick="showFilterHelp(event, 'priceDropRules', 'Price Drop Conditions')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
+                            <div class="condition-section-controls" id="sc-lookbackDays-group">
+                                <span class="form-label" style="margin: 0; font-size: 0.75rem; white-space: nowrap;">Lookback Days:</span>
+                                <input type="number" id="sc-lookbackDays" class="form-input form-input-compact" data-tech-filter="PRICE_DROP" data-tech-field="lookbackDays" placeholder="0" min="0">
+                                <button type="button" class="btn btn-ghost btn-sm condition-add-btn" onclick="addConditionRow('priceDrop-conditions', PRICE_DROP_VARIABLES)">+ Add Condition</button>
+                            </div>
                         </div>
-                        <div class="form-group" id="sc-lookbackDays-group">
-                            <label class="form-label">Lookback Days (0=intraday) <button type="button" class="info-btn" onclick="showFilterHelp(event, 'lookbackDays', 'Lookback Days')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
-                            <input type="number" id="sc-lookbackDays" class="form-input" data-tech-filter="PRICE_DROP" data-tech-field="lookbackDays"
-                                placeholder="0" min="0">
-                        </div>
-                        <div class="form-group" style="grid-column: 1 / -1">
-                            <label class="form-label">Moving Average Rules <button type="button" class="info-btn" onclick="showFilterHelp(event, 'movingAverageRules', 'Moving Average Rules')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button> <span style="font-size:0.75rem; color:var(--text-muted);">(comma-separated: PRICE >= SMA50, SMA50 >= SMA200, etc.)</span></label>
-                            <input type="text" class="form-input" data-tech-filter="SIMPLE_MOVING_AVERAGE" data-tech-field="rules"
-                                placeholder="PRICE >= SMA50, SMA50 >= SMA200">
-                        </div>
+                        <div id="priceDrop-conditions" class="conditions-list"></div>
                     </div>
                 </div>
             </div>

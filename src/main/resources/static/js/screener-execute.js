@@ -394,6 +394,9 @@ function getTechnicalFiltersFromDOM(container = document) {
                         technicalFilters[filterKey].conditions = [ { type: 'MIN_VOLUME' } ];
                     }
                     technicalFilters[filterKey].conditions[0][fieldKey] = num;
+                } else if (fieldKey === 'lookbackDays') {
+                    if (!technicalFilters[filterKey].config) technicalFilters[filterKey].config = {};
+                    technicalFilters[filterKey].config.lookbackDays = num;
                 } else {
                     if (!technicalFilters[filterKey].condition || typeof technicalFilters[filterKey].condition === 'string') {
                         const existingType = typeof technicalFilters[filterKey].condition === 'string' ? technicalFilters[filterKey].condition : null;
@@ -405,6 +408,46 @@ function getTechnicalFiltersFromDOM(container = document) {
             }
         }
     });
+
+    const extractConditionsFromEl = (el) => {
+        if (!el) return [];
+        const rows = el.querySelectorAll('.condition-row');
+        const conditions = [];
+        rows.forEach(row => {
+            const varSel = row.querySelector('.condition-var-select');
+            const opSel = row.querySelector('.condition-op-select');
+            const valInp = row.querySelector('.condition-val-input');
+            const customInp = row.querySelector('.condition-custom-input');
+            if (varSel && opSel && valInp) {
+                const v = varSel.value.trim();
+                const op = opSel.value.trim();
+                let val = valInp.value.trim();
+                if (val === '__CUSTOM__' && customInp) {
+                    val = customInp.value.trim();
+                }
+                if (v && op && val) {
+                    conditions.push(`${v} ${op} ${val}`);
+                }
+            }
+        });
+        return conditions;
+    };
+
+    const checkContainerConditions = (containerId, filterKey) => {
+        const el = (container && container.querySelector) ? container.querySelector('#' + containerId) : (typeof document !== 'undefined' ? document.getElementById(containerId) : null);
+        if (el) {
+            const conditions = extractConditionsFromEl(el);
+            if (conditions.length > 0) {
+                if (!technicalFilters[filterKey]) technicalFilters[filterKey] = {};
+                technicalFilters[filterKey].conditions = conditions;
+            }
+        }
+    };
+
+    checkContainerConditions('ma-conditions', 'SIMPLE_MOVING_AVERAGE');
+    checkContainerConditions('volume-conditions', 'VOLUME');
+    checkContainerConditions('hv-conditions', 'HISTORICAL_VOLATILITY');
+    checkContainerConditions('priceDrop-conditions', 'PRICE_DROP');
 
     if (Object.keys(technicalFilters).length === 0) {
         return undefined;
