@@ -403,16 +403,28 @@ function showScreenerTypeHelp(event) {
 
 function autoAdjustSelectWidth(selectEl) {
     if (!selectEl) return;
+    // On tablet & mobile screens, let responsive CSS handle full-width and grid layout
+    if (window.innerWidth <= 768) {
+        selectEl.style.width = '';
+        return;
+    }
+    // Prevent top-level form-group selects from being constrained to text width
+    if (typeof selectEl.closest === 'function' && selectEl.closest('.form-group') && !selectEl.closest('.condition-row')) {
+        if (selectEl.style) selectEl.style.width = '';
+        return;
+    }
     if (typeof CSS !== 'undefined' && CSS.supports && CSS.supports('field-sizing', 'content')) {
+        if (selectEl.style) selectEl.style.width = '';
         return;
     }
     const idx = selectEl.selectedIndex;
     const text = idx >= 0 && selectEl.options && selectEl.options[idx] ? selectEl.options[idx].text : '';
-    if (text) {
+    if (text && selectEl.style) {
         const approxWidth = Math.min(Math.max(text.length * 8 + 44, 130), 450);
         selectEl.style.width = `${approxWidth}px`;
     }
 }
+
 
 // ── Timers & Polling Helpers ──
 

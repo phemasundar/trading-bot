@@ -308,7 +308,9 @@ a:hover {
     padding-top: 16px;
     border-top: 1px solid var(--border);
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
+
 
 /* ── Filter Details (on result cards) ── */
 .filter-details-section {
@@ -558,9 +560,9 @@ a:hover {
 }
 
 .form-select {
-    min-width: 160px;
-    field-sizing: content;
+    cursor: pointer;
 }
+
 
 .form-input:focus,
 .form-select:focus {
@@ -1289,18 +1291,46 @@ textarea::placeholder {
     }
 }
 
-/* ── Responsive: Mobile — slide-out sidebar ── */
-@media (max-width: 480px) {
+/* ── Responsive: Mobile — slide-out sidebar & header bar ── */
+@media (max-width: 600px) {
+    /* Mobile app-bar backdrop so scrolling content cleanly passes under */
+    .app-layout::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 52px;
+        background: var(--bg-surface, var(--bg-card));
+        border-bottom: 1px solid var(--border);
+        z-index: 24;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
     .menu-toggle {
-        display: block;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        top: 8px;
+        left: 12px;
+        z-index: 25;
+        height: 36px;
+        width: 40px;
+        padding: 0;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
     }
 
     .sidebar {
-        width: 220px;
+        width: 240px;
         padding: 24px 16px;
         transform: translateX(-100%);
         transition: transform 0.25s ease;
-        z-index: 20;
+        z-index: 30;
     }
 
     .sidebar-section-title {
@@ -1317,6 +1347,10 @@ textarea::placeholder {
 
     .sidebar.open {
         transform: translateX(0);
+    }
+
+    .sidebar-backdrop {
+        z-index: 28;
     }
 
     .sidebar.open+.sidebar-backdrop {
@@ -1343,10 +1377,15 @@ textarea::placeholder {
 
     .main-content {
         margin-left: 0;
-        padding: 16px;
-        padding-top: 52px;
+        padding: 14px 12px 28px;
+        padding-top: 64px;
+    }
+
+    .page-title {
+        font-size: 1.4rem;
     }
 }
+
 
 /* ── Info Button ── */
 .info-btn {
@@ -2406,6 +2445,41 @@ textarea::placeholder {
     font-weight: 600;
 }
 
+@media (max-width: 640px) {
+    .filter-bar-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    .filter-select {
+        min-width: 0;
+        width: 100%;
+    }
+    .filter-input {
+        min-width: 0;
+        width: 100%;
+    }
+    .filter-date-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+    }
+    .filter-date-group .filter-select {
+        width: 100%;
+        min-width: 0;
+    }
+    .filter-date-group .filter-input-date {
+        width: 100%;
+        min-width: 0;
+    }
+    .filter-search-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+
 /* Filter row states */
 .trade-row.filter-hidden {
     display: none !important;
@@ -3208,5 +3282,95 @@ select.condition-val-input {
     border: 1px dashed var(--border);
     border-radius: var(--radius-sm);
 }
+
+/* ── Responsive Condition Builder (Tablet & Mobile) ── */
+@media (max-width: 768px) {
+    .condition-section-header {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .condition-section-title {
+        font-size: 0.82rem;
+    }
+
+    .condition-section-controls {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .condition-row {
+        display: grid;
+        grid-template-columns: 76px 1fr auto auto;
+        grid-template-areas:
+            "var    var    info   remove"
+            "op     val    val    val"
+            "custom custom custom custom";
+        width: 100%;
+        gap: 8px;
+        padding: 8px 10px;
+        box-sizing: border-box;
+        margin-bottom: 8px;
+    }
+
+    .condition-var-select {
+        grid-area: var;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        height: 36px;
+        font-size: 0.82rem;
+    }
+
+    .condition-info-btn {
+        grid-area: info;
+        width: 32px;
+        height: 36px;
+        flex: 0 0 32px;
+        justify-self: center;
+        align-self: center;
+    }
+
+    .condition-remove-btn {
+        grid-area: remove;
+        width: 32px;
+        height: 36px;
+        flex: 0 0 32px;
+        justify-self: end;
+        align-self: center;
+        font-size: 1.3rem;
+    }
+
+    .condition-op-select {
+        grid-area: op;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        height: 36px;
+        font-size: 0.82rem;
+    }
+
+    .condition-val-input,
+    select.condition-val-input {
+        grid-area: val;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        height: 36px;
+        font-size: 0.82rem;
+    }
+
+    .condition-custom-input {
+        grid-area: custom;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        height: 36px;
+        font-size: 0.82rem;
+    }
+}
+
 
 
