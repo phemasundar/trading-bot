@@ -691,6 +691,9 @@ public class StrategiesConfigLoader {
         java.util.Map<Integer, MovingAverageFilter> existingMaFilters = indicators.build().getMaFilters();
         java.util.Map<Integer, MovingAverageFilter> maFilters = new HashMap<>(
                 existingMaFilters != null ? existingMaFilters : Map.of());
+        java.util.Map<Integer, ExponentialMovingAverageFilter> existingEmaFilters = indicators.build().getEmaFilters();
+        java.util.Map<Integer, ExponentialMovingAverageFilter> emaFilters = new HashMap<>(
+                existingEmaFilters != null ? existingEmaFilters : Map.of());
 
         for (String rule : splitRules) {
             MathExpression expression = MathExpressionParser.parseExpression(rule);
@@ -701,9 +704,11 @@ public class StrategiesConfigLoader {
             validateExpression(expression, getFilterConfig());
             filterExpressions.add(expression);
             registerMovingAveragePeriods(expression, maFilters);
+            registerExponentialMovingAveragePeriods(expression, emaFilters);
         }
 
         indicators.maFilters(maFilters);
+        indicators.emaFilters(emaFilters);
     }
 
     public void applyExponentialMovingAverageFilters(
@@ -729,6 +734,9 @@ public class StrategiesConfigLoader {
         java.util.Map<Integer, ExponentialMovingAverageFilter> existingEmaFilters = indicators.build().getEmaFilters();
         java.util.Map<Integer, ExponentialMovingAverageFilter> emaFilters = new HashMap<>(
                 existingEmaFilters != null ? existingEmaFilters : Map.of());
+        java.util.Map<Integer, MovingAverageFilter> existingMaFilters = indicators.build().getMaFilters();
+        java.util.Map<Integer, MovingAverageFilter> maFilters = new HashMap<>(
+                existingMaFilters != null ? existingMaFilters : Map.of());
 
         for (String rule : splitRules) {
             MathExpression expression = MathExpressionParser.parseExpression(rule);
@@ -739,9 +747,11 @@ public class StrategiesConfigLoader {
             validateExpression(expression, getFilterConfig());
             filterExpressions.add(expression);
             registerExponentialMovingAveragePeriods(expression, emaFilters);
+            registerMovingAveragePeriods(expression, maFilters);
         }
 
         indicators.emaFilters(emaFilters);
+        indicators.maFilters(maFilters);
     }
 
     private List<String> extractStringRules(Object rawEntry) {

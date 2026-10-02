@@ -2,13 +2,19 @@ const {
     STRATEGY_TYPES,
     TRADE_VARIABLES,
     LEG_VARIABLES,
+    MA_VARIABLES,
+    VOLUME_VARIABLES,
+    HV_VARIABLES,
+    PRICE_DROP_VARIABLES,
     CONDITION_OPERATORS,
     STRATEGY_LEG_CONFIG,
     STRATEGY_SCALAR_FIELDS,
     parseConditionString,
+    createConditionValElement,
     addConditionRow,
     getConditionsFromContainer,
     getLegFilters,
+    getTechnicalFiltersFromDOM,
     STRATEGY_SPECIFIC_FILTERS,
     initExecutePage,
     checkCustomExecutionStatus,
@@ -26,6 +32,7 @@ const {
     API,
     escapeAttr
 } = require('../../main/resources/static/app');
+
 
 Element.prototype.scrollIntoView = jest.fn();
 window.scrollTo = jest.fn();
@@ -480,6 +487,84 @@ describe('Custom Options Execute Tests', () => {
         expect(conds).toEqual(['MAX_LOSS >= 30']);
     });
 
+    test('createConditionValElement creates text input or select based on predefinedValues', () => {
+        // Without predefinedValues: returns text input
+        const numVar = { value: 'DTE', label: 'DTE' };
+        const inputElem = createConditionValElement(numVar, '45');
+        expect(inputElem.tagName).toBe('INPUT');
+        expect(inputElem.type).toBe('text');
+        expect(inputElem.value).toBe('45');
+        expect(inputElem.classList.contains('condition-val-input')).toBe(true);
+
+        // With predefinedValues: returns select element
+        const bbVar = {
+            value: 'BOLLINGER_BAND',
+            label: 'Bollinger Band',
+            predefinedValues: [
+                { value: 'LOWER_BAND', label: 'Lower Band' },
+                { value: 'UPPER_BAND', label: 'Upper Band' }
+            ]
+        };
+        const selectElem = createConditionValElement(bbVar, 'LOWER_BAND');
+        expect(selectElem.tagName).toBe('SELECT');
+        expect(selectElem.classList.contains('condition-val-input')).toBe(true);
+        expect(selectElem.value).toBe('LOWER_BAND');
+        expect(selectElem.options.length).toBe(2);
+
+        // With custom value not in predefinedValues: appends and selects custom option
+        const customSelect = createConditionValElement(bbVar, 'CUSTOM_LEVEL');
+        expect(customSelect.value).toBe('CUSTOM_LEVEL');
+        expect(customSelect.options.length).toBe(3);
+
+        // Supports simple string array for predefinedValues
+        const strArrayVar = { value: 'MODE', label: 'Mode', predefinedValues: ['FAST', 'SLOW'] };
+        const strSelect = createConditionValElement(strArrayVar, 'SLOW');
+        expect(strSelect.tagName).toBe('SELECT');
+        expect(strSelect.value).toBe('SLOW');
+    });
+
+    test('addConditionRow dynamically switches right-hand element when variable changes', () => {
+        document.body.innerHTML = '<div id="trade-conditions"></div>';
+
+        // Add row prefilled with BOLLINGER_BAND == LOWER_BAND
+        const row = addConditionRow('trade-conditions', TRADE_VARIABLES, 'BOLLINGER_BAND == LOWER_BAND');
+        expect(row).not.toBeNull();
+
+        const varSel = row.querySelector('.condition-var-select');
+        const opSel = row.querySelector('.condition-op-select');
+        let valElem = row.querySelector('.condition-val-input');
+
+        expect(varSel.value).toBe('BOLLINGER_BAND');
+        expect(opSel.value).toBe('==');
+        expect(valElem.tagName).toBe('SELECT');
+        expect(valElem.value).toBe('LOWER_BAND');
+
+        let conds = getConditionsFromContainer('trade-conditions');
+        expect(conds).toEqual(['BOLLINGER_BAND == LOWER_BAND']);
+
+        // Switch from BOLLINGER_BAND to a numeric variable (DTE)
+        varSel.value = 'DTE';
+        varSel.dispatchEvent(new Event('change'));
+
+        valElem = row.querySelector('.condition-val-input');
+        expect(valElem.tagName).toBe('INPUT');
+        valElem.value = '35';
+
+        conds = getConditionsFromContainer('trade-conditions');
+        expect(conds).toEqual(['DTE >= 35']);
+
+        // Switch back to BOLLINGER_BAND
+        varSel.value = 'BOLLINGER_BAND';
+        varSel.dispatchEvent(new Event('change'));
+
+        valElem = row.querySelector('.condition-val-input');
+        expect(valElem.tagName).toBe('SELECT');
+        valElem.value = 'UPPER_BAND';
+
+        conds = getConditionsFromContainer('trade-conditions');
+        expect(conds).toEqual(['BOLLINGER_BAND == UPPER_BAND']);
+    });
+
     test('loadTemplateParams with conditions populates condition rows', () => {
         document.body.innerHTML = `
             <input id="alias-input">
@@ -662,5 +747,196 @@ describe('Custom Options Execute Tests', () => {
             })
         }));
     });
+
+    test('technical variable registries exist and contain expected definitions', () => {
+        expect(MA_VARIABLES.length).toBeGreaterThan(0);
+        expect(VOLUME_VARIABLES.length).toBeGreaterThan(0);
+        expect(HV_VARIABLES.length).toBeGreaterThan(0);
+        expect(PRICE_DROP_VARIABLES.length).toBeGreaterThan(0);
+
+        const priceVar = MA_VARIABLES.find(v => v.value === 'PRICE');
+        expect(priceVar).toBeDefined();
+        expect(priceVar.predefinedValues.map(p => p.value)).toContain('SMA50');
+        expect(priceVar.predefinedValues.map(p => p.value)).toContain('BB_LOWER');
+
+        const volVar = VOLUME_VARIABLES.find(v => v.value === 'VOLUME');
+        expect(volVar).toBeDefined();
+        expect(volVar.predefinedValues.map(p => p.value)).toContain('1000000');
+
+        const hvVar = HV_VARIABLES.find(v => v.value === 'HV_RANK');
+        expect(hvVar).toBeDefined();
+        expect(hvVar.predefinedValues.map(p => p.value)).toContain('25');
+
+        const dropVar = PRICE_DROP_VARIABLES.find(v => v.value === 'DROP_PCT');
+        expect(dropVar).toBeDefined();
+        expect(dropVar.predefinedValues.map(p => p.value)).toContain('3.0');
+    });
+
+    test('parseConditionString supports unary comparisons with default variable', () => {
+        const full = parseConditionString('HV_RANK >= 25', 'HV_RANK');
+        expect(full).toEqual({ variable: 'HV_RANK', operator: '>=', value: '25' });
+
+        const unary = parseConditionString('>= 25', 'HV_RANK');
+        expect(unary).toEqual({ variable: 'HV_RANK', operator: '>=', value: '25' });
+
+        const unaryDrop = parseConditionString('>= 3.0', 'DROP_PCT');
+        expect(unaryDrop).toEqual({ variable: 'DROP_PCT', operator: '>=', value: '3.0' });
+    });
+
+    test('createConditionValElement toggles companion custom input when __CUSTOM__ is chosen without window.prompt', () => {
+        const customInput = document.createElement('input');
+        customInput.className = 'form-input condition-custom-input';
+        customInput.style.display = 'none';
+
+        const varDef = {
+            value: 'PRICE',
+            allowCustom: true,
+            predefinedValues: [
+                { value: 'SMA50', label: 'SMA50' }
+            ]
+        };
+        const elem = createConditionValElement(varDef, 'SMA50', customInput);
+        expect(elem.tagName).toBe('SELECT');
+        expect(customInput.style.display).toBe('none');
+
+        // Selecting __CUSTOM__ reveals the companion input without window.prompt
+        window.prompt = jest.fn();
+        elem.value = '__CUSTOM__';
+        elem.dispatchEvent(new Event('change'));
+        expect(window.prompt).not.toHaveBeenCalled();
+        expect(customInput.style.display).toBe('');
+
+        // Selecting predefined value hides the companion input
+        elem.value = 'SMA50';
+        elem.dispatchEvent(new Event('change'));
+        expect(customInput.style.display).toBe('none');
+    });
+
+    test('addConditionRow and getConditionsFromContainer manage inline custom text inputs', () => {
+        document.body.innerHTML = '<div id="ma-conditions"></div>';
+        const row = addConditionRow('ma-conditions', MA_VARIABLES, 'PRICE >= SMA50');
+        expect(row).not.toBeNull();
+
+        const valSelect = row.querySelector('.condition-val-input');
+        const customInp = row.querySelector('.condition-custom-input');
+        expect(valSelect.value).toBe('SMA50');
+        expect(customInp.style.display).toBe('none');
+        expect(getConditionsFromContainer('ma-conditions')).toEqual(['PRICE >= SMA50']);
+
+        // Switch to Custom
+        valSelect.value = '__CUSTOM__';
+        valSelect.dispatchEvent(new Event('change'));
+        expect(customInp.style.display).toBe('');
+        customInp.value = '150.5';
+
+        expect(getConditionsFromContainer('ma-conditions')).toEqual(['PRICE >= 150.5']);
+
+        // Switching back to predefined hides custom input and serializes predefined value
+        valSelect.value = 'SMA200';
+        valSelect.dispatchEvent(new Event('change'));
+        expect(customInp.style.display).toBe('none');
+        expect(getConditionsFromContainer('ma-conditions')).toEqual(['PRICE >= SMA200']);
+
+        // Prefill custom condition row
+        const customRow = addConditionRow('ma-conditions', MA_VARIABLES, 'PRICE >= SMA50 * 95%');
+        const customValSelect = customRow.querySelector('.condition-val-input');
+        const customCustomInp = customRow.querySelector('.condition-custom-input');
+        expect(customValSelect.value).toBe('__CUSTOM__');
+        expect(customCustomInp.value).toBe('SMA50 * 95%');
+        expect(customCustomInp.style.display).toBe('');
+    });
+
+    test('fillTechFiltersForm populates technical condition containers', () => {
+        document.body.innerHTML = `
+            <div id="ma-conditions"></div>
+            <div id="volume-conditions"></div>
+            <div id="hv-conditions"></div>
+            <div id="priceDrop-conditions"></div>
+            <select data-tech-filter="RSI" data-tech-field="condition">
+                <option value="OVERSOLD">Oversold</option>
+            </select>
+            <select data-tech-filter="BOLLINGER_BAND" data-tech-field="condition">
+                <option value="LOWER_BAND">Lower Band</option>
+            </select>
+            <input data-tech-filter="HISTORICAL_VOLATILITY" data-tech-field="period">
+            <input data-tech-filter="PRICE_DROP" data-tech-field="lookbackDays">
+        `;
+
+        fillTechFiltersForm({
+            RSI: { condition: 'OVERSOLD' },
+            BOLLINGER_BAND: { condition: 'LOWER_BAND' },
+            SIMPLE_MOVING_AVERAGE: { conditions: ['PRICE >= SMA50', 'SMA50 >= SMA200'] },
+            VOLUME: { conditions: ['VOLUME >= 1000000', 'VOLUME_SMA20 >= VOLUME_SMA50 * 90%'] },
+            HISTORICAL_VOLATILITY: { config: { period: 20 }, conditions: ['HV_RANK >= 25'] },
+            PRICE_DROP: { config: { lookbackDays: 0 }, conditions: ['DROP_PCT >= 3.0'] }
+        });
+
+        expect(getConditionsFromContainer('ma-conditions')).toEqual(['PRICE >= SMA50', 'SMA50 >= SMA200']);
+        expect(getConditionsFromContainer('volume-conditions')).toEqual(['VOLUME >= 1000000', 'VOLUME_SMA20 >= VOLUME_SMA50 * 90%']);
+        expect(getConditionsFromContainer('hv-conditions')).toEqual(['HV_RANK >= 25']);
+        expect(getConditionsFromContainer('priceDrop-conditions')).toEqual(['DROP_PCT >= 3.0']);
+        expect(document.querySelector('[data-tech-filter="HISTORICAL_VOLATILITY"][data-tech-field="period"]').value).toBe('20');
+        expect(document.querySelector('[data-tech-filter="PRICE_DROP"][data-tech-field="lookbackDays"]').value).toBe('0');
+    });
+
+    test('getTechnicalFiltersFromDOM extracts conditions from condition containers', () => {
+        document.body.innerHTML = `
+            <select data-tech-filter="RSI" data-tech-field="condition">
+                <option value="BULLISH_CROSSOVER" selected>Bullish Crossover</option>
+            </select>
+            <select data-tech-filter="BOLLINGER_BAND" data-tech-field="condition">
+                <option value="LOWER_BAND" selected>Lower Band</option>
+            </select>
+            <input data-tech-filter="HISTORICAL_VOLATILITY" data-tech-field="period" value="20">
+            <input data-tech-filter="PRICE_DROP" data-tech-field="lookbackDays" value="5">
+            <div id="ma-conditions"></div>
+            <div id="volume-conditions"></div>
+            <div id="hv-conditions"></div>
+            <div id="priceDrop-conditions"></div>
+        `;
+
+        addConditionRow('ma-conditions', MA_VARIABLES, 'PRICE >= SMA50');
+        addConditionRow('volume-conditions', VOLUME_VARIABLES, 'VOLUME >= 1000000');
+        addConditionRow('hv-conditions', HV_VARIABLES, 'HV_RANK >= 25');
+        addConditionRow('priceDrop-conditions', PRICE_DROP_VARIABLES, 'DROP_PCT >= 3.0');
+
+        const tf = getTechnicalFiltersFromDOM();
+        expect(tf.RSI.condition).toBe('BULLISH_CROSSOVER');
+        expect(tf.BOLLINGER_BAND.condition).toBe('LOWER_BAND');
+        expect(tf.SIMPLE_MOVING_AVERAGE.conditions).toEqual(['PRICE >= SMA50']);
+        expect(tf.VOLUME.conditions).toEqual(['VOLUME >= 1000000']);
+        expect(tf.HISTORICAL_VOLATILITY.config.period).toBe(20);
+        expect(tf.HISTORICAL_VOLATILITY.conditions).toEqual(['HV_RANK >= 25']);
+        expect(tf.PRICE_DROP.config.lookbackDays).toBe(5);
+        expect(tf.PRICE_DROP.conditions).toEqual(['DROP_PCT >= 3.0']);
+    });
+
+    test('executeCustom packages technical conditions into POST payload', async () => {
+        document.body.innerHTML = `
+            <select id="strategy-type"><option value="PUT_CREDIT_SPREAD" selected>PCS</option></select>
+            <input id="securities-input" value="AAPL">
+            <input id="securities-file-input" value="">
+            <input id="alias-input" value="Tech Filter Run">
+            <div id="custom-progress"></div>
+            <div id="ma-conditions"></div>
+            <div id="volume-conditions"></div>
+        `;
+
+        addConditionRow('ma-conditions', MA_VARIABLES, 'PRICE >= SMA50');
+        addConditionRow('volume-conditions', VOLUME_VARIABLES, 'VOLUME >= 1000000');
+
+        API.post = jest.fn().mockResolvedValueOnce({ message: 'Execution started' });
+
+        await executeCustom();
+
+        expect(API.post).toHaveBeenCalledWith('/api/execute/custom', expect.objectContaining({
+            strategyType: 'PUT_CREDIT_SPREAD',
+            technicalFilters: expect.objectContaining({
+                SIMPLE_MOVING_AVERAGE: { conditions: ['PRICE >= SMA50'] },
+                VOLUME: { conditions: ['VOLUME >= 1000000'] }
+            })
+        }));
+    });
 });
+
 

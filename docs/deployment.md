@@ -52,3 +52,36 @@ Both workflows now:
 - **Development Testing**: Scheduled runs test the latest development code
 - **Early Detection**: Issues are caught in develop before merging to main
 - **No CI Noise**: Workflows only run on schedule, not on every push
+
+## Windows Service Setup & Auto-Start (Local Deployment)
+
+To run the application automatically as a background service on laptop startup:
+
+### Option 1: True Windows Service via NSSM (Recommended)
+
+1. **Install Service**:
+   Right-click `scripts/install-service.bat` and select **Run as administrator**.
+   - Registers service name `TradingBot` set to automatic startup (`SERVICE_AUTO_START`).
+   - Automatically starts every time Windows boots.
+   - Redirects stdout and stderr to `logs/service-stdout.log` and `logs/service-stderr.log` with 10MB auto-rotation.
+
+2. **Restarting the Service**:
+   - Double-click `scripts/restart-service.bat` (prompts for admin elevation automatically).
+   - Or PowerShell (Admin): `Restart-Service TradingBot`
+   - Or Command Prompt (Admin): `nssm restart TradingBot`
+   - Or Windows GUI: Press `Win + R` -> type `services.msc` -> right-click **Trading Bot Service** -> **Restart**.
+
+3. **Status & Logs**:
+   - Run `scripts/status-service.bat` to verify running state, port 8080 binding, and latest logs.
+   - Logs are located at `logs/trading-bot.log` and `logs/service-stdout.log`.
+
+4. **Stopping / Uninstalling**:
+   - Stop: `scripts/stop-service.bat` or `Stop-Service TradingBot`
+   - Uninstall: `scripts/uninstall-service.bat`
+
+### Option 2: Windows Task Scheduler (No Admin Rights Required)
+
+1. **Install**: Run `scripts/install-task.bat`.
+   - Schedules a logon task `TradingBotTask` that launches `scripts/run-bot.bat` when logging into Windows.
+2. **Restart**: Run `scripts/restart-task.bat`.
+

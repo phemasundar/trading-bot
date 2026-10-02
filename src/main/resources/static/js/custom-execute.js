@@ -3,6 +3,17 @@
  * Options custom execution form logic, leg filters, strategy templates, and custom results loading.
  */
 
+function escapeHtml(str) {
+    if (typeof escapeHtmlContent === 'function') return escapeHtmlContent(str);
+    return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// In Node.js testing environment, load shared technical catalogs and condition builders from screener-execute
+if (typeof window === 'undefined' && typeof require === 'function') {
+    const _screener = require('./screener-execute');
+    Object.assign(global, _screener);
+}
+
 const STRATEGY_TYPES = [
     { value: 'PUT_CREDIT_SPREAD', label: 'Put Credit Spread', group: 'credit_spread' },
     { value: 'TECH_PUT_CREDIT_SPREAD', label: 'Technical Put Credit Spread', group: 'credit_spread' },
@@ -35,7 +46,18 @@ const TRADE_VARIABLES = [
     { value: 'ANNUALIZED_EXTRINSIC_PCT', label: 'ANNUALIZED_EXTRINSIC_PCT (%)' },
     { value: 'MAX_LOSS_UPSIDE', label: 'MAX_LOSS_UPSIDE ($)' },
     { value: 'MAX_LOSS_DOWNSIDE', label: 'MAX_LOSS_DOWNSIDE ($)' },
+    {
+        value: 'BOLLINGER_BAND',
+        label: 'Bollinger Band',
+        operators: ['==', '<=', '>='],
+        allowCustom: false,
+        predefinedValues: [
+            { value: 'LOWER_BAND', label: 'At/below lower band (LOWER_BAND)' },
+            { value: 'UPPER_BAND', label: 'At/above upper band (UPPER_BAND)' },
+        ]
+    },
 ];
+
 
 const LEG_VARIABLES = [
     { value: 'DELTA', label: 'DELTA' },
@@ -48,158 +70,6 @@ const LEG_VARIABLES = [
     { value: 'STRIKE', label: 'STRIKE' },
 ];
 
-const CONDITION_OPERATORS = ['>=', '<=', '>', '<'];
-
-function parseConditionString(str) {
-    if (!str || typeof str !== 'string') return null;
-    str = str.trim();
-    const match = str.match(/^([A-Za-z0-9_.]+)\s*(>=|<=|>|<)\s*(.+)$/);
-    if (!match) return null;
-    return {
-        variable: match[1].trim(),
-        operator: match[2].trim(),
-        value: match[3].trim()
-    };
-}
-
-function addConditionRow(containerId, variables, prefill = null) {
-    const container = document.getElementById(containerId);
-    if (!container) return null;
-
-    const row = document.createElement('div');
-    row.className = 'condition-row';
-
-    const parsed = typeof prefill === 'string' ? parseConditionString(prefill) : prefill;
-
-    // Variable Select
-    const varSelect = document.createElement('select');
-    varSelect.className = 'form-select condition-var-select';
-
-    const prefillVar = parsed ? parsed.variable.toUpperCase() : '';
-    const hasVar = variables.some(v => v.value.toUpperCase() === prefillVar);
-    if (prefillVar && !hasVar) {
-        const customOpt = document.createElement('option');
-        customOpt.value = parsed.variable;
-        customOpt.textContent = parsed.variable;
-        varSelect.appendChild(customOpt);
-    }
-
-    variables.forEach(v => {
-        const opt = document.createElement('option');
-        opt.value = v.value;
-        opt.textContent = v.label;
-        if (typeof FILTER_DESCRIPTIONS !== 'undefined' && FILTER_DESCRIPTIONS[v.value]) {
-            opt.title = FILTER_DESCRIPTIONS[v.value];
-        }
-        if (prefillVar === v.value.toUpperCase()) {
-            opt.selected = true;
-        }
-        varSelect.appendChild(opt);
-    });
-    if (parsed && hasVar) {
-        varSelect.value = variables.find(v => v.value.toUpperCase() === prefillVar).value;
-    }
-
-    // Info Button for Selected Variable
-    const infoBtn = document.createElement('button');
-    infoBtn.type = 'button';
-    infoBtn.className = 'info-btn condition-info-btn';
-    infoBtn.innerHTML = `<svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
-
-    const updateInfoBtn = () => {
-        const selectedVal = varSelect.value;
-        const vObj = variables.find(v => v.value === selectedVal);
-        const label = vObj ? vObj.label : selectedVal;
-        infoBtn.dataset.key = selectedVal;
-        infoBtn.dataset.label = label;
-        if (typeof FILTER_DESCRIPTIONS !== 'undefined' && FILTER_DESCRIPTIONS[selectedVal]) {
-            infoBtn.title = FILTER_DESCRIPTIONS[selectedVal];
-        } else {
-            infoBtn.title = `${label} details`;
-        }
-    };
-
-    infoBtn.onclick = (e) => {
-        const key = infoBtn.dataset.key || varSelect.value;
-        const label = infoBtn.dataset.label || key;
-        showFilterHelp(e, key, label);
-    };
-
-    const onVarChange = () => {
-        updateInfoBtn();
-        if (typeof autoAdjustSelectWidth === 'function') autoAdjustSelectWidth(varSelect);
-    };
-    varSelect.addEventListener('change', onVarChange);
-    updateInfoBtn();
-    if (typeof autoAdjustSelectWidth === 'function') autoAdjustSelectWidth(varSelect);
-
-    // Operator Select
-    const opSelect = document.createElement('select');
-    opSelect.className = 'form-select condition-op-select';
-    CONDITION_OPERATORS.forEach(op => {
-        const opt = document.createElement('option');
-        opt.value = op;
-        opt.textContent = op;
-        if (parsed && parsed.operator === op) {
-            opt.selected = true;
-        }
-        opSelect.appendChild(opt);
-    });
-    if (parsed && parsed.operator) {
-        opSelect.value = parsed.operator;
-    }
-    opSelect.addEventListener('change', () => {
-        if (typeof autoAdjustSelectWidth === 'function') autoAdjustSelectWidth(opSelect);
-    });
-    if (typeof autoAdjustSelectWidth === 'function') autoAdjustSelectWidth(opSelect);
-
-    // Value Input
-    const valInput = document.createElement('input');
-    valInput.type = 'text';
-    valInput.className = 'form-input condition-val-input';
-    valInput.placeholder = 'e.g. 25';
-    if (parsed && parsed.value !== undefined) {
-        valInput.value = parsed.value;
-    }
-
-    // Remove Button
-    const removeBtn = document.createElement('button');
-    removeBtn.type = 'button';
-    removeBtn.className = 'btn btn-ghost condition-remove-btn';
-    removeBtn.innerHTML = '&times;';
-    removeBtn.title = 'Remove condition';
-    removeBtn.onclick = () => row.remove();
-
-    row.appendChild(varSelect);
-    row.appendChild(infoBtn);
-    row.appendChild(opSelect);
-    row.appendChild(valInput);
-    row.appendChild(removeBtn);
-
-    container.appendChild(row);
-    return row;
-}
-
-function getConditionsFromContainer(containerId) {
-    const container = document.getElementById(containerId);
-    if (!container) return [];
-    const rows = container.querySelectorAll('.condition-row');
-    const conditions = [];
-    rows.forEach(row => {
-        const varSel = row.querySelector('.condition-var-select');
-        const opSel = row.querySelector('.condition-op-select');
-        const valInp = row.querySelector('.condition-val-input');
-        if (varSel && opSel && valInp) {
-            const v = varSel.value.trim();
-            const op = opSel.value.trim();
-            const val = valInp.value.trim();
-            if (v && op && val) {
-                conditions.push(`${v} ${op} ${val}`);
-            }
-        }
-    });
-    return conditions;
-}
 
 const STRATEGY_LEG_CONFIG = {
     credit_spread: [
@@ -372,13 +242,20 @@ async function initExecutePage() {
     checkCustomExecutionStatus();
     fetchAndRenderMarketStatus();
 
-    document.querySelectorAll('.form-select').forEach(sel => {
+    document.querySelectorAll('.condition-row .form-select').forEach(sel => {
         if (typeof autoAdjustSelectWidth === 'function') autoAdjustSelectWidth(sel);
         sel.addEventListener('change', () => {
             if (typeof autoAdjustSelectWidth === 'function') autoAdjustSelectWidth(sel);
         });
     });
+
+    window.addEventListener('resize', () => {
+        document.querySelectorAll('.condition-row .form-select').forEach(sel => {
+            if (typeof autoAdjustSelectWidth === 'function') autoAdjustSelectWidth(sel);
+        });
+    });
 }
+
 
 async function checkCustomExecutionStatus() {
     try {
@@ -754,60 +631,6 @@ function loadFiltersFromResult(btn, isReexecute = false) {
         showToast('Failed to load filters', 'error');
     }
 }
-
-function fillTechFiltersForm(techFilters) {
-    document.querySelectorAll('[data-tech-filter]').forEach(inp => {
-        inp.value = '';
-    });
-
-    if (!techFilters) return;
-    if (typeof techFilters === 'string' && typeof window !== 'undefined' && window.appConfig && window.appConfig.technicalFilters) {
-        techFilters = window.appConfig.technicalFilters[techFilters] || {};
-    }
-    if (typeof techFilters !== 'object') return;
-
-    for (const [filterKey, val] of Object.entries(techFilters)) {
-        if (filterKey === 'SIMPLE_MOVING_AVERAGE' || filterKey === 'VOLUME' || filterKey === 'HISTORICAL_VOLATILITY') {
-            if (val.conditions || Array.isArray(val)) {
-                const rules = Array.isArray(val) ? val.join(', ') : (val.conditions || val);
-                const rulesStr = Array.isArray(rules) ? rules.join(', ') : rules;
-                const el = document.querySelector(`[data-tech-filter="${filterKey}"][data-tech-field="rules"]`);
-                if (el) el.value = rulesStr;
-            }
-            if (filterKey === 'SIMPLE_MOVING_AVERAGE') continue;
-        }
-
-        if (val && typeof val === 'object') {
-            for (const [fieldKey, fieldVal] of Object.entries(val)) {
-                if (fieldKey === 'condition') {
-                    if (typeof fieldVal === 'string') {
-                        const el = document.querySelector(`[data-tech-filter="${filterKey}"][data-tech-field="condition"]`);
-                        if (el) el.value = fieldVal;
-                    } else if (typeof fieldVal === 'object') {
-                        for (const [condKey, condVal] of Object.entries(fieldVal)) {
-                            const mappedKey = condKey === 'type' ? 'condition' : condKey;
-                            const el = document.querySelector(`[data-tech-filter="${filterKey}"][data-tech-field="${mappedKey}"]`);
-                            if (el) {
-                                el.value = condVal;
-                                if (mappedKey === 'condition' && typeof el.onchange === 'function') {
-                                    el.onchange();
-                                }
-                            }
-                        }
-                    }
-                } else if (fieldKey === 'config') {
-                    if (typeof fieldVal === 'object') {
-                        for (const [cfgKey, cfgVal] of Object.entries(fieldVal)) {
-                            const el = document.querySelector(`[data-tech-filter="${filterKey}"][data-tech-field="${cfgKey}"]`);
-                            if (el) el.value = cfgVal;
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 function renderSpecificFilters(strategyValue) {
     const container = document.getElementById('specific-filters');
     if (!container) return;
@@ -846,10 +669,10 @@ function renderSpecificFilters(strategyValue) {
 
     // Render leg condition sections
     for (const leg of legs) {
-        html += `<div class="form-group" style="grid-column: 1 / -1; margin-top: 8px;">
-            <div class="flex items-center justify-between" style="margin-bottom: 8px;">
-                <label class="form-label" style="margin: 0;">${leg.title} Conditions <button type="button" class="info-btn" onclick="showFilterHelp(event, 'legConditions', '${escapeAttr(leg.title)} Conditions')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
-                <button type="button" class="btn btn-ghost" style="padding: 2px 10px; font-size: 0.8rem;" onclick="addConditionRow('${leg.prefix}-conditions', LEG_VARIABLES)">+ Add Condition</button>
+        html += `<div class="condition-section">
+            <div class="condition-section-header">
+                <label class="condition-section-title">${escapeHtml(leg.title)} Conditions <button type="button" class="info-btn" onclick="showFilterHelp(event, 'legConditions', '${escapeAttr(leg.title)} Conditions')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
+                <button type="button" class="btn btn-ghost btn-sm condition-add-btn" onclick="addConditionRow('${leg.prefix}-conditions', LEG_VARIABLES)">+ Add Condition</button>
             </div>
             <div id="${leg.prefix}-conditions" class="conditions-list"></div>
         </div>`;
@@ -1037,14 +860,21 @@ if (typeof window !== 'undefined') {
     window.reexecuteCustomStrategy = reexecuteCustomStrategy;
     window.executeCustom = executeCustom;
     window.loadCustomResults = loadCustomResults;
-    window.addConditionRow = addConditionRow;
-    window.getConditionsFromContainer = getConditionsFromContainer;
-    window.parseConditionString = parseConditionString;
+    if (typeof addConditionRow !== 'undefined') window.addConditionRow = addConditionRow;
+    if (typeof createConditionValElement !== 'undefined') window.createConditionValElement = createConditionValElement;
+    if (typeof getConditionsFromContainer !== 'undefined') window.getConditionsFromContainer = getConditionsFromContainer;
+    if (typeof parseConditionString !== 'undefined') window.parseConditionString = parseConditionString;
+    if (typeof fillTechFiltersForm !== 'undefined') window.fillTechFiltersForm = fillTechFiltersForm;
     window.TRADE_VARIABLES = TRADE_VARIABLES;
     window.LEG_VARIABLES = LEG_VARIABLES;
-    window.CONDITION_OPERATORS = CONDITION_OPERATORS;
+    if (typeof MA_VARIABLES !== 'undefined') window.MA_VARIABLES = MA_VARIABLES;
+    if (typeof VOLUME_VARIABLES !== 'undefined') window.VOLUME_VARIABLES = VOLUME_VARIABLES;
+    if (typeof HV_VARIABLES !== 'undefined') window.HV_VARIABLES = HV_VARIABLES;
+    if (typeof PRICE_DROP_VARIABLES !== 'undefined') window.PRICE_DROP_VARIABLES = PRICE_DROP_VARIABLES;
+    if (typeof CONDITION_OPERATORS !== 'undefined') window.CONDITION_OPERATORS = CONDITION_OPERATORS;
     window.STRATEGY_LEG_CONFIG = STRATEGY_LEG_CONFIG;
     window.STRATEGY_SCALAR_FIELDS = STRATEGY_SCALAR_FIELDS;
+    window.escapeHtml = escapeHtml;
 }
 
 // CommonJS Exports
@@ -1059,10 +889,15 @@ if (typeof module !== 'undefined' && module.exports) {
         STRATEGY_TYPES,
         TRADE_VARIABLES,
         LEG_VARIABLES,
+        MA_VARIABLES,
+        VOLUME_VARIABLES,
+        HV_VARIABLES,
+        PRICE_DROP_VARIABLES,
         CONDITION_OPERATORS,
         STRATEGY_LEG_CONFIG,
         STRATEGY_SCALAR_FIELDS,
         parseConditionString,
+        createConditionValElement,
         addConditionRow,
         getConditionsFromContainer,
         getLegFilters,
@@ -1079,7 +914,9 @@ if (typeof module !== 'undefined' && module.exports) {
         loadCustomResults,
         EARNINGS_PRESETS,
         onEarningsPresetChange,
-        syncEarningsPresetFromInput
+        syncEarningsPresetFromInput,
+        escapeHtml
     };
 }
+
 
