@@ -314,4 +314,83 @@ public class IVDataCollectorTest {
         assertEquals(bracket.getNearTerm().getDaysToExpiry(), 3);
         assertEquals(bracket.getNextTerm().getDaysToExpiry(), 35);
     }
+
+    @Test
+    public void testCollectIV_ZeroBidBothSides_FallbackToUnvalidatedIV() {
+        String symbol = "CTVA";
+        OptionChainResponse mockChain = StrategyTestUtils.createMockChain(symbol, 55.0);
+
+        // DTE=30: Both PUT and CALL have bid=0, but valid volatility=28.0%
+        StrategyTestUtils.addOptionWithIV(mockChain, "2026-01-02", 30, 55.0, 0.00, 1.20, 0.50, true, 28.0);
+        StrategyTestUtils.addOptionWithIV(mockChain, "2026-01-02", 30, 55.0, 0.00, 1.50, -0.50, false, 28.0);
+
+        when(ThinkOrSwimAPIs.getOptionChain(symbol)).thenReturn(mockChain);
+
+        IVDataPoint result = ivDataCollector.collectIVDataPoint(symbol);
+
+        assertNotNull(result);
+        assertEquals(result.getAtmPutIV(), 28.0, 0.01);
+        assertEquals(result.getAtmCallIV(), 28.0, 0.01);
+        assertEquals(result.getStrike(), 55.0);
+    }
+
+    @Test
+    public void testCollectIV_CandidateStrikes_FallbackToAdjacentStrike() {
+        String symbol = "KVUE";
+        OptionChainResponse mockChain = StrategyTestUtils.createMockChain(symbol, 20.1);
+
+        // Exact ATM strike is 20.0, but only strike 21.0 has quotes with IV
+        StrategyTestUtils.addOptionWithIV(mockChain, "2026-01-02", 30, 21.0, 0.50, 0.60, 0.45, true, 22.0);
+        StrategyTestUtils.addOptionWithIV(mockChain, "2026-01-02", 30, 21.0, 0.50, 0.60, -0.45, false, 22.0);
+
+        when(ThinkOrSwimAPIs.getOptionChain(symbol)).thenReturn(mockChain);
+
+        IVDataPoint result = ivDataCollector.collectIVDataPoint(symbol);
+
+        assertNotNull(result);
+        assertEquals(result.getAtmPutIV(), 22.0, 0.01);
+        assertEquals(result.getStrike(), 21.0);
+    }
+
+    @Test
+    public void testCollectIV_FallbackToQuoteWhenUnderlyingPriceZero() {
+        String symbol = "CTVA";
+        // Underlying price is 0 on the chain
+        OptionChainResponse mockChain = StrategyTestUtils.createMockChain(symbol, 0.0);
+        StrategyTestUtils.addOptionWithIV(mockChain, "2026-01-02", 30, 55.0, 1.0, 1.2, 0.50, true, 30.0);
+        StrategyTestUtils.addOptionWithIV(mockChain, "2026-01-02", 30, 55.0, 1.0, 1.2, -0.50, false, 30.0);
+
+        when(ThinkOrSwimAPIs.getOptionChain(symbol)).thenReturn(mockChain);
+
+        com.hemasundar.pojos.QuotesResponse.QuoteData quoteData = new com.hemasundar.pojos.QuotesResponse.QuoteData();
+        com.hemasundar.pojos.QuotesResponse.Quote quote = new com.hemasundar.pojos.QuotesResponse.Quote();
+        quote.setClosePrice(55.2);
+        quoteData.setQuote(quote);
+        when(ThinkOrSwimAPIs.getQuote(symbol)).thenReturn(quoteData);
+
+        IVDataPoint result = ivDataCollector.collectIVDataPoint(symbol);
+
+        assertNotNull(result);
+        assertEquals(result.getUnderlyingPrice(), 55.2);
+        assertEquals(result.getAtmPutIV(), 30.0, 0.01);
+    }
+
+    @Test
+    public void testCollectIV_FallbackToChainWideExpiryWhenBracketingFails() {
+        String symbol = "CTVA";
+        OptionChainResponse mockChain = StrategyTestUtils.createMockChain(symbol, 55.0);
+
+        // Near-term (DTE=25) has NO valid options (e.g. no IV / empty)
+        // Next-term (DTE=35) has NO valid options
+        // Alternative expiry (DTE=45) HAS valid options
+        StrategyTestUtils.addOptionWithIV(mockChain, "2026-01-02", 45, 55.0, 1.0, 1.2, 0.50, true, 26.0);
+        StrategyTestUtils.addOptionWithIV(mockChain, "2026-01-02", 45, 55.0, 1.0, 1.2, -0.50, false, 26.0);
+
+        when(ThinkOrSwimAPIs.getOptionChain(symbol)).thenReturn(mockChain);
+
+        IVDataPoint result = ivDataCollector.collectIVDataPoint(symbol);
+
+        assertNotNull(result);
+        assertEquals(result.getAtmPutIV(), 26.0, 0.01);
+    }
 }

@@ -43,6 +43,21 @@ public class OptionChainResponse {
     public Map<ExpirationDateKey, Map<String, List<OptionData>>> callExpDateMap;
     public Map<ExpirationDateKey, Map<String, List<OptionData>>> putExpDateMap;
 
+    public double getUnderlyingPrice() {
+        if (this.underlyingPrice > 0) {
+            return this.underlyingPrice;
+        }
+        if (this.underlying instanceof Map<?, ?> map) {
+            for (String key : List.of("last", "mark", "close", "bid", "ask")) {
+                Object val = map.get(key);
+                if (val instanceof Number num && num.doubleValue() > 0) {
+                    return num.doubleValue();
+                }
+            }
+        }
+        return this.underlyingPrice;
+    }
+
     public Map<String, List<OptionChainResponse.OptionData>> getOptionDataForASpecificExpiryDate(OptionType optionType,
             String targetExpiryDate) {
         Map<ExpirationDateKey, Map<String, List<OptionData>>> expDateMap = (optionType == OptionType.PUT)

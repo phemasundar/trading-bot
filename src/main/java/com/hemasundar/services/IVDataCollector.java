@@ -5,6 +5,7 @@ import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionChainResponse.ExpirationDateKey;
 import com.hemasundar.options.models.OptionType;
 import com.hemasundar.pojos.IVDataPoint;
+import com.hemasundar.pojos.QuotesResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import lombok.extern.log4j.Log4j2;
@@ -66,6 +67,18 @@ public class IVDataCollector {
 
             double underlyingPrice = chain.getUnderlyingPrice();
             if (underlyingPrice <= 0) {
+                try {
+                    QuotesResponse.QuoteData quote = ThinkOrSwimAPIs.getQuote(symbol);
+                    if (quote != null && quote.getQuote() != null) {
+                        underlyingPrice = quote.getQuote().getClosePrice() > 0
+                                ? quote.getQuote().getClosePrice()
+                                : quote.getQuote().getLastPrice();
+                    }
+                } catch (Exception e) {
+                    log.warn("[{}] Failed to fetch fallback quote for underlying price: {}", symbol, e.getMessage());
+                }
+            }
+            if (underlyingPrice <= 0) {
                 log.warn("[{}] Invalid underlying price in option chain response", symbol);
                 return null;
             }
@@ -76,8 +89,8 @@ public class IVDataCollector {
                 return null;
             }
 
-            Double sigma30;
-            ExpirationDateKey primaryExpiry;
+            Double sigma30 = null;
+            ExpirationDateKey primaryExpiry = null;
 
             if (bracket.isInterpolationNeeded()) {
                 Double sigma1 = extractBlendedATMIV(chain, bracket.getNearTerm(), underlyingPrice, symbol);
@@ -90,37 +103,66 @@ public class IVDataCollector {
                             symbol, String.format("%.2f", sigma30),
                             bracket.getNearTerm().getDaysToExpiry(), String.format("%.2f", sigma1),
                             bracket.getNextTerm().getDaysToExpiry(), String.format("%.2f", sigma2));
+                    primaryExpiry = bracket.getNearTerm();
                 } else if (sigma1 != null) {
                     sigma30 = sigma1;
                     log.debug("[{}] Fallback to near-term IV: {}% (DTE={})", symbol,
                             String.format("%.2f", sigma30), bracket.getNearTerm().getDaysToExpiry());
+                    primaryExpiry = bracket.getNearTerm();
                 } else if (sigma2 != null) {
                     sigma30 = sigma2;
                     log.debug("[{}] Fallback to next-term IV: {}% (DTE={})", symbol,
                             String.format("%.2f", sigma30), bracket.getNextTerm().getDaysToExpiry());
+                    primaryExpiry = bracket.getNextTerm();
                 } else {
                     log.warn("[{}] Failed to extract IV from either bracketing expiry", symbol);
-                    return null;
                 }
-                primaryExpiry = bracket.getNearTerm();
             } else {
                 // Single expiry (exact 30 DTE or only one side available)
                 ExpirationDateKey singleExpiry = bracket.getNearTerm() != null
                         ? bracket.getNearTerm() : bracket.getNextTerm();
                 sigma30 = extractBlendedATMIV(chain, singleExpiry, underlyingPrice, symbol);
-                if (sigma30 == null) {
+                if (sigma30 != null) {
+                    log.debug("[{}] Single-expiry IV: {}% (DTE={})", symbol,
+                            String.format("%.2f", sigma30), singleExpiry.getDaysToExpiry());
+                    primaryExpiry = singleExpiry;
+                } else {
                     log.warn("[{}] Failed to extract IV from single expiry DTE={}",
                             symbol, singleExpiry.getDaysToExpiry());
-                    return null;
                 }
-                log.debug("[{}] Single-expiry IV: {}% (DTE={})", symbol,
-                        String.format("%.2f", sigma30), singleExpiry.getDaysToExpiry());
-                primaryExpiry = singleExpiry;
+            }
+
+            // Fallback: If bracketing expiries both failed, try any available expiry in chain closest to TARGET_DTE
+            if (sigma30 == null) {
+                List<ExpirationDateKey> remainingExpiries = Stream.of(chain.getCallExpDateMap(), chain.getPutExpDateMap())
+                        .filter(m -> m != null && !m.isEmpty())
+                        .flatMap(m -> m.keySet().stream())
+                        .distinct()
+                        .filter(k -> k.getDaysToExpiry() > 0)
+                        .sorted(Comparator.comparingInt(k -> Math.abs(k.getDaysToExpiry() - TARGET_DTE)))
+                        .toList();
+
+                for (ExpirationDateKey expiry : remainingExpiries) {
+                    Double iv = extractBlendedATMIV(chain, expiry, underlyingPrice, symbol);
+                    if (iv != null) {
+                        sigma30 = iv;
+                        primaryExpiry = expiry;
+                        log.debug("[{}] Fallback to alternative expiry IV: {}% (DTE={})",
+                                symbol, String.format("%.2f", sigma30), expiry.getDaysToExpiry());
+                        break;
+                    }
+                }
+            }
+
+            if (sigma30 == null || primaryExpiry == null) {
+                return null;
             }
 
             // Extract market date from an option quote timestamp
             long quoteTimestamp = getQuoteTimestamp(chain, primaryExpiry, underlyingPrice);
             LocalDate marketDate = getMarketDateFromTimestamp(quoteTimestamp);
+
+            Double atmStrike = findATMStrike(chain, primaryExpiry.getDate(), underlyingPrice);
 
             return IVDataPoint.builder()
                     .symbol(symbol)
@@ -129,7 +171,7 @@ public class IVDataCollector {
                     .atmCallIV(sigma30)
                     .dte(TARGET_DTE)
                     .expiryDate(primaryExpiry.getDate())
-                    .strike(findATMStrike(chain, primaryExpiry.getDate(), underlyingPrice))
+                    .strike(atmStrike != null ? atmStrike : underlyingPrice)
                     .underlyingPrice(underlyingPrice)
                     .noOptions(false)
                     .build();
@@ -224,36 +266,62 @@ public class IVDataCollector {
      * @return blended IV as percentage (e.g. 32.45), or null if extraction fails
      */
     Double extractBlendedATMIV(OptionChainResponse chain, ExpirationDateKey expiryKey,
-                                       double underlyingPrice, String symbol) {
+                               double underlyingPrice, String symbol) {
         String expiryDate = expiryKey.getDate();
 
-        Double atmStrike = findATMStrike(chain, expiryDate, underlyingPrice);
-        if (atmStrike == null) {
-            log.debug("[{}] No ATM strike found for expiry {} (DTE={})",
+        List<Double> candidateStrikes = findCandidateATMStrikes(chain, expiryDate, underlyingPrice);
+        if (candidateStrikes.isEmpty()) {
+            log.debug("[{}] No strikes found for expiry {} (DTE={})",
                     symbol, expiryDate, expiryKey.getDaysToExpiry());
             return null;
         }
 
-        OptionChainResponse.OptionData call = findOption(chain, OptionType.CALL, expiryDate, atmStrike);
-        OptionChainResponse.OptionData put = findOption(chain, OptionType.PUT, expiryDate, atmStrike);
+        // Pass 1: Strict liquidity check (bid > 0, ask >= bid) starting with closest strike
+        for (Double strike : candidateStrikes) {
+            OptionChainResponse.OptionData call = findOption(chain, OptionType.CALL, expiryDate, strike);
+            OptionChainResponse.OptionData put = findOption(chain, OptionType.PUT, expiryDate, strike);
 
-        Double callIV = extractValidatedIV(call);
-        Double putIV = extractValidatedIV(put);
+            Double callIV = extractValidatedIV(call);
+            Double putIV = extractValidatedIV(put);
 
-        if (callIV != null && putIV != null) {
-            return (callIV + putIV) / 2.0;
-        } else if (callIV != null) {
-            log.debug("[{}] PUT failed liquidity check at strike {} DTE={}, using CALL IV only",
-                    symbol, atmStrike, expiryKey.getDaysToExpiry());
-            return callIV;
-        } else if (putIV != null) {
-            log.debug("[{}] CALL failed liquidity check at strike {} DTE={}, using PUT IV only",
-                    symbol, atmStrike, expiryKey.getDaysToExpiry());
-            return putIV;
+            if (callIV != null && putIV != null) {
+                return (callIV + putIV) / 2.0;
+            } else if (callIV != null) {
+                log.debug("[{}] PUT failed liquidity check at strike {} DTE={}, using CALL IV only",
+                        symbol, strike, expiryKey.getDaysToExpiry());
+                return callIV;
+            } else if (putIV != null) {
+                log.debug("[{}] CALL failed liquidity check at strike {} DTE={}, using PUT IV only",
+                        symbol, strike, expiryKey.getDaysToExpiry());
+                return putIV;
+            }
         }
 
-        log.debug("[{}] Both PUT and CALL failed liquidity check at strike {} DTE={}",
-                symbol, atmStrike, expiryKey.getDaysToExpiry());
+        // Pass 2: Fallback to unvalidated IV (volatility > 0 even if bid <= 0, e.g. after-hours / closed market)
+        for (Double strike : candidateStrikes) {
+            OptionChainResponse.OptionData call = findOption(chain, OptionType.CALL, expiryDate, strike);
+            OptionChainResponse.OptionData put = findOption(chain, OptionType.PUT, expiryDate, strike);
+
+            Double callIV = extractIV(call);
+            Double putIV = extractIV(put);
+
+            if (callIV != null && putIV != null) {
+                log.debug("[{}] Fallback to unvalidated IV average at strike {} DTE={}",
+                        symbol, strike, expiryKey.getDaysToExpiry());
+                return (callIV + putIV) / 2.0;
+            } else if (callIV != null) {
+                log.debug("[{}] Fallback to unvalidated CALL IV only at strike {} DTE={}",
+                        symbol, strike, expiryKey.getDaysToExpiry());
+                return callIV;
+            } else if (putIV != null) {
+                log.debug("[{}] Fallback to unvalidated PUT IV only at strike {} DTE={}",
+                        symbol, strike, expiryKey.getDaysToExpiry());
+                return putIV;
+            }
+        }
+
+        log.debug("[{}] Both PUT and CALL failed IV extraction at all candidate strikes for expiry {} (DTE={})",
+                symbol, expiryDate, expiryKey.getDaysToExpiry());
         return null;
     }
 
@@ -321,35 +389,31 @@ public class IVDataCollector {
     // ---- Existing helpers (preserved) ----
 
     /**
-     * Finds the strike price closest to the underlying price (ATM) for a given expiry.
+     * Finds candidate ATM strikes closest to the underlying price for a given expiry.
      */
-    private Double findATMStrike(OptionChainResponse chain, String expiryDate, double underlyingPrice) {
+    List<Double> findCandidateATMStrikes(OptionChainResponse chain, String expiryDate, double underlyingPrice) {
         Map<String, List<OptionChainResponse.OptionData>> callMap = chain
                 .getOptionDataForASpecificExpiryDate(OptionType.CALL, expiryDate);
+        Map<String, List<OptionChainResponse.OptionData>> putMap = chain
+                .getOptionDataForASpecificExpiryDate(OptionType.PUT, expiryDate);
 
-        if (MapUtils.isEmpty(callMap)) {
-            // Try PUT map as fallback (some expiries may only have PUTs in edge cases)
-            Map<String, List<OptionChainResponse.OptionData>> putMap = chain
-                    .getOptionDataForASpecificExpiryDate(OptionType.PUT, expiryDate);
-            if (MapUtils.isEmpty(putMap)) {
-                return null;
-            }
-            return findClosestStrike(putMap, underlyingPrice);
-        }
-
-        return findClosestStrike(callMap, underlyingPrice);
-    }
-
-    private Double findClosestStrike(Map<String, List<OptionChainResponse.OptionData>> optionMap,
-                                     double underlyingPrice) {
-        return optionMap.values().stream()
+        return Stream.of(callMap, putMap)
+                .filter(m -> m != null && !m.isEmpty())
+                .flatMap(m -> m.values().stream())
                 .flatMap(List::stream)
                 .map(OptionChainResponse.OptionData::getStrikePrice)
                 .distinct()
-                .min((s1, s2) -> Double.compare(
-                        Math.abs(s1 - underlyingPrice),
-                        Math.abs(s2 - underlyingPrice)))
-                .orElse(null);
+                .sorted(Comparator.comparingDouble(s -> Math.abs(s - underlyingPrice)))
+                .limit(5)
+                .toList();
+    }
+
+    /**
+     * Finds the strike price closest to the underlying price (ATM) for a given expiry.
+     */
+    Double findATMStrike(OptionChainResponse chain, String expiryDate, double underlyingPrice) {
+        List<Double> candidates = findCandidateATMStrikes(chain, expiryDate, underlyingPrice);
+        return candidates.isEmpty() ? null : candidates.get(0);
     }
 
     /**
