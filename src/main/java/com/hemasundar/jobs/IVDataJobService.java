@@ -68,10 +68,23 @@ public class IVDataJobService {
         refreshCachedIVIndicators();
         sendTelegramSummary();
 
+        int effectiveTotal = totalCount - skipCount;
+        double successRate = effectiveTotal > 0 ? (double) successCount / effectiveTotal * 100.0 : 100.0;
+        if (successCount == 0 && effectiveTotal > 0) {
+            log.error("IV Data Collection completely failed: 0 of {} optionable symbols succeeded", effectiveTotal);
+            throw new IllegalStateException(String.format("IV Data Collection failed: 0 of %d symbols succeeded", effectiveTotal));
+        }
+
+        if (failCount > 0 && successRate < 90.0) {
+            log.error("IV Data Collection finished with unacceptably low success rate {:.1f}% ({} failed): {}",
+                    successRate, failCount, failedSymbols);
+            throw new IllegalStateException(String.format("IV Data Collection failed with success rate %.1f%% (%d failed symbols: %s)",
+                    successRate, failCount, failedSymbols));
+        }
+
         if (failCount > 0) {
-            log.error("IV Data Collection finished with {} failed symbol(s): {}", failCount, failedSymbols);
-            throw new IllegalStateException(String.format("IV Data Collection failed for %d symbol(s): %s",
-                    failCount, failedSymbols));
+            log.warn("IV Data Collection completed with high success rate {:.1f}%, but {} symbol(s) failed: {}",
+                    successRate, failCount, failedSymbols);
         }
     }
 
@@ -84,20 +97,38 @@ public class IVDataJobService {
         skippedSymbols = new ArrayList<>();
 
         List<String> symbolList = new ArrayList<>(allSecurities);
+        processSymbols(symbolList);
+
+        // Retry failed symbols once with a short delay if any failed
+        if (!failedSymbols.isEmpty()) {
+            List<String> toRetry = new ArrayList<>(failedSymbols);
+            log.info("Retrying {} failed symbol(s) after 2s pause...", toRetry.size());
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            failCount -= toRetry.size();
+            failedSymbols.clear();
+            processSymbols(toRetry);
+        }
+    }
+
+    private void processSymbols(List<String> symbols) {
         List<IVDataPoint> results = schwabApiExecutor.executeParallel(
-                symbolList,
+                symbols,
                 symbol -> ivDataCollector.collectIVDataPoint(symbol)
         );
 
-        for (int i = 0; i < symbolList.size(); i++) {
-            String symbol = symbolList.get(i);
+        for (int i = 0; i < symbols.size(); i++) {
+            String symbol = symbols.get(i);
             IVDataPoint dataPoint = results.get(i);
 
             if (dataPoint != null && dataPoint.isNoOptions()) {
                 log.debug("[{}] ⏭ Skipped - no options available", symbol);
                 skipCount++;
                 skippedSymbols.add(symbol);
-            } else if (dataPoint != null) {
+            } else if (dataPoint != null && (dataPoint.getAtmPutIV() != null || dataPoint.getAtmCallIV() != null)) {
                 if (supabaseService.isPresent()) {
                     try {
                         supabaseService.get().upsertIVData(dataPoint);

@@ -246,7 +246,7 @@ public class IVDataRepository {
         double putIV = putIVObj != null ? ((Number) putIVObj).doubleValue() : 0.0;
         double callIV = callIVObj != null ? ((Number) callIVObj).doubleValue() : 0.0;
         if (putIVObj == null && callIVObj == null) {
-            log.warn("[{}] Row has null put_iv and call_iv, treating avg IV as 0", symbol);
+            log.debug("[{}] Row has null put_iv and call_iv, treating avg IV as 0", symbol);
             return 0.0;
         }
         if (putIVObj == null)

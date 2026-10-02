@@ -32,17 +32,17 @@ flowchart TD
    - **Next-term ($T_2$)**: Smallest DTE $> 30$.
    - **Exact Match**: If an expiry has exactly 30 DTE, it is used directly without interpolation.
 3. **Per-Expiry ATM Strike & Liquidity Validation**:
-   - Locates ATM strike minimizing distance to underlying:
-     $$\text{ATM Strike} = \arg\min_{\text{strike}} |\text{strike} - \text{underlyingPrice}|$$
-   - Validates quote liquidity: requires $\text{bid} > 0$, $\text{ask} \ge \text{bid}$, and $\text{volatility} > 0$.
+   - Evaluates candidate ATM strikes closest to the underlying price ($\arg\min_{\text{strike}} |\text{strike} - \text{underlyingPrice}|$).
+   - Validates quote liquidity: checks for $\text{bid} > 0$, $\text{ask} \ge \text{bid}$, and $\text{volatility} > 0$.
    - Averages valid Call and Put ATM IV: $\sigma = \frac{\sigma_{\text{call}} + \sigma_{\text{put}}}{2.0}$ (or falls back to single valid side if one side lacks bid liquidity).
-4. **Constant-Maturity Total Variance Interpolation**:
+   - Multi-tiered fallbacks: If the exact ATM strike lacks liquidity, evaluates adjacent strikes; if market quotes are closed or zero-bid, falls back to unvalidated IV ($\text{volatility} > 0$).
+4. **Constant-Maturity Total Variance Interpolation & Fallbacks**:
    - Synthesizes constant 30-day IV using CBOE VIX variance additivity:
      $$w_1 = \frac{\text{DTE}_2 - 30}{\text{DTE}_2 - \text{DTE}_1}, \quad w_2 = \frac{30 - \text{DTE}_1}{\text{DTE}_2 - \text{DTE}_1}$$
      $$\sigma_{30} = \sqrt{\frac{\sigma_1^2 \cdot \text{DTE}_1 \cdot w_1 + \sigma_2^2 \cdot \text{DTE}_2 \cdot w_2}{30}}$$
-   - Fallback: If only one bracketing expiry is available or valid, falls back gracefully to that expiry's blended ATM IV.
+   - Fallback: If only one bracketing expiry is available or valid, falls back gracefully to that expiry's ATM IV. If both bracketing cycles lack data, evaluates remaining cycle expiries nearest 30 DTE.
 5. **Timestamping**: Converts the option quote millisecond timestamp into a `LocalDate` (market date) rather than local system date to preserve accurate trading session alignment.
-6. **Supabase Upsert**: Saves records via [IVDataRepository.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java) using PostgreSQL `ON CONFLICT (symbol, date) DO UPDATE`, setting `dte = 30` and `put_iv = call_iv = \sigma_{30}`.
+6. **Supabase Upsert & Resilient Execution**: Saves records via [IVDataRepository.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java) using PostgreSQL `ON CONFLICT (symbol, date) DO UPDATE`, setting `dte = 30` and `put_iv = call_iv = \sigma_{30}`. Scheduled runs automatically retry transient symbol failures and enforce a $\ge 90\%$ collection success threshold rather than aborting on isolated illiquid symbols.
 
 ### Constant-Maturity Variance Interpolation (Deep Dive)
 
