@@ -272,6 +272,74 @@ public class StrategyExecutionServiceTest {
     }
 
     @Test
+    public void testExecuteCustomStrategies_MultipleConfigs() throws IOException {
+        OptionsConfig config1 = mock(OptionsConfig.class);
+        when(config1.getName()).thenReturn("Strategy 1");
+        when(config1.getSecurities()).thenReturn(List.of("AAPL"));
+        AbstractTradingStrategy strat1 = mock(AbstractTradingStrategy.class);
+        when(config1.getStrategy()).thenReturn(strat1);
+        when(strat1.getStrategyName()).thenReturn("Strategy 1");
+        when(strat1.getStrategyType()).thenReturn(com.hemasundar.options.strategies.StrategyType.PUT_CREDIT_SPREAD);
+        when(strat1.findTrades(any(), any())).thenReturn(Collections.emptyList());
+
+        OptionsConfig config2 = mock(OptionsConfig.class);
+        when(config2.getName()).thenReturn("Strategy 2");
+        when(config2.getSecurities()).thenReturn(List.of("MSFT"));
+        AbstractTradingStrategy strat2 = mock(AbstractTradingStrategy.class);
+        when(config2.getStrategy()).thenReturn(strat2);
+        when(strat2.getStrategyName()).thenReturn("Strategy 2");
+        when(strat2.getStrategyType()).thenReturn(com.hemasundar.options.strategies.StrategyType.LONG_CALL_LEAP);
+        when(strat2.findTrades(any(), any())).thenReturn(Collections.emptyList());
+
+        ExecutionResult result = strategyExecutionService.executeCustomStrategies(
+                List.of(config1, config2),
+                List.of(101L, 102L)
+        );
+
+        assertNotNull(result);
+        assertEquals(result.getResults().size(), 2);
+        verify(supabaseService).updateCustomExecutionResult(eq(101L), any(), anyList());
+        verify(supabaseService).updateCustomExecutionResult(eq(102L), any(), anyList());
+        assertFalse(strategyExecutionService.isExecutionRunning());
+    }
+
+    @Test
+    public void testExecuteCustomStrategies_Cancellation() throws IOException {
+        OptionsConfig config1 = mock(OptionsConfig.class);
+        when(config1.getName()).thenReturn("Strategy 1");
+        when(config1.getSecurities()).thenReturn(List.of("AAPL"));
+        AbstractTradingStrategy strat1 = mock(AbstractTradingStrategy.class);
+        when(config1.getStrategy()).thenReturn(strat1);
+        when(strat1.getStrategyName()).thenReturn("Strategy 1");
+        when(strat1.getStrategyType()).thenReturn(com.hemasundar.options.strategies.StrategyType.PUT_CREDIT_SPREAD);
+        when(strat1.findTrades(any(), any())).thenAnswer(inv -> {
+            strategyExecutionService.cancelExecution();
+            return Collections.emptyList();
+        });
+
+        OptionsConfig config2 = mock(OptionsConfig.class);
+        when(config2.getName()).thenReturn("Strategy 2");
+        when(config2.getSecurities()).thenReturn(List.of("MSFT"));
+
+        ExecutionResult result = strategyExecutionService.executeCustomStrategies(
+                List.of(config1, config2),
+                Arrays.asList(101L, 102L)
+        );
+
+        assertNotNull(result);
+        assertEquals(result.getResults().size(), 1);
+        verify(supabaseService).updateCustomExecutionResult(eq(101L), any(), anyList());
+        verify(supabaseService, never()).updateCustomExecutionResult(eq(102L), any(), anyList());
+        assertFalse(strategyExecutionService.isExecutionRunning());
+    }
+
+    @Test
+    public void testExecuteCustomStrategies_EmptyList() {
+        ExecutionResult result = strategyExecutionService.executeCustomStrategies(Collections.emptyList(), Collections.emptyList());
+        assertNull(result);
+    }
+
+    @Test
     public void testTechnicalScreeningIntegration() throws IOException {
         OptionsConfig config = mock(OptionsConfig.class);
         when(config.getName()).thenReturn("Tech Strategy");

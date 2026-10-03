@@ -214,6 +214,24 @@ public class BearerTokenFilterTest {
     }
 
     @Test
+    public void testReadOnlyUser_batchExecuteEndpoints_blockedWith403() throws Exception {
+        when(mockSecurityConfig.getAllowedEmails()).thenReturn("viewer@gmail.com");
+        when(mockSecurityConfig.getReadonlyEmails()).thenReturn("viewer@gmail.com");
+
+        MockHttpServletRequest request1 = apiRequest("POST", "/api/execute/custom/batch");
+        request1.addHeader("Authorization", "Bearer " + validToken("viewer@gmail.com"));
+        MockHttpServletResponse response1 = new MockHttpServletResponse();
+        filter.doFilter(request1, response1, new MockFilterChain());
+        assertEquals(response1.getStatus(), HttpServletResponse.SC_FORBIDDEN);
+
+        MockHttpServletRequest request2 = apiRequest("POST", "/api/execute/custom-screener/batch");
+        request2.addHeader("Authorization", "Bearer " + validToken("viewer@gmail.com"));
+        MockHttpServletResponse response2 = new MockHttpServletResponse();
+        filter.doFilter(request2, response2, new MockFilterChain());
+        assertEquals(response2.getStatus(), HttpServletResponse.SC_FORBIDDEN);
+    }
+
+    @Test
     public void testAdminUser_writeEndpoint_allowed() throws Exception {
         when(mockSecurityConfig.getAllowedEmails()).thenReturn("admin@gmail.com");
         when(mockSecurityConfig.getReadonlyEmails()).thenReturn("viewer@gmail.com");

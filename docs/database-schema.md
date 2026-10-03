@@ -289,8 +289,8 @@ Added a **"⬆ Load Filters"** button to each custom screener result card in the
 2. `requestParams` is passed through `ScreenerExecutionService.executeCustomScreener()` → `SupabaseService.saveCustomScreenerResult()` → `CustomScreenerRepository.saveCustomScreenerResult()`.
 3. The repository serialises it as JSONB into the new `request_params` column of the `custom_screener_results` table.
 4. On subsequent page loads, `parseCustomScreenerResult()` deserialises it back and attaches it to `ScreenerExecutionResult.requestParams`.
-5. The frontend `buildScreenerCard()` renders a "⬆ Load Filters" button (only on `execute-screener.html`, only when `requestParams` is present).
-6. `loadScreenerFiltersFromResult()` in `app.js` populates every form field and calls `onScreenerTypeChange()` to ensure drop-specific fields and matching templates are correctly shown.
+5. The frontend `buildScreenerCard()` renders standardized action buttons ("⬆ Load", "▶ Execute", and "🗑 Delete") via `renderCardActionButtons()` on `execute-screener.html` when `requestParams` is present.
+6. `loadScreenerFiltersFromResult()` in `screener-execute.js` populates every form field and calls `onScreenerTypeChange()`. Single-click "▶ Execute" triggers `reexecuteCustomScreener()`, updating the existing record in `custom_screener_results` in place via PATCH and refreshing the card without duplicate generation.
 
 ### Architecture
 

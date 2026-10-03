@@ -155,4 +155,86 @@ public class ScreenerExecutionServiceTest {
 
         verify(supabaseService, times(1)).saveCustomScreenerResult(any(ScreenerExecutionResult.class), anyList(), eq(requestParams));
     }
+
+    @Test
+    public void testExecuteCustomScreener_WithCustomResultId() throws IOException {
+        ScreenerConfig config = ScreenerConfig.builder()
+                .alias("Custom Screener Test")
+                .screenerType(ScreenerType.PRICE_DROP)
+                .securities(List.of("AAPL"))
+                .filterChain(com.hemasundar.technical.TechnicalFilterChain.of(com.hemasundar.technical.TechnicalIndicators.builder().build(), com.hemasundar.technical.TechFilterConditions.builder().build()))
+                .build();
+        Map<String, Object> requestParams = Map.of("alias", "Custom Screener Test");
+
+        when(priceDropScreener.screenPriceDrop(anyList(), anyList(), anyInt(), any()))
+                .thenReturn(List.of(TechnicalScreener.ScreeningResult.builder().symbol("AAPL").build()));
+
+        screenerExecutionService.executeCustomScreener(config, requestParams, 42L);
+
+        verify(supabaseService, times(1)).updateCustomScreenerResult(eq(42L), any(ScreenerExecutionResult.class), anyList(), eq(requestParams));
+    }
+
+    @Test
+    public void testExecuteCustomScreeners_MultipleConfigs() throws IOException {
+        ScreenerConfig config1 = ScreenerConfig.builder()
+                .alias("Custom Screener 1")
+                .screenerType(ScreenerType.PRICE_DROP)
+                .securities(List.of("AAPL"))
+                .filterChain(com.hemasundar.technical.TechnicalFilterChain.of(com.hemasundar.technical.TechnicalIndicators.builder().build(), com.hemasundar.technical.TechFilterConditions.builder().build()))
+                .build();
+        ScreenerConfig config2 = ScreenerConfig.builder()
+                .alias("Custom Screener 2")
+                .screenerType(ScreenerType.PRICE_DROP)
+                .securities(List.of("MSFT"))
+                .filterChain(com.hemasundar.technical.TechnicalFilterChain.of(com.hemasundar.technical.TechnicalIndicators.builder().build(), com.hemasundar.technical.TechFilterConditions.builder().build()))
+                .build();
+
+        when(priceDropScreener.screenPriceDrop(anyList(), anyList(), anyInt(), any()))
+                .thenReturn(List.of(TechnicalScreener.ScreeningResult.builder().symbol("AAPL").build()));
+
+        screenerExecutionService.executeCustomScreeners(
+                List.of(config1, config2),
+                List.of(Map.of("alias", "Custom Screener 1"), Map.of("alias", "Custom Screener 2")),
+                List.of(51L, 52L)
+        );
+
+        verify(supabaseService).updateCustomScreenerResult(eq(51L), any(), anyList(), anyMap());
+        verify(supabaseService).updateCustomScreenerResult(eq(52L), any(), anyList(), anyMap());
+    }
+
+    @Test
+    public void testExecuteCustomScreeners_Cancellation() throws IOException {
+        ScreenerConfig config1 = ScreenerConfig.builder()
+                .alias("Custom Screener 1")
+                .screenerType(ScreenerType.PRICE_DROP)
+                .securities(List.of("AAPL"))
+                .filterChain(com.hemasundar.technical.TechnicalFilterChain.of(com.hemasundar.technical.TechnicalIndicators.builder().build(), com.hemasundar.technical.TechFilterConditions.builder().build()))
+                .build();
+        ScreenerConfig config2 = ScreenerConfig.builder()
+                .alias("Custom Screener 2")
+                .screenerType(ScreenerType.PRICE_DROP)
+                .securities(List.of("MSFT"))
+                .filterChain(com.hemasundar.technical.TechnicalFilterChain.of(com.hemasundar.technical.TechnicalIndicators.builder().build(), com.hemasundar.technical.TechFilterConditions.builder().build()))
+                .build();
+
+        when(strategyExecutionService.isCancellationRequested()).thenReturn(false, true);
+        when(priceDropScreener.screenPriceDrop(anyList(), anyList(), anyInt(), any()))
+                .thenReturn(List.of(TechnicalScreener.ScreeningResult.builder().symbol("AAPL").build()));
+
+        screenerExecutionService.executeCustomScreeners(
+                List.of(config1, config2),
+                List.of(Map.of("alias", "Custom Screener 1"), Map.of("alias", "Custom Screener 2")),
+                Arrays.asList(51L, 52L)
+        );
+
+        verify(supabaseService).updateCustomScreenerResult(eq(51L), any(), anyList(), anyMap());
+        verify(supabaseService, never()).updateCustomScreenerResult(eq(52L), any(), anyList(), anyMap());
+    }
+
+    @Test
+    public void testExecuteCustomScreeners_EmptyList() throws IOException {
+        screenerExecutionService.executeCustomScreeners(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
+        verify(supabaseService, never()).updateCustomScreenerResult(anyLong(), any(), anyList(), anyMap());
+    }
 }
+

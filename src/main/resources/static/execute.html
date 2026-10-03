@@ -8,7 +8,7 @@
     <meta name="description" content="Execute custom trading strategies with configurable filters">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/style.css?v=9">
+    <link rel="stylesheet" href="/style.css?v=10">
     <script src="/theme.js?v=3"></script>
 </head>
 
@@ -57,6 +57,14 @@
                 <a href="/earnings-calendar.html" class="nav-link">
                     <span class="nav-icon">📅</span>
                     <span>Earnings Calendar</span>
+                </a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Learning Center</div>
+                <a href="/option-strategies.html" class="nav-link">
+                    <span class="nav-icon">📚</span>
+                    <span>Option Strategies</span>
                 </a>
             </div>
 
@@ -334,7 +342,17 @@
             </div>
 
             <!-- Recent Custom Executions -->
-            <h3 style="font-size:1rem; margin:24px 0 12px; color:var(--text-secondary)">Recent Custom Executions</h3>
+            <div class="results-header flex-wrap" style="margin: 24px 0 12px;">
+                <div class="flex items-center gap-sm">
+                    <h3 style="font-size:1rem; margin:0; color:var(--text-secondary)">Recent Custom Executions</h3>
+                    <span class="card-badge" id="custom-results-count-badge" style="display: none; background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border);"></span>
+                </div>
+                <div class="flex items-center gap-xs">
+                    <button type="button" class="btn btn-primary btn-sm execute-all-btn" id="execute-all-custom-btn" data-admin-only style="display: none;" onclick="reexecuteAllCustomStrategies()">
+                        ▶ Execute All
+                    </button>
+                </div>
+            </div>
             <div id="custom-results">
                 <div class="empty-state">
                     <div class="empty-state-icon">🔬</div>

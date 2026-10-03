@@ -24,7 +24,8 @@ const {
     showFilterHelp,
     loadFilterDescriptions,
     showInfo,
-    autoAdjustSelectWidth
+    autoAdjustSelectWidth,
+    pollUntilComplete
 } = require('../../main/resources/static/app');
 
 Element.prototype.scrollIntoView = jest.fn();
@@ -234,5 +235,22 @@ describe('App Utility Functions', () => {
         // Null and non-element safety
         expect(() => autoAdjustSelectWidth(null)).not.toThrow();
         expect(() => autoAdjustSelectWidth({})).not.toThrow();
+    });
+
+    test('pollUntilComplete polls until status.running is false and resolves', async () => {
+        jest.useFakeTimers();
+        global.API = {
+            get: jest.fn().mockResolvedValue({ running: false, alerts: [] })
+        };
+        window.API = global.API;
+
+        const pollPromise = pollUntilComplete(20);
+
+        await jest.advanceTimersByTimeAsync(20);
+        await jest.advanceTimersByTimeAsync(3000);
+        await pollPromise;
+        expect(global.API.get).toHaveBeenCalledWith('/api/status');
+
+        jest.useRealTimers();
     });
 });

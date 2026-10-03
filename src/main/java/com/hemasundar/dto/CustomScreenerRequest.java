@@ -37,4 +37,10 @@ public class CustomScreenerRequest {
      * e.g., { "RSI": { "condition": { "type": "OVERSOLD" } }, "VOLUME": { "conditions": [ ">= 1000000" ] } }
      */
     java.util.Map<String, Object> technicalFilters;
+
+    /**
+     * Optional database ID of existing custom screener result to re-execute in place.
+     */
+    Long customResultId;
 }
+

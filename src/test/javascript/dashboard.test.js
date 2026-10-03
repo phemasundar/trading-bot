@@ -1,9 +1,13 @@
 const {
+    renderCardActionButtons,
+    updateExecuteAllButtonState,
+    executeAllCustomCards,
     buildResultCard,
     renderTermGroups,
     computeTermDteRange,
     confirmDeleteCustomResult,
     deleteCustomResult,
+    confirmDeleteCustomScreenerResult,
     promptDeleteCustomScreenerResult,
     deleteCustomScreenerResult,
     buildScreenerCard,
@@ -105,6 +109,41 @@ describe('Dashboard & Table Rendering Tests', () => {
         expect(card.innerHTML).toContain('>▶ Execute</button>');
         expect(card.innerHTML).toContain('reexecuteCustomStrategy(this, \'123\')');
         expect(card.innerHTML).toContain('🗑 Delete');
+    });
+
+    test('buildScreenerCard on execute screener page should render Load, Execute, and Delete buttons identically to strategy cards', () => {
+        document.body.innerHTML = '<select id="screener-type"></select>';
+        const mockResult = {
+            screenerId: '456',
+            screenerName: 'Custom RSI Screener',
+            requestParams: { screenerType: 'RSI_OVERSOLD' },
+            results: []
+        };
+
+        const card = buildScreenerCard(mockResult, true);
+        expect(card.innerHTML).toContain('>⬆ Load</button>');
+        expect(card.innerHTML).toContain('loadScreenerFiltersFromResult(this)');
+        expect(card.innerHTML).not.toContain('>⬆ Load Filters</button>');
+        expect(card.innerHTML).toContain('>▶ Execute</button>');
+        expect(card.innerHTML).toContain('reexecuteCustomScreener(this, \'456\')');
+        expect(card.innerHTML).toContain('🗑 Delete');
+        expect(card.innerHTML).toContain('confirmDeleteCustomScreenerResult(\'456\', this.closest(\'.card\'))');
+    });
+
+    test('renderCardActionButtons should handle margin assignment and attribute escaping', () => {
+        const res = renderCardActionButtons({
+            hasLoad: true,
+            loadFn: 'doLoad()',
+            hasExecute: true,
+            executeFn: 'doExec()',
+            hasDelete: true,
+            deleteFn: 'doDel()',
+            dataAttrs: { 'data-test': 'val"1' }
+        });
+        expect(res.loadBtn).toContain('style="margin-left: auto;"');
+        expect(res.loadBtn).toContain('data-test="val&quot;1"');
+        expect(res.execBtn).toContain('style="margin-left: 4px;"');
+        expect(res.delBtn).toContain('style="margin-left: 4px;"');
     });
 
     test('buildScreenerCard should render technical screener card with table', () => {
@@ -842,6 +881,182 @@ describe('Dashboard & Table Rendering Tests', () => {
             expect(window.tableSortState[cardId].direction).toBe('desc');
             const content = document.getElementById(`content-${cardId}`).innerHTML;
             expect(content).toContain('Savings %');
+        });
+    });
+
+    describe('Execute All Common Orchestrator', () => {
+        beforeEach(() => {
+            document.body.innerHTML = '';
+            jest.restoreAllMocks();
+            window.cancellationRequested = false;
+        });
+
+        test('updateExecuteAllButtonState toggles button and badge correctly', () => {
+            document.body.innerHTML = `
+                <button id="test-exec-all-btn" style="display:none;"></button>
+                <span id="test-count-badge" style="display:none;"></span>
+            `;
+
+            updateExecuteAllButtonState({ btnId: 'test-exec-all-btn', countBadgeId: 'test-count-badge', count: 3 });
+            const btn = document.getElementById('test-exec-all-btn');
+            const badge = document.getElementById('test-count-badge');
+            expect(btn.style.display).toBe('inline-flex');
+            expect(badge.style.display).toBe('inline-block');
+            expect(badge.textContent).toBe('3');
+
+            updateExecuteAllButtonState({ btnId: 'test-exec-all-btn', countBadgeId: 'test-count-badge', count: 0 });
+            expect(btn.style.display).toBe('none');
+            expect(badge.style.display).toBe('none');
+
+            // Gracefully handles missing elements
+            expect(() => updateExecuteAllButtonState({ btnId: 'non-existent', countBadgeId: 'non-existent', count: 5 })).not.toThrow();
+        });
+
+        test('executeAllCustomCards aborts early if execution already in progress', async () => {
+            const toastSpy = jest.spyOn(window, 'showToast').mockImplementation(() => {});
+            await executeAllCustomCards({
+                containerId: 'test-container',
+                isProgressActiveFn: () => true
+            });
+            expect(toastSpy).toHaveBeenCalledWith('An execution is already in progress', 'info');
+        });
+
+        test('executeAllCustomCards handles missing container or empty cards', async () => {
+            const toastSpy = jest.spyOn(window, 'showToast').mockImplementation(() => {});
+            await executeAllCustomCards({
+                containerId: 'non-existent-container'
+            });
+
+            document.body.innerHTML = '<div id="empty-container"></div>';
+            await executeAllCustomCards({
+                containerId: 'empty-container',
+                cardBtnSelector: '.exec-btn',
+                entityNamePlural: 'custom strategies'
+            });
+            expect(toastSpy).toHaveBeenCalledWith('No custom strategies to execute', 'info');
+        });
+
+        test('executeAllCustomCards iterates cards, executes sequentially, and reloads', async () => {
+            document.body.innerHTML = `
+                <button id="exec-all-btn">▶ Execute All</button>
+                <div id="cards-container">
+                    <div class="card">
+                        <button class="exec-btn" onclick="reexecuteCustomStrategy(this, 'strat-1')">▶ Execute</button>
+                    </div>
+                    <div class="card">
+                        <button class="exec-btn" onclick="reexecuteCustomStrategy(this, 'strat-2')">▶ Execute</button>
+                    </div>
+                </div>
+            `;
+
+            global.API = {
+                get: jest.fn().mockResolvedValue({ running: false })
+            };
+
+            const loadFiltersFn = jest.fn();
+            const executeFn = jest.fn().mockResolvedValue(true);
+            const reloadResultsFn = jest.fn().mockResolvedValue();
+            const toastSpy = jest.spyOn(window, 'showToast').mockImplementation(() => {});
+
+            await executeAllCustomCards({
+                containerId: 'cards-container',
+                executeAllBtnId: 'exec-all-btn',
+                cardBtnSelector: '.exec-btn',
+                loadFiltersFn,
+                executeFn,
+                reloadResultsFn,
+                entityNameSingular: 'custom strategy',
+                entityNamePlural: 'custom strategies'
+            });
+
+            expect(loadFiltersFn).toHaveBeenCalledTimes(2);
+            expect(executeFn).toHaveBeenCalledWith('strat-1');
+            expect(executeFn).toHaveBeenCalledWith('strat-2');
+            expect(reloadResultsFn).toHaveBeenCalledTimes(1);
+            expect(toastSpy).toHaveBeenCalledWith('Executed 2 custom strategies successfully!');
+
+            const execAllBtn = document.getElementById('exec-all-btn');
+            expect(execAllBtn.disabled).toBe(false);
+            expect(execAllBtn.innerHTML).toBe('▶ Execute All');
+        });
+
+        test('executeAllCustomCards handles cancellation requested during iteration', async () => {
+            document.body.innerHTML = `
+                <button id="exec-all-btn">▶ Execute All</button>
+                <div id="cards-container">
+                    <div class="card">
+                        <button class="exec-btn" onclick="reexecuteCustomStrategy(this, 'strat-1')">▶ Execute</button>
+                    </div>
+                    <div class="card">
+                        <button class="exec-btn" onclick="reexecuteCustomStrategy(this, 'strat-2')">▶ Execute</button>
+                    </div>
+                </div>
+            `;
+
+            global.API = {
+                get: jest.fn().mockResolvedValue({ running: false })
+            };
+
+            const loadFiltersFn = jest.fn();
+            const executeFn = jest.fn().mockImplementation(async () => {
+                window.cancellationRequested = true;
+                return true;
+            });
+            const reloadResultsFn = jest.fn().mockResolvedValue();
+            const toastSpy = jest.spyOn(window, 'showToast').mockImplementation(() => {});
+
+            await executeAllCustomCards({
+                containerId: 'cards-container',
+                executeAllBtnId: 'exec-all-btn',
+                cardBtnSelector: '.exec-btn',
+                loadFiltersFn,
+                executeFn,
+                reloadResultsFn
+            });
+
+            expect(executeFn).toHaveBeenCalledTimes(1);
+            expect(toastSpy).toHaveBeenCalledWith('Execution cancelled');
+            expect(reloadResultsFn).toHaveBeenCalled();
+        });
+
+        test('executeAllCustomCards catches per-card errors and continues', async () => {
+            document.body.innerHTML = `
+                <button id="exec-all-btn">▶ Execute All</button>
+                <div id="cards-container">
+                    <div class="card">
+                        <button class="exec-btn" onclick="reexecuteCustomScreener(this, 'sc-1')">▶ Execute</button>
+                    </div>
+                    <div class="card">
+                        <button class="exec-btn" onclick="reexecuteCustomScreener(this, 'sc-2')">▶ Execute</button>
+                    </div>
+                </div>
+            `;
+
+            global.API = {
+                get: jest.fn().mockResolvedValue({ running: false })
+            };
+
+            const loadFiltersFn = jest.fn();
+            const executeFn = jest.fn()
+                .mockRejectedValueOnce(new Error('Card 1 failed'))
+                .mockResolvedValueOnce(true);
+            const reloadResultsFn = jest.fn().mockResolvedValue();
+            const toastSpy = jest.spyOn(window, 'showToast').mockImplementation(() => {});
+
+            await executeAllCustomCards({
+                containerId: 'cards-container',
+                executeAllBtnId: 'exec-all-btn',
+                cardBtnSelector: '.exec-btn',
+                loadFiltersFn,
+                executeFn,
+                reloadResultsFn,
+                entityNameSingular: 'screener',
+                entityNamePlural: 'screeners'
+            });
+
+            expect(loadFiltersFn).toHaveBeenCalledTimes(2);
+            expect(toastSpy).toHaveBeenCalledWith('Executed 1 screener successfully!');
+            expect(reloadResultsFn).toHaveBeenCalledTimes(1);
         });
     });
 });

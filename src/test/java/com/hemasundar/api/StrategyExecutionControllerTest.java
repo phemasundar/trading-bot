@@ -278,6 +278,90 @@ public class StrategyExecutionControllerTest {
     }
 
     @Test
+    public void testExecuteCustomBatch_AlreadyRunning() throws Exception {
+        when(executionService.isExecutionRunning()).thenReturn(true);
+        mockMvc.perform(post("/api/execute/custom/batch")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("[]"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("An execution is already running"));
+    }
+
+    @Test
+    public void testExecuteCustomBatch_EmptyPayload_NoRecents() throws Exception {
+        when(executionService.isExecutionRunning()).thenReturn(false);
+        when(executionService.getRecentCustomExecutions(100)).thenReturn(Collections.emptyList());
+
+        mockMvc.perform(post("/api/execute/custom/batch")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("[]"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("No custom strategies found to execute"));
+    }
+
+    @Test
+    public void testExecuteCustomBatch_EmptyPayload_WithRecents() throws Exception {
+        when(executionService.isExecutionRunning()).thenReturn(false);
+        com.hemasundar.dto.StrategyResult mockResult = new com.hemasundar.dto.StrategyResult();
+        mockResult.setStrategyId("123");
+        mockResult.setStrategyName("Bullish Put Spread");
+        mockResult.setFilterConfig("{\"strategyType\":\"PUT_CREDIT_SPREAD\",\"securities\":\"AAPL\"}");
+        when(executionService.getRecentCustomExecutions(100)).thenReturn(List.of(mockResult));
+
+        mockMvc.perform(post("/api/execute/custom/batch")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("started"));
+    }
+
+    @Test
+    public void testExecuteCustomBatch_Success() throws Exception {
+        when(executionService.isExecutionRunning()).thenReturn(false);
+        CustomExecuteRequest req = CustomExecuteRequest.builder()
+                .strategyType("PUT_CREDIT_SPREAD")
+                .securities("AAPL")
+                .customResultId(42L)
+                .build();
+
+        mockMvc.perform(post("/api/execute/custom/batch")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(List.of(req))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("started"))
+                .andExpect(jsonPath("$.message").value("Custom batch execution started for 1 strategies"));
+    }
+
+    @Test
+    public void testExecuteCustomBatch_InvalidRequest() throws Exception {
+        when(executionService.isExecutionRunning()).thenReturn(false);
+        CustomExecuteRequest req = CustomExecuteRequest.builder()
+                .strategyType("PUT_CREDIT_SPREAD")
+                .build();
+
+        mockMvc.perform(post("/api/execute/custom/batch")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(List.of(req))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Provide a securities file, inline tickers, or both"));
+    }
+
+    @Test
+    public void testExecuteCustomBatch_SecuritiesError() throws Exception {
+        when(executionService.isExecutionRunning()).thenReturn(false);
+        when(securitiesResolver.loadSecuritiesMaps()).thenThrow(new IllegalStateException("File missing"));
+        CustomExecuteRequest req = CustomExecuteRequest.builder()
+                .strategyType("PUT_CREDIT_SPREAD")
+                .securitiesFile("portfolio")
+                .build();
+
+        mockMvc.perform(post("/api/execute/custom/batch")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(List.of(req))))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.error").value("Failed to load securities: File missing"));
+    }
+
+    @Test
     public void testCancelExecution_NotRunning() throws Exception {
         when(executionService.isExecutionRunning()).thenReturn(false);
         mockMvc.perform(post("/api/cancel"))
@@ -480,6 +564,91 @@ public class StrategyExecutionControllerTest {
                 .content(objectMapper.writeValueAsString(request))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    public void testExecuteCustomScreenerBatch_AlreadyRunning() throws Exception {
+        when(executionService.isExecutionRunning()).thenReturn(true);
+        mockMvc.perform(post("/api/execute/custom-screener/batch")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("[]"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("An execution is already running"));
+    }
+
+    @Test
+    public void testExecuteCustomScreenerBatch_EmptyPayload_NoRecents() throws Exception {
+        when(executionService.isExecutionRunning()).thenReturn(false);
+        when(supabaseService.getRecentCustomScreenerExecutions(100)).thenReturn(Collections.emptyList());
+
+        mockMvc.perform(post("/api/execute/custom-screener/batch")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("[]"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("No custom screeners found to execute"));
+    }
+
+    @Test
+    public void testExecuteCustomScreenerBatch_EmptyPayload_WithRecents() throws Exception {
+        when(executionService.isExecutionRunning()).thenReturn(false);
+        com.hemasundar.dto.ScreenerExecutionResult mockResult = com.hemasundar.dto.ScreenerExecutionResult.builder()
+                .screenerId("123")
+                .screenerName("RSI Oversold")
+                .requestParams(Map.of("screenerType", "RSI_OVERSOLD", "securities", "AAPL"))
+                .build();
+        when(supabaseService.getRecentCustomScreenerExecutions(100)).thenReturn(List.of(mockResult));
+
+        mockMvc.perform(post("/api/execute/custom-screener/batch")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("started"));
+    }
+
+    @Test
+    public void testExecuteCustomScreenerBatch_Success() throws Exception {
+        when(executionService.isExecutionRunning()).thenReturn(false);
+        CustomScreenerRequest req = CustomScreenerRequest.builder()
+                .screenerType("RSI_OVERSOLD")
+                .securities("AAPL")
+                .customResultId(42L)
+                .build();
+
+        mockMvc.perform(post("/api/execute/custom-screener/batch")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(List.of(req))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("started"))
+                .andExpect(jsonPath("$.message").value("Custom screener batch execution started for 1 screeners"));
+    }
+
+    @Test
+    public void testExecuteCustomScreenerBatch_InvalidRequest() throws Exception {
+        when(executionService.isExecutionRunning()).thenReturn(false);
+        CustomScreenerRequest req = CustomScreenerRequest.builder()
+                .screenerType("RSI_OVERSOLD")
+                .build();
+
+        mockMvc.perform(post("/api/execute/custom-screener/batch")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(List.of(req))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Provide a securities file, inline tickers, or both"));
+    }
+
+    @Test
+    public void testExecuteCustomScreenerBatch_SecuritiesError() throws Exception {
+        when(executionService.isExecutionRunning()).thenReturn(false);
+        when(securitiesResolver.loadSecuritiesMaps()).thenThrow(new IllegalStateException("File missing"));
+        CustomScreenerRequest req = CustomScreenerRequest.builder()
+                .screenerType("RSI_OVERSOLD")
+                .securitiesFile("portfolio")
+                .build();
+
+        mockMvc.perform(post("/api/execute/custom-screener/batch")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(List.of(req))))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.error").value("Failed to load securities: File missing"));
     }
 
     @Test

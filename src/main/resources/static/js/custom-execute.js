@@ -238,6 +238,20 @@ async function initExecutePage() {
         renderStrategyTemplates(select.value);
     });
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const preselected = urlParams.get('strategy') || urlParams.get('type');
+    if (preselected) {
+        const found = STRATEGY_TYPES.find(s =>
+            s.value.toLowerCase() === preselected.toLowerCase() ||
+            s.value.replace(/_/g, '').toLowerCase() === preselected.replace(/_/g, '').replace('.md', '').toLowerCase()
+        );
+        if (found) {
+            select.value = found.value;
+            renderSpecificFilters(select.value);
+            renderStrategyTemplates(select.value);
+        }
+    }
+
     loadCustomResults();
     checkCustomExecutionStatus();
     fetchAndRenderMarketStatus();
@@ -267,11 +281,22 @@ async function checkCustomExecutionStatus() {
             window.currentExecutionTaskName = status.currentTask || "";
             progress.className = 'progress-container active';
             startTimer(status.startTimeMs);
+            const execAllBtn = document.getElementById('execute-all-custom-btn');
+            if (execAllBtn) {
+                execAllBtn.disabled = true;
+                execAllBtn.innerHTML = '⏳ Executing...';
+            }
+            document.querySelectorAll('button[onclick*="reexecuteCustomStrategy"]').forEach(b => b.disabled = true);
             startPolling(() => {
                 progress.className = 'progress-container';
                 stopTimer();
+                if (execAllBtn) {
+                    execAllBtn.disabled = false;
+                    execAllBtn.innerHTML = '▶ Execute All';
+                }
+                document.querySelectorAll('button[onclick*="reexecuteCustomStrategy"]').forEach(b => b.disabled = false);
                 loadCustomResults();
-                showToast('Custom execution completed!');
+                showToast('Strategy execution completed!');
             });
         } else if (status.alerts && status.alerts.length > 0) {
             showErrorPanel(status.alerts);
@@ -708,19 +733,18 @@ async function reexecuteCustomStrategy(btn, strategyId) {
     }
 }
 
-async function executeCustom(customResultId = null) {
+function getCustomStrategyPayload(customResultId = null) {
     const typeEl = document.getElementById('strategy-type');
     const securitiesEl = document.getElementById('securities-input');
     const securitiesFileEl = document.getElementById('securities-file-input');
     const aliasEl = document.getElementById('alias-input');
 
-    if (!typeEl || !typeEl.value) { showToast('Select a strategy type', 'error'); return false; }
+    if (!typeEl || !typeEl.value) { return null; }
 
     const hasFile = securitiesFileEl && securitiesFileEl.value.trim();
     const hasTickers = securitiesEl && securitiesEl.value.trim();
     if (!hasFile && !hasTickers) {
-        showToast('Provide a securities file, inline tickers, or both', 'error');
-        return false;
+        return null;
     }
 
     const filter = {};
@@ -779,8 +803,7 @@ async function executeCustom(customResultId = null) {
     try {
         technicalFilters = getTechnicalFiltersFromDOM();
     } catch (e) {
-        showToast(e.message, 'error');
-        return;
+        return null;
     }
 
     const body = {
@@ -797,6 +820,29 @@ async function executeCustom(customResultId = null) {
         body.customResultId = Number(customResultId);
     }
 
+    return body;
+}
+
+async function executeCustom(customResultId = null, isBatch = false) {
+    const typeEl = document.getElementById('strategy-type');
+    const securitiesEl = document.getElementById('securities-input');
+    const securitiesFileEl = document.getElementById('securities-file-input');
+
+    if (!typeEl || !typeEl.value) { showToast('Select a strategy type', 'error'); return false; }
+
+    const hasFile = securitiesFileEl && securitiesFileEl.value.trim();
+    const hasTickers = securitiesEl && securitiesEl.value.trim();
+    if (!hasFile && !hasTickers) {
+        showToast('Provide a securities file, inline tickers, or both', 'error');
+        return false;
+    }
+
+    const body = getCustomStrategyPayload(customResultId);
+    if (!body) {
+        showToast('Failed to build strategy parameters', 'error');
+        return false;
+    }
+
     try {
         const progress = document.getElementById('custom-progress');
         if (progress) progress.className = 'progress-container active';
@@ -804,17 +850,23 @@ async function executeCustom(customResultId = null) {
         const res = await API.post('/api/execute/custom', body);
         showToast(res.message);
         startTimer(Date.now());
+        if (isBatch) {
+            await pollUntilComplete();
+            return true;
+        }
         startPolling(() => {
             if (progress) progress.className = 'progress-container';
             stopTimer();
             loadCustomResults(customResultId);
             showToast('Custom execution completed!');
         });
+        return true;
     } catch (e) {
         const progress = document.getElementById('custom-progress');
         if (progress) progress.className = 'progress-container';
         showToast(e.message, 'error');
-        throw e;
+        if (isBatch) throw e;
+        return false;
     }
 }
 
@@ -830,6 +882,13 @@ async function loadCustomResults(updatedResultId = null) {
 
         const results = await API.get('/api/results/custom');
         container.innerHTML = '';
+        if (typeof updateExecuteAllButtonState === 'function') {
+            updateExecuteAllButtonState({
+                btnId: 'execute-all-custom-btn',
+                countBadgeId: 'custom-results-count-badge',
+                count: results ? results.length : 0
+            });
+        }
         if (!results || results.length === 0) {
             container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔬</div>No custom executions yet</div>';
             return;
@@ -849,15 +908,49 @@ async function loadCustomResults(updatedResultId = null) {
         fetchAndInjectTodayPerformance(container);
     } catch (e) {
         container.innerHTML = `<div class="empty-state text-danger">Failed to load: ${e.message}</div>`;
+        if (typeof updateExecuteAllButtonState === 'function') {
+            updateExecuteAllButtonState({
+                btnId: 'execute-all-custom-btn',
+                countBadgeId: 'custom-results-count-badge',
+                count: 0
+            });
+        }
         if (typeof checkExecutionStatus === 'function') {
             checkExecutionStatus();
         }
     }
 }
 
+function reexecuteAllCustomStrategies() {
+    return executeAllCustomCards({
+        containerId: 'custom-results',
+        executeAllBtnId: 'execute-all-custom-btn',
+        cardBtnSelector: 'button[onclick*="reexecuteCustomStrategy"]',
+        batchApiEndpoint: '/api/execute/custom/batch',
+        buildRequestFn: (card, execBtn) => {
+            loadFiltersFromResult(execBtn, true);
+            const onclickAttr = execBtn.getAttribute('onclick') || '';
+            const match = onclickAttr.match(/reexecuteCustomStrategy\(\s*this\s*,\s*['"]?([^'")]+)['"]?\s*\)/);
+            const customResultId = match ? match[1] : null;
+            return getCustomStrategyPayload(customResultId);
+        },
+        loadFiltersFn: (btn) => loadFiltersFromResult(btn, true),
+        executeFn: (id) => executeCustom(id, true),
+        reloadResultsFn: () => loadCustomResults(),
+        entityNameSingular: 'custom strategy',
+        entityNamePlural: 'custom strategies',
+        isProgressActiveFn: () => {
+            const p = document.getElementById('custom-progress');
+            return p && p.classList.contains('active');
+        }
+    });
+}
+
 if (typeof window !== 'undefined') {
+    window.getCustomStrategyPayload = getCustomStrategyPayload;
     window.loadFiltersFromResult = loadFiltersFromResult;
     window.reexecuteCustomStrategy = reexecuteCustomStrategy;
+    window.reexecuteAllCustomStrategies = reexecuteAllCustomStrategies;
     window.executeCustom = executeCustom;
     window.loadCustomResults = loadCustomResults;
     if (typeof addConditionRow !== 'undefined') window.addConditionRow = addConditionRow;
@@ -908,8 +1001,10 @@ if (typeof module !== 'undefined' && module.exports) {
         loadTemplateParams,
         loadFiltersFromResult,
         reexecuteCustomStrategy,
+        reexecuteAllCustomStrategies,
         fillTechFiltersForm,
         renderSpecificFilters,
+        getCustomStrategyPayload,
         executeCustom,
         loadCustomResults,
         EARNINGS_PRESETS,

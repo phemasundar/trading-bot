@@ -180,6 +180,14 @@ public class SupabaseService {
     }
 
     /**
+     * Updates an existing custom screener execution result in Supabase by its database ID.
+     */
+    public void updateCustomScreenerResult(Long id, com.hemasundar.dto.ScreenerExecutionResult result,
+            java.util.List<String> securities, java.util.Map<String, Object> requestParams) throws IOException {
+        customScreenerRepository.updateCustomScreenerResult(id, result, securities, requestParams);
+    }
+
+    /**
      * Retrieves the most recent custom screener execution results.
      */
     public java.util.List<com.hemasundar.dto.ScreenerExecutionResult> getRecentCustomScreenerExecutions(int limit) throws IOException {

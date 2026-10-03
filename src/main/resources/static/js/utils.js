@@ -559,6 +559,16 @@ function startPolling(onComplete) {
     }, 3000);
 }
 
+function pollUntilComplete(delayMs = 300) {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            startPolling((status) => {
+                resolve(status);
+            });
+        }, delayMs);
+    });
+}
+
 // CommonJS Exports
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -597,6 +607,7 @@ if (typeof module !== 'undefined' && module.exports) {
         dismissErrorPanel,
         dismissSingleAlert,
         dismissAllAlerts,
-        startPolling
+        startPolling,
+        pollUntilComplete
     };
 }

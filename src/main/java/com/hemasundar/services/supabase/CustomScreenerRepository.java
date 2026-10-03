@@ -85,6 +85,65 @@ public class CustomScreenerRepository {
     }
 
     /**
+     * Updates an existing custom screener execution result in Supabase by its database ID.
+     *
+     * @param id the record ID (primary key) to update
+     * @param result the updated ScreenerExecutionResult
+     * @param securities list of securities
+     * @param requestParams the original request parameters
+     * @throws IOException if the update request fails
+     */
+    public void updateCustomScreenerResult(Long id, ScreenerExecutionResult result, List<String> securities, Map<String, Object> requestParams) throws IOException {
+        try {
+            String resultsJson = mapper.writeValueAsString(result.getResults());
+
+            ObjectNode payloadNode = mapper.createObjectNode();
+            payloadNode.put("screener_name", result.getScreenerName());
+            payloadNode.put("execution_time_ms", result.getExecutionTimeMs());
+            payloadNode.put("results_found", result.getResultsFound());
+            payloadNode.set("results", mapper.readTree(resultsJson));
+
+            if (requestParams != null && !requestParams.isEmpty()) {
+                payloadNode.set("request_params", mapper.convertValue(requestParams, com.fasterxml.jackson.databind.node.ObjectNode.class));
+            }
+
+            ArrayNode securitiesArray = mapper.createArrayNode();
+            if (securities != null) {
+                securities.forEach(securitiesArray::add);
+            }
+            payloadNode.set("securities", securitiesArray);
+            payloadNode.put("created_at", Instant.now().toString());
+
+            String payload = mapper.writeValueAsString(payloadNode);
+            String url = client.getUrl(CUSTOM_SCREENER_RESULTS_PATH + "?id=eq." + id);
+
+            Response response = client.request()
+                    .header("Prefer", "return=representation")
+                    .body(payload)
+                    .patch(url);
+
+            int statusCode = response.getStatusCode();
+            if (statusCode == 200 || statusCode == 204) {
+                String responseBody = response.getBody() != null ? response.getBody().asString() : "";
+                if (responseBody.startsWith("[") && responseBody.trim().equals("[]")) {
+                    log.warn("Custom screener result id={} not found for update, falling back to insert", id);
+                    saveCustomScreenerResult(result, securities, requestParams);
+                } else {
+                    log.debug("Updated custom screener result: id={} {} with {} results",
+                            id, result.getScreenerName(), result.getResultsFound());
+                }
+            } else {
+                String errorBody = response.getBody() != null ? response.getBody().asString() : "";
+                throw new IOException(String.format("Failed to update custom screener result id=%d: %d - %s. Body: %s",
+                        id, statusCode, response.getStatusLine(), errorBody));
+            }
+        } catch (Exception e) {
+            if (e instanceof IOException) throw (IOException) e;
+            throw new IOException("Failed to update custom screener result: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Retrieves the most recent custom screener execution results.
      */
     public List<ScreenerExecutionResult> getRecentCustomScreenerExecutions(int limit) throws IOException {

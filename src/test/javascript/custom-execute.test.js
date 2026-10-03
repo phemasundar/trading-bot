@@ -26,6 +26,7 @@ const {
     executeCustom,
     loadCustomResults,
     reexecuteCustomStrategy,
+    reexecuteAllCustomStrategies,
     EARNINGS_PRESETS,
     onEarningsPresetChange,
     syncEarningsPresetFromInput,
@@ -73,6 +74,40 @@ describe('Custom Options Execute Tests', () => {
         await initExecutePage();
         const select = document.getElementById('strategy-type');
         expect(select.options.length).toBeGreaterThan(0);
+    });
+
+    test('initExecutePage preselects strategy if query parameter is present in URL', async () => {
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve({ supabaseUrl: 'http://localhost', supabaseAnonKey: 'key' })
+        });
+        window.supabase = {
+            createClient: () => ({
+                auth: {
+                    getSession: () => Promise.resolve({ data: { session: { access_token: 'tok' } } }),
+                    onAuthStateChange: jest.fn()
+                }
+            })
+        };
+        API.get = jest.fn().mockImplementation(url => {
+            if (url === '/api/results/custom') return Promise.resolve([]);
+            if (url === '/api/status') return Promise.resolve({ running: false });
+            if (url === '/api/market-status') return Promise.resolve({ equityStatus: 'OPEN', optionsStatus: 'OPEN' });
+            return Promise.resolve([]);
+        });
+
+        window.history.pushState({}, '', '/execute.html?strategy=IRON_CONDOR');
+        document.body.innerHTML = `
+            <select id="strategy-type"></select>
+            <div id="custom-results"></div>
+            <div id="specific-filters"></div>
+            <div id="strategy-templates"></div>
+        `;
+
+        await initExecutePage();
+        const select = document.getElementById('strategy-type');
+        expect(select.value).toBe('IRON_CONDOR');
+        expect(document.getElementById('specific-filters').innerHTML).toContain('Min Combined Credit');
     });
 
     test('renderSpecificFilters renders for all strategy groups', () => {
@@ -936,6 +971,85 @@ describe('Custom Options Execute Tests', () => {
                 VOLUME: { conditions: ['VOLUME >= 1000000'] }
             })
         }));
+    });
+
+    test('loadCustomResults updates execute-all button and count badge correctly', async () => {
+        document.body.innerHTML = `
+            <div id="custom-results"></div>
+            <button id="execute-all-custom-btn" style="display:none;"></button>
+            <span id="custom-results-count-badge" style="display:none;"></span>
+        `;
+
+        API.get = jest.fn().mockResolvedValueOnce([
+            { id: 'custom-1', strategyName: 'Strategy 1', strategyType: 'PUT_CREDIT_SPREAD', requestParams: {}, results: [] },
+            { id: 'custom-2', strategyName: 'Strategy 2', strategyType: 'IRON_CONDOR', requestParams: {}, results: [] }
+        ]);
+
+        await loadCustomResults();
+
+        const btn = document.getElementById('execute-all-custom-btn');
+        const badge = document.getElementById('custom-results-count-badge');
+        expect(btn.style.display).toBe('inline-flex');
+        expect(badge.style.display).toBe('inline-block');
+        expect(badge.textContent).toBe('2');
+
+        // Test empty results
+        API.get = jest.fn().mockResolvedValueOnce([]);
+        await loadCustomResults();
+        expect(btn.style.display).toBe('none');
+        expect(badge.style.display).toBe('none');
+    });
+
+    test('executeCustom with isBatch=true calls pollUntilComplete and returns true', async () => {
+        document.body.innerHTML = `
+            <select id="strategy-type"><option value="PUT_CREDIT_SPREAD" selected>PCS</option></select>
+            <input id="securities-input" value="SPY">
+            <input id="securities-file-input" value="">
+            <input id="alias-input" value="Batch PCS">
+            <div id="custom-progress"></div>
+        `;
+
+        API.post = jest.fn().mockResolvedValueOnce({ message: 'Execution started' });
+        window.pollUntilComplete = jest.fn().mockResolvedValueOnce({ running: false });
+
+        const started = await executeCustom('123', true);
+        expect(started).toBe(true);
+        expect(window.pollUntilComplete).toHaveBeenCalled();
+        expect(API.post).toHaveBeenCalledWith('/api/execute/custom', expect.objectContaining({
+            customResultId: 123
+        }));
+    });
+
+    test('reexecuteAllCustomStrategies delegates to executeAllCustomCards', async () => {
+        document.body.innerHTML = `
+            <button id="execute-all-custom-btn">▶ Execute All</button>
+            <div id="custom-results">
+                <div class="card">
+                    <button class="btn btn-sm btn-ghost" 
+                        data-filter-config="{&quot;technicalFilters&quot;:{}}" 
+                        data-strategy-name="PUT_CREDIT_SPREAD" 
+                        onclick="reexecuteCustomStrategy(this, '101')">▶ Execute</button>
+                </div>
+            </div>
+            <select id="strategy-type"><option value="PUT_CREDIT_SPREAD">PCS</option></select>
+            <input id="securities-input" value="AAPL">
+            <input id="alias-input" value="Custom Strat">
+            <div id="custom-progress"></div>
+        `;
+
+        API.get = jest.fn().mockImplementation(url => {
+            if (url === '/api/status') return Promise.resolve({ running: false });
+            if (url === '/api/results/custom') return Promise.resolve([]);
+            return Promise.resolve({});
+        });
+        API.post = jest.fn().mockResolvedValue({ message: 'Execution started' });
+        window.pollUntilComplete = jest.fn().mockResolvedValue({ running: false });
+
+        await reexecuteAllCustomStrategies();
+
+        const execAllBtn = document.getElementById('execute-all-custom-btn');
+        expect(execAllBtn.disabled).toBe(false);
+        expect(execAllBtn.innerHTML).toBe('▶ Execute All');
     });
 });
 

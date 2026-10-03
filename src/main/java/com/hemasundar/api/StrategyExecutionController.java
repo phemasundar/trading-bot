@@ -173,6 +173,66 @@ public class StrategyExecutionController {
                 "message", "Execution started for " + total + " items"));
     }
 
+    private OptionsConfig buildOptionsConfig(CustomExecuteRequest request) throws IOException {
+        StrategyType type = StrategyType.fromString(request.getStrategyType());
+        Set<String> symbolSet = new LinkedHashSet<>();
+
+        if (request.getSecuritiesFile() != null && !request.getSecuritiesFile().isBlank()) {
+            Map<String, List<String>> securitiesMap = securitiesResolver.loadSecuritiesMaps();
+            String[] fileNames = request.getSecuritiesFile().split(",");
+            for (String fileName : fileNames) {
+                String key = fileName.trim();
+                String keyLower = key.toLowerCase();
+                List<String> fileSymbols = securitiesMap.get(keyLower);
+                if (fileSymbols != null) {
+                    symbolSet.addAll(fileSymbols);
+                } else if (key.equalsIgnoreCase("SPY") || key.equalsIgnoreCase("QQQ")) {
+                    log.debug("Lazily fetching dynamic securities for custom execution: {}", key);
+                    symbolSet.addAll(wikipediaFetcher.fetch(key.toUpperCase()));
+                } else {
+                    log.warn("Securities file '{}' not found. Available: {}", key, securitiesMap.keySet());
+                }
+            }
+        }
+
+        if (request.getSecurities() != null && !request.getSecurities().isBlank()) {
+            Arrays.stream(request.getSecurities().split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(String::toUpperCase)
+                    .forEach(symbolSet::add);
+        }
+
+        if (symbolSet.isEmpty()) {
+            throw new IllegalArgumentException("Provide a securities file, inline tickers, or both");
+        }
+
+        List<String> symbols = new ArrayList<>(symbolSet);
+        OptionsStrategyFilter filter = FilterParser.buildFilter(type, request.getFilter());
+        if (filter != null) {
+            filter.setStrategyType(type.name());
+            filter.setSecuritiesFile(request.getSecuritiesFile());
+            filter.setSecurities(request.getSecurities());
+        }
+
+        com.hemasundar.technical.TechnicalFilterChain technicalFilterChain = null;
+        if (request.getTechnicalFilters() != null && !request.getTechnicalFilters().isEmpty()) {
+            technicalFilterChain = strategiesConfigLoader.parseTechnicalFilters(request.getTechnicalFilters());
+            if (filter != null) {
+                filter.setTechnicalFilters(request.getTechnicalFilters());
+            }
+        }
+
+        return OptionsConfig.builder()
+                .alias(request.getAlias())
+                .strategy(strategiesConfigLoader.getStrategy(type))
+                .securities(symbols)
+                .maxTradesToSend(request.getMaxTradesToSend() != null ? request.getMaxTradesToSend() : 30)
+                .filter(filter)
+                .technicalFilterChain(technicalFilterChain)
+                .build();
+    }
+
     /**
      * Executes a custom strategy with user-provided parameters.
      */
@@ -184,77 +244,11 @@ public class StrategyExecutionController {
         }
 
         try {
-            StrategyType type = StrategyType.fromString(request.getStrategyType());
-            Set<String> symbolSet = new LinkedHashSet<>();
-
-            if (request.getSecuritiesFile() != null && !request.getSecuritiesFile().isBlank()) {
-                try {
-                    Map<String, List<String>> securitiesMap = securitiesResolver.loadSecuritiesMaps();
-                    String[] fileNames = request.getSecuritiesFile().split(",");
-                    for (String fileName : fileNames) {
-                        String key = fileName.trim();
-                        String keyLower = key.toLowerCase();
-                        List<String> fileSymbols = securitiesMap.get(keyLower);
-                        if (fileSymbols != null) {
-                            symbolSet.addAll(fileSymbols);
-                        } else if (key.equalsIgnoreCase("SPY") || key.equalsIgnoreCase("QQQ")) {
-                            log.debug("Lazily fetching dynamic securities for custom execution: {}", key);
-                            try {
-                                symbolSet.addAll(wikipediaFetcher.fetch(key.toUpperCase()));
-                            } catch (IllegalStateException e) {
-                                return ResponseEntity.status(503)
-                                        .body(Map.of("error", "Failed to load " + key + " from Wikipedia: " + e.getMessage()));
-                            }
-                        } else {
-                            log.warn("Securities file '{}' not found. Available: {}", key, securitiesMap.keySet());
-                        }
-                    }
-                } catch (IOException e) {
-                    log.error("Failed to load securities maps: {}", e.getMessage());
-                    return ResponseEntity.internalServerError()
-                            .body(Map.of("error", "Failed to load securities files: " + e.getMessage()));
-                }
-            }
-
-            if (request.getSecurities() != null && !request.getSecurities().isBlank()) {
-                Arrays.stream(request.getSecurities().split(","))
-                        .map(String::trim)
-                        .filter(s -> !s.isEmpty())
-                        .map(String::toUpperCase)
-                        .forEach(symbolSet::add);
-            }
-
-            if (symbolSet.isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(Map.of("error", "Provide a securities file, inline tickers, or both"));
-            }
-
-            List<String> symbols = new ArrayList<>(symbolSet);
-            OptionsStrategyFilter filter = FilterParser.buildFilter(type, request.getFilter());
-            if (filter != null) {
-                filter.setStrategyType(type.name());
-                filter.setSecuritiesFile(request.getSecuritiesFile());
-                filter.setSecurities(request.getSecurities());
-            }
-
-            com.hemasundar.technical.TechnicalFilterChain technicalFilterChain = null;
-            if (request.getTechnicalFilters() != null && !request.getTechnicalFilters().isEmpty()) {
-                technicalFilterChain = strategiesConfigLoader.parseTechnicalFilters(request.getTechnicalFilters());
-                if (filter != null) {
-                    filter.setTechnicalFilters(request.getTechnicalFilters());
-                }
-            }
-
-            OptionsConfig config = OptionsConfig.builder()
-                    .alias(request.getAlias())
-                    .strategy(strategiesConfigLoader.getStrategy(type))
-                    .securities(symbols)
-                    .maxTradesToSend(request.getMaxTradesToSend() != null ? request.getMaxTradesToSend() : 30)
-                    .filter(filter)
-                    .technicalFilterChain(technicalFilterChain)
-                    .build();
-
-            log.info("REST: Custom execute {} on {} securities", type.getDisplayName(), symbols.size());
+            OptionsConfig config = buildOptionsConfig(request);
+            String displayName = config.getStrategy() != null && config.getStrategy().getStrategyType() != null
+                    ? config.getStrategy().getStrategyType().getDisplayName()
+                    : request.getStrategyType();
+            log.info("REST: Custom execute {} on {} securities", displayName, config.getSecurities().size());
 
             Long customResultId = request.getCustomResultId();
             CompletableFuture.runAsync(() -> {
@@ -270,13 +264,114 @@ public class StrategyExecutionController {
             return ResponseEntity.ok(Map.of(
                     "status", "started",
                     "message",
-                    "Custom execution started: " + type.getDisplayName() + " on " + symbols.size() + " securities"));
+                    "Custom execution started: " + displayName + " on " + config.getSecurities().size() + " securities"));
         } catch (IllegalArgumentException e) {
             String errorMsg = e.getMessage() != null && e.getMessage().contains("No enum constant")
                     ? "Invalid strategy type: " + request.getStrategyType()
                     : e.getMessage();
             return ResponseEntity.badRequest()
                     .body(Map.of("error", errorMsg));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(503)
+                    .body(Map.of("error", "Failed to load securities: " + e.getMessage()));
+        } catch (IOException e) {
+            log.error("Failed to load securities maps: {}", e.getMessage());
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Failed to load securities files: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Executes a batch of custom strategies sequentially in background.
+     */
+    @PostMapping("/execute/custom/batch")
+    public ResponseEntity<?> executeCustomBatch(@RequestBody(required = false) List<CustomExecuteRequest> requests) {
+        if (executionService.isExecutionRunning()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "An execution is already running"));
+        }
+
+        try {
+            List<CustomExecuteRequest> executionRequests = requests;
+            if (CollectionUtils.isEmpty(executionRequests)) {
+                List<StrategyResult> recents = executionService.getRecentCustomExecutions(100);
+                if (CollectionUtils.isEmpty(recents)) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error", "No custom strategies found to execute"));
+                }
+                executionRequests = new ArrayList<>();
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                for (StrategyResult r : recents) {
+                    if (r.getFilterConfig() != null && !r.getFilterConfig().isBlank()) {
+                        try {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> filterMap = mapper.readValue(r.getFilterConfig(), Map.class);
+                            Long customResultId = null;
+                            if (r.getStrategyId() != null) {
+                                try {
+                                    customResultId = Long.parseLong(r.getStrategyId());
+                                } catch (NumberFormatException ignored) {}
+                            }
+                            Map<String, Object> tf = null;
+                            if (filterMap.get("technicalFilters") instanceof Map) {
+                                @SuppressWarnings("unchecked")
+                                Map<String, Object> map = (Map<String, Object>) filterMap.get("technicalFilters");
+                                tf = map;
+                            }
+                            CustomExecuteRequest req = CustomExecuteRequest.builder()
+                                    .customResultId(customResultId)
+                                    .strategyType((String) filterMap.get("strategyType"))
+                                    .alias(r.getStrategyName())
+                                    .securitiesFile((String) filterMap.get("securitiesFile"))
+                                    .securities((String) filterMap.get("securities"))
+                                    .filter(filterMap)
+                                    .technicalFilters(tf)
+                                    .build();
+                            executionRequests.add(req);
+                        } catch (Exception e) {
+                            log.warn("Failed to parse filter config for custom execution {}: {}", r.getStrategyId(), e.getMessage());
+                        }
+                    }
+                }
+            }
+
+            if (CollectionUtils.isEmpty(executionRequests)) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "No valid custom strategies found to execute"));
+            }
+
+            List<OptionsConfig> configs = new ArrayList<>();
+            List<Long> customResultIds = new ArrayList<>();
+            for (CustomExecuteRequest req : executionRequests) {
+                configs.add(buildOptionsConfig(req));
+                customResultIds.add(req.getCustomResultId());
+            }
+
+            log.info("REST: Batch custom execution started for {} strategies", configs.size());
+
+            CompletableFuture.runAsync(() -> {
+                try {
+                    executionService.executeCustomStrategies(configs, customResultIds);
+                } catch (Throwable t) {
+                    log.error("Custom strategy batch execution failed", t);
+                    executionService.addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_EXECUTION,
+                            String.format(AlertMessages.UNEXPECTED_FAILURE_FMT, t.getMessage()));
+                }
+            });
+
+            return ResponseEntity.ok(Map.of(
+                    "status", "started",
+                    "message", "Custom batch execution started for " + configs.size() + " strategies"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", e.getMessage()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(503)
+                    .body(Map.of("error", "Failed to load securities: " + e.getMessage()));
+        } catch (Exception e) {
+            log.error("Failed to start custom batch execution", e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Failed to start custom batch execution: " + e.getMessage()));
         }
     }
 
