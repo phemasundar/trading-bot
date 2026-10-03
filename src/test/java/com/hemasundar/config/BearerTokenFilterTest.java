@@ -21,6 +21,7 @@ import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECGenParameterSpec;
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -41,6 +42,7 @@ public class BearerTokenFilterTest {
     private JwkProvider  mockJwkProvider;
     private SupabaseConfig mockSupabaseConfig;
     private SecurityConfig mockSecurityConfig;
+    private RolesConfigLoader mockRolesConfigLoader;
 
     @BeforeMethod
     public void setUp() throws Exception {
@@ -61,9 +63,13 @@ public class BearerTokenFilterTest {
 
         mockSupabaseConfig = mock(SupabaseConfig.class);
         mockSecurityConfig = mock(SecurityConfig.class);
-        when(mockSecurityConfig.getEmails()).thenReturn("");
+        when(mockSecurityConfig.getAllowedEmails()).thenReturn("");
+        when(mockSecurityConfig.getReadonlyEmails()).thenReturn("");
 
-        filter = new BearerTokenFilter(mockEnv, mockSupabaseConfig, mockSecurityConfig);
+        mockRolesConfigLoader = mock(RolesConfigLoader.class);
+        when(mockRolesConfigLoader.getReadonlyAllowedPages()).thenReturn(List.of("/", "/index.html", "/screeners.html"));
+
+        filter = new BearerTokenFilter(mockEnv, mockSupabaseConfig, mockSecurityConfig, mockRolesConfigLoader);
         filter.setJwkProvider(mockJwkProvider);
     }
 
@@ -85,7 +91,7 @@ public class BearerTokenFilterTest {
 
     @Test
     public void testValidToken_allowed() throws Exception {
-        MockHttpServletRequest  request  = apiRequest("/api/strategies");
+        MockHttpServletRequest  request  = apiRequest("GET", "/api/strategies");
         request.addHeader("Authorization", "Bearer " + validToken("user@gmail.com"));
         MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -96,7 +102,7 @@ public class BearerTokenFilterTest {
 
     @Test
     public void testExpiredToken_returns401() throws Exception {
-        MockHttpServletRequest  request  = apiRequest("/api/strategies");
+        MockHttpServletRequest  request  = apiRequest("GET", "/api/strategies");
         request.addHeader("Authorization", "Bearer " + expiredToken("user@gmail.com"));
         MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -107,7 +113,7 @@ public class BearerTokenFilterTest {
 
     @Test
     public void testInvalidToken_returns401() throws Exception {
-        MockHttpServletRequest  request  = apiRequest("/api/strategies");
+        MockHttpServletRequest  request  = apiRequest("GET", "/api/strategies");
         request.addHeader("Authorization", "Bearer not.a.real.jwt");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -119,15 +125,15 @@ public class BearerTokenFilterTest {
     @Test
     public void testMissingHeader_returns401() throws Exception {
         MockHttpServletResponse response = new MockHttpServletResponse();
-        filter.doFilter(apiRequest("/api/strategies"), response, new MockFilterChain());
+        filter.doFilter(apiRequest("GET", "/api/strategies"), response, new MockFilterChain());
         assertEquals(response.getStatus(), HttpServletResponse.SC_UNAUTHORIZED);
     }
 
     @Test
     public void testAllowedEmail_passes() throws Exception {
-        when(mockSecurityConfig.getEmails()).thenReturn("admin@gmail.com,user@gmail.com");
+        when(mockSecurityConfig.getAllowedEmails()).thenReturn("admin@gmail.com,user@gmail.com");
 
-        MockHttpServletRequest  request  = apiRequest("/api/strategies");
+        MockHttpServletRequest  request  = apiRequest("GET", "/api/strategies");
         request.addHeader("Authorization", "Bearer " + validToken("admin@gmail.com"));
         MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -138,9 +144,9 @@ public class BearerTokenFilterTest {
 
     @Test
     public void testBlockedEmail_returns403() throws Exception {
-        when(mockSecurityConfig.getEmails()).thenReturn("admin@gmail.com");
+        when(mockSecurityConfig.getAllowedEmails()).thenReturn("admin@gmail.com");
 
-        MockHttpServletRequest  request  = apiRequest("/api/strategies");
+        MockHttpServletRequest  request  = apiRequest("GET", "/api/strategies");
         request.addHeader("Authorization", "Bearer " + validToken("hacker@gmail.com"));
         MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -150,38 +156,111 @@ public class BearerTokenFilterTest {
     }
 
     @Test
+    public void testReadOnlyUser_readEndpoint_allowed() throws Exception {
+        when(mockSecurityConfig.getAllowedEmails()).thenReturn("viewer@gmail.com");
+        when(mockSecurityConfig.getReadonlyEmails()).thenReturn("viewer@gmail.com");
+
+        MockHttpServletRequest request = apiRequest("GET", "/api/results");
+        request.addHeader("Authorization", "Bearer " + validToken("viewer@gmail.com"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, new MockFilterChain());
+
+        assertEquals(response.getStatus(), HttpServletResponse.SC_OK);
+        assertEquals(request.getAttribute("userRole"), UserRole.READONLY.name());
+    }
+
+    @Test
+    public void testReadOnlyUser_onlyInReadonlyConfig_allowed() throws Exception {
+        when(mockSecurityConfig.getAllowedEmails()).thenReturn("admin@gmail.com");
+        when(mockSecurityConfig.getReadonlyEmails()).thenReturn("viewer@gmail.com");
+
+        MockHttpServletRequest request = apiRequest("GET", "/api/results");
+        request.addHeader("Authorization", "Bearer " + validToken("viewer@gmail.com"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, new MockFilterChain());
+
+        assertEquals(response.getStatus(), HttpServletResponse.SC_OK);
+        assertEquals(request.getAttribute("userRole"), UserRole.READONLY.name());
+    }
+
+    @Test
+    public void testReadOnlyUser_writeEndpoint_blockedWith403() throws Exception {
+        when(mockSecurityConfig.getAllowedEmails()).thenReturn("viewer@gmail.com");
+        when(mockSecurityConfig.getReadonlyEmails()).thenReturn("viewer@gmail.com");
+
+        MockHttpServletRequest request = apiRequest("POST", "/api/execute");
+        request.addHeader("Authorization", "Bearer " + validToken("viewer@gmail.com"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, new MockFilterChain());
+
+        assertEquals(response.getStatus(), HttpServletResponse.SC_FORBIDDEN);
+    }
+
+    @Test
+    public void testReadOnlyUser_deleteEndpoint_blockedWith403() throws Exception {
+        when(mockSecurityConfig.getAllowedEmails()).thenReturn("viewer@gmail.com");
+        when(mockSecurityConfig.getReadonlyEmails()).thenReturn("viewer@gmail.com");
+
+        MockHttpServletRequest request = apiRequest("DELETE", "/api/results/custom/123");
+        request.addHeader("Authorization", "Bearer " + validToken("viewer@gmail.com"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, new MockFilterChain());
+
+        assertEquals(response.getStatus(), HttpServletResponse.SC_FORBIDDEN);
+    }
+
+    @Test
+    public void testAdminUser_writeEndpoint_allowed() throws Exception {
+        when(mockSecurityConfig.getAllowedEmails()).thenReturn("admin@gmail.com");
+        when(mockSecurityConfig.getReadonlyEmails()).thenReturn("viewer@gmail.com");
+
+        MockHttpServletRequest request = apiRequest("POST", "/api/execute");
+        request.addHeader("Authorization", "Bearer " + validToken("admin@gmail.com"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, new MockFilterChain());
+
+        assertEquals(response.getStatus(), HttpServletResponse.SC_OK);
+        assertEquals(request.getAttribute("userRole"), UserRole.ADMIN.name());
+    }
+
+    @Test
     public void testPublicAuthConfigEndpoint_noTokenRequired() throws Exception {
         MockHttpServletResponse response = new MockHttpServletResponse();
-        filter.doFilter(apiRequest("/api/auth/config"), response, new MockFilterChain());
+        filter.doFilter(apiRequest("GET", "/api/auth/config"), response, new MockFilterChain());
         assertEquals(response.getStatus(), HttpServletResponse.SC_OK);
     }
 
     @Test
     public void testStaticFile_noTokenRequired() throws Exception {
         MockHttpServletResponse response = new MockHttpServletResponse();
-        filter.doFilter(apiRequest("/index.html"), response, new MockFilterChain());
+        filter.doFilter(apiRequest("GET", "/index.html"), response, new MockFilterChain());
         assertNotEquals(response.getStatus(), HttpServletResponse.SC_UNAUTHORIZED);
     }
 
     @Test
     public void testNoJwksProvider_devMode_bypassesAuth() throws Exception {
-        BearerTokenFilter devFilter = new BearerTokenFilter(mockEnv, mockSupabaseConfig, mockSecurityConfig);
+        BearerTokenFilter devFilter = new BearerTokenFilter(mockEnv, mockSupabaseConfig, mockSecurityConfig, mockRolesConfigLoader);
         MockHttpServletResponse response = new MockHttpServletResponse();
-        devFilter.doFilter(apiRequest("/api/strategies"), response, new MockFilterChain());
+        devFilter.doFilter(apiRequest("GET", "/api/strategies"), response, new MockFilterChain());
         assertEquals(response.getStatus(), HttpServletResponse.SC_OK);
     }
 
     @Test
     public void testNoJwksProvider_productionMode_returns503() throws Exception {
         when(mockEnv.getActiveProfiles()).thenReturn(new String[]{"production"});
-        BearerTokenFilter prodFilter = new BearerTokenFilter(mockEnv, mockSupabaseConfig, mockSecurityConfig);
+        BearerTokenFilter prodFilter = new BearerTokenFilter(mockEnv, mockSupabaseConfig, mockSecurityConfig, mockRolesConfigLoader);
         MockHttpServletResponse response = new MockHttpServletResponse();
-        prodFilter.doFilter(apiRequest("/api/strategies"), response, new MockFilterChain());
+        prodFilter.doFilter(apiRequest("GET", "/api/strategies"), response, new MockFilterChain());
         assertEquals(response.getStatus(), HttpServletResponse.SC_SERVICE_UNAVAILABLE);
     }
 
-    private MockHttpServletRequest apiRequest(String uri) {
-        MockHttpServletRequest req = new MockHttpServletRequest("GET", uri);
+    private MockHttpServletRequest apiRequest(String method, String uri) {
+        MockHttpServletRequest req = new MockHttpServletRequest(method, uri);
         req.setRequestURI(uri);
         return req;
     }

@@ -33,6 +33,7 @@ public class FilePaths {
     public static final String strategyGreeksConfig = "strategy-greeks.yml";
     public static final String strategyColumnsConfig = "strategy-columns.yml";
     public static final String securitiesFiltersConfig = "securities-filters.yml";
+    public static final String rolesConfig = "roles-config.yml";
 
     /**
      * Reads a classpath resource and returns its content as a String.

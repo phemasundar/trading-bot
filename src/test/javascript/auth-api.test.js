@@ -1,6 +1,8 @@
 const {
     initAuth,
     injectUserInfo,
+    applyReadOnlyRestrictions,
+    isReadOnly,
     logout,
     API
 } = require('../../main/resources/static/app');
@@ -21,10 +23,16 @@ describe('Auth & REST API Client Tests', () => {
 
     test('initAuth should initialize supabase and return true when authed', async () => {
         const mockSession = { access_token: 'fake-jwt-token', user: { email: 'user@example.com' } };
-        global.fetch = jest.fn().mockResolvedValueOnce({
-            ok: true,
-            json: () => Promise.resolve({ supabaseUrl: 'https://test.supabase.co', supabaseAnonKey: 'anon-key' })
-        });
+        global.fetch = jest.fn()
+            .mockResolvedValueOnce({
+                ok: true,
+                json: () => Promise.resolve({ supabaseUrl: 'https://test.supabase.co', supabaseAnonKey: 'anon-key' })
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: () => Promise.resolve({ role: 'ADMIN', allowedPages: [] })
+            });
         window.supabase = {
             createClient: jest.fn().mockReturnValue({
                 auth: {
@@ -71,10 +79,16 @@ describe('Auth & REST API Client Tests', () => {
                 }
             })
         };
-        global.fetch = jest.fn().mockResolvedValueOnce({
-            ok: true,
-            json: () => Promise.resolve({ supabaseUrl: 'https://test.supabase.co', supabaseAnonKey: 'anon-key' })
-        });
+        global.fetch = jest.fn()
+            .mockResolvedValueOnce({
+                ok: true,
+                json: () => Promise.resolve({ supabaseUrl: 'https://test.supabase.co', supabaseAnonKey: 'anon-key' })
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: () => Promise.resolve({ role: 'ADMIN', allowedPages: [] })
+            });
 
         await initAuth();
         await logout();
@@ -142,5 +156,55 @@ describe('Auth & REST API Client Tests', () => {
         });
 
         await expect(API.get('/api/bad')).rejects.toThrow('Bad request parameters');
+    });
+
+    test('isReadOnly should return true only when role is READONLY', () => {
+        window._userRole = 'ADMIN';
+        expect(isReadOnly()).toBe(false);
+
+        window._userRole = 'READONLY';
+        expect(isReadOnly()).toBe(true);
+    });
+
+    test('applyReadOnlyRestrictions should hide admin-only elements and unallowed links', () => {
+        window._userRole = 'READONLY';
+        window._allowedPages = ['/', '/index.html', '/screeners.html'];
+
+        document.body.innerHTML = `
+            <div data-admin-only id="admin-panel" style="display: block;">Admin Form</div>
+            <div class="sidebar">
+                <div class="sidebar-section">
+                    <a href="/index.html" class="nav-link">Dashboard</a>
+                    <a href="/execute.html" class="nav-link">Execute</a>
+                    <a href="#" class="nav-link nav-link-logout">Logout</a>
+                </div>
+                <div class="sidebar-section" id="admin-only-section">
+                    <a href="/config.html" class="nav-link">Config</a>
+                </div>
+            </div>
+        `;
+
+        applyReadOnlyRestrictions();
+
+        expect(document.getElementById('admin-panel').style.display).toBe('none');
+        expect(document.querySelector('a[href="/index.html"]').style.display).not.toBe('none');
+        expect(document.querySelector('a[href="/execute.html"]').style.display).toBe('none');
+        expect(document.querySelector('a[href="/config.html"]').style.display).toBe('none');
+        expect(document.getElementById('admin-only-section').style.display).toBe('none');
+    });
+
+    test('injectUserInfo should append readonly badge when userRole is READONLY', () => {
+        window._userRole = 'READONLY';
+        document.body.innerHTML = `
+            <div class="sidebar">
+                <div class="sidebar-brand">Brand</div>
+            </div>
+        `;
+
+        injectUserInfo({ email: 'readonly@test.com' });
+
+        const badge = document.querySelector('.role-badge.readonly');
+        expect(badge).not.toBeNull();
+        expect(badge.textContent).toBe('Read Only');
     });
 });

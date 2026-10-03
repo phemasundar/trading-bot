@@ -26,6 +26,33 @@ async function initAuth() {
         // Set the token on the API object
         API._accessToken = session.access_token;
 
+        // Fetch user role and allowed pages from backend
+        try {
+            const roleRes = await API.get('/api/auth/role');
+            window._userRole = roleRes.role || 'ADMIN';
+            window._allowedPages = roleRes.allowedPages || [];
+        } catch (e) {
+            console.warn('Role fetch failed, defaulting to ADMIN:', e);
+            window._userRole = 'ADMIN';
+            window._allowedPages = [];
+        }
+
+        // Enforce page access for READONLY users
+        if (window._userRole === 'READONLY') {
+            const currentPage = window.location.pathname;
+            const defaultAllowed = ['/', '/index.html', '/screeners.html'];
+            const allowed = Array.from(new Set([
+                ...(window._allowedPages && window._allowedPages.length > 0 ? window._allowedPages : defaultAllowed),
+                '/',
+                '/index.html',
+                '/login.html'
+            ]));
+            if (!allowed.includes(currentPage) && currentPage !== '/' && currentPage !== '/index.html') {
+                window.location.href = '/';
+                return false;
+            }
+        }
+
         // Listen for auth state changes (auto-refresh, sign out)
         _supabaseClient.auth.onAuthStateChange((event, session) => {
             if (event === 'SIGNED_OUT' || !session) {
@@ -37,6 +64,11 @@ async function initAuth() {
 
         // Inject user info + logout into the sidebar
         injectUserInfo(session.user);
+
+        // Apply read-only restrictions
+        if (window._userRole === 'READONLY') {
+            applyReadOnlyRestrictions();
+        }
 
         // Hide the auth loading overlay if present (e.g. logs.html)
         const authOverlay = document.getElementById('authLoading');
@@ -70,6 +102,14 @@ function injectUserInfo(user) {
     const brand = sidebar.querySelector('.sidebar-brand');
     if (brand) brand.after(userDiv);
 
+    // Inject read-only badge if applicable
+    if (window._userRole === 'READONLY') {
+        const badge = document.createElement('span');
+        badge.className = 'role-badge readonly';
+        badge.textContent = 'Read Only';
+        userDiv.appendChild(badge);
+    }
+
     const logoutLink = document.createElement('a');
     logoutLink.href = '#';
     logoutLink.className = 'nav-link nav-link-logout';
@@ -90,6 +130,43 @@ async function logout() {
         await _supabaseClient.auth.signOut();
     }
     if (!isJsdom && window.location) window.location.href = '/login.html';
+}
+
+/**
+ * Applies UI restrictions for read-only users: hides admin-only elements
+ * and restricts sidebar navigation to allowed pages.
+ */
+function applyReadOnlyRestrictions() {
+    // Hide admin-only elements
+    document.querySelectorAll('[data-admin-only]').forEach(el => el.style.display = 'none');
+
+    // Restrict sidebar navigation to allowed pages
+    const defaultAllowed = ['/', '/index.html', '/screeners.html'];
+    const allowed = Array.from(new Set([
+        ...(window._allowedPages && window._allowedPages.length > 0 ? window._allowedPages : defaultAllowed),
+        '/',
+        '/index.html',
+        '/login.html'
+    ]));
+    document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+        const href = link.getAttribute('href');
+        if (href && !allowed.includes(href) && !link.classList.contains('nav-link-logout')) {
+            link.style.display = 'none';
+        }
+    });
+
+    // Hide sidebar section titles that have no visible links
+    document.querySelectorAll('.sidebar .sidebar-section').forEach(section => {
+        const visibleLinks = section.querySelectorAll('.nav-link:not([style*="display: none"])');
+        if (visibleLinks.length === 0) {
+            section.style.display = 'none';
+        }
+    });
+}
+
+/** Returns true if the current user has read-only access. */
+function isReadOnly() {
+    return window._userRole === 'READONLY';
 }
 
 // ── API Client ──
@@ -118,6 +195,11 @@ const API = {
                 }
             } catch(e) {}
 
+            // If it's a read-only permission rejection on a mutating action, do not sign out or redirect
+            if (res.status === 403 && errorMessage.toLowerCase().includes('read-only')) {
+                throw new Error(errorMessage);
+            }
+
             try { 
                 if (_supabaseClient) await _supabaseClient.auth.signOut(); 
             } catch(e) {}
@@ -145,6 +227,8 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         initAuth,
         injectUserInfo,
+        applyReadOnlyRestrictions,
+        isReadOnly,
         logout,
         API
     };

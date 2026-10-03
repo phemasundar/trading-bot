@@ -9,6 +9,7 @@ import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.hemasundar.config.properties.SecurityConfig;
 import com.hemasundar.config.properties.SupabaseConfig;
+import org.apache.commons.lang3.StringUtils;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -27,6 +28,7 @@ import java.net.URL;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -51,14 +53,23 @@ public class BearerTokenFilter implements Filter {
     private final SupabaseConfig supabaseConfig;
     private final SecurityConfig securityConfig;
     private final boolean isProduction;
+    private final RolesConfigLoader rolesConfigLoader;
 
     /** Lazily initialized — null when supabase.url is not configured (local dev). */
     private JwkProvider jwkProvider;
 
-    public BearerTokenFilter(Environment env, SupabaseConfig supabaseConfig, SecurityConfig securityConfig) {
+    /** POST paths that mutate state — blocked for READONLY users. */
+    private static final Set<String> WRITE_PATHS = Set.of(
+            "/api/execute", "/api/execute/custom", "/api/execute/custom-screener",
+            "/api/cancel", "/api/clear-errors", "/api/filter-logs/clear"
+    );
+
+    public BearerTokenFilter(Environment env, SupabaseConfig supabaseConfig, 
+                             SecurityConfig securityConfig, RolesConfigLoader rolesConfigLoader) {
         this.isProduction = Arrays.asList(env.getActiveProfiles()).contains("production");
         this.supabaseConfig = supabaseConfig;
         this.securityConfig = securityConfig;
+        this.rolesConfigLoader = rolesConfigLoader;
     }
 
     /** Allows test code to inject a mock JwkProvider without network access. */
@@ -139,15 +150,9 @@ public class BearerTokenFilter implements Filter {
 
             // Email allowlist — optional gate for invite-only access
             String email = decoded.getClaim("email").asString();
-            String allowedEmailsConfig = securityConfig.getEmails();
-            if (allowedEmailsConfig != null && !allowedEmailsConfig.isBlank()) {
-                Set<String> allowed = Arrays.stream(allowedEmailsConfig.split(","))
-                        .map(String::trim)
-                        .map(String::toLowerCase)
-                        .filter(s -> !s.isEmpty())
-                        .collect(Collectors.toSet());
-
-                if (email == null || !allowed.contains(email.toLowerCase())) {
+            Set<String> authorizedEmails = getAllAuthorizedEmails();
+            if (!authorizedEmails.isEmpty()) {
+                if (email == null || !authorizedEmails.contains(email.toLowerCase())) {
                     log.debug("[AUTH ERROR] Email '{}' not in allowlist — denying {}", email, path);
                     sendError(response, HttpServletResponse.SC_FORBIDDEN,
                             "User not authorized. Contact the administrator.");
@@ -155,7 +160,20 @@ public class BearerTokenFilter implements Filter {
                 }
             }
 
-            log.debug("[AUTH SUCCESS] JWT verified for {} on {}", email, path);
+            // Resolve user role and set as request attribute
+            UserRole role = resolveRole(email);
+            request.setAttribute("userRole", role.name());
+
+            // Block write endpoints for read-only users
+            if (role == UserRole.READONLY && isWriteEndpoint(request)) {
+                log.debug("[AUTH DENIED] Read-only user '{}' blocked from write endpoint: {} {}",
+                        email, request.getMethod(), path);
+                sendError(response, HttpServletResponse.SC_FORBIDDEN,
+                        "Read-only access. You cannot perform this action.");
+                return;
+            }
+
+            log.debug("[AUTH SUCCESS] JWT verified for {} ({}) on {}", email, role, path);
             // Auth passed — let the request continue to the controller/servlet.
             // Any IOException or ServletException thrown by downstream code will
             // propagate through here naturally and be handled by Spring's own
@@ -191,6 +209,56 @@ public class BearerTokenFilter implements Filter {
             default    -> throw new IllegalArgumentException(
                     "Unsupported JWK algorithm: " + jwk.getPublicKey().getAlgorithm());
         };
+    }
+
+    /**
+     * Returns the set of all authorized user emails (allowed emails + readonly emails).
+     * If neither is configured, the set is empty (meaning open access).
+     */
+    private Set<String> getAllAuthorizedEmails() {
+        Set<String> allAuthorized = new HashSet<>();
+        if (StringUtils.isNotBlank(securityConfig.getAllowedEmails())) {
+            Arrays.stream(securityConfig.getAllowedEmails().split(","))
+                    .map(String::trim)
+                    .map(String::toLowerCase)
+                    .filter(s -> !s.isEmpty())
+                    .forEach(allAuthorized::add);
+        }
+        if (StringUtils.isNotBlank(securityConfig.getReadonlyEmails())) {
+            Arrays.stream(securityConfig.getReadonlyEmails().split(","))
+                    .map(String::trim)
+                    .map(String::toLowerCase)
+                    .filter(s -> !s.isEmpty())
+                    .forEach(allAuthorized::add);
+        }
+        return allAuthorized;
+    }
+
+    /**
+     * Resolves the user role based on the readonly email configuration.
+     * Emails in the readonly list get READONLY role; all others default to ADMIN.
+     */
+    private UserRole resolveRole(String email) {
+        String readonlyConfig = securityConfig.getReadonlyEmails();
+        if (StringUtils.isBlank(readonlyConfig) || StringUtils.isBlank(email)) {
+            return UserRole.ADMIN;
+        }
+        Set<String> readonlyEmails = Arrays.stream(readonlyConfig.split(","))
+                .map(String::trim)
+                .map(String::toLowerCase)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toSet());
+        return readonlyEmails.contains(email.toLowerCase()) ? UserRole.READONLY : UserRole.ADMIN;
+    }
+
+    /**
+     * Checks if the request targets a state-mutating endpoint.
+     * All DELETE requests and specific POST paths are considered write operations.
+     */
+    private boolean isWriteEndpoint(HttpServletRequest request) {
+        String method = request.getMethod();
+        if ("DELETE".equalsIgnoreCase(method)) return true;
+        return "POST".equalsIgnoreCase(method) && WRITE_PATHS.contains(request.getRequestURI());
     }
 
     private void sendError(HttpServletResponse response, int status, String message)

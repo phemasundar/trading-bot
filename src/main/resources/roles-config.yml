@@ -1,0 +1,11 @@
+# Role-Based Access Control Configuration
+# Defines which pages each role can access.
+
+readonly:
+  # Pages accessible to read-only users (path must match the browser URL)
+  allowed-pages:
+    - /
+    - /index.html
+    - /screeners.html
+    - /earnings-calendar.html
+    - /config.html
