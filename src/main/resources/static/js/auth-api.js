@@ -5,11 +5,41 @@
 
 let _supabaseClient = null;
 
+const isJsdom = typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.includes('jsdom');
+
+/**
+ * Normalizes a URL path for consistent RBAC route guarding and nav-link matching.
+ * Handles trailing slashes, leading slashes, .html extensions, index/root mapping,
+ * and strips query parameters or hash fragments.
+ * Example: '/screeners.html' -> '/screeners', 'config' -> '/config', '/' or '/index.html' -> '/'
+ */
+function normalizePath(p) {
+    if (!p) return '/';
+    let s = String(p).trim().split('?')[0].split('#')[0];
+    if (!s.startsWith('/')) s = '/' + s;
+    if (s.length > 1 && s.endsWith('/')) s = s.slice(0, -1);
+    if (s.toLowerCase().endsWith('.html')) s = s.slice(0, -5);
+    if (s.toLowerCase() === '/index' || s === '') return '/';
+    return s.toLowerCase();
+}
+
+/**
+ * Checks whether a given path or link href is allowed for a user based on the allowedPages list.
+ * Root ('/') and '/login' are always accessible to prevent user lockout.
+ */
+function isPathAllowed(path, allowedPages) {
+    if (!path || path === '#' || path.startsWith('javascript:')) return true;
+    const normalizedTarget = normalizePath(path);
+    if (normalizedTarget === '/' || normalizedTarget === '/login') return true;
+
+    const list = Array.isArray(allowedPages) ? allowedPages : ['/', '/screeners.html'];
+    const normalizedAllowed = list.map(p => normalizePath(p));
+    return normalizedAllowed.includes(normalizedTarget);
+}
+
 /**
  * Initializes the Supabase client for authentication and guards protected pages.
  */
-const isJsdom = typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.includes('jsdom');
-
 async function initAuth() {
     try {
         const res = await fetch('/api/auth/config');
@@ -40,15 +70,9 @@ async function initAuth() {
         // Enforce page access for READONLY users
         if (window._userRole === 'READONLY') {
             const currentPage = window.location.pathname;
-            const defaultAllowed = ['/', '/index.html', '/screeners.html'];
-            const allowed = Array.from(new Set([
-                ...(window._allowedPages && window._allowedPages.length > 0 ? window._allowedPages : defaultAllowed),
-                '/',
-                '/index.html',
-                '/login.html'
-            ]));
-            if (!allowed.includes(currentPage) && currentPage !== '/' && currentPage !== '/index.html') {
-                window.location.href = '/';
+            if (!isPathAllowed(currentPage, window._allowedPages)) {
+                console.warn(`[RBAC] Access denied to ${currentPage} for READONLY role. Redirecting to home.`);
+                if (!isJsdom && window.location) window.location.href = '/';
                 return false;
             }
         }
@@ -134,33 +158,24 @@ async function logout() {
 
 /**
  * Applies UI restrictions for read-only users: hides admin-only elements
- * and restricts sidebar navigation to allowed pages.
+ * and dynamically displays or hides sidebar navigation based on allowed pages.
  */
 function applyReadOnlyRestrictions() {
     // Hide admin-only elements
     document.querySelectorAll('[data-admin-only]').forEach(el => el.style.display = 'none');
 
     // Restrict sidebar navigation to allowed pages
-    const defaultAllowed = ['/', '/index.html', '/screeners.html'];
-    const allowed = Array.from(new Set([
-        ...(window._allowedPages && window._allowedPages.length > 0 ? window._allowedPages : defaultAllowed),
-        '/',
-        '/index.html',
-        '/login.html'
-    ]));
     document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+        if (link.classList.contains('nav-link-logout')) return;
         const href = link.getAttribute('href');
-        if (href && !allowed.includes(href) && !link.classList.contains('nav-link-logout')) {
-            link.style.display = 'none';
-        }
+        const allowed = isPathAllowed(href, window._allowedPages);
+        link.style.display = allowed ? '' : 'none';
     });
 
-    // Hide sidebar section titles that have no visible links
+    // Hide sidebar section titles that have no visible links, show sections that do
     document.querySelectorAll('.sidebar .sidebar-section').forEach(section => {
         const visibleLinks = section.querySelectorAll('.nav-link:not([style*="display: none"])');
-        if (visibleLinks.length === 0) {
-            section.style.display = 'none';
-        }
+        section.style.display = visibleLinks.length === 0 ? 'none' : '';
     });
 }
 
@@ -230,6 +245,8 @@ if (typeof module !== 'undefined' && module.exports) {
         applyReadOnlyRestrictions,
         isReadOnly,
         logout,
+        normalizePath,
+        isPathAllowed,
         API
     };
 }

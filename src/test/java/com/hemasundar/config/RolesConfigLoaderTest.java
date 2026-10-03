@@ -21,5 +21,32 @@ public class RolesConfigLoaderTest {
         assertTrue(pages.contains("/"), "Should contain '/'");
         assertTrue(pages.contains("/index.html"), "Should contain '/index.html'");
         assertTrue(pages.contains("/screeners.html"), "Should contain '/screeners.html'");
+        assertTrue(pages.contains("/earnings-calendar.html"), "Should contain '/earnings-calendar.html'");
+        assertTrue(pages.contains("/config.html"), "Should contain '/config.html'");
+
+        assertNotNull(loader.getConfig());
+        assertNotNull(loader.getConfig().getReadonly());
+    }
+
+    @Test
+    public void testReload() {
+        RolesConfigLoader loader = new RolesConfigLoader();
+        loader.load();
+        loader.reload();
+
+        List<String> pages = loader.getReadonlyAllowedPages();
+        assertNotNull(pages);
+        assertFalse(pages.isEmpty());
+    }
+
+    @Test
+    public void testReloadIfChanged() {
+        RolesConfigLoader loader = new RolesConfigLoader();
+        loader.load();
+        loader.reloadIfChanged();
+
+        List<String> pages = loader.getReadonlyAllowedPages();
+        assertNotNull(pages);
+        assertFalse(pages.isEmpty());
     }
 }

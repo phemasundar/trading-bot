@@ -4,6 +4,8 @@ const {
     applyReadOnlyRestrictions,
     isReadOnly,
     logout,
+    normalizePath,
+    isPathAllowed,
     API
 } = require('../../main/resources/static/app');
 
@@ -166,20 +168,52 @@ describe('Auth & REST API Client Tests', () => {
         expect(isReadOnly()).toBe(true);
     });
 
+    test('normalizePath should correctly normalize various URL formats', () => {
+        expect(normalizePath('/')).toBe('/');
+        expect(normalizePath('')).toBe('/');
+        expect(normalizePath('/index.html')).toBe('/');
+        expect(normalizePath('index.html')).toBe('/');
+        expect(normalizePath('/screeners.html')).toBe('/screeners');
+        expect(normalizePath('/screeners')).toBe('/screeners');
+        expect(normalizePath('screeners')).toBe('/screeners');
+        expect(normalizePath('/earnings-calendar.html?foo=bar')).toBe('/earnings-calendar');
+        expect(normalizePath('/config.html#section')).toBe('/config');
+        expect(normalizePath('/config/')).toBe('/config');
+    });
+
+    test('isPathAllowed should match paths flexibly across aliases', () => {
+        const allowed = ['/index.html', '/screeners.html', '/earnings-calendar.html', '/config.html'];
+        expect(isPathAllowed('/', allowed)).toBe(true);
+        expect(isPathAllowed('/index.html', allowed)).toBe(true);
+        expect(isPathAllowed('/screeners.html', allowed)).toBe(true);
+        expect(isPathAllowed('/screeners', allowed)).toBe(true);
+        expect(isPathAllowed('/earnings-calendar.html', allowed)).toBe(true);
+        expect(isPathAllowed('earnings-calendar', allowed)).toBe(true);
+        expect(isPathAllowed('/config.html', allowed)).toBe(true);
+        expect(isPathAllowed('/config', allowed)).toBe(true);
+        expect(isPathAllowed('/execute.html', allowed)).toBe(false);
+        expect(isPathAllowed('/logs.html', allowed)).toBe(false);
+    });
+
     test('applyReadOnlyRestrictions should hide admin-only elements and unallowed links', () => {
         window._userRole = 'READONLY';
-        window._allowedPages = ['/', '/index.html', '/screeners.html'];
+        window._allowedPages = ['/', '/index.html', '/screeners.html', '/earnings-calendar.html', '/config.html'];
 
         document.body.innerHTML = `
             <div data-admin-only id="admin-panel" style="display: block;">Admin Form</div>
             <div class="sidebar">
-                <div class="sidebar-section">
+                <div class="sidebar-section" id="options-section">
                     <a href="/index.html" class="nav-link">Dashboard</a>
                     <a href="/execute.html" class="nav-link">Execute</a>
                     <a href="#" class="nav-link nav-link-logout">Logout</a>
                 </div>
-                <div class="sidebar-section" id="admin-only-section">
+                <div class="sidebar-section" id="research-section">
+                    <a href="/earnings-calendar.html" class="nav-link">Earnings</a>
+                    <a href="/securities.html" class="nav-link">Securities</a>
+                </div>
+                <div class="sidebar-section" id="system-section">
                     <a href="/config.html" class="nav-link">Config</a>
+                    <a href="/logs.html" class="nav-link">Logs</a>
                 </div>
             </div>
         `;
@@ -189,8 +223,33 @@ describe('Auth & REST API Client Tests', () => {
         expect(document.getElementById('admin-panel').style.display).toBe('none');
         expect(document.querySelector('a[href="/index.html"]').style.display).not.toBe('none');
         expect(document.querySelector('a[href="/execute.html"]').style.display).toBe('none');
-        expect(document.querySelector('a[href="/config.html"]').style.display).toBe('none');
-        expect(document.getElementById('admin-only-section').style.display).toBe('none');
+        expect(document.querySelector('a[href="/earnings-calendar.html"]').style.display).not.toBe('none');
+        expect(document.querySelector('a[href="/securities.html"]').style.display).toBe('none');
+        expect(document.querySelector('a[href="/config.html"]').style.display).not.toBe('none');
+        expect(document.querySelector('a[href="/logs.html"]').style.display).toBe('none');
+
+        // All sections have at least one visible link, so none should be hidden
+        expect(document.getElementById('options-section').style.display).not.toBe('none');
+        expect(document.getElementById('research-section').style.display).not.toBe('none');
+        expect(document.getElementById('system-section').style.display).not.toBe('none');
+    });
+
+    test('applyReadOnlyRestrictions should hide section when all its links are unallowed', () => {
+        window._userRole = 'READONLY';
+        window._allowedPages = ['/'];
+
+        document.body.innerHTML = `
+            <div class="sidebar">
+                <div class="sidebar-section" id="system-section">
+                    <a href="/config.html" class="nav-link">Config</a>
+                    <a href="/logs.html" class="nav-link">Logs</a>
+                </div>
+            </div>
+        `;
+
+        applyReadOnlyRestrictions();
+
+        expect(document.getElementById('system-section').style.display).toBe('none');
     });
 
     test('injectUserInfo should append readonly badge when userRole is READONLY', () => {

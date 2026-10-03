@@ -1,14 +1,14 @@
 package com.hemasundar.api;
 
+import com.hemasundar.config.RolesConfigLoader;
 import com.hemasundar.config.properties.SupabaseConfig;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.hemasundar.config.RolesConfigLoader;
-import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 
@@ -29,9 +29,11 @@ public class AuthConfigController {
      */
     @GetMapping("/config")
     public ResponseEntity<?> getAuthConfig() {
-        return ResponseEntity.ok(Map.of(
-                "supabaseUrl", supabaseConfig.getUrl() != null ? supabaseConfig.getUrl() : "",
-                "supabaseAnonKey", supabaseConfig.getAnonKey() != null ? supabaseConfig.getAnonKey() : ""));
+        return ResponseEntity.ok()
+                .header("Cache-Control", "no-cache, no-store, must-revalidate")
+                .body(Map.of(
+                        "supabaseUrl", supabaseConfig.getUrl() != null ? supabaseConfig.getUrl() : "",
+                        "supabaseAnonKey", supabaseConfig.getAnonKey() != null ? supabaseConfig.getAnonKey() : ""));
     }
 
     /**
@@ -42,8 +44,10 @@ public class AuthConfigController {
     public ResponseEntity<?> getUserRole(HttpServletRequest request) {
         String role = (String) request.getAttribute("userRole");
         List<String> allowedPages = rolesConfigLoader.getReadonlyAllowedPages();
-        return ResponseEntity.ok(Map.of(
-                "role", role != null ? role : "ADMIN",
-                "allowedPages", allowedPages));
+        return ResponseEntity.ok()
+                .header("Cache-Control", "no-cache, no-store, must-revalidate")
+                .body(Map.of(
+                        "role", role != null ? role : "ADMIN",
+                        "allowedPages", allowedPages));
     }
 }
