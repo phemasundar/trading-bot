@@ -1,10 +1,14 @@
-const { toggleTheme, updateThemeIcon } = require('../../main/resources/static/theme');
+const { toggleTheme, updateThemeIcon, applyEarlyRbac } = require('../../main/resources/static/theme');
 
 describe('Theme Manager', () => {
     beforeEach(() => {
-        // Reset DOM and localStorage before each test
+        // Reset DOM and localStorage/sessionStorage before each test
         document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.removeAttribute('data-user-role');
+        const earlyStyle = document.getElementById('rbac-early-style');
+        if (earlyStyle) earlyStyle.remove();
         localStorage.clear();
+        sessionStorage.clear();
         
         // Mock the icon and text elements
         document.body.innerHTML = `
@@ -45,5 +49,23 @@ describe('Theme Manager', () => {
         event.initEvent('DOMContentLoaded', true, true);
         document.dispatchEvent(event);
         expect(document.getElementById('theme-icon').textContent).toBe('🌙');
+    });
+
+    test('applyEarlyRbac should do nothing when userRole is not READONLY', () => {
+        sessionStorage.setItem('userRole', 'ADMIN');
+        applyEarlyRbac();
+        expect(document.documentElement.getAttribute('data-user-role')).toBeNull();
+        expect(document.getElementById('rbac-early-style')).toBeNull();
+    });
+
+    test('applyEarlyRbac should set data-user-role and inject style when userRole is READONLY', () => {
+        sessionStorage.setItem('userRole', 'READONLY');
+        sessionStorage.setItem('allowedPages', JSON.stringify(['/', '/screeners.html', '/config.html']));
+        applyEarlyRbac();
+        expect(document.documentElement.getAttribute('data-user-role')).toBe('READONLY');
+        const style = document.getElementById('rbac-early-style');
+        expect(style).not.toBeNull();
+        expect(style.textContent).toContain('[data-admin-only]');
+        expect(style.textContent).toContain(':not([href="/config.html"])');
     });
 });

@@ -10,6 +10,58 @@ window.tradeStrategyIdMap = window.tradeStrategyIdMap || {};
 window.tradeStrategyTypeMap = window.tradeStrategyTypeMap || {};
 window.strategyColumnsConfig = window.strategyColumnsConfig || null;
 
+// ── Card Action Buttons Component ──
+
+/**
+ * Standardized card action buttons (Load, Execute, Delete) across Strategy and Screener cards.
+ */
+function renderCardActionButtons({
+    hasLoad = false,
+    loadFn = '',
+    hasExecute = false,
+    executeFn = '',
+    hasDelete = false,
+    deleteFn = '',
+    dataAttrs = {}
+}) {
+    let isFirst = true;
+    const getMargin = () => {
+        if (isFirst) {
+            isFirst = false;
+            return 'margin-left: auto;';
+        }
+        return 'margin-left: 4px;';
+    };
+
+    let attrStr = '';
+    for (const [key, val] of Object.entries(dataAttrs)) {
+        if (val !== undefined && val !== null) {
+            attrStr += ` ${key}="${escapeAttr(typeof val === 'string' ? val : JSON.stringify(val))}"`;
+        }
+    }
+
+    const loadBtn = hasLoad
+        ? `<button type="button" class="btn btn-primary btn-sm" style="${getMargin()}" onclick="event.stopPropagation(); ${loadFn}"${attrStr}>⬆ Load</button>`
+        : '';
+
+    const executeBtn = hasExecute
+        ? `<button type="button" class="btn btn-primary btn-sm" style="${getMargin()}" onclick="event.stopPropagation(); ${executeFn}"${attrStr}>▶ Execute</button>`
+        : '';
+
+    const deleteBtn = hasDelete
+        ? `<button type="button" class="btn btn-danger btn-sm" style="${getMargin()}" onclick="event.stopPropagation(); ${deleteFn}">🗑 Delete</button>`
+        : '';
+
+    return {
+        loadBtn,
+        executeBtn,
+        deleteBtn,
+        execBtn: executeBtn,
+        delBtn: deleteBtn,
+        html: `${loadBtn}${executeBtn}${deleteBtn}`
+    };
+}
+
 // ── Card Builder ──
 
 function buildResultCard(result, badgeText = 'Standard') {
@@ -44,13 +96,21 @@ function buildResultCard(result, badgeText = 'Standard') {
     const hasExecuteBtn = isExecutePage && badgeText === 'Custom' && !!result.filterConfig && !!result.strategyId && !isNaN(result.strategyId);
     const hasDeleteBtn = isExecutePage && badgeText === 'Custom' && !!result.strategyId && !isNaN(result.strategyId);
 
-    const loadFiltersBtn = hasLoadBtn
-        ? `<button type="button" class="btn btn-primary btn-sm" style="margin-left: auto;" onclick="event.stopPropagation(); loadFiltersFromResult(this)" data-filter-config="${escapeAttr(typeof result.filterConfig === 'string' ? result.filterConfig : JSON.stringify(result.filterConfig))}" data-strategy-name="${escapeAttr(result.strategyName || '')}">⬆ Load</button>`
-        : '';
-
-    const executeBtn = hasExecuteBtn
-        ? `<button type="button" class="btn btn-primary btn-sm" style="${!hasLoadBtn ? 'margin-left: auto;' : 'margin-left: 4px;'}" onclick="event.stopPropagation(); reexecuteCustomStrategy(this, '${escapeAttr(result.strategyId)}')" data-filter-config="${escapeAttr(typeof result.filterConfig === 'string' ? result.filterConfig : JSON.stringify(result.filterConfig))}" data-strategy-name="${escapeAttr(result.strategyName || '')}">▶ Execute</button>`
-        : '';
+    const actionButtons = renderCardActionButtons({
+        hasLoad: hasLoadBtn,
+        loadFn: 'loadFiltersFromResult(this)',
+        hasExecute: hasExecuteBtn,
+        executeFn: `reexecuteCustomStrategy(this, '${escapeAttr(result.strategyId)}')`,
+        hasDelete: hasDeleteBtn,
+        deleteFn: `confirmDeleteCustomResult('${escapeAttr(result.strategyId)}', this.closest('.card'))`,
+        dataAttrs: {
+            'data-filter-config': typeof result.filterConfig === 'string' ? result.filterConfig : JSON.stringify(result.filterConfig),
+            'data-strategy-name': result.strategyName || ''
+        }
+    });
+    const loadFiltersBtn = actionButtons.loadBtn;
+    const executeBtn = actionButtons.executeBtn;
+    const deleteBtn = actionButtons.deleteBtn;
 
     let filterDetailsHtml = '';
     if (result.filterConfig) {
@@ -71,10 +131,6 @@ function buildResultCard(result, badgeText = 'Standard') {
             }
         } catch (e) { /* ignore parse errors */ }
     }
-
-    const deleteBtn = hasDeleteBtn
-        ? `<button type="button" class="btn btn-danger btn-sm" style="${(!hasLoadBtn && !hasExecuteBtn) ? 'margin-left: auto;' : 'margin-left: 4px;'}" onclick="event.stopPropagation(); confirmDeleteCustomResult('${escapeAttr(result.strategyId)}', this.closest('.card'))">🗑 Delete</button>`
-        : '';
 
     let displayName = result.strategyName || 'Unknown';
     if (result.filterConfig) {
@@ -312,9 +368,16 @@ function renderTermGroups(container, results, badgeText = 'Standard') {
     updateToggleAllTermsButtonState(container);
 }
 
-// ── Delete Custom Result ──
+// ── Common Card Deletion & Confirmation Modal ──
 
-function confirmDeleteCustomResult(resultId, card) {
+/**
+ * Displays a unified confirmation modal before permanently deleting an execution record.
+ */
+function showDeleteConfirmationModal({
+    title = 'Delete Execution Result?',
+    message = 'This action cannot be undone. The record will be permanently removed from the database.',
+    onConfirm
+}) {
     if (document.querySelector('.delete-confirm-overlay')) return;
 
     const overlay = document.createElement('div');
@@ -322,12 +385,12 @@ function confirmDeleteCustomResult(resultId, card) {
     overlay.innerHTML = `
         <div class="modal" style="max-width: 420px; text-align: center;">
             <div style="font-size: 2.5rem; margin-bottom: 12px;">🗑</div>
-            <h2 style="margin: 0 0 8px;">Delete Execution Result?</h2>
+            <h2 style="margin: 0 0 8px;">${title}</h2>
             <p style="color: var(--text-secondary); margin: 0 0 24px; font-size: 0.9rem;">
-                This action cannot be undone. The record will be permanently removed from the database.
+                ${message}
             </p>
             <div class="flex gap-sm" style="justify-content: center;">
-                <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+                <button class="btn btn-secondary" id="cancel-delete-btn" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
                 <button class="btn btn-danger" id="confirm-delete-btn">🗑 Delete</button>
             </div>
         </div>`;
@@ -337,62 +400,279 @@ function confirmDeleteCustomResult(resultId, card) {
 
     overlay.querySelector('#confirm-delete-btn').addEventListener('click', async () => {
         overlay.remove();
-        await deleteCustomResult(resultId, card);
+        if (onConfirm) await onConfirm();
     });
 }
 
-async function deleteCustomResult(resultId, card) {
+/**
+ * Performs animated card deletion from DOM following successful API deletion.
+ */
+async function deleteCardWithAnimation(card, deletePromiseFn, successMessage) {
     try {
-        await API.delete(`/api/results/custom/${resultId}`);
+        await deletePromiseFn();
         if (card) {
             card.style.transition = 'opacity 0.3s, transform 0.3s';
             card.style.opacity = '0';
             card.style.transform = 'translateX(20px)';
             setTimeout(() => card.remove(), 320);
         }
-        showToast('Execution result deleted.');
+        showToast(successMessage);
     } catch (e) {
         showToast(`Failed to delete: ${e.message}`, 'error');
     }
 }
 
-function promptDeleteCustomScreenerResult(resultId, event) {
-    event.stopPropagation();
-    const card = document.querySelector(`.card-header[data-target="${resultId}"]`)?.closest('.card');
-    
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.innerHTML = `
-        <div class="modal" style="text-align:center; max-width:400px">
-            <h3 style="margin-bottom:12px; color:var(--text-primary)">Delete Screener Result</h3>
-            <p style="margin-bottom:24px; color:var(--text-secondary)">Are you sure you want to permanently delete this custom screener execution? This action cannot be undone.</p>
-            <div class="flex gap-sm justify-center">
-                <button class="btn btn-secondary" id="cancel-delete-btn">Cancel</button>
-                <button class="btn btn-danger" id="confirm-delete-btn">Delete</button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(overlay);
-
-    overlay.querySelector('#cancel-delete-btn').addEventListener('click', () => overlay.remove());
-    overlay.querySelector('#confirm-delete-btn').addEventListener('click', async () => {
-        overlay.remove();
-        await deleteCustomScreenerResult(resultId, card);
+function confirmDeleteCustomResult(resultId, card) {
+    showDeleteConfirmationModal({
+        title: 'Delete Execution Result?',
+        message: 'This action cannot be undone. The record will be permanently removed from the database.',
+        onConfirm: () => deleteCustomResult(resultId, card)
     });
 }
 
+async function deleteCustomResult(resultId, card) {
+    await deleteCardWithAnimation(
+        card,
+        () => API.delete(`/api/results/custom/${resultId}`),
+        'Execution result deleted.'
+    );
+    const container = document.getElementById('custom-results');
+    if (container) {
+        const remaining = container.querySelectorAll('.card').length - (card ? 1 : 0);
+        updateExecuteAllButtonState({
+            btnId: 'execute-all-custom-btn',
+            countBadgeId: 'custom-results-count-badge',
+            count: Math.max(0, remaining)
+        });
+    }
+}
+
+function confirmDeleteCustomScreenerResult(resultId, card) {
+    showDeleteConfirmationModal({
+        title: 'Delete Screener Result',
+        message: 'Are you sure you want to permanently delete this custom screener execution? This action cannot be undone.',
+        onConfirm: () => deleteCustomScreenerResult(resultId, card)
+    });
+}
+
+function promptDeleteCustomScreenerResult(resultId, event) {
+    if (event && event.stopPropagation) event.stopPropagation();
+    const card = (event && event.target && event.target.closest && event.target.closest('.card')) ||
+                 document.querySelector(`.card-header[data-target="${resultId}"]`)?.closest('.card');
+    confirmDeleteCustomScreenerResult(resultId, card);
+}
+
 async function deleteCustomScreenerResult(resultId, card) {
-    try {
-        await API.delete(`/api/results/custom/screeners/${resultId}`);
-        if (card) {
-            card.style.transition = 'opacity 0.3s, transform 0.3s';
-            card.style.opacity = '0';
-            card.style.transform = 'translateX(20px)';
-            setTimeout(() => card.remove(), 320);
+    await deleteCardWithAnimation(
+        card,
+        () => API.delete(`/api/results/custom/screeners/${resultId}`),
+        'Screener execution result deleted.'
+    );
+    const container = document.getElementById('screener-custom-results');
+    if (container) {
+        const remaining = container.querySelectorAll('.card').length - (card ? 1 : 0);
+        updateExecuteAllButtonState({
+            btnId: 'execute-all-screener-btn',
+            countBadgeId: 'screener-custom-results-count-badge',
+            count: Math.max(0, remaining)
+        });
+    }
+}
+
+// ── Common "Execute All" Orchestrator ──
+
+function updateExecuteAllButtonState({ btnId, countBadgeId, count = 0 }) {
+    const btn = document.getElementById(btnId);
+    const badge = document.getElementById(countBadgeId);
+    if (btn) {
+        btn.style.display = count > 0 ? 'inline-flex' : 'none';
+    }
+    if (badge) {
+        if (count > 0) {
+            badge.textContent = count;
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
         }
-        showToast('Screener execution result deleted.');
+    }
+}
+
+async function executeAllCustomCards({
+    containerId,
+    executeAllBtnId,
+    cardBtnSelector,
+    batchApiEndpoint,
+    buildRequestFn,
+    loadFiltersFn,
+    executeFn,
+    reloadResultsFn,
+    entityNameSingular = 'item',
+    entityNamePlural = 'items',
+    isProgressActiveFn
+}) {
+    if (isProgressActiveFn && isProgressActiveFn()) {
+        showToast('An execution is already in progress', 'info');
+        return;
+    }
+
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const cards = Array.from(container.querySelectorAll('.card')).filter(c => c.querySelector(cardBtnSelector));
+    if (cards.length === 0) {
+        showToast(`No ${entityNamePlural} to execute`, 'info');
+        return;
+    }
+
+    const executeAllBtn = document.getElementById(executeAllBtnId);
+    const originalAllText = executeAllBtn ? executeAllBtn.innerHTML : '▶ Execute All';
+    if (executeAllBtn) {
+        executeAllBtn.disabled = true;
+        executeAllBtn.innerHTML = '⏳ Executing...';
+    }
+
+    const allExecBtns = Array.from(container.querySelectorAll(cardBtnSelector));
+    allExecBtns.forEach(b => b.disabled = true);
+
+    // If batchApiEndpoint and buildRequestFn are provided, use backend batch execution
+    if (batchApiEndpoint && typeof buildRequestFn === 'function') {
+        try {
+            const requests = [];
+            for (const card of cards) {
+                const execBtn = card.querySelector(cardBtnSelector);
+                if (!execBtn) continue;
+                const req = buildRequestFn(card, execBtn);
+                if (req) requests.push(req);
+            }
+
+            if (requests.length === 0) {
+                showToast(`No valid ${entityNamePlural} found to execute`, 'error');
+                if (executeAllBtn) {
+                    executeAllBtn.disabled = false;
+                    executeAllBtn.innerHTML = originalAllText;
+                }
+                allExecBtns.forEach(b => b.disabled = false);
+                return;
+            }
+
+            const res = await API.post(batchApiEndpoint, requests);
+            showToast(res.message);
+            startTimer(Date.now());
+
+            if (typeof pollUntilComplete === 'function') {
+                await pollUntilComplete();
+                stopTimer();
+                if (executeAllBtn) {
+                    executeAllBtn.disabled = false;
+                    executeAllBtn.innerHTML = originalAllText;
+                }
+                allExecBtns.forEach(b => {
+                    b.disabled = false;
+                    b.innerHTML = '▶ Execute';
+                });
+                if (reloadResultsFn) {
+                    await reloadResultsFn();
+                }
+                showToast(`Batch execution of ${entityNamePlural} completed!`);
+            } else {
+                startPolling(() => {
+                    stopTimer();
+                    if (executeAllBtn) {
+                        executeAllBtn.disabled = false;
+                        executeAllBtn.innerHTML = originalAllText;
+                    }
+                    allExecBtns.forEach(b => {
+                        b.disabled = false;
+                        b.innerHTML = '▶ Execute';
+                    });
+                    if (reloadResultsFn) {
+                        reloadResultsFn();
+                    }
+                    showToast(`Batch execution of ${entityNamePlural} completed!`);
+                });
+            }
+            return;
+        } catch (e) {
+            console.error(`Error in batch execute (${entityNamePlural}):`, e);
+            showToast(`Failed to start batch execution: ${e.message}`, 'error');
+            if (executeAllBtn) {
+                executeAllBtn.disabled = false;
+                executeAllBtn.innerHTML = originalAllText;
+            }
+            allExecBtns.forEach(b => {
+                b.disabled = false;
+                b.innerHTML = '▶ Execute';
+            });
+            return;
+        }
+    }
+
+    // Fallback: sequential loop if batchApiEndpoint not provided
+    window.cancellationRequested = false;
+    let executedCount = 0;
+    try {
+        for (let i = 0; i < cards.length; i++) {
+            if (window.cancellationRequested) {
+                showToast('Execution cancelled');
+                break;
+            }
+
+            const card = cards[i];
+            const execBtn = card.querySelector(cardBtnSelector);
+            if (!execBtn) continue;
+
+            if (executeAllBtn) {
+                executeAllBtn.innerHTML = `⏳ Executing (${i + 1}/${cards.length})...`;
+            }
+            execBtn.innerHTML = '⏳ Executing...';
+
+            if (loadFiltersFn) loadFiltersFn(execBtn);
+
+            const onclickAttr = execBtn.getAttribute('onclick') || '';
+            const match = onclickAttr.match(/reexecuteCustom(?:Strategy|Screener)\(\s*this\s*,\s*['"]?([^'")]+)['"]?\s*\)/);
+            const itemId = match ? match[1] : null;
+
+            try {
+                let status = await API.get('/api/status');
+                while (status && status.running) {
+                    await new Promise(r => setTimeout(r, 400));
+                    status = await API.get('/api/status');
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                if (executeFn) {
+                    const started = await executeFn(itemId);
+                    if (started) {
+                        executedCount++;
+                    }
+                }
+            } catch (cardErr) {
+                console.error(`Error executing ${entityNameSingular} ${itemId}:`, cardErr);
+            }
+
+            execBtn.innerHTML = '▶ Execute';
+        }
+
+        if (executedCount > 0) {
+            showToast(`Executed ${executedCount} ${executedCount === 1 ? entityNameSingular : entityNamePlural} successfully!`);
+        }
     } catch (e) {
-        showToast(`Failed to delete: ${e.message}`, 'error');
+        console.error(`Error in executeAll (${entityNamePlural}):`, e);
+        showToast(`Execution stopped: ${e.message}`, 'error');
+    } finally {
+        window.cancellationRequested = false;
+        if (executeAllBtn) {
+            executeAllBtn.disabled = false;
+            executeAllBtn.innerHTML = originalAllText;
+        }
+        allExecBtns.forEach(b => {
+            b.disabled = false;
+            b.innerHTML = '▶ Execute';
+        });
+        if (reloadResultsFn) {
+            await reloadResultsFn();
+        }
     }
 }
 
@@ -411,14 +691,34 @@ function buildScreenerCard(result, isCustom = false) {
     window.tradeDataMap[cardId]._type = isDropScreener ? 'drop' : 'screener';
     
     const isExecuteScreenerPage = !!document.getElementById('screener-type');
-    const loadFiltersBtn = (isCustom && isExecuteScreenerPage && result.requestParams)
-        ? `<button class="btn btn-primary" style="padding: 2px 8px; font-size: 0.75rem; margin-left: 4px;" onclick="loadScreenerFiltersFromResult('${escapeAttr(JSON.stringify(result.requestParams))}', event)">⬆ Load Filters</button>`
-        : '';
+    const params = result.requestParams || result.filterConfig;
+    const hasConfig = !!params;
+    const hasId = !!(result.screenerId && !isNaN(result.screenerId));
 
-    let deleteBtn = '';
-    if (isCustom && result.screenerId) {
-        deleteBtn = `<button class="btn btn-danger" style="padding: 2px 8px; font-size: 0.75rem; margin-left: auto;" onclick="promptDeleteCustomScreenerResult('${result.screenerId}', event)">🗑️ Delete</button>`;
-    }
+    const hasLoadBtn = isCustom && isExecuteScreenerPage && hasConfig;
+    const hasExecuteBtn = isCustom && isExecuteScreenerPage && hasConfig && hasId;
+    const hasDeleteBtn = isCustom && (hasId || !!result.screenerId);
+
+    const paramsStr = typeof params === 'string' ? params : JSON.stringify(params);
+    const screenerNameStr = result.screenerName || '';
+
+    const actionButtons = renderCardActionButtons({
+        hasLoad: hasLoadBtn,
+        loadFn: 'loadScreenerFiltersFromResult(this)',
+        hasExecute: hasExecuteBtn,
+        executeFn: `reexecuteCustomScreener(this, '${escapeAttr(result.screenerId)}')`,
+        hasDelete: hasDeleteBtn,
+        deleteFn: `confirmDeleteCustomScreenerResult('${escapeAttr(result.screenerId)}', this.closest('.card'))`,
+        dataAttrs: {
+            'data-request-params': paramsStr,
+            'data-filter-config': paramsStr,
+            'data-screener-name': screenerNameStr,
+            'data-strategy-name': screenerNameStr
+        }
+    });
+    const loadFiltersBtn = actionButtons.loadBtn;
+    const executeBtn = actionButtons.executeBtn;
+    const deleteBtn = actionButtons.deleteBtn;
 
     card.innerHTML = `
         <div class="card-header" data-target="${cardId}">
@@ -427,6 +727,7 @@ function buildScreenerCard(result, isCustom = false) {
                 <span class="card-name">${result.screenerName || 'Screener'}</span>
                 <span class="card-badge" style="background-color: var(--primary); color: #fff;">Screener</span>
                 ${loadFiltersBtn}
+                ${executeBtn}
                 ${deleteBtn}
             </div>
             <span class="card-stats">Last run: ${timeAgo(result.updatedAt)} · Found: ${result.resultsFound || 0}${(() => { const d = formatDuration(result.executionTimeMs); return d ? ` · ⏱ ${d}` : ''; })()}</span>
@@ -1748,6 +2049,7 @@ async function executeSelected() {
 
 async function cancelExecution() {
     try {
+        window.cancellationRequested = true;
         await API.post('/api/cancel');
         showToast('Cancellation requested');
     } catch (e) {
@@ -2099,6 +2401,19 @@ function clearDashboardFilter(prefix) {
     }
 }
 
+if (typeof window !== 'undefined') {
+    window.renderCardActionButtons = renderCardActionButtons;
+    window.showDeleteConfirmationModal = showDeleteConfirmationModal;
+    window.deleteCardWithAnimation = deleteCardWithAnimation;
+    window.confirmDeleteCustomResult = confirmDeleteCustomResult;
+    window.deleteCustomResult = deleteCustomResult;
+    window.confirmDeleteCustomScreenerResult = confirmDeleteCustomScreenerResult;
+    window.promptDeleteCustomScreenerResult = promptDeleteCustomScreenerResult;
+    window.deleteCustomScreenerResult = deleteCustomScreenerResult;
+    window.updateExecuteAllButtonState = updateExecuteAllButtonState;
+    window.executeAllCustomCards = executeAllCustomCards;
+}
+
 // CommonJS Exports
 if (typeof module !== 'undefined' && module.exports) {
     const utils = require('./utils');
@@ -2106,11 +2421,17 @@ if (typeof module !== 'undefined' && module.exports) {
     Object.assign(global, utils, authApi);
 
     module.exports = {
+        renderCardActionButtons,
+        showDeleteConfirmationModal,
+        deleteCardWithAnimation,
+        updateExecuteAllButtonState,
+        executeAllCustomCards,
         buildResultCard,
         renderTermGroups,
         computeTermDteRange,
         confirmDeleteCustomResult,
         deleteCustomResult,
+        confirmDeleteCustomScreenerResult,
         promptDeleteCustomScreenerResult,
         deleteCustomScreenerResult,
         buildScreenerCard,

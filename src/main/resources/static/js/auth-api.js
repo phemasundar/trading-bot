@@ -61,10 +61,22 @@ async function initAuth() {
             const roleRes = await API.get('/api/auth/role');
             window._userRole = roleRes.role || 'ADMIN';
             window._allowedPages = roleRes.allowedPages || [];
+            if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('userRole', window._userRole);
+                sessionStorage.setItem('allowedPages', JSON.stringify(window._allowedPages));
+            }
         } catch (e) {
             console.warn('Role fetch failed, defaulting to ADMIN:', e);
             window._userRole = 'ADMIN';
             window._allowedPages = [];
+        }
+
+        if (window._userRole === 'ADMIN') {
+            if (typeof document !== 'undefined' && document.documentElement) {
+                document.documentElement.removeAttribute('data-user-role');
+            }
+            const earlyStyle = typeof document !== 'undefined' && document.getElementById('rbac-early-style');
+            if (earlyStyle) earlyStyle.remove();
         }
 
         // Enforce page access for READONLY users
@@ -150,6 +162,10 @@ function injectUserInfo(user) {
  */
 async function logout() {
     localStorage.removeItem('authRedirectReason');
+    if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('userRole');
+        sessionStorage.removeItem('allowedPages');
+    }
     if (_supabaseClient) {
         await _supabaseClient.auth.signOut();
     }
@@ -174,8 +190,9 @@ function applyReadOnlyRestrictions() {
 
     // Hide sidebar section titles that have no visible links, show sections that do
     document.querySelectorAll('.sidebar .sidebar-section').forEach(section => {
-        const visibleLinks = section.querySelectorAll('.nav-link:not([style*="display: none"])');
-        section.style.display = visibleLinks.length === 0 ? 'none' : '';
+        const links = section.querySelectorAll('.nav-link:not(.nav-link-logout)');
+        const hasVisible = Array.from(links).some(link => isPathAllowed(link.getAttribute('href'), window._allowedPages));
+        section.style.display = hasVisible ? '' : 'none';
     });
 }
 

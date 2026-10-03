@@ -80,6 +80,37 @@ public class CustomScreenerRepositoryTest {
     }
 
     @Test
+    public void testUpdateCustomScreenerResult_Success() throws IOException {
+        ScreenerExecutionResult result = ScreenerExecutionResult.builder()
+                .screenerId("101")
+                .screenerName("RSI Oversold")
+                .executionTimeMs(150)
+                .resultsFound(1)
+                .results(Collections.singletonList(
+                        TechnicalScreener.ScreeningResult.builder()
+                                .symbol("AAPL")
+                                .currentPrice(150.0)
+                                .rsi(25.0)
+                                .build()
+                ))
+                .build();
+
+        Map<String, Object> requestParams = new HashMap<>();
+        requestParams.put("screenerType", "RSI_OVERSOLD");
+
+        when(requestSpec.header(anyString(), anyString())).thenReturn(requestSpec);
+        when(requestSpec.body(anyString())).thenReturn(requestSpec);
+        when(requestSpec.patch(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn("[{\"id\":101}]");
+
+        repository.updateCustomScreenerResult(101L, result, List.of("AAPL"), requestParams);
+
+        verify(requestSpec).patch(contains("custom_screener_results?id=eq.101"));
+    }
+
+    @Test
     public void testSaveCustomScreenerResult_NullSecuritiesAndParams() throws IOException {
         ScreenerExecutionResult result = ScreenerExecutionResult.builder()
                 .screenerId("2")

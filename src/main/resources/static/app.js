@@ -31,6 +31,9 @@ if (typeof module !== 'undefined' && module.exports) {
     const securities = require('./js/securities');
     Object.assign(global, securities);
 
+    const learningCenter = require('./js/learning-center');
+    Object.assign(global, learningCenter);
+
     module.exports = {
         ...utils,
         ...authApi,
@@ -40,6 +43,7 @@ if (typeof module !== 'undefined' && module.exports) {
         ...configPage,
         ...logsPage,
         ...earningsCalendar,
-        ...securities
+        ...securities,
+        ...learningCenter
     };
 }

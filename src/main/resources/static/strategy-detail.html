@@ -4,11 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trading Bot — Securities</title>
-    <meta name="description" content="Technical analysis indicator tracking & multi-timeframe dashboard for securities">
+    <title>Strategy Guide — Learning Center</title>
+    <meta name="description" content="Detailed guide and documentation for options trading strategy">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/style.css?v=10">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css?v=11">
     <script src="/theme.js?v=3"></script>
 </head>
 
@@ -50,7 +50,7 @@
 
             <div class="sidebar-section">
                 <div class="sidebar-section-title">Research</div>
-                <a href="/securities.html" class="nav-link active">
+                <a href="/securities.html" class="nav-link">
                     <span class="nav-icon">📁</span>
                     <span>Securities</span>
                 </a>
@@ -62,7 +62,7 @@
 
             <div class="sidebar-section">
                 <div class="sidebar-section-title">Learning Center</div>
-                <a href="/option-strategies.html" class="nav-link">
+                <a href="/option-strategies.html" class="nav-link active">
                     <span class="nav-icon">📚</span>
                     <span>Option Strategies</span>
                 </a>
@@ -92,64 +92,57 @@
 
         <!-- Main Content -->
         <main class="main-content">
-            <div class="page-header-flex">
-                <div>
-                    <h1 class="page-title">Securities</h1>
-                    <p class="page-subtitle">Multi-timeframe technical indicator tracker powered by Supabase precalculations</p>
-                </div>
-                <div class="header-actions">
-                    <span class="badge badge-success" id="db-status-badge">
-                        <span class="status-dot"></span> Supabase Sync
-                    </span>
-                    <button class="btn btn-ghost" id="btn-toggle-all-blocks" onclick="toggleAllBlocks()">
-                        <span id="toggle-all-text">Expand All</span>
-                    </button>
-                </div>
+            <!-- Auth Loading Overlay -->
+            <div id="authLoading" class="auth-loading-overlay">
+                <div class="auth-spinner"></div>
+                <p>Authenticating…</p>
             </div>
 
-            <!-- Global Search & Filter Summary -->
-            <div class="securities-toolbar card">
-                <div class="toolbar-search-wrapper">
-                    <span class="search-icon">🔍</span>
-                    <input type="text" id="securities-global-search" class="form-input search-input"
-                           placeholder="Filter by symbol (e.g. NVDA, NBIS) or company name..."
-                           oninput="handleGlobalSearch(this.value)">
-                    <button id="clear-search-btn" class="btn-clear" onclick="clearSearch()" style="display:none;">✕</button>
+            <div class="strategy-detail-container">
+                <!-- Navigation & Switcher Header -->
+                <div class="strategy-detail-nav">
+                    <a href="/option-strategies.html" class="btn btn-ghost btn-sm" style="display:inline-flex; align-items:center; gap:6px;">
+                        <span>←</span>
+                        <span>Back to Option Strategies</span>
+                    </a>
+                    <div class="strategy-detail-actions">
+                        <div class="strategy-switcher-wrap">
+                            <label for="strategy-select-switcher" class="text-muted small" style="white-space:nowrap;">Switch:</label>
+                            <select id="strategy-select-switcher" class="strategy-select-switcher" aria-label="Switch Option Strategy">
+                                <option value="">Loading strategies...</option>
+                            </select>
+                        </div>
+                        <a id="execute-strategy-btn" href="/execute.html" class="btn btn-primary btn-sm" style="display:inline-flex; align-items:center; gap:6px;">
+                            <span>▶</span>
+                            <span>Execute Strategy</span>
+                        </a>
+                    </div>
                 </div>
-                <div class="filter-badges-bar" id="filter-config-summary">
-                    <span class="filter-summary-label">Active Indicators Config:</span>
-                    <span class="chip chip-indicator" id="chip-rsi">RSI: Loading...</span>
-                    <span class="chip chip-indicator" id="chip-bb">Bollinger: Loading...</span>
-                    <span class="chip chip-indicator" id="chip-ma">SMAs: Loading...</span>
-                    <span class="chip chip-indicator" id="chip-ema">EMAs: Loading...</span>
-                    <span class="chip chip-indicator" id="chip-vol">Volume: Loading...</span>
-                    <span class="chip chip-indicator" id="chip-vola">ATR/HV: Loading...</span>
-                </div>
-            </div>
 
-            <!-- Discovered Securities Groups Container -->
-            <div id="securities-groups-container" class="securities-groups-list">
-                <div class="loading-state">
-                    <div class="spinner"></div>
-                    <p>Discovering securities files and loading indicator data...</p>
+                <!-- Strategy Detail Card -->
+                <div class="card" style="padding: 28px 32px;">
+                    <div id="strategy-markdown-content" class="markdown-body">
+                        <div class="loading-state" style="padding: 40px 20px;">
+                            <div class="spinner"></div>
+                            <p>Loading strategy guide...</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="/js/utils.js?v=2"></script>
-    <script src="/js/auth-api.js?v=1"></script>
-    <script src="/js/securities.js?v=3"></script>
-    <script src="/app.js?v=7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="/js/utils.js?v=11"></script>
+    <script src="/js/auth-api.js?v=11"></script>
+    <script src="/js/learning-center.js?v=1"></script>
+    <script src="/app.js?v=8"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
-            const authed = await initAuth();
-            if (authed) {
-                initSecuritiesPage();
-            }
+            await initAuth();
+            await initStrategyDetailPage();
         });
     </script>
 </body>
-
 </html>

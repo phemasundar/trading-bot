@@ -60,7 +60,8 @@ public class BearerTokenFilter implements Filter {
 
     /** POST paths that mutate state — blocked for READONLY users. */
     private static final Set<String> WRITE_PATHS = Set.of(
-            "/api/execute", "/api/execute/custom", "/api/execute/custom-screener",
+            "/api/execute", "/api/execute/custom", "/api/execute/custom/batch",
+            "/api/execute/custom-screener", "/api/execute/custom-screener/batch",
             "/api/cancel", "/api/clear-errors", "/api/filter-logs/clear"
     );
 

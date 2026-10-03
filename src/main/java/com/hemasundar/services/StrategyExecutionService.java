@@ -16,6 +16,7 @@ import com.hemasundar.utils.SchwabApiExecutor;
 import com.hemasundar.utils.SecuritiesResolver;
 import com.hemasundar.utils.TelegramUtils;
 import com.hemasundar.utils.VolatilityCalculator;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.context.ApplicationEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -317,74 +318,119 @@ public class StrategyExecutionService {
      * @return ExecutionResult containing the single custom StrategyResult
      */
     public ExecutionResult executeCustomStrategy(OptionsConfig config, Long customResultId) {
-        startGlobalExecution(config.getName());
+        return executeCustomStrategies(
+                List.of(config),
+                customResultId != null ? List.of(customResultId) : Collections.emptyList()
+        );
+    }
+
+    /**
+     * Executes a batch of custom strategies sequentially in a single global execution.
+     *
+     * @param configs list of resolved strategy configurations to execute
+     * @param customResultIds corresponding list of database IDs to update in place (or null/0 to save)
+     * @return ExecutionResult containing all strategy results
+     */
+    public ExecutionResult executeCustomStrategies(List<OptionsConfig> configs, List<Long> customResultIds) {
+        if (CollectionUtils.isEmpty(configs)) {
+            log.warn("executeCustomStrategies called with empty configs list");
+            return null;
+        }
+
+        String initialTask = configs.size() > 1
+                ? String.format("Custom Strategy: %s (1 of %d)", configs.get(0).getName(), configs.size())
+                : configs.get(0).getName();
+        startGlobalExecution(initialTask);
         long startTime = executionStartTimeMs;
         String executionId = "exec_custom_" + startTime;
 
         try {
-            log.info("Starting custom execution: {} (customResultId: {})", executionId, customResultId);
+            log.info("Starting custom execution batch: {} ({} strategies)", executionId, configs.size());
 
             OptionChainCache cache = new OptionChainCache(ThinkOrSwimAPIs);
 
-            // ── Parallel Cache Pre-warm (Track A — Custom Execution) ──
-            // For strategies that do NOT use a technical filter, we know the full
-            // securities list upfront. Pre-warm the cache in parallel so that all
-            // subsequent cache.get() calls inside findTradesForStrategy are instant hits.
-            // Strategies WITH a technical filter are skipped here because their symbol
-            // list shrinks to the screened survivors — fetched lazily after screening.
-            List<String> customSymbols = config.getSecurities() != null
-                    ? config.getSecurities().stream().distinct().collect(Collectors.toList())
-                    : Collections.emptyList();
+            // Pre-warm quotes and technical indicators across all unique symbols
+            List<String> allSymbols = configs.stream()
+                    .filter(c -> c.getSecurities() != null)
+                    .flatMap(c -> c.getSecurities().stream())
+                    .distinct()
+                    .collect(Collectors.toList());
 
-            if (!customSymbols.isEmpty()) {
-                if (!config.hasTechnicalFilter()) {
-                    log.debug("Pre-warming option chain cache for {} symbols (custom execution)", customSymbols.size());
-                    cache.prewarm(customSymbols, schwabApiExecutor);
+            if (!allSymbols.isEmpty()) {
+                // Symbols without technical filters can prewarm option chains upfront
+                List<String> symbolsWithoutTechFilter = configs.stream()
+                        .filter(c -> !c.hasTechnicalFilter() && c.getSecurities() != null)
+                        .flatMap(c -> c.getSecurities().stream())
+                        .distinct()
+                        .collect(Collectors.toList());
+
+                if (!symbolsWithoutTechFilter.isEmpty()) {
+                    log.debug("Pre-warming option chain cache for {} symbols", symbolsWithoutTechFilter.size());
+                    cache.prewarm(symbolsWithoutTechFilter, schwabApiExecutor);
                 }
 
-                log.debug("Pre-warming quotes cache for {} unique symbols (custom execution)", customSymbols.size());
-                com.hemasundar.cache.QuotesCache.getInstance().prewarm(customSymbols, schwabApiExecutor,
+                log.debug("Pre-warming quotes cache for {} unique symbols (custom execution)", allSymbols.size());
+                com.hemasundar.cache.QuotesCache.getInstance().prewarm(allSymbols, schwabApiExecutor,
                         symbol -> ThinkOrSwimAPIs.getQuote(symbol, null),
                         (sourceContext, errorMsg) -> log.warn("Quotes prewarm error: {}", errorMsg));
 
-                technicalIndicatorPreCalculationService.preCalculateAll(customSymbols,
+                technicalIndicatorPreCalculationService.preCalculateAll(allSymbols,
                         (sourceContext, errorMsg) -> log.warn("Technical pre-calc error: {}", errorMsg));
             }
 
-            // Execute the single custom strategy
-            StrategyResult result = executeStrategy(config, cache, true);
+            List<StrategyResult> results = new ArrayList<>();
+            int totalTrades = 0;
 
-            // Build execution result wrapper
-            ExecutionResult executionResult = ExecutionResult.builder()
-                    .executionId(executionId)
-                    .timestamp(LocalDateTime.now())
-                    .results(List.of(result))
-                    .totalTradesFound(result.getTradesFound())
-                    .totalExecutionTimeMs(System.currentTimeMillis() - startTime)
-                    .telegramSent(true) // Telegram is sent during strategy execution
-                    .build();
-
-            // Save or update in Supabase custom_execution_results table (NOT the dashboard
-            // table)
-            try {
-                if (customResultId != null && customResultId > 0) {
-                    supabaseService.updateCustomExecutionResult(customResultId, result, config.getSecurities());
-                    log.debug("Updated custom execution result in Supabase: id={}", customResultId);
-                } else {
-                    supabaseService.saveCustomExecutionResult(result, config.getSecurities());
-                    log.debug("Saved custom execution result to Supabase: {}", executionId);
+            for (int i = 0; i < configs.size(); i++) {
+                if (cancellationRequested.get() || authFailed.get()) {
+                    log.info("Custom execution batch cancelled or auth failed (cancelled={}, authFailed={})",
+                            cancellationRequested.get(), authFailed.get());
+                    break;
                 }
-            } catch (IOException e) {
-                addAlert(ExecutionAlert.Severity.WARNING, AlertMessages.SRC_SUPABASE,
-                        customResultId != null && customResultId > 0
-                                ? AlertMessages.UPDATE_CUSTOM_RESULT_FAILED
-                                : AlertMessages.SAVE_CUSTOM_RESULT_FAILED);
+
+                OptionsConfig config = configs.get(i);
+                Long customResultId = (customResultIds != null && i < customResultIds.size()) ? customResultIds.get(i) : null;
+                setCurrentExecutionTask(String.format("Custom Strategy: %s (%d of %d)", config.getName(), i + 1, configs.size()));
+
+                try {
+                    StrategyResult result = executeStrategy(config, cache, true);
+                    results.add(result);
+                    totalTrades += result.getTradesFound();
+
+                    try {
+                        if (customResultId != null && customResultId > 0) {
+                            supabaseService.updateCustomExecutionResult(customResultId, result, config.getSecurities());
+                            log.debug("Updated custom execution result in Supabase: id={}", customResultId);
+                        } else {
+                            supabaseService.saveCustomExecutionResult(result, config.getSecurities());
+                            log.debug("Saved custom execution result to Supabase: {}", config.getName());
+                        }
+                    } catch (IOException e) {
+                        addAlert(ExecutionAlert.Severity.WARNING, AlertMessages.SRC_SUPABASE,
+                                customResultId != null && customResultId > 0
+                                        ? AlertMessages.UPDATE_CUSTOM_RESULT_FAILED
+                                        : AlertMessages.SAVE_CUSTOM_RESULT_FAILED);
+                    }
+                } catch (Throwable t) {
+                    log.error("Error executing custom strategy: {}", config.getName(), t);
+                    addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_EXECUTION,
+                            String.format("Error executing %s: %s", config.getName(), t.getMessage()));
+                }
             }
 
             // Print cache statistics
             cache.printStats();
 
-            log.info("Custom Execution completed: {} total trades, {}ms",
+            ExecutionResult executionResult = ExecutionResult.builder()
+                    .executionId(executionId)
+                    .timestamp(LocalDateTime.now())
+                    .results(results)
+                    .totalTradesFound(totalTrades)
+                    .totalExecutionTimeMs(System.currentTimeMillis() - startTime)
+                    .telegramSent(true)
+                    .build();
+
+            log.info("Custom execution completed: {} total trades, {}ms",
                     executionResult.getTotalTradesFound(), executionResult.getTotalExecutionTimeMs());
 
             return executionResult;

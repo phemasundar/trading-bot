@@ -945,10 +945,37 @@ function loadScreenerTemplateParams(screenerJson) {
     }
 }
 
-function loadScreenerFiltersFromResult(paramsJson, event) {
-    if (event) event.stopPropagation();
+function loadScreenerFiltersFromResult(paramOrBtn, eventOrReexecute = false) {
+    let params;
+    let isReexecute = false;
+    let screenerName = '';
+
+    if (paramOrBtn && (paramOrBtn.dataset || paramOrBtn.nodeType)) {
+        const btn = paramOrBtn;
+        isReexecute = eventOrReexecute === true;
+        const rawParams = decodeAttr(btn.dataset.requestParams || btn.dataset.filterConfig || '');
+        screenerName = decodeAttr(btn.dataset.screenerName || btn.dataset.strategyName || '');
+        try {
+            params = typeof rawParams === 'string' ? JSON.parse(rawParams) : rawParams;
+        } catch (e) {
+            params = null;
+        }
+    } else if (typeof paramOrBtn === 'string') {
+        if (eventOrReexecute && eventOrReexecute.stopPropagation) eventOrReexecute.stopPropagation();
+        isReexecute = false;
+        try {
+            params = JSON.parse(decodeAttr(paramOrBtn));
+        } catch (e) {
+            params = null;
+        }
+    } else if (paramOrBtn && typeof paramOrBtn === 'object') {
+        if (eventOrReexecute && eventOrReexecute.stopPropagation) eventOrReexecute.stopPropagation();
+        isReexecute = eventOrReexecute === true;
+        params = paramOrBtn;
+    }
+
     try {
-        const params = JSON.parse(decodeAttr(paramsJson));
+        if (!params) throw new Error('No screener parameters found');
 
         const typeEl = document.getElementById('screener-type');
         if (typeEl && params.screenerType) {
@@ -957,46 +984,77 @@ function loadScreenerFiltersFromResult(paramsJson, event) {
         }
 
         const aliasEl = document.getElementById('screener-alias-input');
-        if (aliasEl) aliasEl.value = params.alias || '';
+        if (aliasEl) {
+            const rawName = params.alias !== undefined ? params.alias : (screenerName || '');
+            if (isReexecute) {
+                aliasEl.value = rawName ? rawName.replace(/\s*\(Reload\)$/, '') : '';
+            } else {
+                aliasEl.value = rawName || '';
+            }
+        }
 
         const secFileEl = document.getElementById('screener-securities-file-input');
-        if (secFileEl) secFileEl.value = params.securitiesFile || '';
+        if (secFileEl && params.securitiesFile !== undefined) secFileEl.value = params.securitiesFile || '';
 
         const secEl = document.getElementById('screener-securities-input');
-        if (secEl) secEl.value = params.securities || '';
+        if (secEl && params.securities !== undefined) secEl.value = params.securities || '';
 
         fillTechFiltersForm(params.technicalFilters);
 
-        const firstCard = document.querySelector('.main-content .card');
-        if (firstCard) firstCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-        showToast('Filters loaded from history!');
+        if (!isReexecute) {
+            const firstCard = document.querySelector('.main-content .card');
+            if (firstCard) firstCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            showToast('Filters loaded from previous execution. Verify inputs before running.');
+        }
     } catch (e) {
         console.error('loadScreenerFiltersFromResult error:', e);
-        showToast('Error loading filters from result', 'error');
+        showToast('Failed to load filters', 'error');
     }
 }
 
-async function executeCustomScreener() {
-    const type = document.getElementById('screener-type').value;
-    if (!type) { showToast('Select a screener type', 'error'); return; }
+async function reexecuteCustomScreener(btn, screenerId) {
+    if (!screenerId) return;
 
-    const alias            = document.getElementById('screener-alias-input').value.trim() || null;
-    const securitiesFile   = document.getElementById('screener-securities-file-input').value.trim() || null;
-    const securities       = document.getElementById('screener-securities-input').value.trim() || null;
-
-    if (!securitiesFile && !securities) {
-        showToast('Provide a securities file or tickers', 'error');
+    const progress = document.getElementById('screener-custom-progress');
+    if (progress && (progress.classList.contains('active') || progress.style.display === 'block')) {
+        showToast('An execution is already in progress', 'error');
         return;
     }
+
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Executing...';
+
+    try {
+        loadScreenerFiltersFromResult(btn, true);
+        const success = await executeCustomScreener(screenerId);
+        if (success === false) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    } catch (e) {
+        console.error('Error re-executing custom screener:', e);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+function getCustomScreenerPayload(customResultId = null) {
+    const type = document.getElementById('screener-type')?.value;
+    if (!type) return null;
+
+    const alias            = document.getElementById('screener-alias-input')?.value.trim() || null;
+    const securitiesFile   = document.getElementById('screener-securities-file-input')?.value.trim() || null;
+    const securities       = document.getElementById('screener-securities-input')?.value.trim() || null;
+
+    if (!securitiesFile && !securities) return null;
 
     let technicalFilters;
     try {
         const container = document.getElementById('screener-tech-filters-container');
         technicalFilters = getTechnicalFiltersFromDOM(container || document);
     } catch (e) {
-        showToast(e.message, 'error');
-        return;
+        return null;
     }
 
     const payload = {
@@ -1007,23 +1065,56 @@ async function executeCustomScreener() {
         technicalFilters
     };
 
+    if (customResultId) {
+        payload.customResultId = Number(customResultId);
+    }
+
     Object.keys(payload).forEach(k => {
         if (payload[k] === null || payload[k] === false || payload[k] === '') delete payload[k];
     });
+
+    return payload;
+}
+
+async function executeCustomScreener(customResultId = null, isBatch = false) {
+    const type = document.getElementById('screener-type')?.value;
+    if (!type) { showToast('Select a screener type', 'error'); return false; }
+
+    const securitiesFile = document.getElementById('screener-securities-file-input')?.value.trim() || null;
+    const securities     = document.getElementById('screener-securities-input')?.value.trim() || null;
+
+    if (!securitiesFile && !securities) {
+        showToast('Provide a securities file or tickers', 'error');
+        return false;
+    }
+
+    const payload = getCustomScreenerPayload(customResultId);
+    if (!payload) {
+        showToast('Failed to build screener parameters', 'error');
+        return false;
+    }
 
     try {
         setCustomScreenerBusy(true);
         const res = await API.post('/api/execute/custom-screener', payload);
         showToast(res.message);
         startTimer(Date.now());
+        if (isBatch) {
+            await pollUntilComplete();
+            return true;
+        }
         startPolling(() => {
             setCustomScreenerBusy(false);
-            loadCustomScreenerResults();
+            stopTimer();
+            loadCustomScreenerResults(customResultId);
             showToast('Screener execution completed!');
         });
+        return true;
     } catch (e) {
         setCustomScreenerBusy(false);
         showToast(e.message, 'error');
+        if (isBatch) throw e;
+        return false;
     }
 }
 
@@ -1107,22 +1198,76 @@ function getTechnicalFiltersFromDOM(container = document) {
     return technicalFilters;
 }
 
-async function loadCustomScreenerResults() {
+async function loadCustomScreenerResults(updatedResultId = null) {
     const container = document.getElementById('screener-custom-results');
     if (!container) return;
     try {
+        const openCardIds = new Set();
+        container.querySelectorAll('.card-content.open').forEach(el => {
+            const id = el.id.replace(/^content-/, '');
+            openCardIds.add(id);
+        });
+
         const results = await API.get('/api/results/custom/screeners');
         container.innerHTML = '';
+        if (typeof updateExecuteAllButtonState === 'function') {
+            updateExecuteAllButtonState({
+                btnId: 'execute-all-screener-btn',
+                countBadgeId: 'screener-custom-results-count-badge',
+                count: results ? results.length : 0
+            });
+        }
         if (!results || results.length === 0) {
             container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔬</div>No screener results yet. Run a custom screener above.</div>';
-        } else {
-            for (const r of results) {
-                container.appendChild(buildScreenerCard(r, true));
+            return;
+        }
+        for (const r of results) {
+            const cardEl = buildScreenerCard(r, true);
+            container.appendChild(cardEl);
+            const cardId = (r.screenerId || '').replace(/\s+/g, '-');
+            const shouldOpen = openCardIds.has(cardId) || (updatedResultId && String(r.screenerId) === String(updatedResultId));
+            if (shouldOpen && r.results && r.results.length > 0) {
+                const content = cardEl.querySelector(`[id="content-${cardId}"]`);
+                const arrow = cardEl.querySelector(`[id="arrow-${cardId}"]`);
+                if (content) content.classList.add('open');
+                if (arrow) arrow.classList.add('open');
             }
         }
     } catch (e) {
         container.innerHTML = `<div class="empty-state text-danger">Failed to load results: ${e.message}</div>`;
+        if (typeof updateExecuteAllButtonState === 'function') {
+            updateExecuteAllButtonState({
+                btnId: 'execute-all-screener-btn',
+                countBadgeId: 'screener-custom-results-count-badge',
+                count: 0
+            });
+        }
     }
+}
+
+function reexecuteAllCustomScreeners() {
+    return executeAllCustomCards({
+        containerId: 'screener-custom-results',
+        executeAllBtnId: 'execute-all-screener-btn',
+        cardBtnSelector: 'button[onclick*="reexecuteCustomScreener"]',
+        batchApiEndpoint: '/api/execute/custom-screener/batch',
+        buildRequestFn: (card, execBtn) => {
+            loadScreenerFiltersFromResult(execBtn, true);
+            const onclickAttr = execBtn.getAttribute('onclick') || '';
+            const match = onclickAttr.match(/reexecuteCustomScreener\(\s*this\s*,\s*['"]?([^'")]+)['"]?\s*\)/);
+            const customResultId = match ? match[1] : null;
+            return getCustomScreenerPayload(customResultId);
+        },
+        loadFiltersFn: (btn) => loadScreenerFiltersFromResult(btn, true),
+        executeFn: (id) => executeCustomScreener(id, true),
+        reloadResultsFn: () => loadCustomScreenerResults(),
+        entityNameSingular: 'custom screener',
+        entityNamePlural: 'custom screeners',
+        isProgressActiveFn: () => {
+            const p = document.getElementById('screener-custom-progress');
+            return p && (p.style.display === 'block' || p.classList.contains('active'));
+        }
+    });
 }
 
 async function checkCustomScreenerExecutionStatus() {
@@ -1132,9 +1277,21 @@ async function checkCustomScreenerExecutionStatus() {
         if (status.running) {
             window.currentExecutionTaskName = status.currentTask || '';
             setCustomScreenerBusy(true);
+            const execAllBtn = document.getElementById('execute-all-screener-btn');
+            if (execAllBtn) {
+                execAllBtn.disabled = true;
+                execAllBtn.innerHTML = '⏳ Executing...';
+            }
+            document.querySelectorAll('button[onclick*="reexecuteCustomScreener"]').forEach(b => b.disabled = true);
             startTimer(status.startTimeMs);
             startPolling(() => {
                 setCustomScreenerBusy(false);
+                stopTimer();
+                if (execAllBtn) {
+                    execAllBtn.disabled = false;
+                    execAllBtn.innerHTML = '▶ Execute All';
+                }
+                document.querySelectorAll('button[onclick*="reexecuteCustomScreener"]').forEach(b => b.disabled = false);
                 loadCustomScreenerResults();
                 showToast('Screener execution completed!');
             });
@@ -1169,6 +1326,9 @@ if (typeof window !== 'undefined') {
     window.renderScreenerTemplates = renderScreenerTemplates;
     window.loadScreenerTemplateParams = loadScreenerTemplateParams;
     window.loadScreenerFiltersFromResult = loadScreenerFiltersFromResult;
+    window.reexecuteCustomScreener = reexecuteCustomScreener;
+    window.reexecuteAllCustomScreeners = reexecuteAllCustomScreeners;
+    window.getCustomScreenerPayload = getCustomScreenerPayload;
     window.executeCustomScreener = executeCustomScreener;
     window.getTechnicalFiltersFromDOM = getTechnicalFiltersFromDOM;
     window.loadCustomScreenerResults = loadCustomScreenerResults;
@@ -1205,6 +1365,9 @@ if (typeof module !== 'undefined' && module.exports) {
         renderScreenerTemplates,
         loadScreenerTemplateParams,
         loadScreenerFiltersFromResult,
+        reexecuteCustomScreener,
+        reexecuteAllCustomScreeners,
+        getCustomScreenerPayload,
         executeCustomScreener,
         getTechnicalFiltersFromDOM,
         loadCustomScreenerResults,
