@@ -87,8 +87,8 @@
             <h1 class="page-title">Screeners Dashboard</h1>
             <p class="page-subtitle">Real-time technical screener execution monitor</p>
 
-            <!-- Screener Selector -->
-            <div class="card">
+            <!-- Screener Selector (admin only) -->
+            <div class="card" data-admin-only>
                 <div class="collapsible-header" onclick="toggleSection('screener-section')">
                     <span class="card-arrow" id="arrow-screener-section">▶</span>
                     <h3 style="font-size:0.9rem; margin:0; color:var(--text-secondary)">Technical Screeners</h3>
@@ -105,8 +105,8 @@
                 </div>
             </div>
 
-            <!-- Execution Controls -->
-            <div class="flex gap-sm items-center mb-md">
+            <!-- Execution Controls (admin only) -->
+            <div class="flex gap-sm items-center mb-md" data-admin-only>
                 <button class="btn btn-primary" id="execute-btn" onclick="executeScreenersSelected()">
                     ▶ Execute Selected
                 </button>
@@ -115,8 +115,8 @@
                 </button>
             </div>
 
-            <!-- Progress -->
-            <div class="progress-container" id="progress-container">
+            <!-- Progress (admin only) -->
+            <div class="progress-container" id="progress-container" data-admin-only>
                 <div class="progress-bar">
                     <div class="progress-fill" style="width:30%"></div>
                 </div>

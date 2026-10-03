@@ -610,9 +610,24 @@ The app uses **Supabase Auth** with Google and Apple OAuth for user authenticati
 2. Supabase issues a JWT (signed with ECC P-256 / ES256)
 3. The frontend automatically attaches the JWT to all API requests
 4. The backend `BearerTokenFilter` fetches Supabase's public key from the JWKS endpoint (cached 24 hours) and verifies the JWT signature — **no secret needed**
-5. Optionally, access is restricted to specific emails via `ALLOWED_EMAILS`
+5. Access is restricted to specific emails via `security.allowed-emails` (or `ALLOWED_EMAILS` environment variable)
+6. User roles (**Admin** vs **Read Only**) are resolved based on `security.readonly-emails` (or `READONLY_EMAILS` environment variable):
+   - **Admin / Normal User**: Has full execution and configuration privileges across all screens.
+   - **Read Only User**: Limited to viewing allowed screens defined in `roles-config.yml` (default: Options Dashboard `/index.html` and Screeners Dashboard `/screeners.html`). Strategy execution forms, action buttons, and other pages are hidden/restricted, and mutating endpoints (`POST /api/execute`, `DELETE`, etc.) return `403 Forbidden`.
 
 > **JWKS endpoint**: `https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json` (auto-derived from `SUPABASE_URL`)
+
+#### Role-Based Access Control (`roles-config.yml`)
+
+The screens viewable by read-only users are externalized in `src/main/resources/roles-config.yml`:
+
+```yaml
+readonly:
+  allowed-pages:
+    - /
+    - /index.html
+    - /screeners.html
+```
 
 #### Supabase Dashboard Setup
 
@@ -816,7 +831,8 @@ The app uses **Supabase Auth** with Google and Apple OAuth for user authenticati
 2. Supabase issues a JWT (signed with ECC P-256 / ES256)
 3. The frontend automatically attaches the JWT to all API requests
 4. The backend `BearerTokenFilter` fetches Supabase's public key from the JWKS endpoint (cached 24 hours) and verifies the JWT signature — **no secret needed**
-5. Optionally, access is restricted to specific emails via `ALLOWED_EMAILS`
+5. Access is restricted to specific emails via `security.allowed-emails` (or `ALLOWED_EMAILS` environment variable)
+6. User roles (**Admin** vs **Read Only**) are resolved based on `security.readonly-emails` (or `READONLY_EMAILS` environment variable), with read-only screens configured in `roles-config.yml`
 
 > **JWKS endpoint**: `https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json` (auto-derived from `SUPABASE_URL`)
 

@@ -65,6 +65,9 @@ public class StrategyExecutionControllerTest {
     @Mock
     private com.hemasundar.utils.WikipediaSecuritiesFetcher wikipediaFetcher;
 
+    @Mock
+    private com.hemasundar.config.RolesConfigLoader rolesConfigLoader;
+
     private StrategyExecutionController strategyController;
     private AuthConfigController authConfigController;
     private ScreenerController screenerController;
@@ -78,7 +81,7 @@ public class StrategyExecutionControllerTest {
     public void setup() {
         MockitoAnnotations.openMocks(this);
         strategyController = new StrategyExecutionController(executionService, screenerExecutionService, securitiesResolver, ThinkOrSwimAPIs, strategiesConfigLoader, authErrorUtils, java.util.Optional.empty(), wikipediaFetcher);
-        authConfigController = new AuthConfigController(supabaseConfig);
+        authConfigController = new AuthConfigController(supabaseConfig, rolesConfigLoader);
         screenerController = new ScreenerController(screenerExecutionService, executionService, supabaseService, securitiesResolver, strategiesConfigLoader, wikipediaFetcher);
         securitiesController = new SecuritiesController(securitiesResolver);
         configController = new ConfigController();

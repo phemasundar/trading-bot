@@ -1760,6 +1760,23 @@ textarea::placeholder {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+/* ── Role Badge ── */
+.role-badge {
+    font-size: 0.6rem;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.role-badge.readonly {
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--warning);
+}
 /* ═══════════════════════════════════════════════
    EXECUTION LOGS PAGE (logs.html)
    ═══════════════════════════════════════════════ */
