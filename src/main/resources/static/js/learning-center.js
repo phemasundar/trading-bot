@@ -418,7 +418,10 @@ async function initStrategyDetailPage() {
         }
 
         if (contentEl) {
-            if (typeof marked !== 'undefined') {
+            if (typeof renderMarkdown === 'function') {
+                contentEl.innerHTML = renderMarkdown(markdownText);
+            } else if (typeof marked !== 'undefined') {
+                if (typeof initMarkedMath === 'function') initMarkedMath();
                 contentEl.innerHTML = marked.parse(markdownText);
             } else {
                 contentEl.innerHTML = `<pre style="white-space: pre-wrap; font-family: var(--font-sans);">${escapeAttr(markdownText)}</pre>`;
@@ -821,7 +824,10 @@ async function initGreekDetailPage() {
         }
 
         if (contentEl) {
-            if (typeof marked !== 'undefined') {
+            if (typeof renderMarkdown === 'function') {
+                contentEl.innerHTML = renderMarkdown(markdownText);
+            } else if (typeof marked !== 'undefined') {
+                if (typeof initMarkedMath === 'function') initMarkedMath();
                 contentEl.innerHTML = marked.parse(markdownText);
             } else {
                 contentEl.innerHTML = `<pre style="white-space: pre-wrap; font-family: var(--font-sans);">${escapeAttr(markdownText)}</pre>`;

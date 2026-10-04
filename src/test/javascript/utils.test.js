@@ -25,7 +25,9 @@ const {
     loadFilterDescriptions,
     showInfo,
     autoAdjustSelectWidth,
-    pollUntilComplete
+    pollUntilComplete,
+    initMarkedMath,
+    renderMarkdown
 } = require('../../main/resources/static/app');
 
 Element.prototype.scrollIntoView = jest.fn();
@@ -252,5 +254,48 @@ describe('App Utility Functions', () => {
         expect(global.API.get).toHaveBeenCalledWith('/api/status');
 
         jest.useRealTimers();
+    });
+
+    test('renderMarkdown handles empty input and fallback escaping', () => {
+        expect(renderMarkdown('')).toBe('');
+        expect(renderMarkdown(null)).toBe('');
+        expect(renderMarkdown(undefined)).toBe('');
+
+        const savedMarked = global.marked;
+        delete global.marked;
+        const fallback = renderMarkdown('# Title & Test');
+        expect(fallback).toContain('<pre style="white-space: pre-wrap; font-family: var(--font-sans);">');
+        expect(fallback).toContain('# Title &amp; Test');
+        global.marked = savedMarked;
+    });
+
+    test('renderMarkdown and initMarkedMath configure KaTeX extension on marked', () => {
+        const mockUse = jest.fn();
+        global.marked = {
+            parse: jest.fn(text => `<p>${text}</p>`),
+            use: mockUse
+        };
+
+        const mockExt = jest.fn(() => ({ id: 'mock-katex' }));
+        global.markedKatex = mockExt;
+
+        initMarkedMath();
+        expect(mockUse).toHaveBeenCalled();
+        expect(mockExt).toHaveBeenCalledWith(expect.objectContaining({
+            throwOnError: false,
+            nonStandard: true,
+            strict: false
+        }));
+
+        // Calling again should not re-register because of __katexConfigured
+        initMarkedMath();
+        expect(mockUse).toHaveBeenCalledTimes(1);
+
+        const rendered = renderMarkdown('$$x^2$$');
+        expect(global.marked.parse).toHaveBeenCalledWith('$$x^2$$');
+        expect(rendered).toBe('<p>$$x^2$$</p>');
+
+        delete global.marked;
+        delete global.markedKatex;
     });
 });

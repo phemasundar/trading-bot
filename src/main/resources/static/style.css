@@ -1529,6 +1529,19 @@ textarea::placeholder {
     color: var(--text-primary);
 }
 
+/* KaTeX formula display styling */
+.markdown-body .katex-display {
+    margin: 1.25em 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 6px 0;
+}
+
+.markdown-body .katex {
+    color: var(--text-primary);
+    font-size: 1.05em;
+}
+
 /* ── Tooltip Balloon (Speech Balloon) ── */
 .tooltip-balloon {
     position: fixed;

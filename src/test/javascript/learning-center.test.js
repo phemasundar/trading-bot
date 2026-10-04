@@ -610,4 +610,55 @@ describe('Learning Center & Option Strategies Tests', () => {
 
         expect(document.getElementById('greek-markdown-content').innerHTML).toContain('Greek Guide Not Found');
     });
+
+    test('initStrategyDetailPage uses renderMarkdown when available in environment', async () => {
+        window.history.pushState({}, '', '/strategy-detail.html?strategy=bullish_zebra.md');
+
+        document.body.innerHTML = `
+            <h1 id="strategy-detail-title"></h1>
+            <select id="strategy-select-switcher"></select>
+            <div id="strategy-markdown-content"></div>
+        `;
+
+        API.get = jest.fn().mockResolvedValue([]);
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            text: () => Promise.resolve("# Bullish Zebra\nFormula: $$\\text{EXTRINSIC} = 10$$")
+        });
+
+        const mockRenderMarkdown = jest.fn(text => `<div class="katex-rendered">${text}</div>`);
+        global.renderMarkdown = mockRenderMarkdown;
+
+        await initStrategyDetailPage();
+
+        expect(mockRenderMarkdown).toHaveBeenCalled();
+        expect(document.getElementById('strategy-markdown-content').innerHTML).toContain('katex-rendered');
+
+        delete global.renderMarkdown;
+    });
+
+    test('initGreekDetailPage uses renderMarkdown when available in environment', async () => {
+        window.history.pushState({}, '', '/greek-detail.html?greek=delta');
+
+        document.body.innerHTML = `
+            <select id="greek-select-switcher"></select>
+            <div id="greek-markdown-content"></div>
+        `;
+
+        API.get = jest.fn().mockResolvedValue([]);
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            text: () => Promise.resolve("# Delta\nFormula: $$\\Delta = 0.5$$")
+        });
+
+        const mockRenderMarkdown = jest.fn(text => `<div class="katex-rendered">${text}</div>`);
+        global.renderMarkdown = mockRenderMarkdown;
+
+        await initGreekDetailPage();
+
+        expect(mockRenderMarkdown).toHaveBeenCalled();
+        expect(document.getElementById('greek-markdown-content').innerHTML).toContain('katex-rendered');
+
+        delete global.renderMarkdown;
+    });
 });
