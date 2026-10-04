@@ -8,7 +8,6 @@ import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
 import org.mockito.MockedStatic;
-import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -24,9 +23,6 @@ import static org.testng.Assert.*;
 
 public class FinnHubAPIsTest {
 
-    private MockedStatic<RestAssured> mockedRestAssured;
-    private MockedStatic<EarningsCacheManager> mockedCacheManager;
-    
     @Mock
     private FinnHubConfig mockConfig;
     
@@ -38,70 +34,72 @@ public class FinnHubAPIsTest {
     @BeforeMethod
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        mockedRestAssured = mockStatic(RestAssured.class);
-        mockedCacheManager = mockStatic(EarningsCacheManager.class);
-        
         when(mockConfig.getApiKey()).thenReturn("test-key");
         apis = new FinnHubAPIs(mockConfig, mockApiErrorHandler);
     }
 
-    @AfterMethod
-    public void tearDown() {
-        mockedRestAssured.close();
-        mockedCacheManager.close();
-    }
-
     @Test
     public void testGetEarningsByTicker_CacheHit() {
-        EarningsCalendarResponse.EarningCalendar earning = new EarningsCalendarResponse.EarningCalendar();
-        earning.setSymbol("AAPL");
-        earning.setDate(LocalDate.now().plusDays(1));
-        
-        when(EarningsCacheManager.getEarningsFromCache(anyString(), any())).thenReturn(Collections.singletonList(earning));
+        try (MockedStatic<EarningsCacheManager> mockedCacheManager = mockStatic(EarningsCacheManager.class)) {
+            EarningsCalendarResponse.EarningCalendar earning = new EarningsCalendarResponse.EarningCalendar();
+            earning.setSymbol("AAPL");
+            earning.setDate(LocalDate.now().plusDays(1));
+            
+            mockedCacheManager.when(() -> EarningsCacheManager.getEarningsFromCache(anyString(), any()))
+                    .thenReturn(Collections.singletonList(earning));
 
-        EarningsCalendarResponse response = apis.getEarningsByTicker("AAPL", LocalDate.now().plusDays(10));
-        
-        assertNotNull(response);
-        assertEquals(response.getEarningsCalendar().size(), 1);
-        mockedRestAssured.verify(() -> RestAssured.given(), never());
+            EarningsCalendarResponse response = apis.getEarningsByTicker("AAPL", LocalDate.now().plusDays(10));
+            
+            assertNotNull(response);
+            assertEquals(response.getEarningsCalendar().size(), 1);
+        }
     }
 
     @Test
     public void testGetEarningsByTicker_FreshFetch() {
-        when(EarningsCacheManager.getEarningsFromCache(anyString(), any())).thenReturn(null);
-        
-        RequestSpecification mockRequest = mock(RequestSpecification.class);
-        Response mockResponse = mock(Response.class);
-        
-        when(RestAssured.given()).thenReturn(mockRequest);
-        when(mockRequest.baseUri(anyString())).thenReturn(mockRequest);
-        when(mockRequest.queryParam(anyString(), (Object) any())).thenReturn(mockRequest);
-        when(mockRequest.get(anyString())).thenReturn(mockResponse);
-        
-        when(mockResponse.statusCode()).thenReturn(200);
-        when(mockResponse.asPrettyString()).thenReturn("{\"earningsCalendar\": []}");
+        try (MockedStatic<RestAssured> mockedRestAssured = mockStatic(RestAssured.class);
+             MockedStatic<EarningsCacheManager> mockedCacheManager = mockStatic(EarningsCacheManager.class)) {
+            mockedCacheManager.when(() -> EarningsCacheManager.getEarningsFromCache(anyString(), any())).thenReturn(null);
+            
+            RequestSpecification mockRequest = mock(RequestSpecification.class);
+            Response mockResponse = mock(Response.class);
+            
+            mockedRestAssured.when(RestAssured::given).thenReturn(mockRequest);
+            when(mockRequest.baseUri(anyString())).thenReturn(mockRequest);
+            when(mockRequest.queryParam(anyString(), (Object) any())).thenReturn(mockRequest);
+            when(mockRequest.get(anyString())).thenReturn(mockResponse);
+            
+            LocalDate futureDate = LocalDate.now().plusDays(5);
+            when(mockResponse.statusCode()).thenReturn(200);
+            when(mockResponse.asPrettyString()).thenReturn("{\"earningsCalendar\": [{\"symbol\": \"AAPL\", \"date\": \"" + futureDate + "\"}]}");
 
-        EarningsCalendarResponse response = apis.getEarningsByTicker("AAPL", LocalDate.now().plusDays(10));
-        
-        assertNotNull(response);
-        mockedCacheManager.verify(() -> EarningsCacheManager.updateCache(eq("AAPL"), any()), times(1));
+            EarningsCalendarResponse response = apis.getEarningsByTicker("AAPL", LocalDate.now().plusDays(10));
+            
+            assertNotNull(response);
+            assertEquals(response.getEarningsCalendar().size(), 1);
+            assertEquals(response.getEarningsCalendar().get(0).getDate(), futureDate);
+            mockedCacheManager.verify(() -> EarningsCacheManager.updateCache(eq("AAPL"), any()), times(1));
+        }
     }
 
     @Test(expectedExceptions = RuntimeException.class)
     public void testGetEarningsByTicker_Failure() {
-        when(EarningsCacheManager.getEarningsFromCache(anyString(), any())).thenReturn(null);
-        
-        RequestSpecification mockRequest = mock(RequestSpecification.class);
-        Response mockResponse = mock(Response.class);
-        
-        when(RestAssured.given()).thenReturn(mockRequest);
-        when(mockRequest.baseUri(anyString())).thenReturn(mockRequest);
-        when(mockRequest.queryParam(anyString(), (Object) any())).thenReturn(mockRequest);
-        when(mockRequest.get(anyString())).thenReturn(mockResponse);
-        
-        when(mockResponse.statusCode()).thenReturn(500);
-        when(mockResponse.statusLine()).thenReturn("Internal Server Error");
+        try (MockedStatic<RestAssured> mockedRestAssured = mockStatic(RestAssured.class);
+             MockedStatic<EarningsCacheManager> mockedCacheManager = mockStatic(EarningsCacheManager.class)) {
+            mockedCacheManager.when(() -> EarningsCacheManager.getEarningsFromCache(anyString(), any())).thenReturn(null);
+            
+            RequestSpecification mockRequest = mock(RequestSpecification.class);
+            Response mockResponse = mock(Response.class);
+            
+            mockedRestAssured.when(RestAssured::given).thenReturn(mockRequest);
+            when(mockRequest.baseUri(anyString())).thenReturn(mockRequest);
+            when(mockRequest.queryParam(anyString(), (Object) any())).thenReturn(mockRequest);
+            when(mockRequest.get(anyString())).thenReturn(mockResponse);
+            
+            when(mockResponse.statusCode()).thenReturn(500);
+            when(mockResponse.statusLine()).thenReturn("Internal Server Error");
 
-        apis.getEarningsByTicker("AAPL", LocalDate.now().plusDays(10));
+            apis.getEarningsByTicker("AAPL", LocalDate.now().plusDays(10));
+        }
     }
 }

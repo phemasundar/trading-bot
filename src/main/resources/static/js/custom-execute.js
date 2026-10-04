@@ -16,12 +16,8 @@ if (typeof window === 'undefined' && typeof require === 'function') {
 
 const STRATEGY_TYPES = [
     { value: 'PUT_CREDIT_SPREAD', label: 'Put Credit Spread', group: 'credit_spread' },
-    { value: 'TECH_PUT_CREDIT_SPREAD', label: 'Technical Put Credit Spread', group: 'credit_spread' },
-    { value: 'BULLISH_LONG_PUT_CREDIT_SPREAD', label: 'Bullish Long Put Credit Spread', group: 'credit_spread' },
     { value: 'CALL_CREDIT_SPREAD', label: 'Call Credit Spread', group: 'credit_spread' },
-    { value: 'TECH_CALL_CREDIT_SPREAD', label: 'Technical Call Credit Spread', group: 'credit_spread' },
     { value: 'IRON_CONDOR', label: 'Iron Condor', group: 'iron_condor' },
-    { value: 'BULLISH_LONG_IRON_CONDOR', label: 'Bullish Long Iron Condor', group: 'iron_condor' },
     { value: 'LONG_CALL_LEAP', label: 'Long Call LEAP', group: 'leap' },
     { value: 'BULLISH_BROKEN_WING_BUTTERFLY', label: 'Bullish Broken Wing Butterfly', group: 'bwb' },
     { value: 'BULLISH_ZEBRA', label: 'Bullish ZEBRA', group: 'zebra' },
@@ -879,6 +875,10 @@ async function loadCustomResults(updatedResultId = null) {
             const id = el.id.replace(/^content-/, '');
             openCardIds.add(id);
         });
+        const openFilterIds = new Set();
+        container.querySelectorAll('.filter-details-body.open').forEach(el => {
+            openFilterIds.add(el.id);
+        });
 
         const results = await API.get('/api/results/custom');
         container.innerHTML = '';
@@ -903,6 +903,12 @@ async function loadCustomResults(updatedResultId = null) {
                 const arrow = cardEl.querySelector(`[id="arrow-${cardId}"]`);
                 if (content) content.classList.add('open');
                 if (arrow) arrow.classList.add('open');
+            }
+            if (openFilterIds.has(`filters-${cardId}`)) {
+                const filterBody = cardEl.querySelector(`[id="filters-${cardId}"]`);
+                const filterArrow = cardEl.querySelector(`[id="arrow-filters-${cardId}"]`);
+                if (filterBody) filterBody.classList.add('open');
+                if (filterArrow) filterArrow.classList.add('open');
             }
         }
         fetchAndInjectTodayPerformance(container);

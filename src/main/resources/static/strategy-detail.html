@@ -66,6 +66,10 @@
                     <span class="nav-icon">📚</span>
                     <span>Option Strategies</span>
                 </a>
+                <a href="/option-greeks.html" class="nav-link">
+                    <span class="nav-icon">📐</span>
+                    <span>Option Greeks</span>
+                </a>
             </div>
 
             <div class="sidebar-section">
@@ -112,7 +116,7 @@
                                 <option value="">Loading strategies...</option>
                             </select>
                         </div>
-                        <a id="execute-strategy-btn" href="/execute.html" class="btn btn-primary btn-sm" style="display:inline-flex; align-items:center; gap:6px;">
+                        <a id="execute-strategy-btn" href="/execute.html" class="btn btn-primary btn-sm" data-admin-only style="display:inline-flex; align-items:center; gap:6px;">
                             <span>▶</span>
                             <span>Execute Strategy</span>
                         </a>
@@ -136,7 +140,7 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="/js/utils.js?v=11"></script>
     <script src="/js/auth-api.js?v=11"></script>
-    <script src="/js/learning-center.js?v=1"></script>
+    <script src="/js/learning-center.js?v=2"></script>
     <script src="/app.js?v=8"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {

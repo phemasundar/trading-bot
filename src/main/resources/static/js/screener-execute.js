@@ -654,6 +654,11 @@ function fillTechFiltersForm(techFilters) {
 async function initScreenerDashboard() {
     const authed = await initAuth();
     if (!authed) return;
+    if (!window.appConfig) {
+        try {
+            window.appConfig = await API.get('/api/config');
+        } catch (e) { /* ignore */ }
+    }
     await loadScreenerStrategies();
     await loadScreenerResults();
     await checkScreenerExecutionStatus();
@@ -1207,6 +1212,10 @@ async function loadCustomScreenerResults(updatedResultId = null) {
             const id = el.id.replace(/^content-/, '');
             openCardIds.add(id);
         });
+        const openFilterIds = new Set();
+        container.querySelectorAll('.filter-details-body.open').forEach(el => {
+            openFilterIds.add(el.id);
+        });
 
         const results = await API.get('/api/results/custom/screeners');
         container.innerHTML = '';
@@ -1231,6 +1240,12 @@ async function loadCustomScreenerResults(updatedResultId = null) {
                 const arrow = cardEl.querySelector(`[id="arrow-${cardId}"]`);
                 if (content) content.classList.add('open');
                 if (arrow) arrow.classList.add('open');
+            }
+            if (openFilterIds.has(`filters-${cardId}`)) {
+                const filterBody = cardEl.querySelector(`[id="filters-${cardId}"]`);
+                const filterArrow = cardEl.querySelector(`[id="arrow-filters-${cardId}"]`);
+                if (filterBody) filterBody.classList.add('open');
+                if (filterArrow) filterArrow.classList.add('open');
             }
         }
     } catch (e) {

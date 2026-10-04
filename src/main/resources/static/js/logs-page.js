@@ -145,10 +145,21 @@ function renderLogSymbolGroups(entries, strategyName, openSymbols, openExpiries)
         }
 
         const filterableEntries = symEntries.filter(e => e.filterStage !== 'Generated Candidates');
-        const finalCount = filterableEntries.length > 0 ? filterableEntries[filterableEntries.length - 1].tradesOut : 0;
-        const firstCount = filterableEntries.length > 0 ? filterableEntries[0].tradesIn : 0;
-        const reductionPct = firstCount > 0 ? Math.round((1 - finalCount / firstCount) * 100) : 0;
         const expiryCount = Object.keys(byExpiry).length;
+        let finalCount = 0;
+        if (expiryCount > 0) {
+            for (const expDate of Object.keys(byExpiry)) {
+                const expEntries = byExpiry[expDate].filter(e => e.filterStage !== 'Generated Candidates');
+                const expFinal = expEntries.length > 0
+                    ? (expEntries[expEntries.length - 1].tradesOut || 0)
+                    : (byExpiry[expDate].find(e => e.filterStage === 'Generated Candidates')?.tradesOut || 0);
+                finalCount += expFinal;
+            }
+        } else if (filterableEntries.length > 0) {
+            finalCount = filterableEntries[filterableEntries.length - 1].tradesOut || 0;
+        } else if (symEntries.length > 0) {
+            finalCount = symEntries[symEntries.length - 1].tradesOut || 0;
+        }
 
         html +=
             '<div class="log-symbol-block">' +
@@ -160,7 +171,6 @@ function renderLogSymbolGroups(entries, strategyName, openSymbols, openExpiries)
                             ? '<span class="card-badge" style="font-size:0.7rem">' + expiryCount + ' expir' + (expiryCount !== 1 ? 'ies' : 'y') + '</span>'
                             : '<span class="card-badge" style="font-size:0.7rem">' + filterableEntries.length + ' filters</span>') +
                         '<span class="log-final-count">' + finalCount + ' trade' + (finalCount !== 1 ? 's' : '') + ' remaining</span>' +
-                        (reductionPct > 0 ? '<span class="log-reduction">' + reductionPct + '% filtered</span>' : '') +
                     '</div>' +
                 '</div>' +
                 '<div class="log-symbol-body' + (isSymOpen ? ' open' : '') + '" id="' + symId + '">' +
@@ -219,7 +229,6 @@ function renderLogSymbolContent(otherEntries, byExpiry, stratSlug, symSlug, open
             const expCandidates = rawEntries.find(e => e.filterStage === 'Generated Candidates');
             const expFirst = expCandidates ? expCandidates.tradesIn : (expEntries.length > 0 ? expEntries[0].tradesIn : 0);
             const expFinal = expEntries.length > 0 ? expEntries[expEntries.length - 1].tradesOut : 0;
-            const expReduction = expFirst > 0 ? Math.round((1 - expFinal / expFirst) * 100) : 0;
 
             html +=
                 '<div class="log-expiry-block">' +
@@ -229,7 +238,6 @@ function renderLogSymbolContent(otherEntries, byExpiry, stratSlug, symSlug, open
                             '<span class="log-expiry-date">Expiry: ' + expDate + '</span>' +
                             '<span class="card-badge" style="font-size:0.68rem;background:rgba(99,102,241,0.12);color:var(--primary)">' + expFirst + ' candidates &rarr; ' + expFinal + ' trades</span>' +
                             '<span class="card-badge" style="font-size:0.68rem">' + expEntries.length + ' filter' + (expEntries.length !== 1 ? 's' : '') + '</span>' +
-                            (expReduction > 0 ? '<span class="log-reduction">' + expReduction + '% filtered</span>' : '') +
                         '</div>' +
                     '</div>' +
                     '<div class="log-expiry-body' + (isExpOpen ? ' open' : '') + '" id="' + expId + '">' +

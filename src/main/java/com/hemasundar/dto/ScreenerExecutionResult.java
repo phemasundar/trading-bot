@@ -31,4 +31,11 @@ public class ScreenerExecutionResult {
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private Map<String, Object> requestParams;
+
+    /**
+     * The filter configuration for this screener.
+     * Populated for both standard and custom screeners so the UI can display Filter Details.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Map<String, Object> filterConfig;
 }

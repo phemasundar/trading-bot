@@ -144,6 +144,7 @@ public class ScreenerController {
                 .alias(request.getAlias() != null ? request.getAlias() : screenerType.getDisplayName())
                 .securities(new ArrayList<>(symbolSet))
                 .filterChain(technicalFilterChain)
+                .filterConfig(buildRequestParams(request))
                 .build();
     }
 

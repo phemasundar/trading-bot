@@ -8,37 +8,13 @@ PUT_CREDIT_SPREAD:
   theta: "positive"
   vega: "negative"
 
-TECH_PUT_CREDIT_SPREAD:
-  delta: "positive"
-  gamma: "negative"
-  theta: "positive"
-  vega: "negative"
-
-BULLISH_LONG_PUT_CREDIT_SPREAD:
-  delta: "positive"
-  gamma: "negative"
-  theta: "positive"
-  vega: "negative"
-
 CALL_CREDIT_SPREAD:
   delta: "negative"
   gamma: "negative"
   theta: "positive"
   vega: "negative"
 
-TECH_CALL_CREDIT_SPREAD:
-  delta: "negative"
-  gamma: "negative"
-  theta: "positive"
-  vega: "negative"
-
 IRON_CONDOR:
-  delta: "neutral"
-  gamma: "negative"
-  theta: "positive"
-  vega: "negative"
-
-BULLISH_LONG_IRON_CONDOR:
   delta: "neutral"
   gamma: "negative"
   theta: "positive"

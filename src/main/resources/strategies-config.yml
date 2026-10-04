@@ -107,7 +107,7 @@ optionsStrategies:
   - alias: "Tech RSI/BB PCS"
     enabled: true
     termType: "Short Term"
-    strategyType: "TECH_PUT_CREDIT_SPREAD"
+    strategyType: "PUT_CREDIT_SPREAD"
     descriptionFile: "tech_put_credit_spread.md"
     filterType: "CreditSpreadFilter"
     filter:
@@ -152,7 +152,7 @@ optionsStrategies:
   - alias: "Tech RSI/BB CCS"
     enabled: true
     termType: "Short Term"
-    strategyType: "TECH_CALL_CREDIT_SPREAD"
+    strategyType: "CALL_CREDIT_SPREAD"
     descriptionFile: "tech_call_credit_spread.md"
     filterType: "CreditSpreadFilter"
     filter:
@@ -430,11 +430,11 @@ optionsStrategies:
       shortCall:
         conditions:
           - "DELTA >= 0.45"
-          - "OPEN_INTEREST >= 100"
+          - "OPEN_INTEREST >= 10"
       longCall:
         conditions:
           - "DELTA >= 0.65"
-          - "OPEN_INTEREST >= 100"
+          - "OPEN_INTEREST >= 10"
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"

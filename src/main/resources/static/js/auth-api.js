@@ -177,6 +177,10 @@ async function logout() {
  * and dynamically displays or hides sidebar navigation based on allowed pages.
  */
 function applyReadOnlyRestrictions() {
+    if (typeof document !== 'undefined' && document.documentElement) {
+        document.documentElement.setAttribute('data-user-role', 'READONLY');
+    }
+
     // Hide admin-only elements
     document.querySelectorAll('[data-admin-only]').forEach(el => el.style.display = 'none');
 

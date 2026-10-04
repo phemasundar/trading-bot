@@ -151,6 +151,7 @@ The user interface features a clean, highly structured scrollable sidebar naviga
 - **Securities (`/securities.html`)**: Multi-timeframe technical indicator tracker and dynamic catalog discovering all securities YAML files with priority-tiered alerts and trading playbooks.
 - **Earnings Calendar (`/earnings-calendar.html`)**: Interactive monthly calendar tracking upcoming corporate earnings events across all securities universes.
 - **Option Strategies (`/option-strategies.html`)**: Learning Center directory displaying educational guides, Greek polarities, directional biases, and structural mechanics for options strategies. Clicking any strategy card redirects to a dedicated full-page guide (`/strategy-detail.html?strategy=<file>.md`) rendering the markdown documentation from `static/descriptions/` with an interactive strategy switcher.
+- **Option Greeks (`/option-greeks.html`)**: Learning Center directory detailing core risk parameters, sensitivity derivatives, and mathematical mechanics for options pricing and automated risk management. Displays interactive cards with Greek symbols ($\Delta, \Gamma, \Theta, \mathcal{V}, \rho$, Vanna, Charm, Volga), order classification chips (First-Order vs. Second-Order), partial derivatives ($\partial V / \partial S, \partial^2 V / \partial S^2$, etc.), position exposures, and impact summaries. Clicking any Greek card opens a dedicated markdown guide (`/greek-detail.html?greek=<id>`) loaded from `static/descriptions/greeks/` with a quick Greek switcher dropdown and direct links to Option Strategies.
 - **Strategy Config (`/config.html`)**: Read-only view of all strategy configurations with full parameter descriptions including configured securities universes and technical filters.
 - **Execution Logs (`/logs.html`)**: Real-time per-filter logs showing exactly where trade candidates are being discarded (e.g. Delta filter, Volume filter, DTE constraints) to help debug filter configurations.
 - **Swagger API Docs (`/swagger-ui.html`)**: Interactive REST API documentation.
@@ -328,9 +329,9 @@ A dedicated research interface accessible at `/securities.html` under the **Rese
    - `GET /api/securities/filter-config`: Returns parsed active filter settings.
    - `POST /api/securities/data`: Accepts `{ "symbols": ["NVDA", "AAPL", ...] }` and returns precalculated indicators from Supabase.
 
-## Learning Center & Option Strategies
+## Learning Center (Option Strategies & Option Greeks)
 
-A dedicated educational and strategy guide portal accessible under the **Learning Center → Option Strategies** sidebar navigation (`/option-strategies.html`).
+A dedicated educational and strategy guide portal accessible under the **Learning Center** sidebar navigation (`/option-strategies.html` and `/option-greeks.html`).
 
 ### Architecture & Capabilities
 
@@ -346,9 +347,23 @@ A dedicated educational and strategy guide portal accessible under the **Learnin
    - Direct "**▶ Execute Strategy**" CTA button linking to `/execute.html?strategy=<TYPE>` with the chosen strategy automatically pre-selected in the custom execution form.
    - Fully optimized for mobile with touch scrolling and horizontal scroll protection on data tables and code blocks.
 
-3. **REST Endpoints**:
+3. **Option Greeks Catalog (`/option-greeks.html`)**:
+   - Comprehensive reference directory for all primary options Greeks: **First-Order Greeks** (Delta $\Delta$, Theta $\Theta$, Vega $\mathcal{V}$, Rho $\rho$) and **Second-Order Greeks** (Gamma $\Gamma$, Vanna $\partial\Delta/\partial\sigma$, Charm $\partial\Delta/\partial t$, Volga $\partial^2 V/\partial\sigma^2$).
+   - Dynamic catalog discovered via `GET /api/learning/greeks` with markdown guides in `src/main/resources/static/descriptions/greeks/`.
+   - Interactive filter chips for derivative order classification (`All Greeks`, `First-Order`, `Second-Order`) and instant search across Greek symbols, partial derivative formulas, names, and risk management impacts.
+   - Cards display custom Greek symbol avatars, mathematical partial derivative formulas, position exposure rules (e.g. Long Calls: $+\Delta$ | Long Puts: $-\Delta$), concise summary descriptions, and primary trading impacts.
+
+4. **Option Greek Detail & Guide (`/greek-detail.html`)**:
+   - In-depth mathematical definitions, Black-Scholes partial differential derivations, practical trading implications (directional positioning, time decay, IV crush, dealer hedging flows, pin risk), and automated trading bot guardrails.
+   - Interactive Greek switcher dropdown to quickly navigate across all 8 Greeks.
+   - Direct reciprocal link to the Option Strategies catalog.
+   - Fully responsive on mobile with clean typography and KaTeX/markdown formatting.
+
+5. **REST Endpoints**:
    - `GET /api/learning/strategies`: Returns catalog metadata for all option strategies.
    - `GET /api/learning/strategies/{id}`: Returns parsed metadata for a single strategy by filename or ID.
+   - `GET /api/learning/greeks`: Returns catalog metadata for all Option Greeks.
+   - `GET /api/learning/greeks/{id}`: Returns parsed metadata for a single Greek by ID or filename.
 
 ## Technical Indicator Strategies
 

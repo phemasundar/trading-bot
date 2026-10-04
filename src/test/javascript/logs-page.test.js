@@ -85,5 +85,23 @@ describe('Logs Page Tests', () => {
         const html = renderLogSymbolContent(otherEntries, byExpiry, 'pcs', 'aapl', new Set());
         expect(html).toContain('Expiry: 2026-04-17');
         expect(html).toContain('Other (symbol-level)');
+        expect(html).not.toContain('log-reduction');
+        expect(html).not.toContain('% filtered');
+    });
+
+    test('renderLogSymbolGroups correctly sums trades across expiries and excludes filtered percentage', () => {
+        const entries = [
+            { strategyName: 'Bullish ZEBRA', symbol: 'AAPL', expiry: '2026-11-06', filterStage: 'Generated Candidates', tradesIn: 1830, tradesOut: 1830 },
+            { strategyName: 'Bullish ZEBRA', symbol: 'AAPL', expiry: '2026-11-06', filterStage: 'Delta Filter', tradesIn: 1830, tradesOut: 3 },
+            { strategyName: 'Bullish ZEBRA', symbol: 'AAPL', expiry: '2026-11-13', filterStage: 'Generated Candidates', tradesIn: 1830, tradesOut: 1830 },
+            { strategyName: 'Bullish ZEBRA', symbol: 'AAPL', expiry: '2026-11-13', filterStage: 'Delta Filter', tradesIn: 1830, tradesOut: 0 },
+            { strategyName: 'Bullish ZEBRA', symbol: 'AAPL', expiry: null, filterStage: 'Earnings Filter', tradesIn: 1, tradesOut: 1 }
+        ];
+
+        const html = renderLogSymbolGroups(entries, 'Bullish ZEBRA', new Set(), new Set());
+        expect(html).toContain('3 trades remaining');
+        expect(html).not.toContain('0 trades remaining');
+        expect(html).not.toContain('log-reduction');
+        expect(html).not.toContain('% filtered');
     });
 });

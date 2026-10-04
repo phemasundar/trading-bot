@@ -78,34 +78,34 @@ Options strategies support declarative, mathematical formula-like filter conditi
 
 ### Variable Reference Table
 
-| Scope | Variable | Description |
-|---|---|---|
-| **Chain / Expiry** | `DTE` / `DAYS_TO_EXPIRATION` | Days to expiration for the chain |
-| **Symbol IV** | `IV_RANK` | Implied Volatility Rank (0 - 100) from historical cache |
+| Scope | Variable | Description                                                   |
+|---|---|---------------------------------------------------------------|
+| **Chain / Expiry** | `DTE` / `DAYS_TO_EXPIRATION` | Days to expiration for the chain                              |
+| **Symbol IV** | `IV_RANK` | Implied Volatility Rank (0 - 100) from historical cache       |
 | **Symbol IV** | `IV_PERCENTILE` | Implied Volatility Percentile (0 - 100) from historical cache |
-| **Earnings** | `DAYS_TO_NEXT_EARNINGS` | Calendar days to upcoming earnings |
-| **Earnings** | `EARNINGS_NEAREST_TO_DTE` | Calendar days to earnings closest to (on or before) DTE |
-| **Trade Level** | `MAX_LOSS` | Maximum loss of the trade setup in dollars |
-| **Trade Level** | `NET_CREDIT` / `CREDIT` | Net credit collected for credit strategies |
-| **Trade Level** | `NET_DEBIT` / `DEBIT` | Net debit paid for debit strategies |
-| **Trade Level** | `RETURN_ON_RISK` / `ROR` | Return on risk percentage |
-| **Trade Level** | `CAGR` / `ROR_CAGR` | Annualized Return on Risk percentage |
-| **Trade Level** | `BREAK_EVEN` / `BREAK_EVEN_PRICE` | Trade breakeven stock price |
-| **Trade Level** | `BREAK_EVEN_PCT` | Breakeven distance as a percentage of current stock price |
-| **Trade Level** | `UPPER_BREAK_EVEN_PRICE` | Upper breakeven price for 2-sided strategies (IC, Strangle) |
-| **Trade Level** | `UPPER_BREAK_EVEN_PCT` | Upper breakeven distance percentage |
-| **Trade Level** | `ANNUALIZED_EXTRINSIC_PCT` | Annualized net extrinsic value relative to capital |
-| **Trade Level** | `CURRENT_PRICE` | Current underlying stock price |
-| **Leg Level** | `DELTA` / `ABS_DELTA` | Absolute delta of the leg (e.g. `0.20`) |
-| **Leg Level** | `RAW_DELTA` / `SIGNED_DELTA` | Signed delta of the leg (e.g. `-0.20` for puts) |
-| **Leg Level** | `OPEN_INTEREST` / `OI` | Open interest contracts |
-| **Leg Level** | `VOLUME` | Total trading volume |
-| **Leg Level** | `PREMIUM` / `MARK` / `PRICE` | Mid/mark price per share |
-| **Leg Level** | `BID` | Bid price |
-| **Leg Level** | `ASK` | Ask price |
-| **Leg Level** | `STRIKE` / `STRIKE_PRICE` | Strike price |
-| **Leg Level** | `IV` / `VOLATILITY` | Implied volatility of the leg |
-| **Leg Level** | `GAMMA`, `THETA`, `VEGA`, `RHO` | Option Greeks |
+| **Earnings** | `DAYS_TO_NEXT_EARNINGS` | Calendar days to upcoming earnings                            |
+| **Earnings** | `EARNINGS_NEAREST_TO_DTE` | Calendar days to earnings closest to (on or before) DTE       |
+| **Trade Level** | `MAX_LOSS` | Maximum loss of the trade setup in dollars                    |
+| **Trade Level** | `NET_CREDIT` / `CREDIT` | Net credit collected for credit strategies                    |
+| **Trade Level** | `NET_DEBIT` / `DEBIT` | Net debit paid for debit strategies                           |
+| **Trade Level** | `RETURN_ON_RISK` / `ROR` | Return on risk percentage                                     |
+| **Trade Level** | `CAGR` / `ROR_CAGR` | Annualized Return on Risk percentage                          |
+| **Trade Level** | `BREAK_EVEN` / `BREAK_EVEN_PRICE` | Trade breakeven stock price                                   |
+| **Trade Level** | `BREAK_EVEN_PCT` | Breakeven distance as a percentage of current stock price     |
+| **Trade Level** | `UPPER_BREAK_EVEN_PRICE` | Upper breakeven price for 2-sided strategies (IC, Strangle)   |
+| **Trade Level** | `UPPER_BREAK_EVEN_PCT` | Upper breakeven distance percentage                           |
+| **Trade Level** | `ANNUALIZED_EXTRINSIC_PCT` | Annualized net extrinsic value percentage relative to capital |
+| **Trade Level** | `CURRENT_PRICE` | Current underlying stock price                                |
+| **Leg Level** | `DELTA` / `ABS_DELTA` | Absolute delta of the leg (e.g. `0.20`)                       |
+| **Leg Level** | `RAW_DELTA` / `SIGNED_DELTA` | Signed delta of the leg (e.g. `-0.20` for puts)               |
+| **Leg Level** | `OPEN_INTEREST` / `OI` | Open interest contracts                                       |
+| **Leg Level** | `VOLUME` | Total trading volume                                          |
+| **Leg Level** | `PREMIUM` / `MARK` / `PRICE` | Mid/mark price per share                                      |
+| **Leg Level** | `BID` | Bid price                                                     |
+| **Leg Level** | `ASK` | Ask price                                                     |
+| **Leg Level** | `STRIKE` / `STRIKE_PRICE` | Strike price                                                  |
+| **Leg Level** | `IV` / `VOLATILITY` | Implied volatility of the leg                                 |
+| **Leg Level** | `GAMMA`, `THETA`, `VEGA`, `RHO` | Option Greeks                                                 |
 
 ### Leg Prefix Routing
 

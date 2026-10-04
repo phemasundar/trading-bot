@@ -4,7 +4,6 @@ import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.options.strategies.*;
 import com.hemasundar.services.SupabaseService;
-import com.hemasundar.utils.VolatilityCalculator;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.testng.annotations.BeforeMethod;
@@ -20,8 +19,6 @@ public class StrategiesBeanConfigTest {
     private FinnHubAPIs finnHubAPIs;
     @Mock
     private ThinkOrSwimAPIs ThinkOrSwimAPIs;
-    @Mock
-    private VolatilityCalculator volatilityCalculator;
     @Mock
     private SupabaseService supabaseService;
 
@@ -42,35 +39,15 @@ public class StrategiesBeanConfigTest {
         assertNotNull(pcs);
         assertEquals(pcs.getStrategyType(), StrategyType.PUT_CREDIT_SPREAD);
 
-        PutCreditSpreadStrategy tpcs = beanConfig.techPutCreditSpreadStrategy(
-                finnHubAPIs, ThinkOrSwimAPIs, optDb);
-        assertNotNull(tpcs);
-        assertEquals(tpcs.getStrategyType(), StrategyType.TECH_PUT_CREDIT_SPREAD);
-
-        PutCreditSpreadStrategy blpcs = beanConfig.bullishLongPutCreditSpreadStrategy(
-                finnHubAPIs, ThinkOrSwimAPIs, optDb);
-        assertNotNull(blpcs);
-        assertEquals(blpcs.getStrategyType(), StrategyType.BULLISH_LONG_PUT_CREDIT_SPREAD);
-
         CallCreditSpreadStrategy ccs = beanConfig.callCreditSpreadStrategy(
                 finnHubAPIs, ThinkOrSwimAPIs, optDb);
         assertNotNull(ccs);
         assertEquals(ccs.getStrategyType(), StrategyType.CALL_CREDIT_SPREAD);
 
-        CallCreditSpreadStrategy tccs = beanConfig.techCallCreditSpreadStrategy(
-                finnHubAPIs, ThinkOrSwimAPIs, optDb);
-        assertNotNull(tccs);
-        assertEquals(tccs.getStrategyType(), StrategyType.TECH_CALL_CREDIT_SPREAD);
-
         IronCondorStrategy ic = beanConfig.ironCondorStrategy(
                 finnHubAPIs, ThinkOrSwimAPIs, optDb, pcs, ccs);
         assertNotNull(ic);
         assertEquals(ic.getStrategyType(), StrategyType.IRON_CONDOR);
-
-        IronCondorStrategy blic = beanConfig.bullishLongIronCondorStrategy(
-                finnHubAPIs, ThinkOrSwimAPIs, optDb, pcs, ccs);
-        assertNotNull(blic);
-        assertEquals(blic.getStrategyType(), StrategyType.BULLISH_LONG_IRON_CONDOR);
 
         LongCallLeapStrategy leap = beanConfig.longCallLeapStrategy(
                 finnHubAPIs, ThinkOrSwimAPIs, optDb);
@@ -91,5 +68,10 @@ public class StrategiesBeanConfigTest {
                 finnHubAPIs, ThinkOrSwimAPIs, optDb);
         assertNotNull(sp);
         assertEquals(sp.getStrategyType(), StrategyType.SHORT_PUT);
+
+        ShortStrangleStrategy ss = beanConfig.shortStrangleStrategy(
+                finnHubAPIs, ThinkOrSwimAPIs, optDb);
+        assertNotNull(ss);
+        assertEquals(ss.getStrategyType(), StrategyType.SHORT_STRANGLE);
     }
 }

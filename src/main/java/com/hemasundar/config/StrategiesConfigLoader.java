@@ -298,6 +298,26 @@ public class StrategiesConfigLoader {
             log.debug("Combined {} unique securities from files + inline for screener", securities.size());
         }
 
+        Map<String, Object> filterConfig = new LinkedHashMap<>();
+        if (entry.getScreenerType() != null) {
+            filterConfig.put("screenerType", entry.getScreenerType().name());
+        }
+        if (StringUtils.isNotBlank(entry.getAlias())) {
+            filterConfig.put("alias", entry.getAlias());
+        }
+        if (StringUtils.isNotBlank(entry.getSecuritiesFile())) {
+            filterConfig.put("securitiesFile", entry.getSecuritiesFile());
+        }
+        if (StringUtils.isNotBlank(entry.getSecurities())) {
+            filterConfig.put("securities", entry.getSecurities());
+        }
+        if (entry.getTechnicalFilters() != null && !entry.getTechnicalFilters().isEmpty()) {
+            filterConfig.put("technicalFilters", entry.getTechnicalFilters());
+        }
+        if (entry.getFundamentalFilters() != null && !entry.getFundamentalFilters().isEmpty()) {
+            filterConfig.put("fundamentalFilters", entry.getFundamentalFilters());
+        }
+
         return ScreenerConfig.builder()
                 .screenerType(entry.getScreenerType())
                 .alias(entry.getAlias())
@@ -305,6 +325,7 @@ public class StrategiesConfigLoader {
                 .securities(securities)
                 .filterChain(filterChain)
                 .fundamentalConditions(fundamentalConditions)
+                .filterConfig(filterConfig)
                 .build();
     }
 

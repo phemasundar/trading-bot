@@ -22,15 +22,11 @@ public class FilterParser {
         // Create the appropriate filter subclass based on strategy type
         switch (type) {
             case PUT_CREDIT_SPREAD:
-            case BULLISH_LONG_PUT_CREDIT_SPREAD:
-            case TECH_PUT_CREDIT_SPREAD:
             case CALL_CREDIT_SPREAD:
-            case TECH_CALL_CREDIT_SPREAD:
             case SHORT_PUT:
                 filter = new CreditSpreadFilter();
                 break;
             case IRON_CONDOR:
-            case BULLISH_LONG_IRON_CONDOR:
                 filter = new IronCondorFilter();
                 break;
             case LONG_CALL_LEAP:

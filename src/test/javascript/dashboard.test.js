@@ -160,6 +160,64 @@ describe('Dashboard & Table Rendering Tests', () => {
         expect(card.innerHTML).toContain('AAPL');
     });
 
+    test('buildScreenerCard should render Filter Details section and support toggle when filterConfig present', () => {
+        const mockScreenerResult = {
+            screenerId: 'rsi-bb-1',
+            screenerName: 'RSI Bullish Crossover',
+            filterConfig: {
+                screenerType: 'RSI_BB_BULLISH_CROSSOVER',
+                technicalFilters: {
+                    RSI: { condition: 'BULLISH_CROSSOVER' },
+                    BOLLINGER_BAND: { condition: 'LOWER_BAND' }
+                }
+            },
+            results: [
+                { symbol: 'AAPL', currentPrice: 150.0, rsi: 28.5, marketCapB: 2500 }
+            ]
+        };
+
+        const card = buildScreenerCard(mockScreenerResult);
+        expect(card.innerHTML).toContain('Filter Details');
+        expect(card.innerHTML).toContain('RSI BB Bullish Crossover');
+        expect(card.innerHTML).toContain('Bullish Crossover (RSI ↑30)');
+
+        const toggleBtn = card.querySelector('.filter-details-toggle');
+        const bodyEl = card.querySelector('.filter-details-body');
+        expect(toggleBtn).not.toBeNull();
+        expect(bodyEl).not.toBeNull();
+        expect(bodyEl.classList.contains('open')).toBe(false);
+
+        toggleBtn.click();
+        expect(bodyEl.classList.contains('open')).toBe(true);
+        toggleBtn.click();
+        expect(bodyEl.classList.contains('open')).toBe(false);
+    });
+
+    test('buildScreenerCard should resolve fallback filterConfig from window.appConfig if missing from result', () => {
+        window.appConfig = {
+            technicalScreeners: [
+                {
+                    screenerType: 'RSI_OVERSOLD',
+                    alias: 'RSI Oversold Alert',
+                    technicalFilters: {
+                        RSI: { condition: 'OVERSOLD' }
+                    }
+                }
+            ]
+        };
+
+        const mockResult = {
+            screenerId: 'rsi-oversold',
+            screenerName: 'RSI Oversold Alert',
+            results: []
+        };
+
+        const card = buildScreenerCard(mockResult);
+        expect(card.innerHTML).toContain('Filter Details');
+        expect(card.innerHTML).toContain('RSI Oversold');
+        expect(card.innerHTML).toContain('Oversold (&lt;30)');
+    });
+
     test('buildDropScreenerTable should render multi-day price drop table', () => {
         const dropResults = [
             { symbol: 'TSLA', dropType: 'PERCENT_DROP', currentPrice: 200.0, dropPercent: 12.5, referencePrice: 228.5 }

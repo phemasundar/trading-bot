@@ -1,5 +1,6 @@
 package com.hemasundar.services;
 
+import com.hemasundar.dto.OptionGreekDto;
 import com.hemasundar.dto.StrategyDescriptionDto;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
@@ -73,5 +74,59 @@ public class LearningCenterServiceTest {
         Assert.assertNotNull(all);
         boolean hasScreener = all.stream().anyMatch(s -> "atr_screener".equalsIgnoreCase(s.getId()));
         Assert.assertTrue(hasScreener, "All descriptions should include atr_screener");
+    }
+
+    @Test
+    public void testGetOptionGreeks_ReturnsGreeks() {
+        List<OptionGreekDto> greeks = service.getOptionGreeks();
+        Assert.assertNotNull(greeks);
+        Assert.assertEquals(greeks.size(), 8, "Should return 8 Option Greek guides");
+
+        // Verify Delta
+        OptionGreekDto delta = greeks.stream().filter(g -> "delta".equals(g.getId())).findFirst().orElse(null);
+        Assert.assertNotNull(delta);
+        Assert.assertEquals(delta.getName(), "Delta");
+        Assert.assertEquals(delta.getSymbol(), "Δ");
+        Assert.assertEquals(delta.getOrder(), "First-Order");
+        Assert.assertEquals(delta.getDerivative(), "∂V / ∂S");
+        Assert.assertEquals(delta.getFilename(), "greeks/delta.md");
+        Assert.assertFalse(delta.getSummary().isEmpty());
+
+        // Verify Gamma
+        OptionGreekDto gamma = greeks.stream().filter(g -> "gamma".equals(g.getId())).findFirst().orElse(null);
+        Assert.assertNotNull(gamma);
+        Assert.assertEquals(gamma.getName(), "Gamma");
+        Assert.assertEquals(gamma.getSymbol(), "Γ");
+        Assert.assertEquals(gamma.getOrder(), "Second-Order");
+        Assert.assertEquals(gamma.getDerivative(), "∂²V / ∂S²");
+
+        // Verify Second-Order Greeks presence
+        Assert.assertTrue(greeks.stream().anyMatch(g -> "vanna".equals(g.getId())));
+        Assert.assertTrue(greeks.stream().anyMatch(g -> "charm".equals(g.getId())));
+        Assert.assertTrue(greeks.stream().anyMatch(g -> "volga".equals(g.getId())));
+    }
+
+    @Test
+    public void testGetGreekById_Success() {
+        Optional<OptionGreekDto> deltaOpt = service.getGreekById("delta");
+        Assert.assertTrue(deltaOpt.isPresent());
+        Assert.assertEquals(deltaOpt.get().getName(), "Delta");
+        Assert.assertEquals(deltaOpt.get().getOrder(), "First-Order");
+
+        // Test with .md suffix and greeks/ prefix
+        Optional<OptionGreekDto> withSuffix = service.getGreekById("gamma.md");
+        Assert.assertTrue(withSuffix.isPresent());
+        Assert.assertEquals(withSuffix.get().getId(), "gamma");
+
+        Optional<OptionGreekDto> withPrefix = service.getGreekById("greeks/vanna.md");
+        Assert.assertTrue(withPrefix.isPresent());
+        Assert.assertEquals(withPrefix.get().getId(), "vanna");
+    }
+
+    @Test
+    public void testGetGreekById_NotFoundOrBlank() {
+        Assert.assertTrue(service.getGreekById(null).isEmpty());
+        Assert.assertTrue(service.getGreekById("   ").isEmpty());
+        Assert.assertTrue(service.getGreekById("non_existent_greek_xyz").isEmpty());
     }
 }

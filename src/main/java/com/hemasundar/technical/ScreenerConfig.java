@@ -58,6 +58,12 @@ public class ScreenerConfig {
     private final FundamentalFilterConditions fundamentalConditions;
 
     /**
+     * Raw filter configuration map (including technicalFilters, securitiesFile, etc.)
+     * used to populate filter details in screener results.
+     */
+    private final java.util.Map<String, Object> filterConfig;
+
+    /**
      * Helper to get conditions from the filter chain.
      */
     public TechFilterConditions getConditions() {

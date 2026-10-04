@@ -3762,6 +3762,49 @@ select.condition-val-input {
     font-weight: 600;
 }
 
+/* ── Option Greek Card Components ── */
+.greek-symbol-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-sm, 6px);
+    background: rgba(59, 130, 246, 0.12);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: var(--primary);
+    font-size: 1.25rem;
+    font-weight: 700;
+    font-family: var(--font-mono, monospace);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.badge-purple {
+    background: rgba(168, 85, 247, 0.15);
+    color: #c084fc;
+    border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.greek-formula-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    font-family: var(--font-mono, monospace);
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    margin: 4px 0 8px 0;
+}
+
+.greek-card-impact {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+    margin-bottom: 12px;
+}
+
 .strategy-card-footer {
     display: flex;
     justify-content: space-between;
