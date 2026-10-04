@@ -203,4 +203,23 @@ public class OptionFilterValueResolverTest {
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(leap, "COST_SAVINGS_PCT"), 18.5);
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(leap, "BREAKEVEN_CAGR"), 8.2);
     }
+
+    @Test
+    public void testAnnualizedExtrinsicPercentage() {
+        OptionChainResponse.OptionData call = new OptionChainResponse.OptionData();
+        call.setDaysToExpiration(365);
+        LongCallLeap leap = LongCallLeap.builder()
+                .longCall(call)
+                .extrinsicValue(100.0)
+                .maxLoss(1000.0)
+                .build();
+
+        Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(leap, "ANNUALIZED_EXTRINSIC_PCT"), 10.0, 0.001);
+        Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(leap, "NET_EXTRINSIC_VALUE_PCT"));
+        Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(leap, "EXTRINSIC_VALUE_PCT"));
+
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedTradeVariable("ANNUALIZED_EXTRINSIC_PCT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("NET_EXTRINSIC_VALUE_PCT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("EXTRINSIC_VALUE_PCT"));
+    }
 }

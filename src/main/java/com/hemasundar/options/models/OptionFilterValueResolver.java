@@ -116,7 +116,7 @@ public class OptionFilterValueResolver {
             case "CURRENT_PRICE", "UNDERLYING_PRICE", "PRICE" -> trade.getCurrentPrice();
             case "DTE", "DAYS_TO_EXPIRATION" -> (double) trade.getDaysToExpiration();
             case "NET_EXTRINSIC_VALUE", "EXTRINSIC_VALUE" -> trade.getNetExtrinsicValue();
-            case "NET_EXTRINSIC_VALUE_PCT", "EXTRINSIC_VALUE_PCT", "ANNUALIZED_EXTRINSIC_PCT" ->
+            case "ANNUALIZED_EXTRINSIC_PCT" ->
                     trade.getAnnualizedNetExtrinsicValueToCapitalPercentage();
             case "BREAKEVEN_CAGR" -> trade.getBreakevenCAGR();
             default -> null;
@@ -273,7 +273,7 @@ public class OptionFilterValueResolver {
                  "CURRENT_PRICE", "UNDERLYING_PRICE", "PRICE",
                  "DTE", "DAYS_TO_EXPIRATION",
                  "NET_EXTRINSIC_VALUE", "EXTRINSIC_VALUE",
-                 "NET_EXTRINSIC_VALUE_PCT", "EXTRINSIC_VALUE_PCT", "ANNUALIZED_EXTRINSIC_PCT",
+                 "ANNUALIZED_EXTRINSIC_PCT",
                  "BREAKEVEN_CAGR",
                  "IV_RANK", "IV_PERCENTILE",
                  "DAYS_TO_NEXT_EARNINGS", "EARNINGS", "EARNINGS_NEAREST_TO_DTE",
