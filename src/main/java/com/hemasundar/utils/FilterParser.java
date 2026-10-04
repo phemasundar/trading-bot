@@ -400,56 +400,56 @@ public class FilterParser {
     private static void attachExprToLeg(OptionsStrategyFilter filter, String legPrefix, MathExpression expr) {
         String clean = legPrefix.replace("_", "").toUpperCase();
         if (filter instanceof CreditSpreadFilter csFilter) {
-            if (clean.startsWith("SHORT")) {
+            if (clean.equals("SHORTLEG")) {
                 if (csFilter.getShortLeg() == null) csFilter.setShortLeg(new LegFilter());
                 addExprIfAbsent(csFilter.getShortLeg(), expr);
-            } else if (clean.startsWith("LONG")) {
+            } else if (clean.equals("LONGLEG")) {
                 if (csFilter.getLongLeg() == null) csFilter.setLongLeg(new LegFilter());
                 addExprIfAbsent(csFilter.getLongLeg(), expr);
             }
         } else if (filter instanceof IronCondorFilter icFilter) {
-            if (clean.equals("PUTSHORT") || clean.equals("PUTSHORTLEG") || clean.equals("SHORTPUT") || clean.equals("SHORTPUTLEG")) {
+            if (clean.equals("PUTSHORT")) {
                 if (icFilter.getPutShortLeg() == null) icFilter.setPutShortLeg(new LegFilter());
                 addExprIfAbsent(icFilter.getPutShortLeg(), expr);
-            } else if (clean.equals("PUTLONG") || clean.equals("PUTLONGLEG") || clean.equals("LONGPUT") || clean.equals("LONGPUTLEG")) {
+            } else if (clean.equals("PUTLONG")) {
                 if (icFilter.getPutLongLeg() == null) icFilter.setPutLongLeg(new LegFilter());
                 addExprIfAbsent(icFilter.getPutLongLeg(), expr);
-            } else if (clean.equals("CALLSHORT") || clean.equals("CALLSHORTLEG") || clean.equals("SHORTCALL") || clean.equals("SHORTCALLLEG")) {
+            } else if (clean.equals("CALLSHORT")) {
                 if (icFilter.getCallShortLeg() == null) icFilter.setCallShortLeg(new LegFilter());
                 addExprIfAbsent(icFilter.getCallShortLeg(), expr);
-            } else if (clean.equals("CALLLONG") || clean.equals("CALLLONGLEG") || clean.equals("LONGCALL") || clean.equals("LONGCALLLEG")) {
+            } else if (clean.equals("CALLLONG")) {
                 if (icFilter.getCallLongLeg() == null) icFilter.setCallLongLeg(new LegFilter());
                 addExprIfAbsent(icFilter.getCallLongLeg(), expr);
             }
         } else if (filter instanceof BrokenWingButterflyFilter bwbFilter) {
-            if (clean.startsWith("LEG1")) {
+            if (clean.equals("LEG1")) {
                 if (bwbFilter.getLeg1Long() == null) bwbFilter.setLeg1Long(new LegFilter());
                 addExprIfAbsent(bwbFilter.getLeg1Long(), expr);
-            } else if (clean.startsWith("LEG2")) {
+            } else if (clean.equals("LEG2")) {
                 if (bwbFilter.getLeg2Short() == null) bwbFilter.setLeg2Short(new LegFilter());
                 addExprIfAbsent(bwbFilter.getLeg2Short(), expr);
-            } else if (clean.startsWith("LEG3")) {
+            } else if (clean.equals("LEG3")) {
                 if (bwbFilter.getLeg3Long() == null) bwbFilter.setLeg3Long(new LegFilter());
                 addExprIfAbsent(bwbFilter.getLeg3Long(), expr);
             }
         } else if (filter instanceof ZebraFilter zebraFilter) {
-            if (clean.startsWith("SHORT")) {
+            if (clean.equals("SHORTLEG") || clean.equals("CALLSHORT")) {
                 if (zebraFilter.getShortCall() == null) zebraFilter.setShortCall(new LegFilter());
                 addExprIfAbsent(zebraFilter.getShortCall(), expr);
-            } else if (clean.startsWith("LONG")) {
+            } else if (clean.equals("LONGLEG") || clean.equals("CALLLONG")) {
                 if (zebraFilter.getLongCall() == null) zebraFilter.setLongCall(new LegFilter());
                 addExprIfAbsent(zebraFilter.getLongCall(), expr);
             }
         } else if (filter instanceof ShortStrangleFilter strangleFilter) {
-            if (clean.startsWith("PUT")) {
+            if (clean.equals("PUTSHORT")) {
                 if (strangleFilter.getPutShortLeg() == null) strangleFilter.setPutShortLeg(new LegFilter());
                 addExprIfAbsent(strangleFilter.getPutShortLeg(), expr);
-            } else if (clean.startsWith("CALL")) {
+            } else if (clean.equals("CALLSHORT")) {
                 if (strangleFilter.getCallShortLeg() == null) strangleFilter.setCallShortLeg(new LegFilter());
                 addExprIfAbsent(strangleFilter.getCallShortLeg(), expr);
             }
         } else if (filter instanceof LongCallLeapFilter leapFilter) {
-            if (clean.startsWith("LONG")) {
+            if (clean.equals("LONGLEG") || clean.equals("CALLLONG")) {
                 if (leapFilter.getLongCall() == null) leapFilter.setLongCall(new LegFilter());
                 addExprIfAbsent(leapFilter.getLongCall(), expr);
             }

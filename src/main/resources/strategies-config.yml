@@ -268,9 +268,9 @@ optionsStrategies:
       savingsInterestRate: 10
       conditions:
         - "DTE >= 330"
-        - "OPTION_PRICE_PERCENT <= 50"
+        - "OPTION_PRICE_PCT <= 50"
         - "BREAKEVEN_CAGR <= 15"
-        - "COST_SAVINGS_PERCENT >= 10"
+        - "COST_SAVINGS_PCT >= 10"
         - "MAX_LOSS <= 5000"
         - "IV_PERCENTILE <= 30"
       longCall:
@@ -289,9 +289,9 @@ optionsStrategies:
       savingsInterestRate: 10
       conditions:
         - "DTE >= 330"
-        - "OPTION_PRICE_PERCENT <= 50"
+        - "OPTION_PRICE_PCT <= 50"
         - "BREAKEVEN_CAGR <= 15"
-        - "COST_SAVINGS_PERCENT >= 10"
+        - "COST_SAVINGS_PCT >= 10"
         - "MAX_LOSS <= 5000"
         - "IV_PERCENTILE <= 30"
       longCall:
@@ -324,9 +324,9 @@ optionsStrategies:
       savingsInterestRate: 10
       conditions:
         - "DTE >= 330"
-        - "OPTION_PRICE_PERCENT <= 40"
+        - "OPTION_PRICE_PCT <= 40"
         - "BREAKEVEN_CAGR <= 10"
-        - "COST_SAVINGS_PERCENT >= 10"
+        - "COST_SAVINGS_PCT >= 10"
         - "MAX_LOSS <= 5000"
         - "IV_PERCENTILE <= 30"
       longCall:
@@ -347,9 +347,9 @@ optionsStrategies:
       savingsInterestRate: 10
       conditions:
         - "DTE >= 330"
-        - "OPTION_PRICE_PERCENT <= 50"
+        - "OPTION_PRICE_PCT <= 50"
         - "BREAKEVEN_CAGR <= 20"
-        - "COST_SAVINGS_PERCENT >= 5"
+        - "COST_SAVINGS_PCT >= 5"
         - "IV_PERCENTILE <= 30"
       longCall:
         conditions:

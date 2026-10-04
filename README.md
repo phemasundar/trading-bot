@@ -440,37 +440,41 @@ Options strategy filters are configured using declarative mathematical expressio
 - `>=`, `<=`, `>`, `<`, `==`, `!=`
 - Percentage scaling: `* 90%` (e.g., `VOLUME_SMA20 >= VOLUME_SMA50 * 90%`)
 - Arithmetic offsets: `+ X`, `- X` (e.g., `EARNINGS_NEAREST_TO_DTE <= DTE - 10`)
-- Literal percentage values: `ROR >= 12%`, `IV_PERCENTILE >= 30%`
+- Literal percentage values: `RETURN_ON_RISK >= 12%`, `IV_PERCENTILE >= 30%`
 
 #### Supported Variables
 
 | Category | Variable | Description |
 |:---|:---|:---|
-| **Expiry & IV** | `DTE`, `DAYS_TO_EXPIRATION` | Days until option contract expiration |
+| **Expiry & IV** | `DTE` | Days until option contract expiration |
 | | `IV_RANK` | Implied Volatility rank (0–100) from historical IV cache |
 | | `IV_PERCENTILE` | Implied Volatility percentile (0–100) from historical IV cache |
 | **Earnings** | `DAYS_TO_NEXT_EARNINGS` | Calendar days until the company's next earnings announcement |
 | | `EARNINGS_NEAREST_TO_DTE` | Days until the earnings event closest to the expiry date |
 | **Trade Risk & Return** | `MAX_LOSS` | Maximum dollar loss for the trade setup |
-| | `NET_CREDIT`, `CREDIT` | Total credit received for the trade |
-| | `NET_DEBIT`, `DEBIT` | Total debit paid for the trade |
-| | `ROR`, `RETURN_ON_RISK` | Return on risk percentage (`netCredit / maxLoss * 100`) |
-| | `CAGR`, `ROR_CAGR` | Annualized compound return on risk percentage |
-| | `BREAK_EVEN_PRICE`, `BREAK_EVEN` | Trade breakeven stock price |
+| | `NET_CREDIT` | Total credit received for the trade |
+| | `TOTAL_DEBIT` | Total debit paid for the trade |
+| | `RETURN_ON_RISK` | Return on risk percentage (`netCredit / maxLoss * 100`) |
+| | `CAGR` | Annualized compound return on risk percentage |
+| | `BREAK_EVEN_PRICE` | Trade breakeven stock price |
 | | `BREAK_EVEN_PCT` | Percentage distance from current stock price to breakeven |
 | | `UPPER_BREAK_EVEN_PRICE` | Upper breakeven price (Strangle, Iron Condor, BWB) |
 | | `UPPER_BREAK_EVEN_PCT` | Upper breakeven percentage distance |
+| | `UPPER_BREAK_EVEN_DELTA` | Upper breakeven delta |
 | | `ANNUALIZED_EXTRINSIC_PCT` | Annualized net extrinsic value to capital percentage |
-| | `CURRENT_PRICE`, `PRICE` | Current underlying stock price |
-| **Leg Metrics** | `DELTA`, `ABS_DELTA` | Absolute value of leg delta (e.g. `0.20`) |
-| *(Dotted or Leg-level)* | `RAW_DELTA`, `SIGNED_DELTA` | Signed delta (negative for puts, positive for calls) |
-| | `OPEN_INTEREST`, `OI` | Contract open interest |
-| | `VOLUME`, `TOTAL_VOLUME` | Contract trading volume |
-| | `PREMIUM`, `MARK` | Contract mark price |
+| | `CURRENT_PRICE` | Current underlying stock price |
+| | `OPTION_PRICE_PCT` | Option price percentage relative to stock price (LEAP) |
+| | `COST_SAVINGS_PCT` | Cost savings percentage relative to stock purchase (LEAP) |
+| **Leg Metrics** | `DELTA` | Absolute value of leg delta (e.g. `0.20`) |
+| *(Dotted or Leg-level)* | `SIGNED_DELTA` | Signed delta (negative for puts, positive for calls) |
+| | `OPEN_INTEREST` | Contract open interest |
+| | `VOLUME` | Contract trading volume |
+| | `MARK` | Contract mark price |
 | | `BID`, `ASK` | Contract bid / ask quotes |
-| | `IV`, `VOLATILITY` | Contract implied volatility |
-| | `GAMMA`, `THETA`, `VEGA` | Option Greeks |
-| | `STRIKE` | Option strike price |
+| | `LAST` | Contract last traded price |
+| | `IV` | Contract implied volatility |
+| | `GAMMA`, `THETA`, `VEGA`, `RHO` | Option Greeks |
+| | `STRIKE_PRICE` | Option strike price |
 
 #### Leg Prefix Routing
 Multi-leg conditions can be written directly on the strategy filter using dotted notation. The parser (`FilterParser`) automatically routes leg conditions to the corresponding `LegFilter` for early pruning and attaches them to `FilterPipeline<TradeSetup>`:
@@ -480,7 +484,7 @@ Multi-leg conditions can be written directly on the strategy filter using dotted
 | **Credit Spreads (PCS / CCS)** | `SHORT_LEG.*`, `LONG_LEG.*` | `SHORT_LEG.DELTA <= 0.2`, `SHORT_LEG.OPEN_INTEREST >= 500` |
 | **Iron Condor** | `PUT_SHORT.*`, `PUT_LONG.*`, `CALL_SHORT.*`, `CALL_LONG.*` | `PUT_SHORT.DELTA <= 0.15`, `CALL_SHORT.DELTA <= 0.15` |
 | **Short Strangle** | `PUT_SHORT.*`, `CALL_SHORT.*` | `PUT_SHORT.DELTA <= 0.2`, `CALL_SHORT.DELTA <= 0.2` |
-| **Broken Wing Butterfly** | `LEG1_LONG.*`, `LEG2_SHORT.*`, `LEG3_LONG.*` | `LEG1.DELTA >= 0.50`, `LEG2_SHORT.DELTA <= 0.40` |
+| **Broken Wing Butterfly** | `LEG1.*`, `LEG2.*`, `LEG3.*` | `LEG1.DELTA >= 0.50`, `LEG2.DELTA <= 0.40` |
 | **ZEBRA** | `SHORT_LEG.*`, `LONG_LEG.*` | `SHORT_LEG.DELTA >= 0.45`, `LONG_LEG.DELTA >= 0.65` |
 
 #### YAML Configuration Examples

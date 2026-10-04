@@ -193,7 +193,7 @@ public class OptionChainResponse {
                     }
                     return MathExpressionEvaluator.evaluateAll(
                             dteExpressions,
-                            var -> "DTE".equalsIgnoreCase(var) || "DAYS_TO_EXPIRATION".equalsIgnoreCase(var)
+                            var -> "DTE".equalsIgnoreCase(var)
                                     ? (double) key.getDaysToExpiry() : null);
                 })
                 .sorted(Comparator.comparingInt(ExpirationDateKey::getDaysToExpiry))

@@ -36,9 +36,9 @@ const TRADE_VARIABLES = [
     { value: 'UPPER_BREAK_EVEN_DELTA', label: 'UPPER_BREAK_EVEN_DELTA' },
     { value: 'TOTAL_DEBIT', label: 'TOTAL_DEBIT ($)' },
     { value: 'NET_CREDIT', label: 'NET_CREDIT ($)' },
-    { value: 'OPTION_PRICE_PERCENT', label: 'OPTION_PRICE_PERCENT (%)' },
+    { value: 'OPTION_PRICE_PCT', label: 'OPTION_PRICE_PCT (%)' },
     { value: 'BREAKEVEN_CAGR', label: 'BREAKEVEN_CAGR (%)' },
-    { value: 'COST_SAVINGS_PERCENT', label: 'COST_SAVINGS_PERCENT (%)' },
+    { value: 'COST_SAVINGS_PCT', label: 'COST_SAVINGS_PCT (%)' },
     { value: 'ANNUALIZED_EXTRINSIC_PCT', label: 'ANNUALIZED_EXTRINSIC_PCT (%)' },
     { value: 'MAX_LOSS_UPSIDE', label: 'MAX_LOSS_UPSIDE ($)' },
     { value: 'MAX_LOSS_DOWNSIDE', label: 'MAX_LOSS_DOWNSIDE ($)' },
@@ -63,7 +63,7 @@ const LEG_VARIABLES = [
     { value: 'MARK', label: 'MARK (Premium)' },
     { value: 'BID', label: 'BID' },
     { value: 'ASK', label: 'ASK' },
-    { value: 'STRIKE', label: 'STRIKE' },
+    { value: 'STRIKE_PRICE', label: 'STRIKE_PRICE' },
 ];
 
 
@@ -560,8 +560,8 @@ function loadFiltersFromResult(btn, isReexecute = false) {
             if (filterConfig.maxNetExtrinsicValueToPricePercentage) addConditionRow('trade-conditions', TRADE_VARIABLES, `ANNUALIZED_EXTRINSIC_PCT <= ${filterConfig.maxNetExtrinsicValueToPricePercentage}`);
             if (filterConfig.minNetExtrinsicValueToPricePercentage) addConditionRow('trade-conditions', TRADE_VARIABLES, `ANNUALIZED_EXTRINSIC_PCT >= ${filterConfig.minNetExtrinsicValueToPricePercentage}`);
             if (filterConfig.maxCAGRForBreakEven) addConditionRow('trade-conditions', TRADE_VARIABLES, `BREAKEVEN_CAGR <= ${filterConfig.maxCAGRForBreakEven}`);
-            if (filterConfig.maxOptionPricePercent) addConditionRow('trade-conditions', TRADE_VARIABLES, `OPTION_PRICE_PERCENT <= ${filterConfig.maxOptionPricePercent}`);
-            if (filterConfig.minCostSavingsPercent) addConditionRow('trade-conditions', TRADE_VARIABLES, `COST_SAVINGS_PERCENT >= ${filterConfig.minCostSavingsPercent}`);
+            if (filterConfig.maxOptionPricePercent) addConditionRow('trade-conditions', TRADE_VARIABLES, `OPTION_PRICE_PCT <= ${filterConfig.maxOptionPricePercent}`);
+            if (filterConfig.minCostSavingsPercent) addConditionRow('trade-conditions', TRADE_VARIABLES, `COST_SAVINGS_PCT >= ${filterConfig.minCostSavingsPercent}`);
         }
 
         // Reset and populate leg conditions
