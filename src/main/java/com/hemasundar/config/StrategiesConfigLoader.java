@@ -489,7 +489,7 @@ public class StrategiesConfigLoader {
                             applyRsiFilter(rawEntry, indicatorConfigs, indicatorsBuilder, conditionsBuilder, filterExpressions);
                     case "BOLLINGER_BAND" ->
                             applyBollingerFilter(rawEntry, indicatorConfigs, indicatorsBuilder, conditionsBuilder, filterExpressions);
-                    case "VOLUME" -> applyVolumeFilter(rawEntry, filterExpressions);
+                    case "DOLLAR_VOLUME", "VOLUME_SMA" -> applyVolumeFilter(rawEntry, filterExpressions);
                     case "SIMPLE_MOVING_AVERAGE" ->
                             applyMovingAverageFilters(rawEntry, indicatorsBuilder, filterExpressions);
                     case "EXP_MOVING_AVERAGE" ->
@@ -1159,7 +1159,7 @@ public class StrategiesConfigLoader {
 
     private boolean isKnownStaticVariable(String key) {
         return switch (key) {
-            case "PRICE", "CURRENT_PRICE", "VOLUME",
+            case "PRICE", "CURRENT_PRICE", "DOLLAR_VOLUME",
                  "RSI", "PREVIOUS_RSI",
                  "BB_LOWER", "BB_MIDDLE", "BB_UPPER",
                  "HV_RANK", "DROP_PCT", "MARKET_CAP_B", "ATR", "NATR",

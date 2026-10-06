@@ -142,7 +142,7 @@ public class StrategiesConfigLoaderTest {
     @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = ".*Volume SMA period 30 is not configured.*")
     public void testTechnicalFilterValidation_UnconfiguredVolumeSma_ThrowsException() {
         Map<String, Object> filters = Map.of(
-                "VOLUME", Map.of("conditions", List.of("VOLUME >= VOLUME_SMA30"))
+                "DOLLAR_VOLUME", Map.of("conditions", List.of("DOLLAR_VOLUME >= VOLUME_SMA30"))
         );
         configLoader.parseTechnicalFilters(filters);
     }
@@ -202,6 +202,11 @@ public class StrategiesConfigLoaderTest {
         List<com.hemasundar.technical.ScreenerConfig> screeners = fullLoader.loadScreeners(com.hemasundar.utils.FilePaths.strategiesConfig, securitiesMap);
         assertNotNull(screeners);
         assertFalse(screeners.isEmpty(), "Production screeners must load");
+        boolean foundDollarVolume = screeners.stream()
+                .filter(s -> s.getFilterChain() != null && s.getFilterChain().getConditions() != null)
+                .flatMap(s -> s.getFilterChain().getConditions().getFilterExpressions().stream())
+                .anyMatch(e -> "DOLLAR_VOLUME".equals(e.getLeftVariable()) && "50000000".equals(e.getRightVariable()));
+        assertTrue(foundDollarVolume, "Production screeners must contain parsed DOLLAR_VOLUME >= 50000000 expression");
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = ".*Unknown filter variable.*")

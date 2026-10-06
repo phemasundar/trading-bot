@@ -102,9 +102,9 @@ public class TechnicalScreenerTest {
         TechFilterConditions conditions = TechFilterConditions.builder()
                 .filterExpressions(java.util.List.of(
                         MathExpression.builder()
-                                .leftVariable("VOLUME")
+                                .leftVariable("DOLLAR_VOLUME")
                                 .operator(RelationalOperator.GREATER_THAN_OR_EQUAL)
-                                .rightVariable("500")
+                                .rightVariable("50000")
                                 .build()))
                 .build();
 
@@ -113,7 +113,7 @@ public class TechnicalScreenerTest {
         List<TechnicalScreener.ScreeningResult> results = technicalScreener.screenStocks(Arrays.asList("GOOGL"), chain, null);
 
         assertNotNull(results);
-        assertEquals(results.size(), 1, "Should find 1 stock as flat price meets volume 500 requirement");
+        assertEquals(results.size(), 1, "Should find 1 stock as flat price meets dollar volume requirement");
         assertEquals(results.get(0).getSymbol(), "GOOGL");
     }
 
@@ -125,13 +125,13 @@ public class TechnicalScreenerTest {
 
         TechnicalIndicators indicators = TechnicalIndicators.builder().build();
 
-        // Require massive volume
+        // Require massive dollar volume
         TechFilterConditions conditions = TechFilterConditions.builder()
                 .filterExpressions(java.util.List.of(
                         MathExpression.builder()
-                                .leftVariable("VOLUME")
+                                .leftVariable("DOLLAR_VOLUME")
                                 .operator(RelationalOperator.GREATER_THAN_OR_EQUAL)
-                                .rightVariable("10000000")
+                                .rightVariable("100000000")
                                 .build()))
                 .build();
 
@@ -140,7 +140,42 @@ public class TechnicalScreenerTest {
         List<TechnicalScreener.ScreeningResult> results = technicalScreener.screenStocks(Arrays.asList("NVDA"), chain, null);
 
         assertNotNull(results);
-        assertEquals(results.size(), 0, "Should find 0 stocks as volume 1000 < 10M");
+        assertEquals(results.size(), 0, "Should find 0 stocks as dollar volume 100K < 100M");
+    }
+
+    @Test
+    public void testScreenStocks_DollarVolumeCriteria() {
+        PriceHistoryResponse response = createMockResponse(100.0, 30);
+        Mockito.when(ThinkOrSwimAPIs.getYearlyPriceHistory(anyString(), anyInt()))
+                .thenReturn(response);
+
+        TechnicalIndicators indicators = TechnicalIndicators.builder().build();
+
+        // Require high dollar volume that is not met (100 price * 1000 volume = 100,000 < 50,000,000)
+        TechFilterConditions notMet = TechFilterConditions.builder()
+                .filterExpressions(java.util.List.of(
+                        MathExpression.builder()
+                                .leftVariable("DOLLAR_VOLUME")
+                                .operator(RelationalOperator.GREATER_THAN_OR_EQUAL)
+                                .rightVariable("50000000")
+                                .build()))
+                .build();
+        List<TechnicalScreener.ScreeningResult> results = technicalScreener.screenStocks(List.of("NVDA"), TechnicalFilterChain.of(indicators, notMet), null);
+        assertNotNull(results);
+        assertEquals(results.size(), 0, "Should find 0 stocks as dollar volume 100K < 50M");
+
+        // Require lower dollar volume that is met (100 price * 1000 volume = 100,000 >= 50,000)
+        TechFilterConditions met = TechFilterConditions.builder()
+                .filterExpressions(java.util.List.of(
+                        MathExpression.builder()
+                                .leftVariable("DOLLAR_VOLUME")
+                                .operator(RelationalOperator.GREATER_THAN_OR_EQUAL)
+                                .rightVariable("50000")
+                                .build()))
+                .build();
+        results = technicalScreener.screenStocks(List.of("NVDA"), TechnicalFilterChain.of(indicators, met), null);
+        assertNotNull(results);
+        assertEquals(results.size(), 1, "Should find 1 stock as dollar volume 100K >= 50K");
     }
 
     @Test
@@ -159,7 +194,7 @@ public class TechnicalScreenerTest {
                         100, MovingAverageFilter.builder().period(100).build(),
                         200, MovingAverageFilter.builder().period(200).build()
                 )))
-                .volumeFilter(VolumeFilter.builder().build())
+                .dollarVolumeFilter(DollarVolumeFilter.builder().build())
                 .build();
 
         TechnicalScreener.ScreeningResult result = technicalScreener.analyzeStock("TEST", indicators, null);
@@ -235,6 +270,8 @@ public class TechnicalScreenerTest {
         assertEquals(result.getCurrentPrice(), 150.0);
         assertEquals(result.getRsi(), 35.0);
         assertEquals(result.getVolume(), 1000000L);
+        assertEquals(result.getDollarVolume(), 150.0 * 1000000L);
+        assertEquals(result.getIndicatorValue("DOLLAR_VOLUME"), 150.0 * 1000000L);
         assertEquals(result.getBollingerUpper(), 160.0);
         assertEquals(result.getMaValues().get(20), 155.0);
         

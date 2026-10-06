@@ -411,7 +411,7 @@ TechnicalIndicators indicators = TechnicalIndicators.builder()
         .period(20)
         .standardDeviations(2.0)
         .build())
-    .volumeFilter(VolumeFilter.builder().build()) // Volume indicator is used
+    .dollarVolumeFilter(DollarVolumeFilter.builder().build()) // Dollar Volume indicator is used
     .build();
 
 // STEP 2: Define WHAT CONDITIONS to look for (separate from indicators)

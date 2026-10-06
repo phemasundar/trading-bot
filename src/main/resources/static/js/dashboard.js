@@ -1824,6 +1824,7 @@ const TECH_FILTER_LABELS = {
     RSI:                   'RSI Condition',
     BOLLINGER_BAND:        'Bollinger Band',
     VOLUME:                'Volume Rules',
+    DOLLAR_VOLUME:         'Dollar Volume Rules',
     HISTORICAL_VOLATILITY: 'Historical Volatility',
     PRICE_DROP:            'Price Drop',
     SIMPLE_MOVING_AVERAGE: 'Moving Average Rules',

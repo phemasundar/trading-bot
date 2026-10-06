@@ -53,8 +53,8 @@ public class TechnicalFilterChainTest {
         RSIFilter filter = chain.getFilter(RSIFilter.class);
         Assert.assertNotNull(filter);
         
-        VolumeFilter volumeFilter = chain.getFilter(VolumeFilter.class);
-        Assert.assertNull(volumeFilter);
+        DollarVolumeFilter dollarVolumeFilter = chain.getFilter(DollarVolumeFilter.class);
+        Assert.assertNull(dollarVolumeFilter);
     }
 
     @Test
@@ -73,14 +73,14 @@ public class TechnicalFilterChainTest {
     public void testGettersAndBuilderAllFields() {
         RSIFilter rsi = RSIFilter.builder().period(14).build();
         BollingerBandsFilter bb = BollingerBandsFilter.builder().period(20).build();
-        VolumeFilter vol = VolumeFilter.builder().minVolume(1000000L).build();
+        DollarVolumeFilter vol = DollarVolumeFilter.builder().minDollarVolume(50000000.0).build();
         MovingAverageFilter ma20 = MovingAverageFilter.builder().period(20).build();
         MovingAverageFilter ma50 = MovingAverageFilter.builder().period(50).build();
 
         TechnicalIndicators indicators = TechnicalIndicators.builder()
                 .rsiFilter(rsi)
                 .bollingerFilter(bb)
-                .volumeFilter(vol)
+                .dollarVolumeFilter(vol)
                 .maFilters(new java.util.HashMap<>(java.util.Map.of(
                         20, ma20,
                         50, ma50
@@ -92,9 +92,9 @@ public class TechnicalFilterChainTest {
                 .bollingerCondition(BollingerCondition.LOWER_BAND)
                 .filterExpressions(java.util.List.of(
                         MathExpression.builder()
-                                .leftVariable("VOLUME")
+                                .leftVariable("DOLLAR_VOLUME")
                                 .operator(RelationalOperator.GREATER_THAN_OR_EQUAL)
-                                .rightVariable("500000")
+                                .rightVariable("25000000")
                                 .build()))
                 .build();
 
@@ -102,32 +102,32 @@ public class TechnicalFilterChainTest {
 
         Assert.assertEquals(chain.getRsiFilter(), rsi);
         Assert.assertEquals(chain.getBollingerFilter(), bb);
-        Assert.assertEquals(chain.getVolumeFilter(), vol);
+        Assert.assertEquals(chain.getDollarVolumeFilter(), vol);
         Assert.assertEquals(chain.getMaFilters().get(20), ma20);
         Assert.assertEquals(chain.getMaFilters().get(50), ma50);
         Assert.assertEquals(chain.getRsiCondition(), RSICondition.OVERSOLD);
         Assert.assertEquals(chain.getBollingerCondition(), BollingerCondition.LOWER_BAND);
         Assert.assertEquals(1, chain.getConditions().getFilterExpressions().size());
-        Assert.assertEquals("VOLUME", chain.getConditions().getFilterExpressions().get(0).getLeftVariable());
+        Assert.assertEquals("DOLLAR_VOLUME", chain.getConditions().getFilterExpressions().get(0).getLeftVariable());
     }
 
     @Test
     public void testBuilderWithOtherFields() {
         RSIFilter rsi = RSIFilter.builder().build();
         BollingerBandsFilter bb = BollingerBandsFilter.builder().build();
-        VolumeFilter vol = VolumeFilter.builder().build();
 
         TechnicalFilterChain chain = TechnicalFilterChain.builder()
                 .withRSI(rsi)
                 .withBollingerBands(bb)
-                .withVolume(vol)
+                .withDollarVolume(DollarVolumeFilter.builder().build())
                 .rsiCondition(RSICondition.OVERSOLD)
                 .bollingerCondition(BollingerCondition.LOWER_BAND)
                 .build();
 
         Assert.assertEquals(chain.getRsiFilter(), rsi);
         Assert.assertEquals(chain.getBollingerFilter(), bb);
-        Assert.assertEquals(chain.getVolumeFilter(), vol);
+        Assert.assertNotNull(chain.getDollarVolumeFilter());
+        Assert.assertNotNull(chain.getFilter(DollarVolumeFilter.class));
         Assert.assertEquals(chain.getRsiCondition(), RSICondition.OVERSOLD);
         Assert.assertEquals(chain.getBollingerCondition(), BollingerCondition.LOWER_BAND);
     }

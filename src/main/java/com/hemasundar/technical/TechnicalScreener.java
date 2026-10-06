@@ -106,6 +106,13 @@ public class TechnicalScreener {
         private Double marketCapB;
 
         /**
+         * Dollar trading volume (Current stock price * Volume).
+         */
+        public Double getDollarVolume() {
+            return currentPrice * volume;
+        }
+
+        /**
          * Returns a concise plain-text summary of the screening result.
          * Used by both the Web UI (click-to-expand) and Telegram alerts.
          * This is the single source of truth for screener result formatting.
@@ -219,6 +226,7 @@ public class TechnicalScreener {
          * <ul>
          *   <li>{@code PRICE}, {@code CURRENT_PRICE} — current price</li>
          *   <li>{@code VOLUME} — current volume</li>
+         *   <li>{@code DOLLAR_VOLUME} — current dollar volume (Current stock price * Volume)</li>
          *   <li>{@code RSI} — current RSI</li>
          *   <li>{@code PREVIOUS_RSI} — previous bar RSI</li>
          *   <li>{@code BB_LOWER}, {@code BB_MIDDLE}, {@code BB_UPPER} —
@@ -244,7 +252,7 @@ public class TechnicalScreener {
             String key = variable.trim().toUpperCase();
             return switch (key) {
                 case "PRICE", "CURRENT_PRICE" -> currentPrice;
-                case "VOLUME" -> (double) volume;
+                case "DOLLAR_VOLUME" -> currentPrice * volume;
                 case "RSI" -> rsi;
                 case "PREVIOUS_RSI" -> previousRsi;
                 case "BB_LOWER" -> bollingerLower;
@@ -521,13 +529,7 @@ public class TechnicalScreener {
         }
 
         // Volume
-        if (indicators.getVolumeFilter() != null) {
-            VolumeFilter volumeFilter = indicators.getVolumeFilter();
-            builder.volume(volumeFilter.getCurrentVolume(series));
-        } else {
-            // Default: get volume directly from series
-            builder.volume(series.getBar(series.getEndIndex()).getVolume().longValue());
-        }
+        builder.volume(series.getBar(series.getEndIndex()).getVolume().longValue());
 
         // Volume SMA calculation when any VOLUME_SMA<N> expression is configured
         if (conditions != null && conditions.getFilterExpressions() != null) {

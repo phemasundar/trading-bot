@@ -99,6 +99,8 @@
     "BOLLINGER_BAND.LOWER_BAND": "Stock price is currently at or below the lower Bollinger Band (2 standard deviations below the 20-day SMA).",
     "BOLLINGER_BAND.UPPER_BAND": "Stock price is currently at or above the upper Bollinger Band (2 standard deviations above the 20-day SMA).",
     "volumeRules": "Comma-separated expression rules filtering daily trading volume or volume moving averages. Examples: '>= 1000000, SMA20 >= SMA50 * 90%'.",
+    "DOLLAR_VOLUME": "Dollar volume of trading during the current session (Current stock price * Volume).",
+    "dollarVolumeRules": "Comma-separated expression rules filtering daily dollar trading volume (Current stock price * Volume). Example: 'DOLLAR_VOLUME >= 50000000'.",
     "hvPeriod": "The lookback period in trading days (default 20) used to calculate Historical Volatility (HV).",
     "hvRules": "Comma-separated rules filtering Historical Volatility Rank or Percentile. Example: '>= 25, <= 75'.",
     "priceDropRules": "Minimum percentage drop threshold required to trigger the price drop filter. Example: '>= 3.0' means price dropped at least 3%.",

@@ -235,3 +235,20 @@ When strategies execute, each filter step in the execution pipeline records entr
 - **Earnings & IV Filters**: Logged as evaluated, e.g. `DAYS_TO_NEXT_EARNINGS >= DTE`, `IV_RANK >= 50`.
 - **Trade Economics Filters**: Evaluated on candidate setups, e.g. `MAX_LOSS <= 1000`, `RETURN_ON_RISK >= 12%`, `NET_CREDIT > 0`.
 - **Clean Pipelines**: Unconfigured filter steps are pruned from the execution pipeline so only active rules appear in logs.
+
+---
+
+## Technical Liquidity Filters (`DOLLAR_VOLUME`)
+
+Technical filter presets and stock screeners enforce liquidity using dollar volume:
+- **Variable**: `DOLLAR_VOLUME`
+- **Formula**: `Current stock price * Volume`
+- **Configuration**:
+  ```yaml
+  technicalFilters:
+    DOLLAR_VOLUME:
+      conditions:
+        - "DOLLAR_VOLUME >= 50000000"
+  ```
+- **Dollar Liquidity**: Replaces raw share volume filters (`VOLUME >= 1000000`), scaling by 50x ($50,000,000 threshold) to evaluate true market liquidity across all share price ranges.
+

@@ -25,7 +25,7 @@ import java.util.HashMap;
  *             9, ExponentialMovingAverageFilter.builder().period(9).build(),
  *             21, ExponentialMovingAverageFilter.builder().period(21).build()
  *         )))
- *         .volumeFilter(VolumeFilter.builder().minVolume(1_000_000L).build())
+ *         .dollarVolumeFilter(DollarVolumeFilter.builder().minDollarVolume(50_000_000.0).build())
  *         .build();
  * </pre>
  */
@@ -47,7 +47,7 @@ public class TechnicalIndicators {
                         9, ExponentialMovingAverageFilter.builder().period(9).build(),
                         21, ExponentialMovingAverageFilter.builder().period(21).build()
                 )))
-                .volumeFilter(VolumeFilter.builder().build())
+                .dollarVolumeFilter(DollarVolumeFilter.builder().build())
                 .atrFilter(AverageTrueRangeFilter.builder().period(14).build())
                 .build();
     }
@@ -75,9 +75,9 @@ public class TechnicalIndicators {
     private final Map<Integer, ExponentialMovingAverageFilter> emaFilters = new HashMap<>();
 
     /**
-     * Volume filter configuration.
+     * Dollar Volume filter configuration.
      */
-    private final VolumeFilter volumeFilter;
+    private final DollarVolumeFilter dollarVolumeFilter;
 
     /**
      * Average True Range (ATR) configuration.

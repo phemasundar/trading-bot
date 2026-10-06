@@ -52,7 +52,7 @@ public class TechnicalIndicatorPreCalculationServiceTest {
                 .rsiFilter(RSIFilter.builder().period(14).build())
                 .bollingerFilter(BollingerBandsFilter.builder().period(20).build())
                 .atrFilter(AverageTrueRangeFilter.builder().period(14).build())
-                .volumeFilter(VolumeFilter.builder().minVolume(100000L).build())
+                .dollarVolumeFilter(DollarVolumeFilter.builder().minDollarVolume(50000000.0).build())
                 .build();
 
         TechnicalFilterChain chain1 = TechnicalFilterChain.of(techIndicators1, TechFilterConditions.builder().build());
@@ -81,6 +81,7 @@ public class TechnicalIndicatorPreCalculationServiceTest {
         Assert.assertNotNull(result.getEmaFilters().get(21));
         Assert.assertNotNull(result.getRsiFilter());
         Assert.assertNotNull(result.getBollingerFilter());
+        Assert.assertNotNull(result.getDollarVolumeFilter());
     }
 
     @Test
