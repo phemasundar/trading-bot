@@ -2,9 +2,11 @@ name: Trading Bot CI
 
 on:
   schedule:
-    # 10:00 AM EDT (9:00 AM CDT) = 14:00 UTC
-    - cron: "0 14 * * 1-5"
-    # 3:30 PM EDT (2:30 PM CDT) = 19:30 UTC
+    # Morning: 20 min after market open (9:50 AM EDT / 8:50 AM CDT = 13:50 UTC, Mon-Fri)
+    # Note: During EST (Standard Time, Nov-Mar), 9:50 AM EST is 14:50 UTC
+    - cron: "50 13 * * 1-5"
+    # Evening: 30 min before market close (3:30 PM EDT / 2:30 PM CDT = 19:30 UTC, Mon-Fri)
+    # Note: During EST (Standard Time, Nov-Mar), 3:30 PM EST is 20:30 UTC
     - cron: "30 19 * * 1-5"
   workflow_dispatch: # Allow manual trigger
 

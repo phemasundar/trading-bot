@@ -2,8 +2,9 @@ name: Daily IV Data Collection
 
 on:
   schedule:
-    # Run at 3:50 PM EDT / 2:50 PM CDT (19:50 UTC) on weekdays (Monday-Friday)
-    - cron: "50 19 * * 1-5"
+    # 20 min before market close: 3:40 PM EDT / 2:40 PM CDT = 19:40 UTC on weekdays (Monday-Friday)
+    # Note: During EST (Standard Time, Nov-Mar), 3:40 PM EST is 20:40 UTC
+    - cron: "40 19 * * 1-5"
   workflow_dispatch: # Allow manual trigger from GitHub UI
 
 jobs:
