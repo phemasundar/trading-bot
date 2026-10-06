@@ -57,7 +57,7 @@ public class TelegramUtils {
 
         // If Telegram is disabled, just log to console
         if (Boolean.FALSE.equals(telegramEnabled) || telegramEnabled == null) {
-            log.info("[TELEGRAM DISABLED] Message would be sent:\n{}", message);
+            log.debug("[TELEGRAM DISABLED] Message would be sent:\n{}", message);
             return true;
         }
 
@@ -66,7 +66,7 @@ public class TelegramUtils {
 
         if (botToken == null || botToken.isBlank() || chatId == null || chatId.isBlank()) {
             log.warn("Telegram not configured. Set telegram.bot-token and telegram.chat-id in application.properties");
-            log.info("[TELEGRAM] Message:\n{}", message);
+            log.debug("[TELEGRAM] Message:\n{}", message);
             return false;
         }
 

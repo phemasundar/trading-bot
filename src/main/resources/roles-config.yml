@@ -11,3 +11,6 @@ readonly:
     - /config.html
     - /option-strategies.html
     - /strategy-detail.html
+    - /option-greeks.html
+    - /greek-detail.html
+    - /option-strategies.html

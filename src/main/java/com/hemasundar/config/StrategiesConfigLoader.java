@@ -298,6 +298,26 @@ public class StrategiesConfigLoader {
             log.debug("Combined {} unique securities from files + inline for screener", securities.size());
         }
 
+        Map<String, Object> filterConfig = new LinkedHashMap<>();
+        if (entry.getScreenerType() != null) {
+            filterConfig.put("screenerType", entry.getScreenerType().name());
+        }
+        if (StringUtils.isNotBlank(entry.getAlias())) {
+            filterConfig.put("alias", entry.getAlias());
+        }
+        if (StringUtils.isNotBlank(entry.getSecuritiesFile())) {
+            filterConfig.put("securitiesFile", entry.getSecuritiesFile());
+        }
+        if (StringUtils.isNotBlank(entry.getSecurities())) {
+            filterConfig.put("securities", entry.getSecurities());
+        }
+        if (entry.getTechnicalFilters() != null && !entry.getTechnicalFilters().isEmpty()) {
+            filterConfig.put("technicalFilters", entry.getTechnicalFilters());
+        }
+        if (entry.getFundamentalFilters() != null && !entry.getFundamentalFilters().isEmpty()) {
+            filterConfig.put("fundamentalFilters", entry.getFundamentalFilters());
+        }
+
         return ScreenerConfig.builder()
                 .screenerType(entry.getScreenerType())
                 .alias(entry.getAlias())
@@ -305,6 +325,7 @@ public class StrategiesConfigLoader {
                 .securities(securities)
                 .filterChain(filterChain)
                 .fundamentalConditions(fundamentalConditions)
+                .filterConfig(filterConfig)
                 .build();
     }
 
@@ -468,7 +489,7 @@ public class StrategiesConfigLoader {
                             applyRsiFilter(rawEntry, indicatorConfigs, indicatorsBuilder, conditionsBuilder, filterExpressions);
                     case "BOLLINGER_BAND" ->
                             applyBollingerFilter(rawEntry, indicatorConfigs, indicatorsBuilder, conditionsBuilder, filterExpressions);
-                    case "VOLUME" -> applyVolumeFilter(rawEntry, filterExpressions);
+                    case "DOLLAR_VOLUME", "VOLUME_SMA" -> applyVolumeFilter(rawEntry, filterExpressions);
                     case "SIMPLE_MOVING_AVERAGE" ->
                             applyMovingAverageFilters(rawEntry, indicatorsBuilder, filterExpressions);
                     case "EXP_MOVING_AVERAGE" ->
@@ -1138,7 +1159,7 @@ public class StrategiesConfigLoader {
 
     private boolean isKnownStaticVariable(String key) {
         return switch (key) {
-            case "PRICE", "CURRENT_PRICE", "VOLUME",
+            case "PRICE", "CURRENT_PRICE", "DOLLAR_VOLUME",
                  "RSI", "PREVIOUS_RSI",
                  "BB_LOWER", "BB_MIDDLE", "BB_UPPER",
                  "HV_RANK", "DROP_PCT", "MARKET_CAP_B", "ATR", "NATR",

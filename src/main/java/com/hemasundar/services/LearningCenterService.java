@@ -1,5 +1,6 @@
 package com.hemasundar.services;
 
+import com.hemasundar.dto.OptionGreekDto;
 import com.hemasundar.dto.StrategyDescriptionDto;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.lang3.StringUtils;
@@ -232,5 +233,135 @@ public class LearningCenterService {
     private String stripMarkdown(String text) {
         if (text == null) return "";
         return text.replace("**", "").replace("*", "").replace("`", "").trim();
+    }
+
+    private static final Map<String, GreekMetadata> GREEK_METADATA = Map.of(
+            "delta", new GreekMetadata("Delta", "Δ", "First-Order", "∂V / ∂S", "Long Calls: +Δ | Long Puts: -Δ", "Directional sensitivity, hedge ratio, probability proxy"),
+            "gamma", new GreekMetadata("Gamma", "Γ", "Second-Order", "∂²V / ∂S²", "Long Options: +Γ | Short Options: -Γ", "Delta acceleration, convexity, pin risk"),
+            "theta", new GreekMetadata("Theta", "Θ", "First-Order", "∂V / ∂t", "Long Options: -Θ | Short Options: +Θ", "Time decay, extrinsic value erosion"),
+            "vega", new GreekMetadata("Vega", "V", "First-Order", "∂V / ∂σ", "Long Options: +V | Short Options: -V", "Implied volatility sensitivity, IV crush"),
+            "rho", new GreekMetadata("Rho", "ρ", "First-Order", "∂V / ∂r", "Long Calls: +ρ | Long Puts: -ρ", "Interest rate sensitivity, cost of carry"),
+            "vanna", new GreekMetadata("Vanna", "∂Δ/∂σ", "Second-Order", "∂²V / (∂S ∂σ)", "OTM Calls: +Vanna | OTM Puts: -Vanna", "Delta sensitivity to IV, market maker hedging"),
+            "charm", new GreekMetadata("Charm", "∂Δ/∂t", "Second-Order", "∂²V / (∂S ∂t)", "OTM: Pulls Δ → 0 | ITM: Pushes Δ → 1", "Delta decay over time, weekend pin risk"),
+            "volga", new GreekMetadata("Volga (Vomma)", "∂²V/∂σ²", "Second-Order", "∂²V / ∂σ²", "OTM Wings: +Volga | ATM: ~0 Volga", "Vega convexity, tail risk & volatility smile")
+    );
+
+    private record GreekMetadata(String name, String symbol, String order, String derivative, String exposure, String impact) {}
+
+    /**
+     * Retrieves all Option Greek guides parsed from markdown descriptions.
+     *
+     * @return sorted list of Option Greek DTOs
+     */
+    public List<OptionGreekDto> getOptionGreeks() {
+        List<OptionGreekDto> results = new ArrayList<>();
+        Map<String, String> contentsByFilename = loadGreekMarkdownContents();
+
+        List<String> orderList = List.of("delta", "gamma", "theta", "vega", "rho", "vanna", "charm", "volga");
+        for (String id : orderList) {
+            String filename = id + ".md";
+            String content = contentsByFilename.get(filename);
+            GreekMetadata meta = GREEK_METADATA.get(id);
+            if (meta != null) {
+                String summary = extractSummaryFromContent(content);
+                results.add(OptionGreekDto.builder()
+                        .id(id)
+                        .name(meta.name())
+                        .symbol(meta.symbol())
+                        .order(meta.order())
+                        .derivative(meta.derivative())
+                        .filename("greeks/" + filename)
+                        .summary(summary)
+                        .exposure(meta.exposure())
+                        .impact(meta.impact())
+                        .build());
+            }
+        }
+        return results;
+    }
+
+    /**
+     * Retrieves an Option Greek description by its identifier.
+     *
+     * @param id greek identifier (e.g. delta, gamma)
+     * @return optional containing the Greek description if found
+     */
+    public Optional<OptionGreekDto> getGreekById(String id) {
+        if (StringUtils.isBlank(id)) {
+            return Optional.empty();
+        }
+        String cleanId = id.trim().toLowerCase();
+        if (cleanId.endsWith(".md")) {
+            cleanId = cleanId.substring(0, cleanId.length() - 3);
+        }
+        if (cleanId.startsWith("greeks/")) {
+            cleanId = cleanId.substring(7);
+        }
+        final String targetId = cleanId;
+        return getOptionGreeks().stream()
+                .filter(g -> g.getId().equalsIgnoreCase(targetId))
+                .findFirst();
+    }
+
+    private String extractSummaryFromContent(String content) {
+        if (StringUtils.isBlank(content)) {
+            return "";
+        }
+        String[] lines = content.split("\r?\n");
+        StringBuilder sb = new StringBuilder();
+        for (String raw : lines) {
+            String line = raw.trim();
+            if (!line.isEmpty() && !line.startsWith("#") && !line.startsWith("$") && !line.startsWith("|")) {
+                sb.append(stripMarkdown(line)).append(" ");
+                if (sb.length() > 60) {
+                    break;
+                }
+            }
+        }
+        return sb.toString().trim();
+    }
+
+    private Map<String, String> loadGreekMarkdownContents() {
+        Map<String, String> contents = new LinkedHashMap<>();
+        try {
+            Resource[] resources = resourcePatternResolver.getResources("classpath*:static/descriptions/greeks/*.md");
+            if (resources != null && resources.length > 0) {
+                for (Resource r : resources) {
+                    String filename = r.getFilename();
+                    if (filename != null && !contents.containsKey(filename)) {
+                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(r.getInputStream(), StandardCharsets.UTF_8))) {
+                            StringBuilder sb = new StringBuilder();
+                            String line;
+                            while ((line = reader.readLine()) != null) {
+                                sb.append(line).append("\n");
+                            }
+                            contents.put(filename, sb.toString());
+                        }
+                    }
+                }
+            }
+        } catch (IOException e) {
+            log.warn("Failed to discover Greek descriptions via pattern resolver: {}", e.getMessage());
+        }
+
+        Path localDir = Path.of("src/main/resources/static/descriptions/greeks");
+        if (Files.exists(localDir)) {
+            try (Stream<Path> stream = Files.list(localDir)) {
+                stream.filter(p -> p.getFileName().toString().endsWith(".md")).forEach(p -> {
+                    String filename = p.getFileName().toString();
+                    if (!contents.containsKey(filename)) {
+                        try {
+                            contents.put(filename, Files.readString(p, StandardCharsets.UTF_8));
+                        } catch (IOException e) {
+                            log.warn("Failed to read local Greek markdown file {}: {}", filename, e.getMessage());
+                        }
+                    }
+                });
+            } catch (IOException e) {
+                log.warn("Failed to list local Greek descriptions folder: {}", e.getMessage());
+            }
+        }
+
+        return contents;
     }
 }

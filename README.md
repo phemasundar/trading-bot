@@ -151,6 +151,7 @@ The user interface features a clean, highly structured scrollable sidebar naviga
 - **Securities (`/securities.html`)**: Multi-timeframe technical indicator tracker and dynamic catalog discovering all securities YAML files with priority-tiered alerts and trading playbooks.
 - **Earnings Calendar (`/earnings-calendar.html`)**: Interactive monthly calendar tracking upcoming corporate earnings events across all securities universes.
 - **Option Strategies (`/option-strategies.html`)**: Learning Center directory displaying educational guides, Greek polarities, directional biases, and structural mechanics for options strategies. Clicking any strategy card redirects to a dedicated full-page guide (`/strategy-detail.html?strategy=<file>.md`) rendering the markdown documentation from `static/descriptions/` with an interactive strategy switcher.
+- **Option Greeks (`/option-greeks.html`)**: Learning Center directory detailing core risk parameters, sensitivity derivatives, and mathematical mechanics for options pricing and automated risk management. Displays interactive cards with Greek symbols ($\Delta, \Gamma, \Theta, \mathcal{V}, \rho$, Vanna, Charm, Volga), order classification chips (First-Order vs. Second-Order), partial derivatives ($\partial V / \partial S, \partial^2 V / \partial S^2$, etc.), position exposures, and impact summaries. Clicking any Greek card opens a dedicated markdown guide (`/greek-detail.html?greek=<id>`) loaded from `static/descriptions/greeks/` with a quick Greek switcher dropdown and direct links to Option Strategies.
 - **Strategy Config (`/config.html`)**: Read-only view of all strategy configurations with full parameter descriptions including configured securities universes and technical filters.
 - **Execution Logs (`/logs.html`)**: Real-time per-filter logs showing exactly where trade candidates are being discarded (e.g. Delta filter, Volume filter, DTE constraints) to help debug filter configurations.
 - **Swagger API Docs (`/swagger-ui.html`)**: Interactive REST API documentation.
@@ -328,9 +329,9 @@ A dedicated research interface accessible at `/securities.html` under the **Rese
    - `GET /api/securities/filter-config`: Returns parsed active filter settings.
    - `POST /api/securities/data`: Accepts `{ "symbols": ["NVDA", "AAPL", ...] }` and returns precalculated indicators from Supabase.
 
-## Learning Center & Option Strategies
+## Learning Center (Option Strategies & Option Greeks)
 
-A dedicated educational and strategy guide portal accessible under the **Learning Center → Option Strategies** sidebar navigation (`/option-strategies.html`).
+A dedicated educational and strategy guide portal accessible under the **Learning Center** sidebar navigation (`/option-strategies.html` and `/option-greeks.html`).
 
 ### Architecture & Capabilities
 
@@ -346,9 +347,23 @@ A dedicated educational and strategy guide portal accessible under the **Learnin
    - Direct "**▶ Execute Strategy**" CTA button linking to `/execute.html?strategy=<TYPE>` with the chosen strategy automatically pre-selected in the custom execution form.
    - Fully optimized for mobile with touch scrolling and horizontal scroll protection on data tables and code blocks.
 
-3. **REST Endpoints**:
+3. **Option Greeks Catalog (`/option-greeks.html`)**:
+   - Comprehensive reference directory for all primary options Greeks: **First-Order Greeks** (Delta $\Delta$, Theta $\Theta$, Vega $\mathcal{V}$, Rho $\rho$) and **Second-Order Greeks** (Gamma $\Gamma$, Vanna $\partial\Delta/\partial\sigma$, Charm $\partial\Delta/\partial t$, Volga $\partial^2 V/\partial\sigma^2$).
+   - Dynamic catalog discovered via `GET /api/learning/greeks` with markdown guides in `src/main/resources/static/descriptions/greeks/`.
+   - Interactive filter chips for derivative order classification (`All Greeks`, `First-Order`, `Second-Order`) and instant search across Greek symbols, partial derivative formulas, names, and risk management impacts.
+   - Cards display custom Greek symbol avatars, mathematical partial derivative formulas, position exposure rules (e.g. Long Calls: $+\Delta$ | Long Puts: $-\Delta$), concise summary descriptions, and primary trading impacts.
+
+4. **Option Greek Detail & Guide (`/greek-detail.html`)**:
+   - In-depth mathematical definitions, Black-Scholes partial differential derivations, practical trading implications (directional positioning, time decay, IV crush, dealer hedging flows, pin risk), and automated trading bot guardrails.
+   - Interactive Greek switcher dropdown to quickly navigate across all 8 Greeks.
+   - Direct reciprocal link to the Option Strategies catalog.
+   - Fully responsive on mobile with clean typography and KaTeX/markdown formatting.
+
+5. **REST Endpoints**:
    - `GET /api/learning/strategies`: Returns catalog metadata for all option strategies.
    - `GET /api/learning/strategies/{id}`: Returns parsed metadata for a single strategy by filename or ID.
+   - `GET /api/learning/greeks`: Returns catalog metadata for all Option Greeks.
+   - `GET /api/learning/greeks/{id}`: Returns parsed metadata for a single Greek by ID or filename.
 
 ## Technical Indicator Strategies
 
@@ -396,7 +411,7 @@ TechnicalIndicators indicators = TechnicalIndicators.builder()
         .period(20)
         .standardDeviations(2.0)
         .build())
-    .volumeFilter(VolumeFilter.builder().build()) // Volume indicator is used
+    .dollarVolumeFilter(DollarVolumeFilter.builder().build()) // Dollar Volume indicator is used
     .build();
 
 // STEP 2: Define WHAT CONDITIONS to look for (separate from indicators)
@@ -425,37 +440,41 @@ Options strategy filters are configured using declarative mathematical expressio
 - `>=`, `<=`, `>`, `<`, `==`, `!=`
 - Percentage scaling: `* 90%` (e.g., `VOLUME_SMA20 >= VOLUME_SMA50 * 90%`)
 - Arithmetic offsets: `+ X`, `- X` (e.g., `EARNINGS_NEAREST_TO_DTE <= DTE - 10`)
-- Literal percentage values: `ROR >= 12%`, `IV_PERCENTILE >= 30%`
+- Literal percentage values: `RETURN_ON_RISK >= 12%`, `IV_PERCENTILE >= 30%`
 
 #### Supported Variables
 
 | Category | Variable | Description |
 |:---|:---|:---|
-| **Expiry & IV** | `DTE`, `DAYS_TO_EXPIRATION` | Days until option contract expiration |
+| **Expiry & IV** | `DTE` | Days until option contract expiration |
 | | `IV_RANK` | Implied Volatility rank (0–100) from historical IV cache |
 | | `IV_PERCENTILE` | Implied Volatility percentile (0–100) from historical IV cache |
 | **Earnings** | `DAYS_TO_NEXT_EARNINGS` | Calendar days until the company's next earnings announcement |
 | | `EARNINGS_NEAREST_TO_DTE` | Days until the earnings event closest to the expiry date |
 | **Trade Risk & Return** | `MAX_LOSS` | Maximum dollar loss for the trade setup |
-| | `NET_CREDIT`, `CREDIT` | Total credit received for the trade |
-| | `NET_DEBIT`, `DEBIT` | Total debit paid for the trade |
-| | `ROR`, `RETURN_ON_RISK` | Return on risk percentage (`netCredit / maxLoss * 100`) |
-| | `CAGR`, `ROR_CAGR` | Annualized compound return on risk percentage |
-| | `BREAK_EVEN_PRICE`, `BREAK_EVEN` | Trade breakeven stock price |
+| | `NET_CREDIT` | Total credit received for the trade |
+| | `TOTAL_DEBIT` | Total debit paid for the trade |
+| | `RETURN_ON_RISK` | Return on risk percentage (`netCredit / maxLoss * 100`) |
+| | `CAGR` | Annualized compound return on risk percentage |
+| | `BREAK_EVEN_PRICE` | Trade breakeven stock price |
 | | `BREAK_EVEN_PCT` | Percentage distance from current stock price to breakeven |
 | | `UPPER_BREAK_EVEN_PRICE` | Upper breakeven price (Strangle, Iron Condor, BWB) |
 | | `UPPER_BREAK_EVEN_PCT` | Upper breakeven percentage distance |
+| | `UPPER_BREAK_EVEN_DELTA` | Upper breakeven delta |
 | | `ANNUALIZED_EXTRINSIC_PCT` | Annualized net extrinsic value to capital percentage |
-| | `CURRENT_PRICE`, `PRICE` | Current underlying stock price |
-| **Leg Metrics** | `DELTA`, `ABS_DELTA` | Absolute value of leg delta (e.g. `0.20`) |
-| *(Dotted or Leg-level)* | `RAW_DELTA`, `SIGNED_DELTA` | Signed delta (negative for puts, positive for calls) |
-| | `OPEN_INTEREST`, `OI` | Contract open interest |
-| | `VOLUME`, `TOTAL_VOLUME` | Contract trading volume |
-| | `PREMIUM`, `MARK` | Contract mark price |
+| | `CURRENT_PRICE` | Current underlying stock price |
+| | `OPTION_PRICE_PCT` | Option price percentage relative to stock price (LEAP) |
+| | `COST_SAVINGS_PCT` | Cost savings percentage relative to stock purchase (LEAP) |
+| **Leg Metrics** | `DELTA` | Absolute value of leg delta (e.g. `0.20`) |
+| *(Dotted or Leg-level)* | `SIGNED_DELTA` | Signed delta (negative for puts, positive for calls) |
+| | `OPEN_INTEREST` | Contract open interest |
+| | `VOLUME` | Contract trading volume |
+| | `MARK` | Contract mark price |
 | | `BID`, `ASK` | Contract bid / ask quotes |
-| | `IV`, `VOLATILITY` | Contract implied volatility |
-| | `GAMMA`, `THETA`, `VEGA` | Option Greeks |
-| | `STRIKE` | Option strike price |
+| | `LAST` | Contract last traded price |
+| | `IV` | Contract implied volatility |
+| | `GAMMA`, `THETA`, `VEGA`, `RHO` | Option Greeks |
+| | `STRIKE_PRICE` | Option strike price |
 
 #### Leg Prefix Routing
 Multi-leg conditions can be written directly on the strategy filter using dotted notation. The parser (`FilterParser`) automatically routes leg conditions to the corresponding `LegFilter` for early pruning and attaches them to `FilterPipeline<TradeSetup>`:
@@ -465,7 +484,7 @@ Multi-leg conditions can be written directly on the strategy filter using dotted
 | **Credit Spreads (PCS / CCS)** | `SHORT_LEG.*`, `LONG_LEG.*` | `SHORT_LEG.DELTA <= 0.2`, `SHORT_LEG.OPEN_INTEREST >= 500` |
 | **Iron Condor** | `PUT_SHORT.*`, `PUT_LONG.*`, `CALL_SHORT.*`, `CALL_LONG.*` | `PUT_SHORT.DELTA <= 0.15`, `CALL_SHORT.DELTA <= 0.15` |
 | **Short Strangle** | `PUT_SHORT.*`, `CALL_SHORT.*` | `PUT_SHORT.DELTA <= 0.2`, `CALL_SHORT.DELTA <= 0.2` |
-| **Broken Wing Butterfly** | `LEG1_LONG.*`, `LEG2_SHORT.*`, `LEG3_LONG.*` | `LEG1.DELTA >= 0.50`, `LEG2_SHORT.DELTA <= 0.40` |
+| **Broken Wing Butterfly** | `LEG1.*`, `LEG2.*`, `LEG3.*` | `LEG1.DELTA >= 0.50`, `LEG2.DELTA <= 0.40` |
 | **ZEBRA** | `SHORT_LEG.*`, `LONG_LEG.*` | `SHORT_LEG.DELTA >= 0.45`, `LONG_LEG.DELTA >= 0.65` |
 
 #### YAML Configuration Examples

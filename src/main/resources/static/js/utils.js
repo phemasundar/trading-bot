@@ -240,6 +240,31 @@ function setDashboardBusy(busy) {
 
 // ── Modals & Help Tooltips ──
 
+/**
+ * Configures marked with KaTeX math formula rendering if available.
+ */
+function initMarkedMath() {
+    if (typeof marked !== 'undefined' && typeof markedKatex !== 'undefined') {
+        const katexExt = typeof markedKatex === 'function' ? markedKatex : (markedKatex.default || markedKatex);
+        if (typeof katexExt === 'function' && !marked.__katexConfigured) {
+            marked.use(katexExt({ throwOnError: false, nonStandard: true, strict: false }));
+            marked.__katexConfigured = true;
+        }
+    }
+}
+
+/**
+ * Parses markdown text into HTML with KaTeX math formula support.
+ */
+function renderMarkdown(text) {
+    if (!text) return '';
+    initMarkedMath();
+    if (typeof marked !== 'undefined') {
+        return marked.parse(text);
+    }
+    return `<pre style="white-space: pre-wrap; font-family: var(--font-sans);">${escapeAttr(text)}</pre>`;
+}
+
 async function showInfo(event, filename, strategyName) {
     if (event) {
         event.stopPropagation();
@@ -280,11 +305,7 @@ async function showInfo(event, filename, strategyName) {
         const text = await res.text();
 
         const bodyEl = overlay.querySelector('.markdown-body');
-        if (typeof marked !== 'undefined') {
-            bodyEl.innerHTML = marked.parse(text);
-        } else {
-            bodyEl.innerHTML = `<pre style="white-space: pre-wrap; font-family: var(--font-sans);">${escapeAttr(text)}</pre>`;
-        }
+        bodyEl.innerHTML = renderMarkdown(text);
     } catch (e) {
         overlay.querySelector('.markdown-body').innerHTML = `
             <div class="empty-state">
@@ -608,6 +629,13 @@ if (typeof module !== 'undefined' && module.exports) {
         dismissSingleAlert,
         dismissAllAlerts,
         startPolling,
-        pollUntilComplete
+        pollUntilComplete,
+        initMarkedMath,
+        renderMarkdown
     };
+}
+
+if (typeof window !== 'undefined') {
+    window.initMarkedMath = initMarkedMath;
+    window.renderMarkdown = renderMarkdown;
 }

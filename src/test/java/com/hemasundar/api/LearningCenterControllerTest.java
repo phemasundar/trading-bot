@@ -78,4 +78,55 @@ public class LearningCenterControllerTest {
         mockMvc.perform(get("/api/learning/strategies/unknown"))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    public void testGetOptionGreeks_ReturnsList() throws Exception {
+        com.hemasundar.dto.OptionGreekDto dto = com.hemasundar.dto.OptionGreekDto.builder()
+                .id("delta")
+                .name("Delta")
+                .symbol("Δ")
+                .order("First-Order")
+                .derivative("∂V / ∂S")
+                .filename("greeks/delta.md")
+                .summary("Measures directional risk")
+                .exposure("Long Calls: +Δ | Long Puts: -Δ")
+                .impact("Directional sensitivity")
+                .build();
+
+        when(learningCenterService.getOptionGreeks()).thenReturn(List.of(dto));
+
+        mockMvc.perform(get("/api/learning/greeks"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value("delta"))
+                .andExpect(jsonPath("$[0].name").value("Delta"))
+                .andExpect(jsonPath("$[0].symbol").value("Δ"))
+                .andExpect(jsonPath("$[0].order").value("First-Order"))
+                .andExpect(jsonPath("$[0].derivative").value("∂V / ∂S"));
+    }
+
+    @Test
+    public void testGetGreek_Found() throws Exception {
+        com.hemasundar.dto.OptionGreekDto dto = com.hemasundar.dto.OptionGreekDto.builder()
+                .id("gamma")
+                .name("Gamma")
+                .symbol("Γ")
+                .order("Second-Order")
+                .build();
+
+        when(learningCenterService.getGreekById("gamma")).thenReturn(Optional.of(dto));
+
+        mockMvc.perform(get("/api/learning/greeks/gamma"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("gamma"))
+                .andExpect(jsonPath("$.name").value("Gamma"))
+                .andExpect(jsonPath("$.symbol").value("Γ"));
+    }
+
+    @Test
+    public void testGetGreek_NotFound() throws Exception {
+        when(learningCenterService.getGreekById("unknown")).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/learning/greeks/unknown"))
+                .andExpect(status().isNotFound());
+    }
 }

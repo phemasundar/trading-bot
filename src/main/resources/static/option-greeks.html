@@ -4,10 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Strategy Guide — Learning Center</title>
-    <meta name="description" content="Detailed guide and documentation for options trading strategy">
+    <title>Option Greeks — Learning Center</title>
+    <meta name="description" content="Core risk parameters, sensitivity derivatives, and mathematical mechanics for options pricing and risk management">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
     <link rel="stylesheet" href="/style.css?v=11">
     <script src="/theme.js?v=3"></script>
@@ -63,11 +63,11 @@
 
             <div class="sidebar-section">
                 <div class="sidebar-section-title">Learning Center</div>
-                <a href="/option-strategies.html" class="nav-link active">
+                <a href="/option-strategies.html" class="nav-link">
                     <span class="nav-icon">📚</span>
                     <span>Option Strategies</span>
                 </a>
-                <a href="/option-greeks.html" class="nav-link">
+                <a href="/option-greeks.html" class="nav-link active">
                     <span class="nav-icon">📐</span>
                     <span>Option Greeks</span>
                 </a>
@@ -103,35 +103,39 @@
                 <p>Authenticating…</p>
             </div>
 
-            <div class="strategy-detail-container">
-                <!-- Navigation & Switcher Header -->
-                <div class="strategy-detail-nav">
-                    <a href="/option-strategies.html" class="btn btn-ghost btn-sm" style="display:inline-flex; align-items:center; gap:6px;">
-                        <span>←</span>
-                        <span>Back to Option Strategies</span>
-                    </a>
-                    <div class="strategy-detail-actions">
-                        <div class="strategy-switcher-wrap">
-                            <label for="strategy-select-switcher" class="text-muted small" style="white-space:nowrap;">Switch:</label>
-                            <select id="strategy-select-switcher" class="strategy-select-switcher" aria-label="Switch Option Strategy">
-                                <option value="">Loading strategies...</option>
-                            </select>
-                        </div>
-                        <a id="execute-strategy-btn" href="/execute.html" class="btn btn-primary btn-sm" data-admin-only style="display:inline-flex; align-items:center; gap:6px;">
-                            <span>▶</span>
-                            <span>Execute Strategy</span>
-                        </a>
-                    </div>
+            <div class="page-header-flex">
+                <div>
+                    <h1 class="page-title">Option Greeks</h1>
+                    <p class="page-subtitle">Core risk parameters, sensitivity derivatives, and mathematical mechanics for options pricing and risk management</p>
                 </div>
+                <div class="header-actions">
+                    <span class="badge badge-neutral" id="greek-count-badge">Loading...</span>
+                </div>
+            </div>
 
-                <!-- Strategy Detail Card -->
-                <div class="card" style="padding: 28px 32px;">
-                    <div id="strategy-markdown-content" class="markdown-body">
-                        <div class="loading-state" style="padding: 40px 20px;">
-                            <div class="spinner"></div>
-                            <p>Loading strategy guide...</p>
-                        </div>
-                    </div>
+            <!-- Filter Chips Bar -->
+            <div class="strategy-filter-chips" id="greek-filter-chips">
+                <button type="button" class="strategy-chip active" data-order="ALL" onclick="setGreekOrderFilter('ALL', this)">All Greeks</button>
+                <button type="button" class="strategy-chip" data-order="First-Order" onclick="setGreekOrderFilter('First-Order', this)">First-Order (Δ, Θ, V, ρ)</button>
+                <button type="button" class="strategy-chip" data-order="Second-Order" onclick="setGreekOrderFilter('Second-Order', this)">Second-Order (Γ, Vanna, Charm, Volga)</button>
+            </div>
+
+            <!-- Greek Search Toolbar -->
+            <div class="securities-toolbar card">
+                <div class="toolbar-search-wrapper">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="greek-search-input" class="form-input search-input"
+                           placeholder="Filter Greeks by symbol (Δ, Γ, Θ, V), derivative (∂V/∂S), or name..."
+                           oninput="handleGreekSearch(this.value)">
+                    <button id="clear-greek-search" class="btn-clear" onclick="clearGreekSearch()" style="display:none;">✕</button>
+                </div>
+            </div>
+
+            <!-- Greek Cards Grid -->
+            <div class="strategy-learning-grid" id="greeks-grid">
+                <div class="loading-state" style="grid-column: 1 / -1; padding: 40px 20px;">
+                    <div class="spinner"></div>
+                    <p>Loading Option Greek guides...</p>
                 </div>
             </div>
         </main>
@@ -143,12 +147,12 @@
     <script src="https://cdn.jsdelivr.net/npm/marked-katex-extension@5.1.2/lib/index.umd.js"></script>
     <script src="/js/utils.js?v=12"></script>
     <script src="/js/auth-api.js?v=11"></script>
-    <script src="/js/learning-center.js?v=3"></script>
+    <script src="/js/learning-center.js?v=2"></script>
     <script src="/app.js?v=8"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
             await initAuth();
-            await initStrategyDetailPage();
+            await initOptionGreeksPage();
         });
     </script>
 </body>

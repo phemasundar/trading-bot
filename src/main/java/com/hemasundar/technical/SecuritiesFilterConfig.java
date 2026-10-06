@@ -112,9 +112,9 @@ public class SecuritiesFilterConfig {
                 builder.emaFilters(emaMap);
             }
 
-            // Volume
+            // Dollar Volume
             if (filters.getVolume() != null && filters.getVolume().isEnabled()) {
-                builder.volumeFilter(VolumeFilter.builder().build());
+                builder.dollarVolumeFilter(DollarVolumeFilter.builder().build());
             }
 
             // ATR

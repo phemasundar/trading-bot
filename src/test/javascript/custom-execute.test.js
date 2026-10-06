@@ -735,8 +735,8 @@ describe('Custom Options Execute Tests', () => {
         expect(legacyTradeConds).toContain('ANNUALIZED_EXTRINSIC_PCT <= 0.6');
         expect(legacyTradeConds).toContain('ANNUALIZED_EXTRINSIC_PCT >= 0.1');
         expect(legacyTradeConds).toContain('BREAKEVEN_CAGR <= 12');
-        expect(legacyTradeConds).toContain('OPTION_PRICE_PERCENT <= 25');
-        expect(legacyTradeConds).toContain('COST_SAVINGS_PERCENT >= 15');
+        expect(legacyTradeConds).toContain('OPTION_PRICE_PCT <= 25');
+        expect(legacyTradeConds).toContain('COST_SAVINGS_PCT >= 15');
 
         const legacyLegConds = getConditionsFromContainer('shortLeg-conditions');
         expect(legacyLegConds).toContain('DELTA >= 0.12');

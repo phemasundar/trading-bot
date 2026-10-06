@@ -110,8 +110,8 @@ public class TechnicalIndicatorPreCalculationService {
             if (indicators.getAtrFilter() != null) {
                 builder.atrFilter(indicators.getAtrFilter());
             }
-            if (indicators.getVolumeFilter() != null) {
-                builder.volumeFilter(indicators.getVolumeFilter());
+            if (indicators.getDollarVolumeFilter() != null) {
+                builder.dollarVolumeFilter(indicators.getDollarVolumeFilter());
             }
         }
 

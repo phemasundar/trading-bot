@@ -294,13 +294,13 @@ public class OptionsStrategyFilter {
     }
 
     /**
-     * Returns math expressions targeting DTE or DAYS_TO_EXPIRATION.
+     * Returns math expressions targeting DTE.
      */
     @JsonIgnore
     public java.util.List<com.hemasundar.technical.MathExpression> getDteExpressions() {
         if (filterExpressions == null) return java.util.Collections.emptyList();
         return filterExpressions.stream()
-                .filter(e -> "DTE".equalsIgnoreCase(e.getLeftVariable()) || "DAYS_TO_EXPIRATION".equalsIgnoreCase(e.getLeftVariable()))
+                .filter(e -> "DTE".equalsIgnoreCase(e.getLeftVariable()))
                 .toList();
     }
 

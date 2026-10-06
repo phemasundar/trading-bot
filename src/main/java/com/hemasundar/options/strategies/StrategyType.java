@@ -12,18 +12,12 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 @RequiredArgsConstructor
 public enum StrategyType {
 
-    // Put Credit Spread Strategies
+    // Credit Spread Strategies
     PUT_CREDIT_SPREAD("Put Credit Spread"),
-    TECH_PUT_CREDIT_SPREAD("Technical Put Credit Spread"),
-    BULLISH_LONG_PUT_CREDIT_SPREAD("Bullish Long Put Credit Spread"),
-
-    // Call Credit Spread Strategies
     CALL_CREDIT_SPREAD("Call Credit Spread"),
-    TECH_CALL_CREDIT_SPREAD("Technical Call Credit Spread"),
 
-    // Other Strategies
+    // Delta-Neutral & Spread Strategies
     IRON_CONDOR("Iron Condor"),
-    BULLISH_LONG_IRON_CONDOR("Bullish Long Iron Condor"),
     LONG_CALL_LEAP("Long Call LEAP"),
     BULLISH_BROKEN_WING_BUTTERFLY("Bullish Broken Wing Butterfly"),
     BULLISH_ZEBRA("Bullish ZEBRA"),

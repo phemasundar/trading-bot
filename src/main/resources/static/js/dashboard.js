@@ -62,6 +62,61 @@ function renderCardActionButtons({
     };
 }
 
+// ── Filter Details Shared UI ──
+
+function renderFilterDetailsSection(filterConfig, filterId) {
+    if (!filterConfig) return '';
+    try {
+        const cfg = typeof filterConfig === 'string' ? JSON.parse(filterConfig) : filterConfig;
+        const filterGrid = renderFilterGrid(cfg);
+        if (filterGrid && !filterGrid.includes('No filters configured')) {
+            return `
+                <div class="filter-details-section">
+                    <div class="filter-details-toggle" data-target="${filterId}">
+                        <span class="card-arrow" id="arrow-${filterId}">▶</span>
+                        <span>Filter Details</span>
+                    </div>
+                    <div class="filter-details-body" id="${filterId}">
+                        ${filterGrid}
+                    </div>
+                </div>`;
+        }
+    } catch (e) { /* ignore parse errors */ }
+    return '';
+}
+
+function attachFilterDetailsToggle(card) {
+    const filterToggle = card.querySelector('.filter-details-toggle');
+    if (filterToggle) {
+        filterToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const targetId = filterToggle.dataset.target;
+            const safeTargetId = (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(targetId) : targetId;
+            const safeArrowId = (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape('arrow-' + targetId) : ('arrow-' + targetId);
+            const body = card.querySelector('#' + safeTargetId);
+            const arrowEl = card.querySelector('#' + safeArrowId);
+            if (body) body.classList.toggle('open');
+            if (arrowEl) arrowEl.classList.toggle('open');
+        });
+    }
+}
+
+function getScreenerConfigFallback(result) {
+    if (!result || typeof window === 'undefined') return null;
+    const name = result.screenerName || result.screenerId || '';
+    const screeners = (window.appConfig && window.appConfig.technicalScreeners) || window.screenerConfigs || [];
+    const matched = screeners.find(s => (s.alias && s.alias === name) || s.screenerType === name || s.name === name);
+    if (!matched) return null;
+    const cfg = {};
+    if (matched.screenerType) cfg.screenerType = matched.screenerType;
+    if (matched.alias) cfg.alias = matched.alias;
+    if (matched.securitiesFile) cfg.securitiesFile = matched.securitiesFile;
+    if (matched.securities) cfg.securities = matched.securities;
+    if (matched.technicalFilters) cfg.technicalFilters = matched.technicalFilters;
+    if (matched.fundamentalFilters) cfg.fundamentalFilters = matched.fundamentalFilters;
+    return cfg;
+}
+
 // ── Card Builder ──
 
 function buildResultCard(result, badgeText = 'Standard') {
@@ -112,25 +167,7 @@ function buildResultCard(result, badgeText = 'Standard') {
     const executeBtn = actionButtons.executeBtn;
     const deleteBtn = actionButtons.deleteBtn;
 
-    let filterDetailsHtml = '';
-    if (result.filterConfig) {
-        try {
-            const cfg = typeof result.filterConfig === 'string' ? JSON.parse(result.filterConfig) : result.filterConfig;
-            const filterGrid = renderFilterGrid(cfg);
-            if (filterGrid && !filterGrid.includes('No filters configured')) {
-                filterDetailsHtml = `
-                    <div class="filter-details-section">
-                        <div class="filter-details-toggle" data-target="${filterId}">
-                            <span class="card-arrow" id="arrow-${filterId}">▶</span>
-                            <span>Filter Details</span>
-                        </div>
-                        <div class="filter-details-body" id="${filterId}">
-                            ${filterGrid}
-                        </div>
-                    </div>`;
-            }
-        } catch (e) { /* ignore parse errors */ }
-    }
+    const filterDetailsHtml = renderFilterDetailsSection(result.filterConfig, filterId);
 
     let displayName = result.strategyName || 'Unknown';
     if (result.filterConfig) {
@@ -173,17 +210,7 @@ function buildResultCard(result, badgeText = 'Standard') {
         }
     }
 
-    const filterToggle = card.querySelector('.filter-details-toggle');
-    if (filterToggle) {
-        filterToggle.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const targetId = filterToggle.dataset.target;
-            const body = card.querySelector('#' + CSS.escape(targetId));
-            const arrowEl = card.querySelector('#' + CSS.escape('arrow-' + targetId));
-            if (body) body.classList.toggle('open');
-            if (arrowEl) arrowEl.classList.toggle('open');
-        });
-    }
+    attachFilterDetailsToggle(card);
 
     return card;
 }
@@ -691,7 +718,8 @@ function buildScreenerCard(result, isCustom = false) {
     window.tradeDataMap[cardId]._type = isDropScreener ? 'drop' : 'screener';
     
     const isExecuteScreenerPage = !!document.getElementById('screener-type');
-    const params = result.requestParams || result.filterConfig;
+    const filterConfig = result.filterConfig || result.requestParams || getScreenerConfigFallback(result);
+    const params = filterConfig;
     const hasConfig = !!params;
     const hasId = !!(result.screenerId && !isNaN(result.screenerId));
 
@@ -706,9 +734,9 @@ function buildScreenerCard(result, isCustom = false) {
         hasLoad: hasLoadBtn,
         loadFn: 'loadScreenerFiltersFromResult(this)',
         hasExecute: hasExecuteBtn,
-        executeFn: `reexecuteCustomScreener(this, '${escapeAttr(result.screenerId)}')`,
+        executeFn: `reexecuteCustomScreener(this, '${escapeAttr(result.screenerId || '')}')`,
         hasDelete: hasDeleteBtn,
-        deleteFn: `confirmDeleteCustomScreenerResult('${escapeAttr(result.screenerId)}', this.closest('.card'))`,
+        deleteFn: `confirmDeleteCustomScreenerResult('${escapeAttr(result.screenerId || '')}', this.closest('.card'))`,
         dataAttrs: {
             'data-request-params': paramsStr,
             'data-filter-config': paramsStr,
@@ -719,6 +747,9 @@ function buildScreenerCard(result, isCustom = false) {
     const loadFiltersBtn = actionButtons.loadBtn;
     const executeBtn = actionButtons.executeBtn;
     const deleteBtn = actionButtons.deleteBtn;
+
+    const filterId = `filters-${cardId}`;
+    const filterDetailsHtml = renderFilterDetailsSection(filterConfig, filterId);
 
     card.innerHTML = `
         <div class="card-header" data-target="${cardId}">
@@ -732,6 +763,7 @@ function buildScreenerCard(result, isCustom = false) {
             </div>
             <span class="card-stats">Last run: ${timeAgo(result.updatedAt)} · Found: ${result.resultsFound || 0}${(() => { const d = formatDuration(result.executionTimeMs); return d ? ` · ⏱ ${d}` : ''; })()}</span>
         </div>
+        ${filterDetailsHtml}
         <div class="card-content" id="content-${cardId}">
             ${buildScreenerTable(result.results || [], cardId)}
         </div>`;
@@ -741,6 +773,8 @@ function buildScreenerCard(result, isCustom = false) {
     } else {
         card.querySelector('.card-header').style.cursor = 'default';
     }
+
+    attachFilterDetailsToggle(card);
 
     return card;
 }
@@ -1609,12 +1643,13 @@ function formatTechFilterValue(val) {
             }
         } else if (val.condition !== undefined && val.condition !== null && val.condition !== '') {
             if (typeof val.condition === 'object') {
-                if (val.condition.type === 'CUSTOM_RANGE' && (val.condition.min !== undefined || val.condition.max !== undefined)) {
+                if ((val.condition.type === 'CUSTOM_RANGE' || val.condition.condition === 'CUSTOM_RANGE') && (val.condition.min !== undefined || val.condition.max !== undefined)) {
                     condStr = `Custom Range (${val.condition.min ?? ''} - ${val.condition.max ?? ''})`;
-                } else if (val.condition.type) {
-                    const condLabel = TECH_CONDITION_LABELS[val.condition.type] || val.condition.type;
+                } else if (val.condition.type || val.condition.condition) {
+                    const typeKey = val.condition.type || val.condition.condition;
+                    const condLabel = TECH_CONDITION_LABELS[typeKey] || typeKey;
                     const extra = Object.entries(val.condition)
-                        .filter(([k]) => k !== 'type')
+                        .filter(([k]) => k !== 'type' && k !== 'condition')
                         .map(([k, v]) => `${k}: ${typeof v === 'object' ? formatTechFilterValue(v) : v}`)
                         .join(', ');
                     condStr = extra ? `${condLabel} (${extra})` : condLabel;
@@ -1623,6 +1658,8 @@ function formatTechFilterValue(val) {
                         .map(([k, v]) => `${k}: ${typeof v === 'object' ? formatTechFilterValue(v) : v}`)
                         .join(', ');
                 }
+            } else if (val.condition === 'CUSTOM_RANGE' && (val.min !== undefined || val.max !== undefined)) {
+                condStr = `Custom Range (${val.min ?? ''} - ${val.max ?? ''})`;
             } else {
                 condStr = TECH_CONDITION_LABELS[String(val.condition)] || String(val.condition);
             }
@@ -1699,8 +1736,11 @@ function renderFilterGrid(cfg) {
             .trim();
     };
 
-    const formatValue = (v) => {
+    const formatValue = (v, key) => {
         if (v === null || v === undefined || v === '') return null;
+        if (key === 'screenerType' && typeof v === 'string') {
+            return SCREENER_TYPE_LABELS[v] || formatLabel(v);
+        }
         if (typeof v === 'boolean') return v ? 'Yes' : 'No';
         if (Array.isArray(v)) {
             if (v.length === 0) return null;
@@ -1717,7 +1757,7 @@ function renderFilterGrid(cfg) {
     let techFiltersHtml = '';
     let fundamentalFiltersHtml = '';
     const nested = [];
-    const SKIP_KEYS = new Set(['greeks', 'strategyType', 'strategyId', 'technicalFilterSummary', 'earningsFilterExpressions', 'earnings_filter_expressions']);
+    const SKIP_KEYS = new Set(['greeks', 'strategyType', 'strategyId', 'customResultId', 'technicalFilterSummary', 'earningsFilterExpressions', 'earnings_filter_expressions']);
 
     for (const [key, val] of entries) {
         if (SKIP_KEYS.has(key)) continue;
@@ -1725,7 +1765,7 @@ function renderFilterGrid(cfg) {
         if ((key === 'targetDTE' || key === 'minDTE' || key === 'minReturnOnRisk' || key === 'minReturnOnRiskCAGR') && val === 0) continue;
         if (key === 'technicalFilters' && val) {
             if (typeof val === 'string') {
-                rootHtml += `<div class="config-item" style="grid-column: 1 / -1"><span class="config-item-label" style="color:var(--accent)">🔬 Tech Filters (Preset)</span><span class="config-item-value">${formatValue(val) || String(val)}</span></div>`;
+                rootHtml += `<div class="config-item" style="grid-column: 1 / -1"><span class="config-item-label" style="color:var(--accent)">🔬 Tech Filters (Preset)</span><span class="config-item-value">${formatValue(val, key) || String(val)}</span></div>`;
             } else if (typeof val === 'object') {
                 techFiltersHtml = renderTechFiltersGrid(val);
             }
@@ -1740,7 +1780,7 @@ function renderFilterGrid(cfg) {
         if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
             nested.push([key, val]);
         } else {
-            const formattedVal = formatValue(val);
+            const formattedVal = formatValue(val, key);
             if (formattedVal !== null) {
                 rootHtml += `<div class="config-item"><span class="config-item-label">${formatLabel(key)}</span><span class="config-item-value">${formattedVal}</span></div>`;
             }
@@ -1756,7 +1796,7 @@ function renderFilterGrid(cfg) {
         if (nestedEntries.length === 0) continue;
         let nestedHtml = '';
         for (const [k, v] of nestedEntries) {
-            const formattedVal = formatValue(v);
+            const formattedVal = formatValue(v, k);
             if (formattedVal !== null) {
                 nestedHtml += `<div class="config-item"><span class="config-item-label">${formatLabel(k)}</span><span class="config-item-value">${formattedVal}</span></div>`;
             }
@@ -1784,9 +1824,25 @@ const TECH_FILTER_LABELS = {
     RSI:                   'RSI Condition',
     BOLLINGER_BAND:        'Bollinger Band',
     VOLUME:                'Volume Rules',
+    DOLLAR_VOLUME:         'Dollar Volume Rules',
     HISTORICAL_VOLATILITY: 'Historical Volatility',
     PRICE_DROP:            'Price Drop',
     SIMPLE_MOVING_AVERAGE: 'Moving Average Rules',
+    EXP_MOVING_AVERAGE:    'Exponential Moving Average Rules',
+    HIGH_52W_DROP:         '52-Week High Drop',
+    AVERAGE_TRUE_RANGE:    'Average True Range',
+};
+
+/** Human-friendly labels for technical screener types. */
+const SCREENER_TYPE_LABELS = {
+    RSI_BB_BULLISH_CROSSOVER: 'RSI BB Bullish Crossover',
+    RSI_BB_BEARISH_CROSSOVER: 'RSI BB Bearish Crossover',
+    RSI_OVERSOLD:             'RSI Oversold',
+    BB_LOWER:                 'Bollinger Band Lower',
+    BELOW_200_DAY_SMA:        'Below 200 Day SMA',
+    PRICE_DROP:               'Price Drop',
+    HIGH_52W_DROP:            '52-Week High Drop',
+    ATR:                      'Average True Range'
 };
 
 /** Human-friendly labels for technical filter condition values. */
@@ -2412,6 +2468,12 @@ if (typeof window !== 'undefined') {
     window.deleteCustomScreenerResult = deleteCustomScreenerResult;
     window.updateExecuteAllButtonState = updateExecuteAllButtonState;
     window.executeAllCustomCards = executeAllCustomCards;
+    window.renderFilterDetailsSection = renderFilterDetailsSection;
+    window.attachFilterDetailsToggle = attachFilterDetailsToggle;
+    window.getScreenerConfigFallback = getScreenerConfigFallback;
+    window.TECH_FILTER_LABELS = TECH_FILTER_LABELS;
+    window.TECH_CONDITION_LABELS = TECH_CONDITION_LABELS;
+    window.SCREENER_TYPE_LABELS = SCREENER_TYPE_LABELS;
 }
 
 // CommonJS Exports
@@ -2426,6 +2488,12 @@ if (typeof module !== 'undefined' && module.exports) {
         deleteCardWithAnimation,
         updateExecuteAllButtonState,
         executeAllCustomCards,
+        renderFilterDetailsSection,
+        attachFilterDetailsToggle,
+        getScreenerConfigFallback,
+        TECH_FILTER_LABELS,
+        TECH_CONDITION_LABELS,
+        SCREENER_TYPE_LABELS,
         buildResultCard,
         renderTermGroups,
         computeTermDteRange,

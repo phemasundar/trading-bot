@@ -34,21 +34,21 @@ public class OptionFilterValueResolver {
         }
 
         return switch (normalized) {
-            case "DELTA", "ABS_DELTA" -> leg.getAbsDelta();
-            case "RAW_DELTA", "SIGNED_DELTA" -> leg.getDelta();
+            case "DELTA" -> leg.getAbsDelta();
+            case "SIGNED_DELTA" -> leg.getDelta();
             case "GAMMA" -> leg.getGamma();
             case "THETA" -> leg.getTheta();
             case "VEGA" -> leg.getVega();
             case "RHO" -> leg.getRho();
-            case "MARK", "PREMIUM", "PRICE" -> leg.getMark();
+            case "MARK" -> leg.getMark();
             case "BID" -> leg.getBid();
             case "ASK" -> leg.getAsk();
             case "LAST" -> leg.getLast();
-            case "VOLUME", "TOTAL_VOLUME" -> (double) leg.getTotalVolume();
-            case "OPEN_INTEREST", "OI" -> (double) leg.getOpenInterest();
-            case "IV", "VOLATILITY" -> leg.getVolatility();
-            case "STRIKE", "STRIKE_PRICE" -> leg.getStrikePrice();
-            case "DTE", "DAYS_TO_EXPIRATION" -> (double) leg.getDaysToExpiration();
+            case "VOLUME" -> (double) leg.getTotalVolume();
+            case "OPEN_INTEREST" -> (double) leg.getOpenInterest();
+            case "IV" -> leg.getVolatility();
+            case "STRIKE_PRICE" -> leg.getStrikePrice();
+            case "DTE" -> (double) leg.getDaysToExpiration();
             case "INTRINSIC_VALUE" -> leg.getIntrinsicValue();
             case "EXTRINSIC_VALUE" -> leg.getExtrinsicValue();
             default -> null;
@@ -84,8 +84,8 @@ public class OptionFilterValueResolver {
         // Check strategy-specific models
         if (trade instanceof LongCallLeap leap) {
             switch (normalized) {
-                case "COST_SAVINGS_PERCENT", "COST_SAVINGS_PCT" -> { return leap.getCostSavingsPercent(); }
-                case "OPTION_PRICE_PERCENT", "OPTION_PRICE_PCT" -> { return leap.getOptionPricePercent(); }
+                case "COST_SAVINGS_PCT" -> { return leap.getCostSavingsPercent(); }
+                case "OPTION_PRICE_PCT" -> { return leap.getOptionPricePercent(); }
                 case "FINAL_COST_OF_OPTION" -> { return leap.getFinalCostOfOption(); }
                 case "FINAL_COST_OF_BUYING" -> { return leap.getFinalCostOfBuying(); }
                 default -> {}
@@ -104,19 +104,19 @@ public class OptionFilterValueResolver {
 
         return switch (normalized) {
             case "MAX_LOSS" -> trade.getMaxLoss();
-            case "NET_CREDIT", "TOTAL_CREDIT", "CREDIT" -> trade.getNetCredit();
-            case "NET_DEBIT", "TOTAL_DEBIT", "DEBIT" -> (trade.getNetCredit() < 0 ? -trade.getNetCredit() : 0.0);
-            case "RETURN_ON_RISK", "ROR" -> trade.getReturnOnRisk();
-            case "RETURN_ON_RISK_CAGR", "ROR_CAGR", "CAGR" -> trade.getReturnOnRiskCAGR();
-            case "BREAK_EVEN_PRICE", "BREAK_EVEN" -> trade.getBreakEvenPrice();
-            case "BREAK_EVEN_PERCENTAGE", "BREAK_EVEN_PCT" -> trade.getBreakEvenPercentage();
-            case "UPPER_BREAK_EVEN_PRICE", "UPPER_BREAK_EVEN" -> trade.getUpperBreakEvenPrice();
-            case "UPPER_BREAK_EVEN_PERCENTAGE", "UPPER_BREAK_EVEN_PCT" -> trade.getUpperBreakEvenPercentage();
+            case "NET_CREDIT" -> trade.getNetCredit();
+            case "TOTAL_DEBIT" -> (trade.getNetCredit() < 0 ? -trade.getNetCredit() : 0.0);
+            case "RETURN_ON_RISK" -> trade.getReturnOnRisk();
+            case "CAGR" -> trade.getReturnOnRiskCAGR();
+            case "BREAK_EVEN_PRICE" -> trade.getBreakEvenPrice();
+            case "BREAK_EVEN_PCT" -> trade.getBreakEvenPercentage();
+            case "UPPER_BREAK_EVEN_PRICE" -> trade.getUpperBreakEvenPrice();
+            case "UPPER_BREAK_EVEN_PCT" -> trade.getUpperBreakEvenPercentage();
             case "UPPER_BREAK_EVEN_DELTA" -> trade.getUpperBreakEvenDelta();
-            case "CURRENT_PRICE", "UNDERLYING_PRICE", "PRICE" -> trade.getCurrentPrice();
-            case "DTE", "DAYS_TO_EXPIRATION" -> (double) trade.getDaysToExpiration();
-            case "NET_EXTRINSIC_VALUE", "EXTRINSIC_VALUE" -> trade.getNetExtrinsicValue();
-            case "NET_EXTRINSIC_VALUE_PCT", "EXTRINSIC_VALUE_PCT", "ANNUALIZED_EXTRINSIC_PCT" ->
+            case "CURRENT_PRICE" -> trade.getCurrentPrice();
+            case "DTE" -> (double) trade.getDaysToExpiration();
+            case "NET_EXTRINSIC_VALUE" -> trade.getNetExtrinsicValue();
+            case "ANNUALIZED_EXTRINSIC_PCT" ->
                     trade.getAnnualizedNetExtrinsicValueToCapitalPercentage();
             case "BREAKEVEN_CAGR" -> trade.getBreakevenCAGR();
             default -> null;
@@ -166,10 +166,10 @@ public class OptionFilterValueResolver {
         String clean = legPrefix.replace("_", "").toUpperCase();
 
         // Positional prefixes
-        if (clean.startsWith("LEG1") && legs.size() >= 1) return legs.get(0).getOptionData();
-        if (clean.startsWith("LEG2") && legs.size() >= 2) return legs.get(1).getOptionData();
-        if (clean.startsWith("LEG3") && legs.size() >= 3) return legs.get(2).getOptionData();
-        if (clean.startsWith("LEG4") && legs.size() >= 4) return legs.get(3).getOptionData();
+        if (clean.equals("LEG1") && legs.size() >= 1) return legs.get(0).getOptionData();
+        if (clean.equals("LEG2") && legs.size() >= 2) return legs.get(1).getOptionData();
+        if (clean.equals("LEG3") && legs.size() >= 3) return legs.get(2).getOptionData();
+        if (clean.equals("LEG4") && legs.size() >= 4) return legs.get(3).getOptionData();
 
         for (TradeLeg leg : legs) {
             boolean isSell = "SELL".equalsIgnoreCase(leg.getAction());
@@ -178,29 +178,23 @@ public class OptionFilterValueResolver {
             boolean isPut = "PUT".equalsIgnoreCase(leg.getOptionType());
 
             switch (clean) {
-                case "SHORTLEG", "SHORT" -> {
+                case "SHORTLEG" -> {
                     if (isSell) return leg.getOptionData();
                 }
-                case "LONGLEG", "LONG" -> {
+                case "LONGLEG" -> {
                     if (isBuy) return leg.getOptionData();
                 }
-                case "SHORTPUT", "PUTSHORT", "PUTSHORTLEG", "SHORTPUTLEG" -> {
+                case "PUTSHORT" -> {
                     if (isSell && isPut) return leg.getOptionData();
                 }
-                case "LONGPUT", "PUTLONG", "PUTLONGLEG", "LONGPUTLEG" -> {
+                case "PUTLONG" -> {
                     if (isBuy && isPut) return leg.getOptionData();
                 }
-                case "SHORTCALL", "CALLSHORT", "CALLSHORTLEG", "SHORTCALLLEG" -> {
+                case "CALLSHORT" -> {
                     if (isSell && isCall) return leg.getOptionData();
                 }
-                case "LONGCALL", "CALLLONG", "CALLLONGLEG", "LONGCALLLEG" -> {
+                case "CALLLONG" -> {
                     if (isBuy && isCall) return leg.getOptionData();
-                }
-                case "PUT" -> {
-                    if (isPut) return leg.getOptionData();
-                }
-                case "CALL" -> {
-                    if (isCall) return leg.getOptionData();
                 }
                 default -> {}
             }
@@ -230,28 +224,27 @@ public class OptionFilterValueResolver {
     public static boolean isSupportedLegPrefix(String prefix) {
         if (StringUtils.isBlank(prefix)) return false;
         String clean = prefix.replace("_", "").toUpperCase();
-        return clean.equals("SHORTLEG") || clean.equals("SHORT") ||
-               clean.equals("LONGLEG") || clean.equals("LONG") ||
-               clean.equals("SHORTPUT") || clean.equals("PUTSHORT") || clean.equals("PUTSHORTLEG") || clean.equals("SHORTPUTLEG") ||
-               clean.equals("LONGPUT") || clean.equals("PUTLONG") || clean.equals("PUTLONGLEG") || clean.equals("LONGPUTLEG") ||
-               clean.equals("SHORTCALL") || clean.equals("CALLSHORT") || clean.equals("CALLSHORTLEG") || clean.equals("SHORTCALLLEG") ||
-               clean.equals("LONGCALL") || clean.equals("CALLLONG") || clean.equals("CALLLONGLEG") || clean.equals("LONGCALLLEG") ||
-               clean.equals("LEG1") || clean.equals("LEG1LONG") ||
-               clean.equals("LEG2") || clean.equals("LEG2SHORT") ||
-               clean.equals("LEG3") || clean.equals("LEG3LONG") ||
-               clean.equals("LEG4") ||
-               clean.equals("PUT") || clean.equals("CALL");
+        return clean.equals("SHORTLEG") ||
+               clean.equals("LONGLEG") ||
+               clean.equals("PUTSHORT") ||
+               clean.equals("PUTLONG") ||
+               clean.equals("CALLSHORT") ||
+               clean.equals("CALLLONG") ||
+               clean.equals("LEG1") ||
+               clean.equals("LEG2") ||
+               clean.equals("LEG3") ||
+               clean.equals("LEG4");
     }
 
     public static boolean isSupportedLegVariable(String var) {
         if (StringUtils.isBlank(var)) return false;
         return switch (var.trim().toUpperCase()) {
-            case "DELTA", "ABS_DELTA", "RAW_DELTA", "SIGNED_DELTA",
+            case "DELTA", "SIGNED_DELTA",
                  "GAMMA", "THETA", "VEGA", "RHO",
-                 "MARK", "PREMIUM", "PRICE", "BID", "ASK", "LAST",
-                 "VOLUME", "TOTAL_VOLUME", "OPEN_INTEREST", "OI",
-                 "IV", "VOLATILITY", "STRIKE", "STRIKE_PRICE",
-                 "DTE", "DAYS_TO_EXPIRATION", "INTRINSIC_VALUE", "EXTRINSIC_VALUE" -> true;
+                 "MARK", "BID", "ASK", "LAST",
+                 "VOLUME", "OPEN_INTEREST",
+                 "IV", "STRIKE_PRICE",
+                 "DTE", "INTRINSIC_VALUE", "EXTRINSIC_VALUE" -> true;
             default -> false;
         };
     }
@@ -259,26 +252,24 @@ public class OptionFilterValueResolver {
     public static boolean isSupportedTradeVariable(String var) {
         if (StringUtils.isBlank(var)) return false;
         return switch (var.trim().toUpperCase()) {
-            case "MAX_LOSS", "MAX_PROFIT", "PROFIT",
-                 "NET_CREDIT", "TOTAL_CREDIT", "CREDIT",
-                 "NET_DEBIT", "TOTAL_DEBIT", "DEBIT",
-                 "RETURN_ON_RISK", "ROR", "RETURN_ON_RISK_CAGR", "ROR_CAGR", "CAGR",
-                 "BREAK_EVEN_PRICE", "BREAK_EVEN", "BREAKEVEN",
-                 "BREAK_EVEN_PERCENTAGE", "BREAK_EVEN_PCT", "BREAKEVEN_PCT",
-                 "UPPER_BREAK_EVEN_PRICE", "UPPER_BREAK_EVEN", "UPPER_BREAKEVEN",
-                 "UPPER_BREAK_EVEN_PERCENTAGE", "UPPER_BREAK_EVEN_PCT", "UPPER_BREAKEVEN_PCT",
+            case "MAX_LOSS",
+                 "NET_CREDIT",
+                 "TOTAL_DEBIT",
+                 "RETURN_ON_RISK", "CAGR",
+                 "BREAK_EVEN_PRICE",
+                 "BREAK_EVEN_PCT",
+                 "UPPER_BREAK_EVEN_PRICE",
+                 "UPPER_BREAK_EVEN_PCT",
                  "UPPER_BREAK_EVEN_DELTA",
-                 "LOWER_BREAK_EVEN_PRICE", "LOWER_BREAK_EVEN", "LOWER_BREAKEVEN",
-                 "LOWER_BREAK_EVEN_PERCENTAGE", "LOWER_BREAK_EVEN_PCT", "LOWER_BREAKEVEN_PCT",
-                 "CURRENT_PRICE", "UNDERLYING_PRICE", "PRICE",
-                 "DTE", "DAYS_TO_EXPIRATION",
-                 "NET_EXTRINSIC_VALUE", "EXTRINSIC_VALUE",
-                 "NET_EXTRINSIC_VALUE_PCT", "EXTRINSIC_VALUE_PCT", "ANNUALIZED_EXTRINSIC_PCT",
+                 "CURRENT_PRICE",
+                 "DTE",
+                 "NET_EXTRINSIC_VALUE",
+                 "ANNUALIZED_EXTRINSIC_PCT",
                  "BREAKEVEN_CAGR",
                  "IV_RANK", "IV_PERCENTILE",
-                 "DAYS_TO_NEXT_EARNINGS", "EARNINGS", "EARNINGS_NEAREST_TO_DTE",
-                 "COST_SAVINGS_PERCENT", "COST_SAVINGS_PCT",
-                 "OPTION_PRICE_PERCENT", "OPTION_PRICE_PCT",
+                 "DAYS_TO_NEXT_EARNINGS", "EARNINGS_NEAREST_TO_DTE",
+                 "COST_SAVINGS_PCT",
+                 "OPTION_PRICE_PCT",
                  "FINAL_COST_OF_OPTION", "FINAL_COST_OF_BUYING",
                  "MAX_LOSS_UPSIDE", "MAX_LOSS_DOWNSIDE",
                  "LOWER_WING_WIDTH", "UPPER_WING_WIDTH" -> true;

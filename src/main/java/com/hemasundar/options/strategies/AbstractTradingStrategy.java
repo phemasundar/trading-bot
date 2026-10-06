@@ -123,8 +123,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
                 List<ExpirationDateKey> nextKeys = currentKeys.stream()
                         .filter(key -> {
                             Map<String, Double> vars = Map.of(
-                                    "DTE", (double) key.getDaysToExpiry(),
-                                    "DAYS_TO_EXPIRATION", (double) key.getDaysToExpiry());
+                                    "DTE", (double) key.getDaysToExpiry());
                             return expr.evaluate(vars::get);
                         })
                         .toList();
@@ -339,7 +338,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
         for (MathExpression expr : filter.getFilterExpressions()) {
             String left = expr.getLeftVariable() != null ? expr.getLeftVariable().toUpperCase() : "";
             // Skip symbol/expiry level expressions (already evaluated in execute) and leg expressions (evaluated in candidate pipeline)
-            if (left.equals("DTE") || left.equals("DAYS_TO_EXPIRATION")
+            if (left.equals("DTE")
                     || left.equals("IV_RANK") || left.equals("IV_PERCENTILE")
                     || left.contains("EARNINGS")
                     || left.contains(".")) {

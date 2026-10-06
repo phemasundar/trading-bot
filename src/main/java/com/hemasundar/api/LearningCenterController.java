@@ -1,5 +1,6 @@
 package com.hemasundar.api;
 
+import com.hemasundar.dto.OptionGreekDto;
 import com.hemasundar.dto.StrategyDescriptionDto;
 import com.hemasundar.services.LearningCenterService;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * REST controller for Learning Center strategy guides and descriptions.
+ * REST controller for Learning Center strategy guides, descriptions, and Option Greeks.
  */
 @Log4j2
 @RestController
@@ -39,6 +40,28 @@ public class LearningCenterController {
     @GetMapping("/strategies/{id}")
     public ResponseEntity<?> getStrategy(@PathVariable String id) {
         return learningCenterService.getStrategyById(id)
+                .map(dto -> ResponseEntity.ok()
+                        .header("Cache-Control", "no-cache, no-store, must-revalidate")
+                        .body((Object) dto))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Returns all Option Greek guides available in the Learning Center.
+     */
+    @GetMapping("/greeks")
+    public ResponseEntity<List<OptionGreekDto>> getOptionGreeks() {
+        return ResponseEntity.ok()
+                .header("Cache-Control", "no-cache, no-store, must-revalidate")
+                .body(learningCenterService.getOptionGreeks());
+    }
+
+    /**
+     * Returns details for a specific Option Greek by ID or filename.
+     */
+    @GetMapping("/greeks/{id}")
+    public ResponseEntity<?> getGreek(@PathVariable String id) {
+        return learningCenterService.getGreekById(id)
                 .map(dto -> ResponseEntity.ok()
                         .header("Cache-Control", "no-cache, no-store, must-revalidate")
                         .body((Object) dto))

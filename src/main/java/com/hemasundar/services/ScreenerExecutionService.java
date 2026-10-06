@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -52,7 +53,40 @@ public class ScreenerExecutionService {
      * Retrieves all latest technical screener results from Supabase.
      */
     public List<ScreenerExecutionResult> getLatestScreenerResults() throws IOException {
-        return supabaseService.getAllLatestScreenerResults();
+        List<ScreenerExecutionResult> results = supabaseService.getAllLatestScreenerResults();
+        if (CollectionUtils.isEmpty(results)) {
+            return results;
+        }
+        try {
+            List<ScreenerConfig> configs = getEnabledScreeners();
+            if (CollectionUtils.isEmpty(configs)) {
+                return results;
+            }
+            Map<String, ScreenerConfig> configByName = new HashMap<>();
+            for (ScreenerConfig c : configs) {
+                configByName.put(c.getName(), c);
+                if (c.getScreenerType() != null) {
+                    configByName.putIfAbsent(c.getScreenerType().name(), c);
+                    configByName.putIfAbsent(c.getScreenerType().getDisplayName(), c);
+                }
+            }
+            return results.stream().map(r -> {
+                if (r.getFilterConfig() != null) {
+                    return r;
+                }
+                ScreenerConfig cfg = configByName.get(r.getScreenerName());
+                if (cfg == null) {
+                    cfg = configByName.get(r.getScreenerId());
+                }
+                if (cfg != null && cfg.getFilterConfig() != null) {
+                    return r.toBuilder().filterConfig(cfg.getFilterConfig()).build();
+                }
+                return r;
+            }).collect(Collectors.toList());
+        } catch (Exception e) {
+            log.warn("Failed to enrich screener results with filter configs: {}", e.getMessage());
+            return results;
+        }
     }
 
     public void executeScreeners(Set<Integer> screenerIndices, List<ScreenerConfig> allScreeners) {
@@ -259,12 +293,17 @@ public class ScreenerExecutionService {
 
         // Save screener result
         long screenerExecutionTime = System.currentTimeMillis() - screenerStartTime;
+        Map<String, Object> resolvedFilterConfig = (isCustom && requestParams != null)
+                ? requestParams
+                : (screenerConfig != null ? screenerConfig.getFilterConfig() : null);
+
         ScreenerExecutionResult scrResult = ScreenerExecutionResult.builder()
                 .screenerId(screenerConfig.getName())
                 .screenerName(screenerConfig.getName())
                 .executionTimeMs(screenerExecutionTime)
                 .resultsFound(screenerResults.size())
                 .results(screenerResults)
+                .filterConfig(resolvedFilterConfig)
                 .build();
         try {
             if (isCustom) {

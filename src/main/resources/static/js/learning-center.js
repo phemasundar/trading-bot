@@ -108,8 +108,8 @@ const STRATEGY_TYPE_MAP = {
     'put_credit_spread.md': 'PUT_CREDIT_SPREAD',
     'short_put.md': 'SHORT_PUT',
     'short_strangle.md': 'SHORT_STRANGLE',
-    'tech_call_credit_spread.md': 'TECH_CALL_CREDIT_SPREAD',
-    'tech_put_credit_spread.md': 'TECH_PUT_CREDIT_SPREAD'
+    'tech_call_credit_spread.md': 'CALL_CREDIT_SPREAD',
+    'tech_put_credit_spread.md': 'PUT_CREDIT_SPREAD'
 };
 
 /**
@@ -349,11 +349,18 @@ async function initStrategyDetailPage() {
 
     // Wire Execute Strategy CTA button
     if (execBtn) {
-        const stratType = STRATEGY_TYPE_MAP[filename.toLowerCase()] || STRATEGY_TYPE_MAP[strategyId.toLowerCase() + '.md'];
-        if (stratType) {
-            execBtn.href = `/execute.html?strategy=${encodeURIComponent(stratType)}`;
+        const readOnly = (typeof isReadOnly === 'function' && isReadOnly()) ||
+                         (typeof window !== 'undefined' && window._userRole === 'READONLY') ||
+                         (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('userRole') === 'READONLY');
+        if (readOnly) {
+            execBtn.style.display = 'none';
         } else {
-            execBtn.href = '/execute.html';
+            const stratType = STRATEGY_TYPE_MAP[filename.toLowerCase()] || STRATEGY_TYPE_MAP[strategyId.toLowerCase() + '.md'];
+            if (stratType) {
+                execBtn.href = `/execute.html?strategy=${encodeURIComponent(stratType)}`;
+            } else {
+                execBtn.href = '/execute.html';
+            }
         }
     }
 
@@ -411,7 +418,10 @@ async function initStrategyDetailPage() {
         }
 
         if (contentEl) {
-            if (typeof marked !== 'undefined') {
+            if (typeof renderMarkdown === 'function') {
+                contentEl.innerHTML = renderMarkdown(markdownText);
+            } else if (typeof marked !== 'undefined') {
+                if (typeof initMarkedMath === 'function') initMarkedMath();
                 contentEl.innerHTML = marked.parse(markdownText);
             } else {
                 contentEl.innerHTML = `<pre style="white-space: pre-wrap; font-family: var(--font-sans);">${escapeAttr(markdownText)}</pre>`;
@@ -432,6 +442,412 @@ async function initStrategyDetailPage() {
     }
 }
 
+// Fallback catalog of Option Greeks if API is unreachable
+const DEFAULT_OPTION_GREEKS = [
+    {
+        id: "delta",
+        name: "Delta",
+        symbol: "Δ",
+        order: "First-Order",
+        derivative: "∂V / ∂S",
+        filename: "greeks/delta.md",
+        summary: "Measures the rate of change of option value with respect to changes in the underlying asset's price, serving as directional risk, hedge ratio, and rough probability proxy.",
+        exposure: "Long Calls: +Δ | Long Puts: -Δ",
+        impact: "Directional sensitivity, hedge ratio, probability proxy"
+    },
+    {
+        id: "gamma",
+        name: "Gamma",
+        symbol: "Γ",
+        order: "Second-Order",
+        derivative: "∂²V / ∂S²",
+        filename: "greeks/gamma.md",
+        summary: "Measures the rate of change of Delta per unit move in the underlying asset, quantifying acceleration, convexity, and pin risk near expiration.",
+        exposure: "Long Options: +Γ | Short Options: -Γ",
+        impact: "Delta acceleration, convexity, pin risk"
+    },
+    {
+        id: "theta",
+        name: "Theta",
+        symbol: "Θ",
+        order: "First-Order",
+        derivative: "∂V / ∂t",
+        filename: "greeks/theta.md",
+        summary: "Measures the decay rate of an option's extrinsic value over time, accelerating non-linearly into the Theta Cliff during the final 30 to 45 DTE.",
+        exposure: "Long Options: -Θ | Short Options: +Θ",
+        impact: "Time decay, extrinsic value erosion"
+    },
+    {
+        id: "vega",
+        name: "Vega",
+        symbol: "V",
+        order: "First-Order",
+        derivative: "∂V / ∂σ",
+        filename: "greeks/vega.md",
+        summary: "Measures option price sensitivity to a 1% change in implied volatility, scaling with square root of time and driving post-earnings IV crush mechanics.",
+        exposure: "Long Options: +V | Short Options: -V",
+        impact: "Implied volatility sensitivity, IV crush"
+    },
+    {
+        id: "rho",
+        name: "Rho",
+        symbol: "ρ",
+        order: "First-Order",
+        derivative: "∂V / ∂r",
+        filename: "greeks/rho.md",
+        summary: "Measures option sensitivity to changes in the risk-free interest rate, directly influencing cost of carry and deep in-the-money LEAP pricing.",
+        exposure: "Long Calls: +ρ | Long Puts: -ρ",
+        impact: "Interest rate sensitivity, cost of carry"
+    },
+    {
+        id: "vanna",
+        name: "Vanna",
+        symbol: "∂Δ/∂σ",
+        order: "Second-Order",
+        derivative: "∂²V / (∂S ∂σ)",
+        filename: "greeks/vanna.md",
+        summary: "Cross-derivative measuring Delta sensitivity to implied volatility changes (or Vega sensitivity to price), driving dealer hedging flows during market crashes and earnings.",
+        exposure: "OTM Calls: +Vanna | OTM Puts: -Vanna",
+        impact: "Delta sensitivity to IV, market maker hedging"
+    },
+    {
+        id: "charm",
+        name: "Charm",
+        symbol: "∂Δ/∂t",
+        order: "Second-Order",
+        derivative: "∂²V / (∂S ∂t)",
+        filename: "greeks/charm.md",
+        summary: "Second-order cross-derivative measuring the rate of Delta decay over time, pulling OTM deltas toward 0 and pushing ITM deltas toward 1 as expiration nears.",
+        exposure: "OTM: Pulls Δ → 0 | ITM: Pushes Δ → 1",
+        impact: "Delta decay over time, weekend pin risk"
+    },
+    {
+        id: "volga",
+        name: "Volga (Vomma)",
+        symbol: "∂²V/∂σ²",
+        order: "Second-Order",
+        derivative: "∂²V / ∂σ²",
+        filename: "greeks/volga.md",
+        summary: "Second-order Vega convexity measuring the rate of change of Vega with respect to implied volatility, governing tail risk and volatility smile dynamics.",
+        exposure: "OTM Wings: +Volga | ATM: ~0 Volga",
+        impact: "Vega convexity, tail risk & volatility smile"
+    }
+];
+
+let _learningGreeks = [];
+let _activeGreekOrderFilter = 'ALL';
+
+/**
+ * Builds HTML for a single option Greek card link.
+ */
+function renderGreekCard(greek) {
+    const isFirstOrder = (greek.order || '').toLowerCase().includes('first');
+    const orderBadgeClass = isFirstOrder ? 'badge-info' : 'badge-purple';
+    const detailUrl = `/greek-detail.html?greek=${encodeURIComponent(greek.id)}`;
+
+    return `
+        <a href="${detailUrl}" class="strategy-learning-card" data-greek-id="${escapeAttr(greek.id)}">
+            <div>
+                <div class="strategy-card-header" style="display:flex; align-items:flex-start; gap:12px;">
+                    <div class="greek-symbol-avatar">${escapeAttr(greek.symbol || greek.name.charAt(0))}</div>
+                    <div style="flex:1; min-width:0;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                            <h3 class="strategy-card-title" style="margin:0;">${escapeAttr(greek.name)}</h3>
+                            <span class="badge ${orderBadgeClass}">${escapeAttr(greek.order || 'First-Order')}</span>
+                        </div>
+                        <div class="greek-formula-pill">${escapeAttr(greek.derivative || '')}</div>
+                    </div>
+                </div>
+                <p class="strategy-card-summary">${escapeAttr(greek.summary || '')}</p>
+            </div>
+            <div>
+                <div class="greek-card-impact">
+                    <strong>Exposure:</strong> ${escapeAttr(greek.exposure || '')}
+                </div>
+                <div class="strategy-card-footer">
+                    <span class="text-muted small">${escapeAttr(greek.impact || '')}</span>
+                    <span class="strategy-read-link">
+                        Read Guide <span class="link-arrow">→</span>
+                    </span>
+                </div>
+            </div>
+        </a>
+    `;
+}
+
+/**
+ * Filters the Option Greeks list by search query and derivative order classification.
+ */
+function filterGreeks(greeks, query, order = 'ALL') {
+    if (!Array.isArray(greeks)) return [];
+    let result = greeks;
+
+    if (order && order !== 'ALL') {
+        const targetOrder = order.toLowerCase();
+        result = result.filter(g => (g.order || '').toLowerCase().includes(targetOrder));
+    }
+
+    if (query && query.trim()) {
+        const q = query.trim().toLowerCase();
+        result = result.filter(g => {
+            const name = (g.name || '').toLowerCase();
+            const id = (g.id || '').toLowerCase();
+            const symbol = (g.symbol || '').toLowerCase();
+            const derivative = (g.derivative || '').toLowerCase();
+            const summary = (g.summary || '').toLowerCase();
+            const exposure = (g.exposure || '').toLowerCase();
+            const impact = (g.impact || '').toLowerCase();
+            const orderStr = (g.order || '').toLowerCase();
+            return name.includes(q) || id.includes(q) || symbol.includes(q) ||
+                   derivative.includes(q) || summary.includes(q) || exposure.includes(q) ||
+                   impact.includes(q) || orderStr.includes(q);
+        });
+    }
+
+    return result;
+}
+
+function getActiveGreeks() {
+    if (typeof window !== 'undefined' && Array.isArray(window._learningGreeks) && window._learningGreeks.length > 0) {
+        return window._learningGreeks;
+    }
+    if (_learningGreeks && _learningGreeks.length > 0) {
+        return _learningGreeks;
+    }
+    return DEFAULT_OPTION_GREEKS;
+}
+
+/**
+ * Re-renders the Option Greeks card grid based on current search query and order filter state.
+ */
+function renderFilteredGreeks() {
+    const container = document.getElementById('greeks-grid');
+    const countBadge = document.getElementById('greek-count-badge');
+    const searchInput = document.getElementById('greek-search-input');
+    const clearBtn = document.getElementById('clear-greek-search');
+
+    const query = searchInput ? searchInput.value : '';
+    if (clearBtn) {
+        clearBtn.style.display = query && query.length > 0 ? 'inline-block' : 'none';
+    }
+
+    const currentGreeks = getActiveGreeks();
+    const filtered = filterGreeks(currentGreeks, query, _activeGreekOrderFilter);
+
+    if (countBadge) {
+        countBadge.textContent = `${filtered.length} ${filtered.length === 1 ? 'Greek' : 'Greeks'}`;
+    }
+
+    if (!container) return filtered;
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state" style="grid-column: 1 / -1; padding: 40px 20px;">
+                <div class="empty-state-icon text-muted">🔍</div>
+                <h3>No Option Greeks found</h3>
+                <p class="text-muted">No Greeks matched your search criteria.</p>
+                <button class="btn btn-ghost btn-sm" onclick="clearGreekSearch()" style="margin-top: 8px;">Clear Filters</button>
+            </div>
+        `;
+        return filtered;
+    }
+
+    container.innerHTML = filtered.map(renderGreekCard).join('');
+    return filtered;
+}
+
+/**
+ * Handles derivative order chip selection (All Greeks, First-Order, Second-Order).
+ */
+function setGreekOrderFilter(order, buttonElement) {
+    _activeGreekOrderFilter = order || 'ALL';
+
+    if (typeof document !== 'undefined') {
+        const chips = document.querySelectorAll('#greek-filter-chips .strategy-chip');
+        chips.forEach(chip => {
+            const chipOrder = chip.getAttribute('data-order');
+            if (chip === buttonElement || (chipOrder && chipOrder.toLowerCase() === _activeGreekOrderFilter.toLowerCase())) {
+                chip.classList.add('active');
+            } else {
+                chip.classList.remove('active');
+            }
+        });
+    }
+
+    return renderFilteredGreeks();
+}
+
+/**
+ * Handles real-time search input on the Option Greeks page.
+ */
+function handleGreekSearch(query) {
+    return renderFilteredGreeks();
+}
+
+/**
+ * Clears search input and resets derivative order filter to ALL.
+ */
+function clearGreekSearch() {
+    const input = document.getElementById('greek-search-input');
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
+
+    _activeGreekOrderFilter = 'ALL';
+    if (typeof document !== 'undefined') {
+        const chips = document.querySelectorAll('#greek-filter-chips .strategy-chip');
+        chips.forEach(chip => {
+            if (chip.getAttribute('data-order') === 'ALL') {
+                chip.classList.add('active');
+            } else {
+                chip.classList.remove('active');
+            }
+        });
+    }
+
+    return renderFilteredGreeks();
+}
+
+/**
+ * Initializes the Option Greeks listing page.
+ */
+async function initOptionGreeksPage() {
+    const countBadge = document.getElementById('greek-count-badge');
+
+    try {
+        const res = await API.get('/api/learning/greeks');
+        if (Array.isArray(res) && res.length > 0) {
+            _learningGreeks = res;
+        } else {
+            _learningGreeks = DEFAULT_OPTION_GREEKS;
+        }
+    } catch (e) {
+        console.warn('Failed to fetch option Greeks from API, using default catalog:', e);
+        _learningGreeks = DEFAULT_OPTION_GREEKS;
+    }
+
+    if (typeof window !== 'undefined') {
+        window._learningGreeks = _learningGreeks;
+    }
+
+    if (countBadge) {
+        countBadge.textContent = `${_learningGreeks.length} Greeks`;
+    }
+
+    _activeGreekOrderFilter = 'ALL';
+    renderFilteredGreeks();
+
+    // Attach search input listener if present
+    const searchInput = document.getElementById('greek-search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => handleGreekSearch(e.target.value));
+    }
+}
+
+/**
+ * Initializes the Option Greek Detail page.
+ */
+async function initGreekDetailPage() {
+    const params = new URLSearchParams(window.location.search);
+    let greekParam = params.get('greek') || params.get('id') || params.get('file');
+
+    if (!greekParam) {
+        greekParam = 'delta';
+    }
+
+    let cleanId = greekParam.trim().toLowerCase();
+    if (cleanId.startsWith('greeks/')) {
+        cleanId = cleanId.substring(7);
+    }
+    if (cleanId.endsWith('.md')) {
+        cleanId = cleanId.slice(0, -3);
+    }
+
+    const filename = `${cleanId}.md`;
+    const contentEl = document.getElementById('greek-markdown-content');
+    const switcherEl = document.getElementById('greek-select-switcher');
+
+    // Populate Greek switcher dropdown
+    try {
+        let greeks = [];
+        try {
+            const apiRes = await API.get('/api/learning/greeks');
+            if (Array.isArray(apiRes) && apiRes.length > 0) greeks = apiRes;
+            else greeks = DEFAULT_OPTION_GREEKS;
+        } catch {
+            greeks = DEFAULT_OPTION_GREEKS;
+        }
+
+        if (switcherEl) {
+            switcherEl.innerHTML = greeks.map(g => {
+                const selected = g.id.toLowerCase() === cleanId ? 'selected' : '';
+                const symbolText = g.symbol ? ` (${g.symbol})` : '';
+                return `<option value="${escapeAttr(g.id)}" ${selected}>${escapeAttr(g.name)}${symbolText}</option>`;
+            }).join('');
+
+            switcherEl.addEventListener('change', (e) => {
+                window.location.href = `/greek-detail.html?greek=${encodeURIComponent(e.target.value)}`;
+            });
+        }
+    } catch (e) {
+        console.warn('Could not populate Greek switcher:', e);
+    }
+
+    // Fetch and render markdown
+    try {
+        if (contentEl) {
+            contentEl.innerHTML = `
+                <div class="loading-state" style="padding: 40px 20px;">
+                    <div class="spinner"></div>
+                    <p>Loading Greek guide...</p>
+                </div>
+            `;
+        }
+
+        let res = await fetch(`/descriptions/greeks/${filename}`);
+        if (!res.ok) {
+            // Try fallback path directly under /descriptions/
+            res = await fetch(`/descriptions/${filename}`);
+        }
+        if (!res.ok) {
+            throw new Error(`Option Greek guide "${filename}" not found (HTTP ${res.status})`);
+        }
+
+        const markdownText = await res.text();
+
+        const firstLine = markdownText.split('\n')[0] || '';
+        if (firstLine.startsWith('# ')) {
+            document.title = `${firstLine.substring(2).trim()} — Option Greeks`;
+        } else {
+            document.title = `${cleanId.toUpperCase()} — Option Greeks`;
+        }
+
+        if (contentEl) {
+            if (typeof renderMarkdown === 'function') {
+                contentEl.innerHTML = renderMarkdown(markdownText);
+            } else if (typeof marked !== 'undefined') {
+                if (typeof initMarkedMath === 'function') initMarkedMath();
+                contentEl.innerHTML = marked.parse(markdownText);
+            } else {
+                contentEl.innerHTML = `<pre style="white-space: pre-wrap; font-family: var(--font-sans);">${escapeAttr(markdownText)}</pre>`;
+            }
+        }
+    } catch (err) {
+        console.error('Failed to load Greek description:', err);
+        if (contentEl) {
+            contentEl.innerHTML = `
+                <div class="empty-state" style="padding: 40px 20px;">
+                    <div class="empty-state-icon text-warning">⚠️</div>
+                    <h3>Greek Guide Not Found</h3>
+                    <p class="text-muted">Could not load documentation for "${escapeAttr(filename)}".</p>
+                    <a href="/option-greeks.html" class="btn btn-primary btn-sm" style="margin-top: 12px;">← Back to Option Greeks</a>
+                </div>
+            `;
+        }
+    }
+}
+
 // Global browser window bindings
 if (typeof window !== 'undefined') {
     window.DEFAULT_OPTION_STRATEGIES = DEFAULT_OPTION_STRATEGIES;
@@ -444,6 +860,16 @@ if (typeof window !== 'undefined') {
     window.clearStrategySearch = clearStrategySearch;
     window.initOptionStrategiesPage = initOptionStrategiesPage;
     window.initStrategyDetailPage = initStrategyDetailPage;
+
+    window.DEFAULT_OPTION_GREEKS = DEFAULT_OPTION_GREEKS;
+    window.renderGreekCard = renderGreekCard;
+    window.filterGreeks = filterGreeks;
+    window.renderFilteredGreeks = renderFilteredGreeks;
+    window.setGreekOrderFilter = setGreekOrderFilter;
+    window.handleGreekSearch = handleGreekSearch;
+    window.clearGreekSearch = clearGreekSearch;
+    window.initOptionGreeksPage = initOptionGreeksPage;
+    window.initGreekDetailPage = initGreekDetailPage;
 }
 
 // CommonJS Exports
@@ -458,6 +884,16 @@ if (typeof module !== 'undefined' && module.exports) {
         handleStrategySearch,
         clearStrategySearch,
         initOptionStrategiesPage,
-        initStrategyDetailPage
+        initStrategyDetailPage,
+
+        DEFAULT_OPTION_GREEKS,
+        renderGreekCard,
+        filterGreeks,
+        renderFilteredGreeks,
+        setGreekOrderFilter,
+        handleGreekSearch,
+        clearGreekSearch,
+        initOptionGreeksPage,
+        initGreekDetailPage
     };
 }

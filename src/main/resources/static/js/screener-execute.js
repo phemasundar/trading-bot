@@ -127,6 +127,17 @@ const MA_VARIABLES = [
 
 const VOLUME_VARIABLES = [
     {
+        value: 'DOLLAR_VOLUME',
+        label: 'DOLLAR_VOLUME (Current Dollar Volume)',
+        placeholder: 'e.g. 50000000',
+        allowCustom: true,
+        predefinedValues: [
+            { value: '50000000', label: '$50,000,000 (50M)' },
+            { value: '25000000', label: '$25,000,000 (25M)' },
+            { value: '100000000', label: '$100,000,000 (100M)' }
+        ]
+    },
+    {
         value: 'VOLUME',
         label: 'VOLUME (Current Volume)',
         placeholder: 'e.g. 1000000 or VOLUME_SMA20',
@@ -573,7 +584,7 @@ function fillTechFiltersForm(techFilters) {
             if (filterKey === 'SIMPLE_MOVING_AVERAGE') continue;
         }
 
-        if (filterKey === 'VOLUME') {
+        if (filterKey === 'VOLUME' || filterKey === 'DOLLAR_VOLUME') {
             const conds = (val && typeof val === 'object' && val.conditions) ? val.conditions : (Array.isArray(val) ? val : null);
             const volContainer = document.getElementById('volume-conditions');
             if (volContainer && Array.isArray(conds)) {
@@ -581,7 +592,7 @@ function fillTechFiltersForm(techFilters) {
                     if (typeof cond === 'string') addConditionRow('volume-conditions', VOLUME_VARIABLES, cond);
                 });
             }
-            const el = document.querySelector(`[data-tech-filter="VOLUME"][data-tech-field="rules"]`);
+            const el = document.querySelector(`[data-tech-filter="VOLUME"][data-tech-field="rules"], [data-tech-filter="DOLLAR_VOLUME"][data-tech-field="rules"]`);
             if (el && conds) {
                 const rulesStr = Array.isArray(conds) ? conds.map(c => typeof c === 'string' ? c : '').filter(Boolean).join(', ') : conds;
                 if (rulesStr) el.value = rulesStr;
@@ -654,6 +665,11 @@ function fillTechFiltersForm(techFilters) {
 async function initScreenerDashboard() {
     const authed = await initAuth();
     if (!authed) return;
+    if (!window.appConfig) {
+        try {
+            window.appConfig = await API.get('/api/config');
+        } catch (e) { /* ignore */ }
+    }
     await loadScreenerStrategies();
     await loadScreenerResults();
     await checkScreenerExecutionStatus();
@@ -1207,6 +1223,10 @@ async function loadCustomScreenerResults(updatedResultId = null) {
             const id = el.id.replace(/^content-/, '');
             openCardIds.add(id);
         });
+        const openFilterIds = new Set();
+        container.querySelectorAll('.filter-details-body.open').forEach(el => {
+            openFilterIds.add(el.id);
+        });
 
         const results = await API.get('/api/results/custom/screeners');
         container.innerHTML = '';
@@ -1231,6 +1251,12 @@ async function loadCustomScreenerResults(updatedResultId = null) {
                 const arrow = cardEl.querySelector(`[id="arrow-${cardId}"]`);
                 if (content) content.classList.add('open');
                 if (arrow) arrow.classList.add('open');
+            }
+            if (openFilterIds.has(`filters-${cardId}`)) {
+                const filterBody = cardEl.querySelector(`[id="filters-${cardId}"]`);
+                const filterArrow = cardEl.querySelector(`[id="arrow-filters-${cardId}"]`);
+                if (filterBody) filterBody.classList.add('open');
+                if (filterArrow) filterArrow.classList.add('open');
             }
         }
     } catch (e) {

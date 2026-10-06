@@ -28,12 +28,16 @@ public class OptionFilterValueResolverTest {
         leg.setVolatility(28.5);
 
         Assert.assertEquals(OptionFilterValueResolver.resolveLegValue(leg, "DELTA"), 0.18, 0.001);
-        Assert.assertEquals(OptionFilterValueResolver.resolveLegValue(leg, "RAW_DELTA"), -0.18, 0.001);
+        Assert.assertEquals(OptionFilterValueResolver.resolveLegValue(leg, "SIGNED_DELTA"), -0.18, 0.001);
+        Assert.assertNull(OptionFilterValueResolver.resolveLegValue(leg, "RAW_DELTA"));
         Assert.assertEquals(OptionFilterValueResolver.resolveLegValue(leg, "OPEN_INTEREST"), 1200.0);
         Assert.assertEquals(OptionFilterValueResolver.resolveLegValue(leg, "VOLUME"), 350.0);
-        Assert.assertEquals(OptionFilterValueResolver.resolveLegValue(leg, "PREMIUM"), 1.45);
-        Assert.assertEquals(OptionFilterValueResolver.resolveLegValue(leg, "STRIKE"), 150.0);
+        Assert.assertEquals(OptionFilterValueResolver.resolveLegValue(leg, "MARK"), 1.45);
+        Assert.assertNull(OptionFilterValueResolver.resolveLegValue(leg, "PREMIUM"));
+        Assert.assertEquals(OptionFilterValueResolver.resolveLegValue(leg, "STRIKE_PRICE"), 150.0);
+        Assert.assertNull(OptionFilterValueResolver.resolveLegValue(leg, "STRIKE"));
         Assert.assertEquals(OptionFilterValueResolver.resolveLegValue(leg, "DTE"), 35.0);
+        Assert.assertNull(OptionFilterValueResolver.resolveLegValue(leg, "DAYS_TO_EXPIRATION"));
         Assert.assertEquals(OptionFilterValueResolver.resolveLegValue(leg, "IV"), 28.5);
     }
 
@@ -62,15 +66,20 @@ public class OptionFilterValueResolverTest {
 
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(spread, "MAX_LOSS"), 400.0);
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(spread, "NET_CREDIT"), 100.0);
+        Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(spread, "TOTAL_CREDIT"));
+        Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(spread, "CREDIT"));
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(spread, "RETURN_ON_RISK"), 25.0);
-        Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(spread, "ROR"), 25.0);
+        Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(spread, "ROR"));
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(spread, "BREAK_EVEN_PCT"), 2.5);
+        Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(spread, "BREAK_EVEN_PERCENTAGE"));
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(spread, "CURRENT_PRICE"), 101.5);
+        Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(spread, "UNDERLYING_PRICE"));
 
         // Test dotted navigation
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(spread, "SHORT_LEG.DELTA"), 0.20, 0.001);
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(spread, "LONG_LEG.DELTA"), 0.10, 0.001);
-        Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(spread, "SHORT_LEG.STRIKE"), 100.0);
+        Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(spread, "SHORT_LEG.STRIKE_PRICE"), 100.0);
+        Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(spread, "SHORT_LEG.STRIKE"));
     }
 
     @Test
@@ -138,9 +147,9 @@ public class OptionFilterValueResolverTest {
                 .build();
 
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(condor, "PUT_SHORT.DELTA"), 0.14, 0.001);
-        Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(condor, "PUT_SHORT_LEG.DELTA"), 0.14, 0.001);
+        Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(condor, "PUT_SHORT_LEG.DELTA"));
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(condor, "CALL_SHORT.DELTA"), 0.12, 0.001);
-        Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(condor, "CALL_SHORT_LEG.DELTA"), 0.12, 0.001);
+        Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(condor, "CALL_SHORT_LEG.DELTA"));
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(condor, "PUT_LONG.DELTA"), 0.05, 0.001);
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(condor, "CALL_LONG.DELTA"), 0.04, 0.001);
 
@@ -152,10 +161,10 @@ public class OptionFilterValueResolverTest {
                 .returnOnRisk(2.27)
                 .build();
 
-        Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(strangle, "PUT.DELTA"), 0.14, 0.001);
-        Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(strangle, "CALL.DELTA"), 0.12, 0.001);
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(strangle, "PUT_SHORT.DELTA"), 0.14, 0.001);
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(strangle, "CALL_SHORT.DELTA"), 0.12, 0.001);
+        Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(strangle, "PUT.DELTA"));
+        Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(strangle, "CALL.DELTA"));
     }
 
     @Test
@@ -186,9 +195,11 @@ public class OptionFilterValueResolverTest {
                 .build();
 
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(bwb, "LEG1.DELTA"), 0.55, 0.001);
-        Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(bwb, "LEG1_LONG.DELTA"), 0.55, 0.001);
-        Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(bwb, "LEG2_SHORT.DELTA"), 0.35, 0.001);
-        Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(bwb, "LEG3_LONG.DELTA"), 0.15, 0.001);
+        Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(bwb, "LEG1_LONG.DELTA"));
+        Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(bwb, "LEG2.DELTA"), 0.35, 0.001);
+        Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(bwb, "LEG2_SHORT.DELTA"));
+        Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(bwb, "LEG3.DELTA"), 0.15, 0.001);
+        Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(bwb, "LEG3_LONG.DELTA"));
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(bwb, "TOTAL_DEBIT"), 75.0);
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(bwb, "MAX_LOSS_UPSIDE"), 575.0);
 
@@ -201,6 +212,118 @@ public class OptionFilterValueResolverTest {
                 .build();
 
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(leap, "COST_SAVINGS_PCT"), 18.5);
+        Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(leap, "COST_SAVINGS_PERCENT"));
+        Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(leap, "OPTION_PRICE_PERCENT"));
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(leap, "BREAKEVEN_CAGR"), 8.2);
+    }
+
+    @Test
+    public void testAnnualizedExtrinsicPercentage() {
+        OptionChainResponse.OptionData call = new OptionChainResponse.OptionData();
+        call.setDaysToExpiration(365);
+        LongCallLeap leap = LongCallLeap.builder()
+                .longCall(call)
+                .extrinsicValue(100.0)
+                .maxLoss(1000.0)
+                .build();
+
+        Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(leap, "ANNUALIZED_EXTRINSIC_PCT"), 10.0, 0.001);
+        Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(leap, "NET_EXTRINSIC_VALUE_PCT"));
+        Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(leap, "EXTRINSIC_VALUE_PCT"));
+
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedTradeVariable("ANNUALIZED_EXTRINSIC_PCT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("NET_EXTRINSIC_VALUE_PCT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("EXTRINSIC_VALUE_PCT"));
+    }
+
+    @Test
+    public void testRemovedAliasesNotSupported() {
+        // Trade variables
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedTradeVariable("MAX_LOSS"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("MAX_PROFIT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("PROFIT"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedTradeVariable("NET_CREDIT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("TOTAL_CREDIT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("CREDIT"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedTradeVariable("TOTAL_DEBIT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("NET_DEBIT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("DEBIT"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedTradeVariable("RETURN_ON_RISK"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("ROR"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedTradeVariable("CAGR"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("RETURN_ON_RISK_CAGR"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("ROR_CAGR"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedTradeVariable("BREAK_EVEN_PRICE"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("BREAK_EVEN"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("BREAKEVEN"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedTradeVariable("BREAK_EVEN_PCT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("BREAK_EVEN_PERCENTAGE"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("BREAKEVEN_PCT"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedTradeVariable("UPPER_BREAK_EVEN_PRICE"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("UPPER_BREAK_EVEN"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("UPPER_BREAKEVEN"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedTradeVariable("UPPER_BREAK_EVEN_PCT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("UPPER_BREAK_EVEN_PERCENTAGE"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("UPPER_BREAKEVEN_PCT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("LOWER_BREAK_EVEN_PRICE"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("LOWER_BREAK_EVEN"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("LOWER_BREAKEVEN"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("LOWER_BREAK_EVEN_PERCENTAGE"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("LOWER_BREAK_EVEN_PCT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("LOWER_BREAKEVEN_PCT"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedTradeVariable("CURRENT_PRICE"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("UNDERLYING_PRICE"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("PRICE"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedTradeVariable("DTE"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("DAYS_TO_EXPIRATION"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedTradeVariable("NET_EXTRINSIC_VALUE"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("EXTRINSIC_VALUE"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedTradeVariable("COST_SAVINGS_PCT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("COST_SAVINGS_PERCENT"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedTradeVariable("OPTION_PRICE_PCT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("OPTION_PRICE_PERCENT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("EARNINGS"));
+
+        // Leg variables
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedLegVariable("DELTA"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedLegVariable("ABS_DELTA"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedLegVariable("SIGNED_DELTA"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedLegVariable("RAW_DELTA"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedLegVariable("MARK"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedLegVariable("PREMIUM"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedLegVariable("PRICE"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedLegVariable("STRIKE_PRICE"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedLegVariable("STRIKE"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedLegVariable("VOLUME"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedLegVariable("TOTAL_VOLUME"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedLegVariable("OPEN_INTEREST"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedLegVariable("OI"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedLegVariable("IV"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedLegVariable("VOLATILITY"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedLegVariable("DTE"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedLegVariable("DAYS_TO_EXPIRATION"));
+
+        // Leg prefixes
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedLegPrefix("SHORT_LEG"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedLegPrefix("LONG_LEG"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedLegPrefix("PUT_SHORT"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedLegPrefix("PUT_LONG"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedLegPrefix("CALL_SHORT"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedLegPrefix("CALL_LONG"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedLegPrefix("LEG1"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedLegPrefix("LEG2"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedLegPrefix("LEG3"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedLegPrefix("LEG4"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedLegPrefix("SHORT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedLegPrefix("LONG"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedLegPrefix("SHORT_PUT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedLegPrefix("LONG_PUT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedLegPrefix("SHORT_CALL"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedLegPrefix("LONG_CALL"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedLegPrefix("LEG1_LONG"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedLegPrefix("LEG2_SHORT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedLegPrefix("LEG3_LONG"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedLegPrefix("PUT"));
+        Assert.assertFalse(OptionFilterValueResolver.isSupportedLegPrefix("CALL"));
     }
 }

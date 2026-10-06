@@ -205,9 +205,9 @@ public class FilterParserTest {
         Map<String, Object> filterMap = new HashMap<>();
         filterMap.put("conditions", List.of(
                 "PUT_SHORT.DELTA <= 0.15",
-                "PUT_SHORT_LEG.OPEN_INTEREST >= 100",
+                "PUT_SHORT.OPEN_INTEREST >= 100",
                 "CALL_SHORT.DELTA <= 0.15",
-                "CALL_SHORT_LEG.OPEN_INTEREST >= 100",
+                "CALL_SHORT.OPEN_INTEREST >= 100",
                 "PUT_LONG.DELTA <= 0.05",
                 "CALL_LONG.DELTA <= 0.05"
         ));
@@ -230,9 +230,9 @@ public class FilterParserTest {
     public void testBuildFilter_BWBConditionsRouting() {
         Map<String, Object> filterMap = new HashMap<>();
         filterMap.put("conditions", List.of(
-                "LEG1_LONG.DELTA >= 0.50",
-                "LEG2_SHORT.DELTA <= 0.40",
-                "LEG3_LONG.OPEN_INTEREST >= 50"
+                "LEG1.DELTA >= 0.50",
+                "LEG2.DELTA <= 0.40",
+                "LEG3.OPEN_INTEREST >= 50"
         ));
 
         OptionsStrategyFilter filter = FilterParser.buildFilter(StrategyType.BULLISH_BROKEN_WING_BUTTERFLY, filterMap);

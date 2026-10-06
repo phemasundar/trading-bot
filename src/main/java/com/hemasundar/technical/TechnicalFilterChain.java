@@ -16,7 +16,7 @@ import java.util.List;
  * TechnicalIndicators indicators = TechnicalIndicators.builder()
  *         .rsiFilter(RSIFilter.builder().period(14).oversoldThreshold(30.0).overboughtThreshold(70.0).build())
  *         .bollingerFilter(BollingerBandsFilter.builder().period(20).standardDeviations(2.0).build())
- *         .volumeFilter(VolumeFilter.builder().minVolume(1_000_000L).build())
+ *         .dollarVolumeFilter(DollarVolumeFilter.builder().minDollarVolume(50_000_000.0).build())
  *         .build();
  * 
  * // Step 2: Define conditions (WHAT CONDITIONS to look for)
@@ -71,8 +71,8 @@ public class TechnicalFilterChain {
         if (indicators.getEmaFilters() != null) {
             list.addAll(indicators.getEmaFilters().values());
         }
-        if (indicators.getVolumeFilter() != null) {
-            list.add(indicators.getVolumeFilter());
+        if (indicators.getDollarVolumeFilter() != null) {
+            list.add(indicators.getDollarVolumeFilter());
         }
         return list;
     }
@@ -86,8 +86,8 @@ public class TechnicalFilterChain {
         return indicators != null ? indicators.getBollingerFilter() : null;
     }
 
-    public VolumeFilter getVolumeFilter() {
-        return indicators != null ? indicators.getVolumeFilter() : null;
+    public DollarVolumeFilter getDollarVolumeFilter() {
+        return indicators != null ? indicators.getDollarVolumeFilter() : null;
     }
 
     // Convenience getters for conditions
@@ -138,7 +138,7 @@ public class TechnicalFilterChain {
     public static class TechnicalFilterChainBuilder {
         private RSIFilter rsiFilter;
         private BollingerBandsFilter bollingerFilter;
-        private VolumeFilter volumeFilter;
+        private DollarVolumeFilter dollarVolumeFilter;
         private RSICondition rsiCondition;
         private BollingerCondition bollingerCondition;
 
@@ -152,8 +152,8 @@ public class TechnicalFilterChain {
             return this;
         }
 
-        public TechnicalFilterChainBuilder withVolume(VolumeFilter volumeFilter) {
-            this.volumeFilter = volumeFilter;
+        public TechnicalFilterChainBuilder withDollarVolume(DollarVolumeFilter dollarVolumeFilter) {
+            this.dollarVolumeFilter = dollarVolumeFilter;
             return this;
         }
 
@@ -171,7 +171,7 @@ public class TechnicalFilterChain {
             TechnicalIndicators indicators = TechnicalIndicators.builder()
                     .rsiFilter(rsiFilter)
                     .bollingerFilter(bollingerFilter)
-                    .volumeFilter(volumeFilter)
+                    .dollarVolumeFilter(dollarVolumeFilter)
                     .build();
 
             TechFilterConditions conditions = TechFilterConditions.builder()

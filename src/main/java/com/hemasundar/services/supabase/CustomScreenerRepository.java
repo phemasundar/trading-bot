@@ -225,6 +225,7 @@ public class CustomScreenerRepository {
                     .results(results)
                     .updatedAt(createdAt)
                     .requestParams(requestParams)
+                    .filterConfig(requestParams)
                     .build();
         } catch (Exception e) {
             throw new IOException("Failed to parse custom screener result: " + e.getMessage(), e);

@@ -3,14 +3,27 @@ package com.hemasundar.utils;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.experimental.UtilityClass;
 
 import java.util.Map;
 
 @UtilityClass
 public class JavaUtils {
-    private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
-    private static final YAMLMapper YAML_MAPPER = new YAMLMapper();
+    private static final ObjectMapper JSON_MAPPER = new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .findAndRegisterModules();
+    private static final YAMLMapper YAML_MAPPER = createYamlMapper();
+
+    /**
+     * Creates and configures a YAMLMapper with Java 8 date/time module support.
+     */
+    private static YAMLMapper createYamlMapper() {
+        YAMLMapper mapper = new YAMLMapper();
+        mapper.registerModule(new JavaTimeModule());
+        mapper.findAndRegisterModules();
+        return mapper;
+    }
 
     public static <T> T convertYamlToPojo(String yamlData, Class<T> tClass) {
         try {

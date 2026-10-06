@@ -3,6 +3,7 @@ package com.hemasundar.utils;
 import com.hemasundar.utils.JavaUtils;
 import lombok.Data;
 import org.testng.annotations.Test;
+import java.time.LocalDate;
 import java.util.Map;
 import static org.testng.Assert.*;
 
@@ -11,27 +12,32 @@ public class JavaUtilsTest {
     public static class TestPojo {
         private String name;
         private int value;
+        private LocalDate date;
 
         public String getName() { return name; }
         public void setName(String name) { this.name = name; }
         public int getValue() { return value; }
         public void setValue(int value) { this.value = value; }
+        public LocalDate getDate() { return date; }
+        public void setDate(LocalDate date) { this.date = date; }
     }
 
     @Test
     public void testConvertJsonToPojo() {
-        String json = "{\"name\":\"test\", \"value\":123}";
+        String json = "{\"name\":\"test\", \"value\":123, \"date\":\"2026-10-25\"}";
         TestPojo pojo = JavaUtils.convertJsonToPojo(json, TestPojo.class);
         assertEquals(pojo.getName(), "test");
         assertEquals(pojo.getValue(), 123);
+        assertEquals(pojo.getDate(), LocalDate.of(2026, 10, 25));
     }
 
     @Test
     public void testConvertYamlToPojo() {
-        String yaml = "name: test\nvalue: 123";
+        String yaml = "name: test\nvalue: 123\ndate: 2026-10-25";
         TestPojo pojo = JavaUtils.convertYamlToPojo(yaml, TestPojo.class);
         assertEquals(pojo.getName(), "test");
         assertEquals(pojo.getValue(), 123);
+        assertEquals(pojo.getDate(), LocalDate.of(2026, 10, 25));
     }
 
     @Test
@@ -80,5 +86,32 @@ public class JavaUtilsTest {
     @Test(expectedExceptions = RuntimeException.class)
     public void testConvertJsonToMap_Invalid() {
         JavaUtils.convertJsonToMap("invalid json", TestPojo.class);
+    }
+
+    @Test
+    public void testConvertJsonToPojo_EarningsCalendarResponse() {
+        String json = """
+            {
+              "earningsCalendar": [
+                {
+                  "date": "2026-10-25",
+                  "epsActual": null,
+                  "epsEstimate": "1.5",
+                  "hour": "amc",
+                  "quarter": 4,
+                  "revenueActual": null,
+                  "revenueEstimate": 100000000,
+                  "symbol": "NVDA",
+                  "year": 2026
+                }
+              ]
+            }
+            """;
+        com.hemasundar.pojos.EarningsCalendarResponse response = JavaUtils.convertJsonToPojo(json, com.hemasundar.pojos.EarningsCalendarResponse.class);
+        assertNotNull(response);
+        assertNotNull(response.getEarningsCalendar());
+        assertEquals(response.getEarningsCalendar().size(), 1);
+        assertEquals(response.getEarningsCalendar().get(0).getDate(), LocalDate.of(2026, 10, 25));
+        assertEquals(response.getEarningsCalendar().get(0).getSymbol(), "NVDA");
     }
 }
