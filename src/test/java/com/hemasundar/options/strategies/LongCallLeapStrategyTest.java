@@ -116,4 +116,48 @@ public class LongCallLeapStrategyTest {
         assertNotNull(trades);
         assertTrue(trades.size() > 0);
     }
+
+    @Test
+    public void testOptionPricePctFilter_RejectsExpensiveOptions() {
+        // Mock chain has AAPL at $150.0:
+        // Strike 140: Ask 20.00 -> OptionPricePct = 20/150 * 100 = 13.33%
+        // Strike 150: Ask 10.00 -> OptionPricePct = 10/150 * 100 = 6.67%
+        // Add deep ITM strike 5 with ask 145.00 -> OptionPricePct = 145/150 * 100 = 96.67%
+        StrategyTestUtils.addOption(mockChain, "2026-06-19", 400, 5.0, 144.50, 145.00, 1.00, false);
+
+        LongCallLeapFilter filter = LongCallLeapFilter.builder()
+                .minDTE(300)
+                .maxDTE(500)
+                .filterExpressions(com.hemasundar.utils.MathExpressionParser.parseRules(
+                        List.of("OPTION_PRICE_PCT <= 50")))
+                .build();
+
+        List<TradeSetup> trades = strategy.findTrades(mockChain, filter);
+        assertNotNull(trades);
+        assertEquals(trades.size(), 2);
+        for (TradeSetup trade : trades) {
+            LongCallLeap leap = (LongCallLeap) trade;
+            assertTrue(leap.getOptionPricePercent() <= 50.0);
+            assertNotEquals(leap.getLongCall().getStrikePrice(), 5.0);
+        }
+    }
+
+    @Test
+    public void testOptionPricePctFilter_StrictThreshold() {
+        // Strike 140 is 13.33%, Strike 150 is 6.67%
+        LongCallLeapFilter filter = LongCallLeapFilter.builder()
+                .minDTE(300)
+                .maxDTE(500)
+                .filterExpressions(com.hemasundar.utils.MathExpressionParser.parseRules(
+                        List.of("OPTION_PRICE_PCT <= 10.0")))
+                .build();
+
+        List<TradeSetup> trades = strategy.findTrades(mockChain, filter);
+        assertNotNull(trades);
+        assertEquals(trades.size(), 1);
+        LongCallLeap leap = (LongCallLeap) trades.get(0);
+        assertEquals(leap.getLongCall().getStrikePrice(), 150.0);
+        assertEquals(leap.getOptionPrice(), 10.0, 0.001);
+        assertEquals(leap.getOptionPricePercent(), (10.0 / 150.0) * 100.0, 0.001);
+    }
 }

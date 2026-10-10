@@ -342,6 +342,39 @@ public class TechnicalScreenerTest {
         assertTrue(summary.contains("INSIDE"));
     }
 
+    @Test
+    public void testScreenStocks_LogsToFilterLogStore() {
+        com.hemasundar.services.FilterLogStore.getInstance().clear();
+
+        PriceHistoryResponse response = createMockResponse(100.0, 30);
+        Mockito.when(ThinkOrSwimAPIs.getYearlyPriceHistory(anyString(), anyInt()))
+                .thenReturn(response);
+
+        TechnicalIndicators indicators = TechnicalIndicators.builder().build();
+        TechFilterConditions conditions = TechFilterConditions.builder()
+                .filterExpressions(List.of(
+                        MathExpression.builder()
+                                .leftVariable("DOLLAR_VOLUME")
+                                .operator(RelationalOperator.GREATER_THAN_OR_EQUAL)
+                                .rightVariable("50000")
+                                .build()))
+                .build();
+        TechnicalFilterChain chain = TechnicalFilterChain.of(indicators, conditions);
+
+        List<TechnicalScreener.ScreeningResult> results = technicalScreener.screenStocks(
+                List.of("AAPL"), chain, null, "PCS - Short Term");
+
+        assertEquals(results.size(), 1);
+        List<com.hemasundar.dto.ExecutionLogEntry> entries = com.hemasundar.services.FilterLogStore.getInstance().getEntries();
+        assertFalse(entries.isEmpty());
+        com.hemasundar.dto.ExecutionLogEntry entry = entries.get(entries.size() - 1);
+        assertEquals(entry.getStrategyName(), "PCS - Short Term");
+        assertEquals(entry.getSymbol(), "AAPL");
+        assertTrue(entry.getFilterStage().startsWith("Technical:"));
+        assertEquals(entry.getTradesIn(), 1);
+        assertEquals(entry.getTradesOut(), 1);
+    }
+
     private PriceHistoryResponse createMockResponse(double price, int candleCount) {
         PriceHistoryResponse response = new PriceHistoryResponse();
         List<PriceHistoryResponse.CandleData> candles = new ArrayList<>();

@@ -455,7 +455,9 @@ public class StrategyExecutionService {
     private StrategyResult executeStrategy(OptionsConfig config, OptionChainCache cache, boolean isCustomExecution) {
         long strategyStartTime = System.currentTimeMillis();
 
-        List<String> securities = config.getSecurities();
+        List<String> securities = config.getSecurities() != null
+                ? config.getSecurities().stream().distinct().collect(Collectors.toList())
+                : Collections.emptyList();
 
         Map<String, TechnicalScreener.ScreeningResult> techResultsMap = new HashMap<>();
 
@@ -468,7 +470,7 @@ public class StrategyExecutionService {
             };
 
             List<TechnicalScreener.ScreeningResult> screeningResults = technicalScreener.screenStocks(
-                    securities, config.getTechnicalFilterChain(), alertCallback);
+                    securities, config.getTechnicalFilterChain(), alertCallback, config.getStrategyId());
 
             for (TechnicalScreener.ScreeningResult sr : screeningResults) {
                 techResultsMap.put(sr.getSymbol(), sr);

@@ -1,11 +1,13 @@
 name: Daily IV Data Collection
 
 on:
-  schedule:
-    # 20 min before market close: 3:40 PM EDT / 2:40 PM CDT = 19:40 UTC on weekdays (Monday-Friday)
-    # Note: During EST (Standard Time, Nov-Mar), 3:40 PM EST is 20:40 UTC
-    - cron: "40 19 * * 1-5"
-  workflow_dispatch: # Allow manual trigger from GitHub UI
+  # Internal GitHub scheduled crons are disabled in favor of external webhook triggers (e.g., cron-job.org)
+  # to guarantee exact execution times and prevent GitHub runner queue delays.
+  # schedule:
+  #   - cron: "40 19 * * 1-5" # 2:40 PM CDT
+  workflow_dispatch: # Manual trigger & external workflow_dispatch webhook
+  repository_dispatch:
+    types: [collect-iv]
 
 jobs:
   collect-iv-data:

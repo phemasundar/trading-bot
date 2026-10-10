@@ -343,6 +343,7 @@ public class StrategyExecutionServiceTest {
     public void testTechnicalScreeningIntegration() throws IOException {
         OptionsConfig config = mock(OptionsConfig.class);
         when(config.getName()).thenReturn("Tech Strategy");
+        when(config.getStrategyId()).thenReturn("Tech Strategy");
         when(config.getSecurities()).thenReturn(List.of("AAPL", "MSFT"));
         when(config.hasTechnicalFilter()).thenReturn(true);
 
@@ -362,13 +363,13 @@ public class StrategyExecutionServiceTest {
 
         TechnicalScreener.ScreeningResult res = mock(TechnicalScreener.ScreeningResult.class);
         when(res.getSymbol()).thenReturn("AAPL");
-        when(technicalScreener.screenStocks(anyList(), any(), any()))
+        when(technicalScreener.screenStocks(anyList(), any(), any(), anyString()))
                 .thenReturn(List.of(res));
 
         ExecutionResult result = strategyExecutionService.executeCustomStrategy(config);
 
         assertNotNull(result);
-        verify(technicalScreener).screenStocks(eq(List.of("AAPL", "MSFT")), any(), any());
+        verify(technicalScreener).screenStocks(eq(List.of("AAPL", "MSFT")), any(), any(), eq("Tech Strategy"));
     }
 
     @Test

@@ -591,11 +591,20 @@ describe('Dashboard & Table Rendering Tests', () => {
 
     test('fetchAndRenderMarketStatus renders open/closed badges', async () => {
         API.get = jest.fn().mockResolvedValueOnce({ equityStatus: 'OPEN', optionsStatus: 'CLOSED' });
-        document.body.innerHTML = '<div class="main-content"><div class="sidebar"><div class="sidebar-brand">Brand</div></div></div>';
+        document.body.innerHTML = '<div class="main-content"><p class="page-subtitle">Subtitle</p><div class="content">Content</div></div>';
 
         await fetchAndRenderMarketStatus();
         expect(document.querySelector('.main-content').innerHTML).toContain('OPEN');
         expect(document.querySelector('.main-content').innerHTML).toContain('CLOSED');
+        const container = document.querySelector('.market-status-container');
+        expect(container).not.toBeNull();
+        expect(document.querySelector('.page-subtitle').nextElementSibling).toBe(container);
+
+        // Test reuse on second invocation
+        API.get = jest.fn().mockResolvedValueOnce({ equityStatus: 'PRE_MARKET', optionsStatus: 'POST_MARKET' });
+        await fetchAndRenderMarketStatus();
+        expect(document.querySelectorAll('.market-status-container').length).toBe(1);
+        expect(document.querySelector('.main-content').innerHTML).toContain('PRE MARKET');
     });
 
     test('buildTradeTable renders History column and history icon button', () => {

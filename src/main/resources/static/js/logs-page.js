@@ -250,7 +250,7 @@ function renderLogSymbolContent(otherEntries, byExpiry, stratSlug, symSlug, open
 
     if (otherEntries.length > 0) {
         const otherId = 'other-' + stratSlug + '-' + symSlug;
-        const isOtherOpen = openExpiries ? openExpiries.has(otherId) : false;
+        const isOtherOpen = openExpiries ? (openExpiries.has(otherId) || expiryDates.length === 0) : true;
         html +=
             '<div class="log-expiry-block log-expiry-other">' +
                 '<div class="log-expiry-header" onclick="toggleLogGroup(\'' + otherId + '\')">' +

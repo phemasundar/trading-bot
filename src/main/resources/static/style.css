@@ -196,6 +196,7 @@ a:hover {
     max-width: 1200px;
     min-width: 0;
     width: 100%;
+    position: relative;
 }
 
 /* ── Typography ── */
@@ -1622,7 +1623,17 @@ textarea::placeholder {
     border: 1px solid var(--border);
 }
 
-/* ── Market Status Badge ── */
+/* ── Market Status Container & Badge ── */
+.market-status-container {
+    position: absolute;
+    top: 32px;
+    right: 32px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 10;
+}
+
 .status-badge {
     display: inline-flex;
     align-items: center;
@@ -1644,6 +1655,42 @@ textarea::placeholder {
     height: 6px;
     border-radius: 50%;
     margin-right: 6px;
+}
+
+/* Tablet override: flows naturally under subtitle */
+@media (min-width: 601px) and (max-width: 768px) {
+    .market-status-container {
+        position: static;
+        top: auto;
+        right: auto;
+        margin-top: 8px;
+        margin-bottom: 16px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+    }
+}
+
+/* Mobile override: docks in the top horizontal app bar on the right */
+@media (max-width: 600px) {
+    .market-status-container {
+        position: fixed;
+        top: 10px;
+        right: 12px;
+        z-index: 25;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+    }
+
+    .status-badge {
+        padding: 4px 8px;
+        font-size: 0.65rem;
+        box-shadow: none;
+    }
 }
 
 /* ── Login Page ── */
@@ -2456,6 +2503,8 @@ textarea::placeholder {
     cursor: pointer;
     transition: border-color 0.2s;
     min-width: 160px;
+    height: 38px;
+    box-sizing: border-box;
 }
 
 .filter-select:focus {
@@ -2476,6 +2525,8 @@ textarea::placeholder {
     font-size: 0.85rem;
     font-family: var(--font-sans);
     min-width: 180px;
+    height: 38px;
+    box-sizing: border-box;
     transition: border-color 0.2s;
 }
 
@@ -2487,6 +2538,8 @@ textarea::placeholder {
 .filter-input-date {
     min-width: 150px;
     color-scheme: dark;
+    height: 38px;
+    box-sizing: border-box;
 }
 
 [data-theme="light"] .filter-input-date {
@@ -2500,6 +2553,24 @@ textarea::placeholder {
 }
 
 .filter-search-btn {
+    white-space: nowrap;
+    height: 38px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 14px;
+    font-size: 0.85rem;
+}
+
+.filter-bar-row .btn-ghost {
+    height: 38px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    font-size: 0.85rem;
     white-space: nowrap;
 }
 
@@ -2521,35 +2592,58 @@ textarea::placeholder {
 }
 
 @media (max-width: 640px) {
-    .filter-bar-row {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 8px;
+    .results-filter-bar {
+        padding: 10px 12px;
     }
+
+    .filter-bar-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+    }
+
     .filter-select {
         min-width: 0;
         width: 100%;
+        flex: 1 1 100%;
     }
+
     .filter-input {
         min-width: 0;
-        width: 100%;
+        width: auto;
+        flex: 1 1 120px;
     }
+
     .filter-date-group {
         display: flex;
-        flex-direction: column;
-        gap: 8px;
+        flex-direction: row;
+        gap: 6px;
         width: 100%;
+        flex: 1 1 100%;
     }
+
     .filter-date-group .filter-select {
-        width: 100%;
+        width: auto;
+        flex: 1 1 0;
         min-width: 0;
     }
+
     .filter-date-group .filter-input-date {
-        width: 100%;
+        width: auto;
+        flex: 1 1 0;
         min-width: 0;
     }
+
     .filter-search-btn {
-        width: 100%;
+        width: auto;
+        flex: 0 0 auto;
+        justify-content: center;
+    }
+
+    .filter-bar-row .btn-ghost {
+        width: auto;
+        flex: 0 0 auto;
         justify-content: center;
     }
 }

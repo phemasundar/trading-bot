@@ -18,13 +18,16 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.BiConsumer;
 
-import java.util.concurrent.CopyOnWriteArrayList;
-
+import com.hemasundar.options.strategies.FilterStage;
+import com.hemasundar.services.FilterLogStore;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Component;
 
 /**
@@ -364,18 +367,22 @@ public class TechnicalScreener {
     }
 
     /**
-     * Screens stocks against the given filter chain and optional fundamental conditions.
+     * Screens stocks against the given filter chain and optional fundamental conditions,
+     * recording filter stages to FilterLogStore when strategyName is provided.
      *
      * @param symbols                List of stock symbols to screen
      * @param filterChain            Technical filter chain containing indicators and conditions
      * @param fundamentalConditions  Optional fundamental conditions (may be null)
+     * @param alertCallback          Callback for reporting per-symbol API errors
+     * @param strategyName           Optional strategy name for FilterLogStore logging (null to skip logging)
      * @return List of screening results for stocks matching all criteria
      */
     public List<ScreeningResult> screenStocks(
             List<String> symbols,
             TechnicalFilterChain filterChain,
             FundamentalFilterConditions fundamentalConditions,
-            java.util.function.BiConsumer<String, String> alertCallback) {
+            BiConsumer<String, String> alertCallback,
+            String strategyName) {
         log.debug("\n{}", filterChain.getFiltersSummary());
 
         log.debug("Screening {} symbols in parallel", symbols.size());
@@ -385,12 +392,59 @@ public class TechnicalScreener {
             return analyzeStock(symbol, filterChain.getIndicators(), filterChain.getConditions());
         }, alertCallback);
 
-        // Filter out nulls (errors) and apply all conditions on the calling thread
+        List<MathExpression> expressions = (filterChain != null && filterChain.getConditions() != null)
+                ? filterChain.getConditions().getFilterExpressions()
+                : Collections.emptyList();
+        List<MathExpression> fundamentalExpressions = (fundamentalConditions != null)
+                ? fundamentalConditions.getFilterExpressions()
+                : Collections.emptyList();
+
         List<ScreeningResult> results = new ArrayList<>();
-        for (ScreeningResult result : parallelResults) {
-            if (result != null
-                    && meetsAllCriteria(result, filterChain.getConditions())
-                    && meetsFundamentalCriteria(result, fundamentalConditions)) {
+        for (int i = 0; i < symbols.size(); i++) {
+            String symbol = symbols.get(i);
+            ScreeningResult result = i < parallelResults.size() ? parallelResults.get(i) : null;
+
+            if (result == null) {
+                if (strategyName != null) {
+                    FilterLogStore.getInstance().logFilter(strategyName, symbol, "Technical Data Error", 1, 0);
+                }
+                continue;
+            }
+
+            boolean passesAll = true;
+            if (CollectionUtils.isNotEmpty(expressions)) {
+                for (MathExpression expr : expressions) {
+                    boolean passes = expr.evaluate(result::getIndicatorValue);
+                    if (strategyName != null) {
+                        FilterLogStore.getInstance().logFilter(strategyName, symbol, "Technical: " + expr, 1, passes ? 1 : 0);
+                    }
+                    if (!passes) {
+                        passesAll = false;
+                        break;
+                    }
+                }
+            }
+
+            if (passesAll && CollectionUtils.isNotEmpty(fundamentalExpressions)) {
+                for (MathExpression expr : fundamentalExpressions) {
+                    boolean passes = expr.evaluate(result::getIndicatorValue);
+                    if (strategyName != null) {
+                        FilterLogStore.getInstance().logFilter(strategyName, symbol, "Fundamental: " + expr, 1, passes ? 1 : 0);
+                    }
+                    if (!passes) {
+                        passesAll = false;
+                        break;
+                    }
+                }
+            }
+
+            if (passesAll && CollectionUtils.isEmpty(expressions) && CollectionUtils.isEmpty(fundamentalExpressions)) {
+                if (strategyName != null) {
+                    FilterLogStore.getInstance().logFilter(strategyName, symbol, FilterStage.TECHNICAL_FILTER.displayName(), 1, 1);
+                }
+            }
+
+            if (passesAll) {
                 results.add(result);
                 log.debug("\n{}", result);
             }
@@ -400,11 +454,27 @@ public class TechnicalScreener {
         return results;
     }
 
+    public List<ScreeningResult> screenStocks(
+            List<String> symbols,
+            TechnicalFilterChain filterChain,
+            FundamentalFilterConditions fundamentalConditions,
+            BiConsumer<String, String> alertCallback) {
+        return screenStocks(symbols, filterChain, fundamentalConditions, alertCallback, null);
+    }
+
     /**
      * Backward-compatible overload without fundamental conditions.
      */
-    public List<ScreeningResult> screenStocks(List<String> symbols, TechnicalFilterChain filterChain, java.util.function.BiConsumer<String, String> alertCallback) {
-        return screenStocks(symbols, filterChain, null, alertCallback);
+    public List<ScreeningResult> screenStocks(List<String> symbols, TechnicalFilterChain filterChain, BiConsumer<String, String> alertCallback) {
+        return screenStocks(symbols, filterChain, null, alertCallback, null);
+    }
+
+    public List<ScreeningResult> screenStocks(
+            List<String> symbols,
+            TechnicalFilterChain filterChain,
+            BiConsumer<String, String> alertCallback,
+            String strategyName) {
+        return screenStocks(symbols, filterChain, null, alertCallback, strategyName);
     }
 
     /**
