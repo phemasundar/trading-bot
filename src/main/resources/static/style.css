@@ -2160,6 +2160,153 @@ textarea::placeholder {
     color: var(--text-muted);
 }
 
+/* ── Strategy Stock Screening Funnel ── */
+.log-screening-wrapper {
+    padding: 10px 12px 6px;
+}
+
+.log-screening-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) - 2px);
+    overflow: hidden;
+}
+
+.log-screening-header {
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.015);
+    border-bottom: 1px solid var(--border);
+}
+
+.log-screening-icon {
+    font-size: 1rem;
+}
+
+.log-screening-title {
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: var(--text-primary);
+}
+
+.log-screening-table-container {
+    overflow-x: auto;
+}
+
+.log-screening-footer {
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.01);
+}
+
+.log-qualified-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.log-footer-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.log-badges-wrap {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.log-stock-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.log-stock-badge.passed {
+    background: rgba(16, 185, 129, 0.12);
+    color: var(--success);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.log-stock-badge.passed:hover {
+    background: rgba(16, 185, 129, 0.22);
+    transform: translateY(-1px);
+}
+
+.log-eliminated-block {
+    margin-top: 4px;
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    border-radius: calc(var(--radius) - 4px);
+    overflow: hidden;
+    background: rgba(239, 68, 68, 0.02);
+}
+
+.log-eliminated-header {
+    padding: 8px 12px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+}
+
+.log-eliminated-header:hover {
+    background: rgba(239, 68, 68, 0.06);
+}
+
+.log-eliminated-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.log-eliminated-body {
+    display: none;
+    border-top: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.log-eliminated-body.open {
+    display: block;
+}
+
+.log-eliminated-table tbody td {
+    padding: 6px 12px;
+}
+
+.log-section-divider {
+    padding: 10px 14px 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.log-section-divider-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+}
+
+.log-empty-qual-msg {
+    padding: 16px 20px;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-style: italic;
+}
+
 /* ═══════════════════════════════════════════════
    FILTER DETAILS SECTION (execute.html result cards)
    ═══════════════════════════════════════════════ */

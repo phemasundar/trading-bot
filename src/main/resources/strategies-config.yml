@@ -81,7 +81,7 @@ optionsStrategies:
         config:
           period: 20
         conditions:
-          - "HV_RANK >= 25"
+#          - "HV_RANK >= 25"
   - alias: "PCS"
     enabled: true
     termType: "Medium Term"
