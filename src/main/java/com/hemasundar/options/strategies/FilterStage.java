@@ -12,6 +12,7 @@ package com.hemasundar.options.strategies;
 public enum FilterStage {
 
     // ── Shared across multiple strategies ──────────────────────────────────
+    TECHNICAL_FILTER("Technical Filter"),
     GENERATED_CANDIDATES("Generated Candidates"),
     DELTA_FILTER("Delta Filter"),
     VOLUME_FILTER("Volume Filter"),

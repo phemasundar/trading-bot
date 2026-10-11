@@ -240,6 +240,7 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
 
         return LongCallLeap.builder()
                 .longCall(c.call())
+                .optionPrice(c.callPremium())
                 .breakEvenPrice(breakEven)
                 .breakEvenPercentage(c.breakEvenPct())
                 .extrinsicValue(c.extrinsic() * 100) // per-contract to match maxLoss
@@ -275,9 +276,20 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
             return new ArrayList<>();
         }
 
-        boolean relaxCAGR = filtersToRelax.contains("maxCAGRForBreakEven");
-        boolean relaxOptionPrice = filtersToRelax.contains("maxOptionPricePercent");
-        boolean relaxCostSavings = filtersToRelax.contains("minCostSavingsPercent");
+        boolean relaxCAGR = filtersToRelax.contains("maxCAGRForBreakEven") || filtersToRelax.contains("BREAKEVEN_CAGR");
+        boolean relaxOptionPrice = filtersToRelax.contains("maxOptionPricePercent") || filtersToRelax.contains("OPTION_PRICE_PCT");
+        boolean relaxCostSavings = filtersToRelax.contains("minCostSavingsPercent") || filtersToRelax.contains("COST_SAVINGS_PCT");
+
+        java.util.List<com.hemasundar.technical.MathExpression> relaxedExprs = originalFilter.getFilterExpressions() == null ? null :
+                originalFilter.getFilterExpressions().stream()
+                        .filter(expr -> {
+                            String var = expr.getLeftVariable() != null ? expr.getLeftVariable().toUpperCase() : "";
+                            if (relaxCAGR && "BREAKEVEN_CAGR".equalsIgnoreCase(var)) return false;
+                            if (relaxOptionPrice && "OPTION_PRICE_PCT".equalsIgnoreCase(var)) return false;
+                            if (relaxCostSavings && "COST_SAVINGS_PCT".equalsIgnoreCase(var)) return false;
+                            return true;
+                        })
+                        .collect(Collectors.toList());
 
         LongCallLeapFilter relaxedFilter = LongCallLeapFilter.builder()
                 .minDTE(filter.getMinDTE())
@@ -290,6 +302,7 @@ public class LongCallLeapStrategy extends AbstractTradingStrategy {
                 .maxOptionPricePercent(relaxOptionPrice ? null : originalFilter.getMaxOptionPricePercent())
                 .longCall(originalFilter.getLongCall())
                 .minCostSavingsPercent(relaxCostSavings ? null : originalFilter.getMinCostSavingsPercent())
+                .filterExpressions(relaxedExprs != null ? new java.util.ArrayList<>(relaxedExprs) : new java.util.ArrayList<>())
                 .build();
 
         return super.findTrades(chain, relaxedFilter);

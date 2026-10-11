@@ -2119,14 +2119,19 @@ async function fetchAndRenderMarketStatus() {
     const mainContent = document.querySelector('.main-content');
     if (!mainContent) return;
 
-    const statusContainer = document.createElement('div');
-    statusContainer.className = 'market-status-container flex gap-sm';
-    statusContainer.style.position = 'absolute';
-    statusContainer.style.top = '32px';
-    statusContainer.style.right = '32px';
-
-    mainContent.style.position = 'relative';
-    mainContent.appendChild(statusContainer);
+    let statusContainer = document.querySelector('.market-status-container');
+    if (!statusContainer) {
+        statusContainer = document.createElement('div');
+        statusContainer.className = 'market-status-container flex gap-sm';
+        const subtitle = mainContent.querySelector('.page-subtitle');
+        if (subtitle && subtitle.nextSibling) {
+            mainContent.insertBefore(statusContainer, subtitle.nextSibling);
+        } else if (subtitle) {
+            mainContent.appendChild(statusContainer);
+        } else {
+            mainContent.insertBefore(statusContainer, mainContent.firstChild);
+        }
+    }
 
     function statusColor(s) {
         if (s === 'OPEN')       return 'var(--success)';

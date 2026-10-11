@@ -205,6 +205,7 @@ public class OptionFilterValueResolverTest {
 
         LongCallLeap leap = LongCallLeap.builder()
                 .longCall(leg1)
+                .optionPrice(21.0)
                 .currentPrice(105.0)
                 .finalCostOfOption(12.0)
                 .costSavingsPercent(18.5)
@@ -214,6 +215,8 @@ public class OptionFilterValueResolverTest {
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(leap, "COST_SAVINGS_PCT"), 18.5);
         Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(leap, "COST_SAVINGS_PERCENT"));
         Assert.assertNull(OptionFilterValueResolver.resolveTradeValue(leap, "OPTION_PRICE_PERCENT"));
+        Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(leap, "OPTION_PRICE_PCT"), 20.0, 0.001);
+        Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(leap, "OPTION_PRICE"), 21.0, 0.001);
         Assert.assertEquals(OptionFilterValueResolver.resolveTradeValue(leap, "BREAKEVEN_CAGR"), 8.2);
     }
 
@@ -281,6 +284,7 @@ public class OptionFilterValueResolverTest {
         Assert.assertTrue(OptionFilterValueResolver.isSupportedTradeVariable("COST_SAVINGS_PCT"));
         Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("COST_SAVINGS_PERCENT"));
         Assert.assertTrue(OptionFilterValueResolver.isSupportedTradeVariable("OPTION_PRICE_PCT"));
+        Assert.assertTrue(OptionFilterValueResolver.isSupportedTradeVariable("OPTION_PRICE"));
         Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("OPTION_PRICE_PERCENT"));
         Assert.assertFalse(OptionFilterValueResolver.isSupportedTradeVariable("EARNINGS"));
 
@@ -325,5 +329,31 @@ public class OptionFilterValueResolverTest {
         Assert.assertFalse(OptionFilterValueResolver.isSupportedLegPrefix("LEG3_LONG"));
         Assert.assertFalse(OptionFilterValueResolver.isSupportedLegPrefix("PUT"));
         Assert.assertFalse(OptionFilterValueResolver.isSupportedLegPrefix("CALL"));
+    }
+
+    @Test
+    public void testLongCallLeapOptionPriceFallbacks() {
+        // Fallback to longCall ask
+        OptionChainResponse.OptionData callWithAsk = new OptionChainResponse.OptionData();
+        callWithAsk.setAsk(30.0);
+        LongCallLeap leap1 = LongCallLeap.builder().longCall(callWithAsk).currentPrice(100.0).build();
+        Assert.assertEquals(leap1.getOptionPrice(), 30.0);
+        Assert.assertEquals(leap1.getOptionPricePercent(), 30.0);
+
+        // Fallback to maxLoss / 100
+        LongCallLeap leap2 = LongCallLeap.builder().maxLoss(2500.0).currentPrice(100.0).build();
+        Assert.assertEquals(leap2.getOptionPrice(), 25.0);
+        Assert.assertEquals(leap2.getOptionPricePercent(), 25.0);
+
+        // Fallback to mark
+        OptionChainResponse.OptionData callWithMark = new OptionChainResponse.OptionData();
+        callWithMark.setMark(15.0);
+        LongCallLeap leap3 = LongCallLeap.builder().longCall(callWithMark).currentPrice(100.0).build();
+        Assert.assertEquals(leap3.getOptionPrice(), 15.0);
+        Assert.assertEquals(leap3.getOptionPricePercent(), 15.0);
+
+        // currentPrice <= 0
+        LongCallLeap leap4 = LongCallLeap.builder().optionPrice(10.0).currentPrice(0.0).build();
+        Assert.assertEquals(leap4.getOptionPricePercent(), 0.0);
     }
 }

@@ -19,7 +19,8 @@ public enum ScreenerType {
     BELOW_200_DAY_SMA("Below 200 Day SMA"),
     PRICE_DROP("Price Drop"),
     HIGH_52W_DROP("52-Week High Drop"),
-    ATR("Average True Range");
+    ATR("Average True Range"),
+    VOLATILITY("Volatility");
 
     private final String displayName;
 

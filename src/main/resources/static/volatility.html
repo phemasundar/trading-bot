@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volatility (IV & HV) — Learning Center</title>
+    <meta name="description" content="Core volatility concepts, Historical Volatility, Implied Volatility, IV Rank, IV Percentile, and VIX market regimes">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+    <link rel="stylesheet" href="/style.css?v=11">
+    <script src="/theme.js?v=3"></script>
+</head>
+
+<body>
+    <div class="app-layout">
+        <!-- Mobile menu toggle -->
+        <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-brand">
+                Trading Bot
+                <small>Automated Systems</small>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Options</div>
+                <a href="/" class="nav-link">
+                    <span class="nav-icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/execute.html" class="nav-link">
+                    <span class="nav-icon">▶️</span>
+                    <span>Execute Strategy</span>
+                </a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Screeners</div>
+                <a href="/screeners.html" class="nav-link">
+                    <span class="nav-icon">🔎</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/execute-screener.html" class="nav-link">
+                    <span class="nav-icon">🧪</span>
+                    <span>Execute Screener</span>
+                </a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Research</div>
+                <a href="/securities.html" class="nav-link">
+                    <span class="nav-icon">📁</span>
+                    <span>Securities</span>
+                </a>
+                <a href="/earnings-calendar.html" class="nav-link">
+                    <span class="nav-icon">📅</span>
+                    <span>Earnings Calendar</span>
+                </a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Learning Center</div>
+                <a href="/option-strategies.html" class="nav-link">
+                    <span class="nav-icon">📚</span>
+                    <span>Option Strategies</span>
+                </a>
+                <a href="/option-greeks.html" class="nav-link">
+                    <span class="nav-icon">📐</span>
+                    <span>Option Greeks</span>
+                </a>
+                <a href="/volatility.html" class="nav-link active">
+                    <span class="nav-icon">🌊</span>
+                    <span>Volatility</span>
+                </a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">System</div>
+                <a href="/config.html" class="nav-link">
+                    <span class="nav-icon">⚙️</span>
+                    <span>Config</span>
+                </a>
+                <a href="/logs.html" class="nav-link">
+                    <span class="nav-icon">📋</span>
+                    <span>Execution Logs</span>
+                </a>
+            </div>
+
+            <div style="flex: 1;"></div>
+            <div class="sidebar-section" style="border:none; margin-bottom: 0;">
+                <button id="theme-toggle" class="btn btn-ghost" style="width:100%; justify-content:center; gap: 8px;" onclick="toggleTheme()">
+                    <span id="theme-icon">☀️</span>
+                    <span id="theme-text">Light Mode</span>
+                </button>
+            </div>
+        </nav>
+        <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Auth Loading Overlay -->
+            <div id="authLoading" class="auth-loading-overlay">
+                <div class="auth-spinner"></div>
+                <p>Authenticating…</p>
+            </div>
+
+            <div class="strategy-detail-container">
+                <!-- Navigation & Action Header -->
+                <div class="strategy-detail-nav">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <a href="/option-strategies.html" class="btn btn-ghost btn-sm" style="display:inline-flex; align-items:center; gap:6px;">
+                            <span>📚</span>
+                            <span>Option Strategies</span>
+                        </a>
+                        <a href="/option-greeks.html" class="btn btn-ghost btn-sm" style="display:inline-flex; align-items:center; gap:6px;">
+                            <span>📐</span>
+                            <span>Option Greeks</span>
+                        </a>
+                    </div>
+                    <div class="strategy-detail-actions">
+                        <a id="execute-strategy-btn" href="/execute.html" class="btn btn-primary btn-sm" data-admin-only style="display:inline-flex; align-items:center; gap:6px;">
+                            <span>▶</span>
+                            <span>Execute Strategy</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Volatility Detail Card -->
+                <div class="card" style="padding: 28px 32px;">
+                    <div id="volatility-markdown-content" class="markdown-body">
+                        <div class="loading-state" style="padding: 40px 20px;">
+                            <div class="spinner"></div>
+                            <p>Loading Volatility guide...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked-katex-extension@5.1.2/lib/index.umd.js"></script>
+    <script src="/js/utils.js?v=12"></script>
+    <script src="/js/auth-api.js?v=11"></script>
+    <script src="/js/learning-center.js?v=4"></script>
+    <script src="/app.js?v=8"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initAuth();
+            await initVolatilityPage();
+        });
+    </script>
+</body>
+</html>

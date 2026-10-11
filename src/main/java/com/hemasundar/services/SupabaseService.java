@@ -210,7 +210,7 @@ public class SupabaseService {
      */
     public void saveSecurityIndicators(List<ScreeningResult> results) throws IOException {
         if (CollectionUtils.isNotEmpty(results)) {
-            enrichListWithIVData(results);
+            enrichWithIVData(results);
         }
         securityIndicatorsRepository.saveSecurityIndicators(results);
     }
@@ -228,7 +228,7 @@ public class SupabaseService {
         Map<String, ScreeningResult> existing = securityIndicatorsRepository.getSecurityIndicatorsForSymbols(symbols);
         if (MapUtils.isNotEmpty(existing)) {
             List<ScreeningResult> toUpdate = new ArrayList<>(existing.values());
-            enrichListWithIVData(toUpdate);
+            enrichWithIVData(toUpdate);
             securityIndicatorsRepository.saveSecurityIndicators(toUpdate);
             log.debug("Refreshed IV metrics in latest_security_indicators for {} securities", toUpdate.size());
         }
@@ -252,11 +252,12 @@ public class SupabaseService {
     }
 
     /**
-     * Enriches a list of screening results with IV data before persistence.
+     * Enriches a list of screening results with IV data (IV Percentile, IV Rank, Current IV).
+     * Can be called externally to populate in-memory cached results with IV metrics.
      *
-     * @param results list of ScreeningResult objects
+     * @param results list of ScreeningResult objects to enrich
      */
-    private void enrichListWithIVData(List<ScreeningResult> results) {
+    public void enrichWithIVData(List<ScreeningResult> results) {
         if (CollectionUtils.isEmpty(results)) {
             return;
         }

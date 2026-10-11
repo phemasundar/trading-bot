@@ -848,6 +848,57 @@ async function initGreekDetailPage() {
     }
 }
 
+/**
+ * Initializes the Volatility Learning Center page.
+ */
+async function initVolatilityPage() {
+    const contentEl = document.getElementById('volatility-markdown-content');
+    if (!contentEl) return;
+
+    try {
+        contentEl.innerHTML = `
+            <div class="loading-state" style="padding: 40px 20px;">
+                <div class="spinner"></div>
+                <p>Loading Volatility guide...</p>
+            </div>
+        `;
+
+        let res = await fetch('/descriptions/Volatility.md');
+        if (!res.ok) {
+            res = await fetch('/descriptions/volatility.md');
+        }
+        if (!res.ok) {
+            throw new Error(`Volatility guide not found (HTTP ${res.status})`);
+        }
+
+        const markdownText = await res.text();
+
+        const firstLine = markdownText.split('\n')[0] || '';
+        if (firstLine.startsWith('# ')) {
+            document.title = `${firstLine.substring(2).trim()} — Learning Center`;
+        }
+
+        if (typeof renderMarkdown === 'function') {
+            contentEl.innerHTML = renderMarkdown(markdownText);
+        } else if (typeof marked !== 'undefined') {
+            if (typeof initMarkedMath === 'function') initMarkedMath();
+            contentEl.innerHTML = marked.parse(markdownText);
+        } else {
+            contentEl.innerHTML = `<pre style="white-space: pre-wrap; font-family: var(--font-sans);">${escapeAttr(markdownText)}</pre>`;
+        }
+    } catch (err) {
+        console.error('Failed to load volatility guide:', err);
+        contentEl.innerHTML = `
+            <div class="empty-state" style="padding: 40px 20px;">
+                <div class="empty-state-icon text-warning">⚠️</div>
+                <h3>Volatility Guide Not Found</h3>
+                <p class="text-muted">Could not load documentation for Volatility.</p>
+                <a href="/option-strategies.html" class="btn btn-primary btn-sm" style="margin-top: 12px;">← Back to Learning Center</a>
+            </div>
+        `;
+    }
+}
+
 // Global browser window bindings
 if (typeof window !== 'undefined') {
     window.DEFAULT_OPTION_STRATEGIES = DEFAULT_OPTION_STRATEGIES;
@@ -870,6 +921,7 @@ if (typeof window !== 'undefined') {
     window.clearGreekSearch = clearGreekSearch;
     window.initOptionGreeksPage = initOptionGreeksPage;
     window.initGreekDetailPage = initGreekDetailPage;
+    window.initVolatilityPage = initVolatilityPage;
 }
 
 // CommonJS Exports
@@ -894,6 +946,7 @@ if (typeof module !== 'undefined' && module.exports) {
         handleGreekSearch,
         clearGreekSearch,
         initOptionGreeksPage,
-        initGreekDetailPage
+        initGreekDetailPage,
+        initVolatilityPage
     };
 }

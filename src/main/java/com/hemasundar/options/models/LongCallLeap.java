@@ -25,6 +25,7 @@ public class LongCallLeap implements TradeSetup {
     private double currentPrice; // Underlying stock price
     private double costSavingsPercent; // Cost savings compared to buying stock on margin
     private Double breakevenCAGR; // CAGR needed to reach breakeven
+    private double optionPrice;
 
     @Override
     public double getNetCredit() {
@@ -70,8 +71,30 @@ public class LongCallLeap implements TradeSetup {
     }
 
     /**
+     * Resolves the option purchase price per share.
+     * Uses explicit optionPrice if set, falling back to longCall ask, maxLoss / 100, or mark.
+     *
+     * @return option price per share
+     */
+    public double getOptionPrice() {
+        if (optionPrice > 0) {
+            return optionPrice;
+        }
+        if (longCall != null && longCall.getAsk() > 0) {
+            return longCall.getAsk();
+        }
+        if (maxLoss > 0) {
+            return maxLoss / 100.0;
+        }
+        if (longCall != null && longCall.getMark() > 0) {
+            return longCall.getMark();
+        }
+        return 0.0;
+    }
+
+    /**
      * Calculates the option price as a percentage of the current stock price.
-     * Used for ranking trades in the Top N strategy.
+     * Used for ranking trades in the Top N strategy and evaluating OPTION_PRICE_PCT filter.
      *
      * @return option price percentage
      */
@@ -79,7 +102,7 @@ public class LongCallLeap implements TradeSetup {
         if (currentPrice <= 0) {
             return 0.0;
         }
-        return (finalCostOfOption / currentPrice) * 100.0;
+        return (getOptionPrice() / currentPrice) * 100.0;
     }
 
     @Override

@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
+import com.hemasundar.services.FilterLogStore;
+
 @Log4j2
 @Component
 @lombok.RequiredArgsConstructor
@@ -31,16 +33,23 @@ public class PriceDropScreener {
      * @param symbols        List of stock symbols to screen
      * @param dropRules      Math expression rules to evaluate drop percentage against
      * @param lookbackDays   Number of trading days to look back (0 = intraday)
+     * @param alertCallback  Error callback
+     * @param screenerName   Optional screener name for logging to FilterLogStore
      * @return List of ScreeningResult for stocks matching the criteria
      */
     public List<TechnicalScreener.ScreeningResult> screenPriceDrop(
-            List<String> symbols, List<com.hemasundar.technical.MathExpression> dropRules, int lookbackDays, BiConsumer<String, String> alertCallback) {
+            List<String> symbols, List<com.hemasundar.technical.MathExpression> dropRules, int lookbackDays, BiConsumer<String, String> alertCallback, String screenerName) {
 
         if (lookbackDays == 0) {
-            return screenIntradayDrop(symbols, dropRules, alertCallback);
+            return screenIntradayDrop(symbols, dropRules, alertCallback, screenerName);
         } else {
-            return screenMultiDayDrop(symbols, dropRules, lookbackDays, alertCallback);
+            return screenMultiDayDrop(symbols, dropRules, lookbackDays, alertCallback, screenerName);
         }
+    }
+
+    public List<TechnicalScreener.ScreeningResult> screenPriceDrop(
+            List<String> symbols, List<com.hemasundar.technical.MathExpression> dropRules, int lookbackDays, BiConsumer<String, String> alertCallback) {
+        return screenPriceDrop(symbols, dropRules, lookbackDays, alertCallback, null);
     }
 
     /**
@@ -48,10 +57,12 @@ public class PriceDropScreener {
      *
      * @param symbols        List of stock symbols to screen
      * @param dropRules      Math expression rules to evaluate drop percentage against
+     * @param alertCallback  Error callback
+     * @param screenerName   Optional screener name for logging to FilterLogStore
      * @return List of ScreeningResult for stocks matching the criteria
      */
     public List<TechnicalScreener.ScreeningResult> screen52WeekHighDrop(
-            List<String> symbols, List<com.hemasundar.technical.MathExpression> dropRules, BiConsumer<String, String> alertCallback) {
+            List<String> symbols, List<com.hemasundar.technical.MathExpression> dropRules, BiConsumer<String, String> alertCallback, String screenerName) {
 
         List<TechnicalScreener.ScreeningResult> results = new ArrayList<>();
 
@@ -68,6 +79,9 @@ public class PriceDropScreener {
                     QuotesResponse.QuoteData quoteData = entry.getValue();
 
                     if (quoteData == null || quoteData.getQuote() == null) {
+                        if (screenerName != null) {
+                            FilterLogStore.getInstance().logFilter(screenerName, symbol, "Quote Data Missing", 1, 0);
+                        }
                         continue;
                     }
 
@@ -76,13 +90,16 @@ public class PriceDropScreener {
                     double high52w = quote.getFiftyTwoWeekHigh();
 
                     if (high52w <= 0 || currentPrice <= 0) {
+                        if (screenerName != null) {
+                            FilterLogStore.getInstance().logFilter(screenerName, symbol, "Price/52W High Invalid", 1, 0);
+                        }
                         continue;
                     }
 
                     double dropPct = ((high52w - currentPrice) / high52w) * 100.0;
                     TechnicalScreener.ScreeningResult result = buildResult(symbol, currentPrice, quote.getTotalVolume(),
                             dropPct, high52w, "52W_HIGH");
-                    boolean passes = evaluateDropRules(dropRules, result);
+                    boolean passes = evaluateDropRules(dropRules, result, screenerName);
 
                     if (passes) {
                         results.add(buildResult(symbol, currentPrice, quote.getTotalVolume(),
@@ -104,11 +121,16 @@ public class PriceDropScreener {
         return results;
     }
 
+    public List<TechnicalScreener.ScreeningResult> screen52WeekHighDrop(
+            List<String> symbols, List<com.hemasundar.technical.MathExpression> dropRules, BiConsumer<String, String> alertCallback) {
+        return screen52WeekHighDrop(symbols, dropRules, alertCallback, null);
+    }
+
     /**
      * Screens for intraday price drops using Quotes API netPercentChange.
      */
     private List<TechnicalScreener.ScreeningResult> screenIntradayDrop(
-            List<String> symbols, List<com.hemasundar.technical.MathExpression> dropRules, BiConsumer<String, String> alertCallback) {
+            List<String> symbols, List<com.hemasundar.technical.MathExpression> dropRules, BiConsumer<String, String> alertCallback, String screenerName) {
 
         List<TechnicalScreener.ScreeningResult> results = new ArrayList<>();
 
@@ -124,6 +146,9 @@ public class PriceDropScreener {
                     QuotesResponse.QuoteData quoteData = entry.getValue();
 
                     if (quoteData == null || quoteData.getQuote() == null) {
+                        if (screenerName != null) {
+                            FilterLogStore.getInstance().logFilter(screenerName, symbol, "Quote Data Missing", 1, 0);
+                        }
                         continue;
                     }
 
@@ -136,7 +161,7 @@ public class PriceDropScreener {
                     double dropPct = Math.abs(percentChange);
                     TechnicalScreener.ScreeningResult result = buildResult(symbol, currentPrice, quote.getTotalVolume(),
                             dropPct, closePrice, "INTRADAY");
-                    boolean passes = evaluateDropRules(dropRules, result);
+                    boolean passes = evaluateDropRules(dropRules, result, screenerName);
 
                     if (passes) {
                         results.add(result);
@@ -161,7 +186,7 @@ public class PriceDropScreener {
      * Screens for multi-day price drops using Price History API.
      */
     private List<TechnicalScreener.ScreeningResult> screenMultiDayDrop(
-            List<String> symbols, List<com.hemasundar.technical.MathExpression> dropRules, int lookbackDays, BiConsumer<String, String> alertCallback) {
+            List<String> symbols, List<com.hemasundar.technical.MathExpression> dropRules, int lookbackDays, BiConsumer<String, String> alertCallback, String screenerName) {
 
         log.debug("Screening {} symbols for drop rules over {} days (parallel)",
                 symbols.size(), lookbackDays);
@@ -176,6 +201,9 @@ public class PriceDropScreener {
 
                     if (history == null || history.getCandles() == null
                             || history.getCandles().isEmpty()) {
+                        if (screenerName != null) {
+                            FilterLogStore.getInstance().logFilter(screenerName, symbol, "Price History Missing", 1, 0);
+                        }
                         return null;
                     }
 
@@ -185,6 +213,9 @@ public class PriceDropScreener {
                     if (totalBars < lookbackDays + 1) {
                         log.debug("[{}] Not enough price history ({} bars, need {})",
                                 symbol, totalBars, lookbackDays + 1);
+                        if (screenerName != null) {
+                            FilterLogStore.getInstance().logFilter(screenerName, symbol, "Insufficient Bars (< " + (lookbackDays + 1) + ")", 1, 0);
+                        }
                         return null;
                     }
 
@@ -195,8 +226,12 @@ public class PriceDropScreener {
                     PriceHistoryResponse.CandleData referenceCandle = candles.get(totalBars - 1 - lookbackDays);
                     double referencePrice = referenceCandle.getClose();
 
-                    if (referencePrice <= 0)
+                    if (referencePrice <= 0) {
+                        if (screenerName != null) {
+                            FilterLogStore.getInstance().logFilter(screenerName, symbol, "Reference Price Invalid", 1, 0);
+                        }
                         return null;
+                    }
 
                     double dropPct = ((referencePrice - currentPrice) / referencePrice) * 100.0;
 
@@ -211,7 +246,7 @@ public class PriceDropScreener {
 
                     TechnicalScreener.ScreeningResult result = buildResult(symbol, currentPrice, volume, dropPct,
                             referencePrice, dropType);
-                    boolean passes = evaluateDropRules(dropRules, result);
+                    boolean passes = evaluateDropRules(dropRules, result, screenerName);
 
                     if (passes) {
                         log.debug("[{}] Down {}% over {} days (${} -> ${})",
@@ -239,11 +274,27 @@ public class PriceDropScreener {
      * math expression evaluator.
      */
     private boolean evaluateDropRules(List<com.hemasundar.technical.MathExpression> dropRules,
-            TechnicalScreener.ScreeningResult result) {
+            TechnicalScreener.ScreeningResult result, String screenerName) {
         if (CollectionUtils.isEmpty(dropRules)) {
             return false;
         }
-        return com.hemasundar.technical.MathExpressionEvaluator.evaluateAll(dropRules, result::getIndicatorValue);
+        boolean passesAll = true;
+        for (com.hemasundar.technical.MathExpression expr : dropRules) {
+            boolean passes = expr.evaluate(result::getIndicatorValue);
+            if (screenerName != null) {
+                FilterLogStore.getInstance().logFilter(screenerName, result.getSymbol(), "Technical: " + expr, 1, passes ? 1 : 0);
+            }
+            if (!passes) {
+                passesAll = false;
+                break;
+            }
+        }
+        return passesAll;
+    }
+
+    private boolean evaluateDropRules(List<com.hemasundar.technical.MathExpression> dropRules,
+            TechnicalScreener.ScreeningResult result) {
+        return evaluateDropRules(dropRules, result, null);
     }
 
     /**

@@ -497,7 +497,7 @@ public class StrategiesConfigLoader {
                     case "PRICE_DROP" -> applyPriceDropFilter(rawEntry, conditionsBuilder, filterExpressions);
                     case "AVERAGE_TRUE_RANGE" ->
                             applyAverageTrueRangeFilter(rawEntry, indicatorsBuilder, filterExpressions);
-                    case "HISTORICAL_VOLATILITY" ->
+                    case "HISTORICAL_VOLATILITY", "IMPLIED_VOLATILITY", "VOLATILITY" ->
                             applyHistoricalVolatilityFilter(rawEntry, conditionsBuilder, filterExpressions);
                     default -> log.warn("Unknown technicalFilters key '{}' — skipping", key);
                 }
@@ -1162,7 +1162,8 @@ public class StrategiesConfigLoader {
             case "PRICE", "CURRENT_PRICE", "DOLLAR_VOLUME",
                  "RSI", "PREVIOUS_RSI",
                  "BB_LOWER", "BB_MIDDLE", "BB_UPPER",
-                 "HV_RANK", "DROP_PCT", "MARKET_CAP_B", "ATR", "NATR",
+                 "HV_RANK", "IV_RANK", "IV_PERCENTILE", "CURRENT_IV",
+                 "DROP_PCT", "MARKET_CAP_B", "ATR", "NATR",
                  "DAYS_TO_NEXT_EARNINGS", "DTE" -> true;
             default -> false;
         };

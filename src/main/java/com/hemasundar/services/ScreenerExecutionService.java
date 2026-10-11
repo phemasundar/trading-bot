@@ -254,19 +254,20 @@ public class ScreenerExecutionService {
                     TechFilterConditions cond = screenerConfig.getConditions();
                     List<com.hemasundar.technical.MathExpression> dropRules = extractDropExpressions(cond, 5.0);
                     int days = cond.getLookbackDays() != null ? cond.getLookbackDays() : 0;
-                    yield priceDropScreener.screenPriceDrop(securitiesToScan, dropRules, days, alertCallback);
+                    yield priceDropScreener.screenPriceDrop(securitiesToScan, dropRules, days, alertCallback, screenerConfig.getName());
                 }
                 case HIGH_52W_DROP -> {
                     TechFilterConditions cond = screenerConfig.getConditions();
                     List<com.hemasundar.technical.MathExpression> dropRules = extractDropExpressions(cond, 20.0);
-                    yield priceDropScreener.screen52WeekHighDrop(securitiesToScan, dropRules, alertCallback);
+                    yield priceDropScreener.screen52WeekHighDrop(securitiesToScan, dropRules, alertCallback, screenerConfig.getName());
                 }
                 default -> {
                     yield technicalScreener.screenStocks(
                             securitiesToScan,
                             screenerConfig.getFilterChain(),
                             screenerConfig.getFundamentalConditions(),
-                            alertCallback);
+                            alertCallback,
+                            screenerConfig.getName());
                 }
             };
         } catch (Exception e) {

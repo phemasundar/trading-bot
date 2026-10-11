@@ -59,26 +59,38 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
 
         // ── IV Rank Filter ──
         Double ivRank = ivRankFuture.join();
+        String ivRankDetails = ivRank != null
+                ? String.format("IV Rank: %.1f%% [bounds: %s - %s]",
+                        ivRank,
+                        filter.getMinIVRank() != null ? String.format("%.1f", filter.getMinIVRank()) : "none",
+                        filter.getMaxIVRank() != null ? String.format("%.1f", filter.getMaxIVRank()) : "none")
+                : "IV Rank unavailable (fail-open)";
         if (!filter.passesIVRank(ivRank)) {
             log.debug("[{}] IV Rank {:.1f}% outside configured bounds [min={}, max={}], skipping symbol",
                     symbol, ivRank, filter.getMinIVRank(), filter.getMaxIVRank());
-            FilterLogStore.getInstance().logFilter(strategyName, symbol, FilterStage.IV_RANK_FILTER.displayName(), 1, 0);
+            FilterLogStore.getInstance().logSymbolFilter(strategyName, symbol, FilterStage.IV_RANK_FILTER.displayName(), ivRankDetails, 1, 0);
             return Collections.emptyList();
         }
         if (filter.getMinIVRank() != null || filter.getMaxIVRank() != null) {
-            FilterLogStore.getInstance().logFilter(strategyName, symbol, FilterStage.IV_RANK_FILTER.displayName(), 1, 1);
+            FilterLogStore.getInstance().logSymbolFilter(strategyName, symbol, FilterStage.IV_RANK_FILTER.displayName(), ivRankDetails, 1, 1);
         }
 
         // ── IV Percentile Filter ──
         Double ivPercentile = ivPercentileFuture.join();
+        String ivPercDetails = ivPercentile != null
+                ? String.format("IV Percentile: %.1f%% [bounds: %s - %s]",
+                        ivPercentile,
+                        filter.getMinIVPercentile() != null ? String.format("%.1f", filter.getMinIVPercentile()) : "none",
+                        filter.getMaxIVPercentile() != null ? String.format("%.1f", filter.getMaxIVPercentile()) : "none")
+                : "IV Percentile unavailable (fail-open)";
         if (!filter.passesIVPercentile(ivPercentile)) {
             log.debug("[{}] IV Percentile {:.1f}% outside configured bounds [min={}, max={}], skipping symbol",
                     symbol, ivPercentile, filter.getMinIVPercentile(), filter.getMaxIVPercentile());
-            FilterLogStore.getInstance().logFilter(strategyName, symbol, FilterStage.IV_PERCENTILE_FILTER.displayName(), 1, 0);
+            FilterLogStore.getInstance().logSymbolFilter(strategyName, symbol, FilterStage.IV_PERCENTILE_FILTER.displayName(), ivPercDetails, 1, 0);
             return Collections.emptyList();
         }
         if (filter.getMinIVPercentile() != null || filter.getMaxIVPercentile() != null) {
-            FilterLogStore.getInstance().logFilter(strategyName, symbol, FilterStage.IV_PERCENTILE_FILTER.displayName(), 1, 1);
+            FilterLogStore.getInstance().logSymbolFilter(strategyName, symbol, FilterStage.IV_PERCENTILE_FILTER.displayName(), ivPercDetails, 1, 1);
         }
 
         // ── IV Math Expressions ──
@@ -88,17 +100,32 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             if (ivRank != null) ivVars.put("IV_RANK", ivRank);
             if (ivPercentile != null) ivVars.put("IV_PERCENTILE", ivPercentile);
 
+            // Inject HV_RANK and CURRENT_IV from cached tech indicators for cross-volatility expressions
+            com.hemasundar.technical.TechnicalScreener.ScreeningResult cached =
+                    com.hemasundar.cache.TechnicalIndicatorCache.getInstance().get(symbol);
+            if (cached != null) {
+                if (cached.getHistoricalVolatilityRank() != null) ivVars.put("HV_RANK", cached.getHistoricalVolatilityRank());
+                if (cached.getCurrentIV() != null) ivVars.put("CURRENT_IV", cached.getCurrentIV());
+            }
+
             boolean passesIVExpressions = true;
             for (MathExpression expr : ivExpressions) {
                 Double val = ivVars.get(expr.getLeftVariable().toUpperCase());
-                // Fail-open if historical data is unavailable
-                if (val != null && !expr.evaluate(ivVars::get)) {
+                boolean isRightMissing = false;
+                try {
+                    Double.parseDouble(expr.getRightVariable().trim());
+                } catch (NumberFormatException e) {
+                    isRightMissing = (ivVars.get(expr.getRightVariable().trim().toUpperCase()) == null);
+                }
+                String exprDetails = formatVolatilityExpressionDetails(expr, val, ivVars);
+                // Fail-open if historical data is unavailable on either side
+                if (val != null && !isRightMissing && !expr.evaluate(ivVars::get)) {
                     passesIVExpressions = false;
-                    log.debug("[{}] IV condition failed: {} (actual: {}), skipping symbol", symbol, expr, val);
-                    FilterLogStore.getInstance().logFilter(strategyName, symbol, expr.toString(), 1, 0);
+                    log.debug("[{}] IV condition failed: {} (details: {}), skipping symbol", symbol, expr, exprDetails);
+                    FilterLogStore.getInstance().logSymbolFilter(strategyName, symbol, expr.toString(), exprDetails, 1, 0);
                     break;
-                } else if (val != null) {
-                    FilterLogStore.getInstance().logFilter(strategyName, symbol, expr.toString(), 1, 1);
+                } else if (val != null && !isRightMissing) {
+                    FilterLogStore.getInstance().logSymbolFilter(strategyName, symbol, expr.toString(), exprDetails, 1, 1);
                 }
             }
             if (!passesIVExpressions) {
@@ -340,6 +367,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             // Skip symbol/expiry level expressions (already evaluated in execute) and leg expressions (evaluated in candidate pipeline)
             if (left.equals("DTE")
                     || left.equals("IV_RANK") || left.equals("IV_PERCENTILE")
+                    || left.equals("HV_RANK") || left.equals("CURRENT_IV")
                     || left.contains("EARNINGS")
                     || left.contains(".")) {
                 continue;
@@ -489,6 +517,29 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             log.error("[{}] Error fetching IV Percentile: {}, allowing trade (fail-open)", symbol, e.getMessage());
             cache.putPercentile(symbol, null);
             return null;
+        }
+    }
+
+    private String formatVolatilityExpressionDetails(MathExpression expr, Double leftVal, Map<String, Double> ivVars) {
+        if (expr == null) return null;
+        String leftVar = expr.getLeftVariable().toUpperCase();
+        String leftStr = leftVal != null ? String.format("%s: %.1f%%", leftVar, leftVal) : leftVar + ": N/A";
+        String rightVar = expr.getRightVariable().trim().toUpperCase();
+        try {
+            double num = Double.parseDouble(rightVar);
+            return leftStr + " (target: " + String.format("%.1f", num) + ")";
+        } catch (NumberFormatException e) {
+            Double rightVal = ivVars.get(rightVar);
+            if (rightVal != null) {
+                double scale = expr.getRightScale() != null ? expr.getRightScale() : 1.0;
+                double offset = expr.getRightOffset() != null ? expr.getRightOffset() : 0.0;
+                double target = (rightVal * scale) + offset;
+                if (scale != 1.0 || offset != 0.0) {
+                    return String.format("%s, %s: %.1f%% (target: %.1f%%)", leftStr, rightVar, rightVal, target);
+                }
+                return String.format("%s, %s: %.1f%%", leftStr, rightVar, rightVal);
+            }
+            return leftStr + ", " + rightVar + ": N/A";
         }
     }
 }

@@ -38,9 +38,20 @@ Updated GitHub Actions workflows to run scheduled jobs against the develop branc
 
 Both workflows now:
 
-1. **Run on schedule** - Maintains existing cron schedules
+1. **External Webhook Dispatches** - Triggerable via `workflow_dispatch` and `repository_dispatch` (replacing congested GitHub free-tier scheduled crons)
 2. **Checkout develop branch** - Uses `ref: develop` in checkout action
-3. **Manual dispatch** - Can still be triggered manually from GitHub UI
+3. **Manual dispatch** - Can still be triggered manually from GitHub UI or via external webhook pings
+
+### External Webhook Triggers (cron-job.org / Webhook Schedulers)
+
+Due to GitHub Actions free tier queuing delays during high-traffic market hours, internal `schedule: cron` triggers are replaced by external webhook triggers. These hit GitHub's REST API at exact market times, dispatching runners instantly.
+
+- **Screener & Strategies (`ci.yml`)**:
+  - `workflow_dispatch`: `POST https://api.github.com/repos/{owner}/{repo}/actions/workflows/ci.yml/dispatches` with `{"ref": "develop"}`
+  - `repository_dispatch`: `POST https://api.github.com/repos/{owner}/{repo}/dispatches` with `{"event_type": "run-screener"}`
+- **Daily IV Collection (`daily-iv-collection.yml`)**:
+  - `workflow_dispatch`: `POST https://api.github.com/repos/{owner}/{repo}/actions/workflows/daily-iv-collection.yml/dispatches` with `{"ref": "develop"}`
+  - `repository_dispatch`: `POST https://api.github.com/repos/{owner}/{repo}/dispatches` with `{"event_type": "collect-iv"}`
 
 ### Files Modified
 

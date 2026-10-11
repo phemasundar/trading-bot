@@ -86,6 +86,7 @@ public class OptionFilterValueResolver {
             switch (normalized) {
                 case "COST_SAVINGS_PCT" -> { return leap.getCostSavingsPercent(); }
                 case "OPTION_PRICE_PCT" -> { return leap.getOptionPricePercent(); }
+                case "OPTION_PRICE" -> { return leap.getOptionPrice(); }
                 case "FINAL_COST_OF_OPTION" -> { return leap.getFinalCostOfOption(); }
                 case "FINAL_COST_OF_BUYING" -> { return leap.getFinalCostOfBuying(); }
                 default -> {}
@@ -266,10 +267,10 @@ public class OptionFilterValueResolver {
                  "NET_EXTRINSIC_VALUE",
                  "ANNUALIZED_EXTRINSIC_PCT",
                  "BREAKEVEN_CAGR",
-                 "IV_RANK", "IV_PERCENTILE",
+                 "IV_RANK", "IV_PERCENTILE", "HV_RANK", "CURRENT_IV",
                  "DAYS_TO_NEXT_EARNINGS", "EARNINGS_NEAREST_TO_DTE",
                  "COST_SAVINGS_PCT",
-                 "OPTION_PRICE_PCT",
+                 "OPTION_PRICE_PCT", "OPTION_PRICE",
                  "FINAL_COST_OF_OPTION", "FINAL_COST_OF_BUYING",
                  "MAX_LOSS_UPSIDE", "MAX_LOSS_DOWNSIDE",
                  "LOWER_WING_WIDTH", "UPPER_WING_WIDTH" -> true;

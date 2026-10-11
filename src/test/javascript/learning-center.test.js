@@ -15,6 +15,7 @@ const {
     clearGreekSearch,
     initOptionGreeksPage,
     initGreekDetailPage,
+    initVolatilityPage,
     API
 } = require('../../main/resources/static/app');
 
@@ -660,5 +661,49 @@ describe('Learning Center & Option Strategies Tests', () => {
         expect(document.getElementById('greek-markdown-content').innerHTML).toContain('katex-rendered');
 
         delete global.renderMarkdown;
+    });
+
+    test('initVolatilityPage uses renderMarkdown and sets document title', async () => {
+        document.body.innerHTML = `
+            <div id="volatility-markdown-content"></div>
+        `;
+
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            text: () => Promise.resolve("# Volatility (IV & HV)\nFormula: $$\\text{HV} = \\sigma \\times \\sqrt{252}$$")
+        });
+
+        const mockRenderMarkdown = jest.fn(text => `<div class="katex-rendered">${text}</div>`);
+        global.renderMarkdown = mockRenderMarkdown;
+
+        await initVolatilityPage();
+
+        expect(mockRenderMarkdown).toHaveBeenCalled();
+        expect(document.title).toBe('Volatility (IV & HV) — Learning Center');
+        expect(document.getElementById('volatility-markdown-content').innerHTML).toContain('katex-rendered');
+
+        delete global.renderMarkdown;
+    });
+
+    test('initVolatilityPage renders empty error state when fetch fails', async () => {
+        document.body.innerHTML = `
+            <div id="volatility-markdown-content"></div>
+        `;
+
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: false,
+            status: 404
+        });
+
+        await initVolatilityPage();
+
+        const container = document.getElementById('volatility-markdown-content');
+        expect(container.innerHTML).toContain('Volatility Guide Not Found');
+        expect(container.innerHTML).toContain('empty-state');
+    });
+
+    test('initVolatilityPage handles missing container element gracefully', async () => {
+        document.body.innerHTML = '';
+        await expect(initVolatilityPage()).resolves.not.toThrow();
     });
 });

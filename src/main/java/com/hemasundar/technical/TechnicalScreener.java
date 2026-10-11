@@ -18,13 +18,16 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.BiConsumer;
 
-import java.util.concurrent.CopyOnWriteArrayList;
-
+import com.hemasundar.options.strategies.FilterStage;
+import com.hemasundar.services.FilterLogStore;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Component;
 
 /**
@@ -187,6 +190,15 @@ public class TechnicalScreener {
                 sb.append("  📈 HV Rank: ").append(String.format("%.1f", historicalVolatilityRank)).append("\n");
             }
 
+            // Implied Volatility
+            if (ivPercentile != null || ivRank != null || currentIV != null) {
+                java.util.List<String> ivParts = new java.util.ArrayList<>();
+                if (ivPercentile != null) ivParts.add(String.format("Percentile: %.1f%%", ivPercentile));
+                if (ivRank != null) ivParts.add(String.format("Rank: %.1f%%", ivRank));
+                if (currentIV != null) ivParts.add(String.format("ATM: %.1f%%", currentIV));
+                sb.append("  📊 IV: ").append(String.join(", ", ivParts)).append("\n");
+            }
+
             // Market Cap
             if (marketCapB != null) {
                 sb.append("  🏢 Mkt Cap: ").append(formatMarketCap(marketCapB)).append("\n");
@@ -237,6 +249,9 @@ public class TechnicalScreener {
          *   <li>{@code ATR_DROP_FROM_HIGH_<N>D} — Drop from N-day high measured in multiples of ATR</li>
          *   <li>{@code PRICE_DROP_FROM_HIGH_<N>D} — Dollar drop from N-day high</li>
          *   <li>{@code HV_RANK} — historical volatility rank</li>
+         *   <li>{@code IV_PERCENTILE} — implied volatility percentile (0–100)</li>
+         *   <li>{@code IV_RANK} — implied volatility rank (0–100)</li>
+         *   <li>{@code CURRENT_IV} — current 30-day ATM implied volatility</li>
          *   <li>{@code DROP_PCT} — price drop percentage</li>
          *   <li>{@code ATR} — Average True Range</li>
          *   <li>{@code NATR} — Normalized Average True Range (percentage)</li>
@@ -259,6 +274,9 @@ public class TechnicalScreener {
                 case "BB_MIDDLE" -> bollingerMiddle;
                 case "BB_UPPER" -> bollingerUpper;
                 case "HV_RANK" -> historicalVolatilityRank;
+                case "IV_PERCENTILE" -> ivPercentile;
+                case "IV_RANK" -> ivRank;
+                case "CURRENT_IV" -> currentIV;
                 case "DROP_PCT" -> dropPercent;
                 case "MARKET_CAP_B" -> marketCapB;
                 case "ATR" -> atr;
@@ -364,18 +382,22 @@ public class TechnicalScreener {
     }
 
     /**
-     * Screens stocks against the given filter chain and optional fundamental conditions.
+     * Screens stocks against the given filter chain and optional fundamental conditions,
+     * recording filter stages to FilterLogStore when strategyName is provided.
      *
      * @param symbols                List of stock symbols to screen
      * @param filterChain            Technical filter chain containing indicators and conditions
      * @param fundamentalConditions  Optional fundamental conditions (may be null)
+     * @param alertCallback          Callback for reporting per-symbol API errors
+     * @param strategyName           Optional strategy name for FilterLogStore logging (null to skip logging)
      * @return List of screening results for stocks matching all criteria
      */
     public List<ScreeningResult> screenStocks(
             List<String> symbols,
             TechnicalFilterChain filterChain,
             FundamentalFilterConditions fundamentalConditions,
-            java.util.function.BiConsumer<String, String> alertCallback) {
+            BiConsumer<String, String> alertCallback,
+            String strategyName) {
         log.debug("\n{}", filterChain.getFiltersSummary());
 
         log.debug("Screening {} symbols in parallel", symbols.size());
@@ -385,12 +407,61 @@ public class TechnicalScreener {
             return analyzeStock(symbol, filterChain.getIndicators(), filterChain.getConditions());
         }, alertCallback);
 
-        // Filter out nulls (errors) and apply all conditions on the calling thread
+        List<MathExpression> expressions = (filterChain != null && filterChain.getConditions() != null)
+                ? filterChain.getConditions().getFilterExpressions()
+                : Collections.emptyList();
+        List<MathExpression> fundamentalExpressions = (fundamentalConditions != null)
+                ? fundamentalConditions.getFilterExpressions()
+                : Collections.emptyList();
+
         List<ScreeningResult> results = new ArrayList<>();
-        for (ScreeningResult result : parallelResults) {
-            if (result != null
-                    && meetsAllCriteria(result, filterChain.getConditions())
-                    && meetsFundamentalCriteria(result, fundamentalConditions)) {
+        for (int i = 0; i < symbols.size(); i++) {
+            String symbol = symbols.get(i);
+            ScreeningResult result = i < parallelResults.size() ? parallelResults.get(i) : null;
+
+            if (result == null) {
+                if (strategyName != null) {
+                    FilterLogStore.getInstance().logFilter(strategyName, symbol, "Technical Data Error", 1, 0);
+                }
+                continue;
+            }
+
+            boolean passesAll = true;
+            if (CollectionUtils.isNotEmpty(expressions)) {
+                for (MathExpression expr : expressions) {
+                    boolean passes = expr.evaluate(result::getIndicatorValue);
+                    if (strategyName != null) {
+                        String details = formatIndicatorExpressionDetails(expr, result);
+                        FilterLogStore.getInstance().logSymbolFilter(strategyName, symbol, "Technical: " + expr, details, 1, passes ? 1 : 0);
+                    }
+                    if (!passes) {
+                        passesAll = false;
+                        break;
+                    }
+                }
+            }
+
+            if (passesAll && CollectionUtils.isNotEmpty(fundamentalExpressions)) {
+                for (MathExpression expr : fundamentalExpressions) {
+                    boolean passes = expr.evaluate(result::getIndicatorValue);
+                    if (strategyName != null) {
+                        String details = formatIndicatorExpressionDetails(expr, result);
+                        FilterLogStore.getInstance().logSymbolFilter(strategyName, symbol, "Fundamental: " + expr, details, 1, passes ? 1 : 0);
+                    }
+                    if (!passes) {
+                        passesAll = false;
+                        break;
+                    }
+                }
+            }
+
+            if (passesAll && CollectionUtils.isEmpty(expressions) && CollectionUtils.isEmpty(fundamentalExpressions)) {
+                if (strategyName != null) {
+                    FilterLogStore.getInstance().logFilter(strategyName, symbol, FilterStage.TECHNICAL_FILTER.displayName(), 1, 1);
+                }
+            }
+
+            if (passesAll) {
                 results.add(result);
                 log.debug("\n{}", result);
             }
@@ -400,11 +471,27 @@ public class TechnicalScreener {
         return results;
     }
 
+    public List<ScreeningResult> screenStocks(
+            List<String> symbols,
+            TechnicalFilterChain filterChain,
+            FundamentalFilterConditions fundamentalConditions,
+            BiConsumer<String, String> alertCallback) {
+        return screenStocks(symbols, filterChain, fundamentalConditions, alertCallback, null);
+    }
+
     /**
      * Backward-compatible overload without fundamental conditions.
      */
-    public List<ScreeningResult> screenStocks(List<String> symbols, TechnicalFilterChain filterChain, java.util.function.BiConsumer<String, String> alertCallback) {
-        return screenStocks(symbols, filterChain, null, alertCallback);
+    public List<ScreeningResult> screenStocks(List<String> symbols, TechnicalFilterChain filterChain, BiConsumer<String, String> alertCallback) {
+        return screenStocks(symbols, filterChain, null, alertCallback, null);
+    }
+
+    public List<ScreeningResult> screenStocks(
+            List<String> symbols,
+            TechnicalFilterChain filterChain,
+            BiConsumer<String, String> alertCallback,
+            String strategyName) {
+        return screenStocks(symbols, filterChain, null, alertCallback, strategyName);
     }
 
     /**
@@ -679,5 +766,31 @@ public class TechnicalScreener {
         }
         return MathExpressionEvaluator.evaluateAll(
                 fundamentalConditions.getFilterExpressions(), result::getIndicatorValue);
+    }
+
+    private String formatIndicatorExpressionDetails(MathExpression expr, ScreeningResult result) {
+        if (expr == null || result == null) return null;
+        Double leftVal = result.getIndicatorValue(expr.getLeftVariable());
+        if (leftVal == null) return null;
+        String leftVar = expr.getLeftVariable().toUpperCase();
+        String leftStr = String.format("%s: %.1f", leftVar, leftVal);
+
+        String rightVar = expr.getRightVariable().trim().toUpperCase();
+        try {
+            double rightConst = Double.parseDouble(rightVar);
+            return leftStr + " (target: " + String.format("%.1f", rightConst) + ")";
+        } catch (NumberFormatException e) {
+            Double rightVal = result.getIndicatorValue(rightVar);
+            if (rightVal != null) {
+                double scale = expr.getRightScale() != null ? expr.getRightScale() : 1.0;
+                double offset = expr.getRightOffset() != null ? expr.getRightOffset() : 0.0;
+                double target = (rightVal * scale) + offset;
+                if (scale != 1.0 || offset != 0.0) {
+                    return String.format("%s, %s: %.1f (target: %.1f)", leftStr, rightVar, rightVal, target);
+                }
+                return String.format("%s, %s: %.1f", leftStr, rightVar, rightVal);
+            }
+            return leftStr + ", " + rightVar + ": N/A";
+        }
     }
 }
