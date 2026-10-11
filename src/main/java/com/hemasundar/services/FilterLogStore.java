@@ -31,7 +31,14 @@ public class FilterLogStore {
      * These entries appear in the "Other" block in the UI.
      */
     public void logFilter(String strategyName, String symbol, String filterStage, int tradesIn, int tradesOut) {
-        logFilter(strategyName, symbol, null, filterStage, tradesIn, tradesOut);
+        logFilter(strategyName, symbol, null, filterStage, null, tradesIn, tradesOut);
+    }
+
+    /**
+     * Logs a symbol-level filter stage with evaluated context/details.
+     */
+    public void logSymbolFilter(String strategyName, String symbol, String filterStage, String details, int tradesIn, int tradesOut) {
+        logFilter(strategyName, symbol, null, filterStage, details, tradesIn, tradesOut);
     }
 
     /**
@@ -41,16 +48,27 @@ public class FilterLogStore {
      * @param expiry null for symbol-level filters; a date string for per-expiry filters
      */
     public void logFilter(String strategyName, String symbol, String expiry, String filterStage, int tradesIn, int tradesOut) {
+        logFilter(strategyName, symbol, expiry, filterStage, null, tradesIn, tradesOut);
+    }
+
+    /**
+     * Logs a filter stage with optional expiry date and contextual details.
+     *
+     * @param expiry null for symbol-level filters; a date string for per-expiry filters
+     * @param details optional string with evaluated metric values or condition bounds
+     */
+    public void logFilter(String strategyName, String symbol, String expiry, String filterStage, String details, int tradesIn, int tradesOut) {
         int filtered = tradesIn - tradesOut;
-        log.debug("[FILTER][{}][{}][{}] {} — in: {}, passed: {}, filtered: {}",
+        log.debug("[FILTER][{}][{}][{}] {}{} — in: {}, passed: {}, filtered: {}",
                 strategyName, symbol, expiry != null ? expiry : "symbol-level",
-                filterStage, tradesIn, tradesOut, filtered);
+                filterStage, details != null ? " (" + details + ")" : "", tradesIn, tradesOut, filtered);
 
         entries.add(ExecutionLogEntry.builder()
                 .strategyName(strategyName)
                 .symbol(symbol)
                 .expiry(expiry)
                 .filterStage(filterStage)
+                .details(details)
                 .tradesIn(tradesIn)
                 .tradesOut(tradesOut)
                 .build());

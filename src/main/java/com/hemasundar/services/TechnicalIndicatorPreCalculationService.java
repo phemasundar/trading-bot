@@ -243,8 +243,35 @@ public class TechnicalIndicatorPreCalculationService {
         long t1 = System.currentTimeMillis();
         log.debug("[TechnicalIndicatorPreCalculationService] Pre-calculated {} symbols in {}ms", uncachedSymbols.size(), (t1 - t0));
 
+        // Enrich in-memory cache with IV data so expressions like IV_PERCENTILE > HV_RANK work
+        enrichCacheWithIVData(symbols);
+
         // Save all evaluated indicators into Supabase table latest_security_indicators (1 row per security)
         saveAllToSupabase(symbols);
+    }
+
+    /**
+     * Enriches cached {@link ScreeningResult} objects with IV metrics (IV Percentile, IV Rank, Current IV)
+     * from Supabase, making them available for unified volatility expressions in both
+     * tech screener and options strategy filters.
+     */
+    private void enrichCacheWithIVData(List<String> symbols) {
+        if (supabaseService.isEmpty() || symbols == null || symbols.isEmpty()) {
+            return;
+        }
+        try {
+            List<ScreeningResult> cached = symbols.stream()
+                    .distinct()
+                    .map(s -> TechnicalIndicatorCache.getInstance().get(s))
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            if (!cached.isEmpty()) {
+                supabaseService.get().enrichWithIVData(cached);
+                log.debug("[TechnicalIndicatorPreCalculationService] Enriched {} cached results with IV data", cached.size());
+            }
+        } catch (Exception e) {
+            log.warn("[TechnicalIndicatorPreCalculationService] Failed to enrich cache with IV data: {}", e.getMessage());
+        }
     }
 
     private void saveAllToSupabase(List<String> symbols) {

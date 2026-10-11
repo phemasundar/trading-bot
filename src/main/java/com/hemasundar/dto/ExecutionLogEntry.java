@@ -27,6 +27,9 @@ public class ExecutionLogEntry {
     /** The name of the filter stage (e.g. "Delta Filter", "Max Loss Filter"). */
     private String filterStage;
 
+    /** Evaluated indicator details or threshold context (e.g. "IV_PERCENTILE: 75.0%, HV_RANK: 40.0%"). */
+    private String details;
+
     /** Number of candidates entering this filter stage. */
     private int tradesIn;
 

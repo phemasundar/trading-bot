@@ -41,7 +41,7 @@ public class LearningCenterService {
     public List<StrategyDescriptionDto> getOptionStrategies() {
         List<StrategyDescriptionDto> all = loadAllDescriptions();
         return all.stream()
-                .filter(s -> !"Screener".equalsIgnoreCase(s.getCategory()))
+                .filter(s -> !"Screener".equalsIgnoreCase(s.getCategory()) && !"Educational".equalsIgnoreCase(s.getCategory()))
                 .sorted(Comparator.comparing(StrategyDescriptionDto::getName))
                 .toList();
     }
@@ -194,11 +194,14 @@ public class LearningCenterService {
             summary = summaryBuilder.toString().trim();
         }
 
-        // If Greeks table was absent (e.g. screener)
+        // If Greeks table was absent (e.g. screener or educational guide)
         if (greeks.isEmpty()) {
-            if (id.contains("screener")) {
+            if (id.toLowerCase().contains("screener")) {
                 category = "Screener";
                 bias = "Technical";
+            } else if (id.toLowerCase().contains("volatility")) {
+                category = "Educational";
+                bias = "Market Metric";
             }
             // Extract first non-header, non-empty paragraph
             for (String rawLine : lines) {

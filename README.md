@@ -21,6 +21,7 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
   - RSI Bollinger Crossovers (Bullish/Bearish)
   - Moving Average Crossovers
   - Average True Range (ATR) Volatility filter
+  - Volatility Screener (IV over HV / cross-volatility screening)
   - Multi-day Price Drop (Selectable lookback from 0-N days, with pre-configured Intraday Drop, 5-Day Drop, 1-Month Drop, and 3-Month Drop templates)
   - 52-Week High Drop (Percentage decline from yearly high)
 - **Unified Mathematical Filter System**: Options strategies, individual option legs, and technical screeners use a unified, declarative mathematical expression filtering engine (`MathExpression`, `MathExpressionParser`, `MathExpressionEvaluator`). Filter criteria are defined via declarative math expressions under `conditions: [...]` (e.g. `DTE >= 25`, `MAX_LOSS <= 1000`, `RETURN_ON_RISK >= 12%`, `SHORT_LEG.DELTA <= 0.2`, `DAYS_TO_NEXT_EARNINGS >= DTE`), with support for arithmetic offsets (`DTE - 10`), percentages, and multi-leg dotted navigation. The Execute Strategy UI provides dynamic dropdown condition builders with predefined metrics (moving averages, Bollinger bands, volume averages) and inline companion custom text fields (revealed seamlessly when selecting `✏️ Custom...` without modal popups). All historical strategy execution audit logs in Supabase (`strategy_executions`), custom execution history (`custom_execution_results`), and latest strategy results (`latest_strategy_results`) have been migrated from legacy property names (`minDTE`, `maxLossLimit`, etc.) to the unified expression condition syntax.
@@ -152,6 +153,7 @@ The user interface features a clean, highly structured scrollable sidebar naviga
 - **Earnings Calendar (`/earnings-calendar.html`)**: Interactive monthly calendar tracking upcoming corporate earnings events across all securities universes.
 - **Option Strategies (`/option-strategies.html`)**: Learning Center directory displaying educational guides, Greek polarities, directional biases, and structural mechanics for options strategies. Clicking any strategy card redirects to a dedicated full-page guide (`/strategy-detail.html?strategy=<file>.md`) rendering the markdown documentation from `static/descriptions/` with an interactive strategy switcher.
 - **Option Greeks (`/option-greeks.html`)**: Learning Center directory detailing core risk parameters, sensitivity derivatives, and mathematical mechanics for options pricing and automated risk management. Displays interactive cards with Greek symbols ($\Delta, \Gamma, \Theta, \mathcal{V}, \rho$, Vanna, Charm, Volga), order classification chips (First-Order vs. Second-Order), partial derivatives ($\partial V / \partial S, \partial^2 V / \partial S^2$, etc.), position exposures, and impact summaries. Clicking any Greek card opens a dedicated markdown guide (`/greek-detail.html?greek=<id>`) loaded from `static/descriptions/greeks/` with a quick Greek switcher dropdown and direct links to Option Strategies.
+- **Volatility Guide (`/volatility.html`)**: Learning Center reference and deep-dive into Historical Volatility (HV), Implied Volatility (IV), IV Rank (IVR), IV Percentile (IVP), post-earnings IV crush, and CBOE VIX market regime filters with dynamic KaTeX mathematical formulations and bot decision rules.
 - **Strategy Config (`/config.html`)**: Read-only view of all strategy configurations with full parameter descriptions including configured securities universes and technical filters.
 - **Execution Logs (`/logs.html`)**: Real-time per-filter logs showing exactly where trade candidates are being discarded across technical screener filters (e.g. HV Rank, Moving Averages) and options strategy filters (e.g. Delta, Volume, DTE constraints) to help debug filter configurations.
 - **Swagger API Docs (`/swagger-ui.html`)**: Interactive REST API documentation.
@@ -329,9 +331,9 @@ A dedicated research interface accessible at `/securities.html` under the **Rese
    - `GET /api/securities/filter-config`: Returns parsed active filter settings.
    - `POST /api/securities/data`: Accepts `{ "symbols": ["NVDA", "AAPL", ...] }` and returns precalculated indicators from Supabase.
 
-## Learning Center (Option Strategies & Option Greeks)
+## Learning Center (Option Strategies, Option Greeks & Volatility)
 
-A dedicated educational and strategy guide portal accessible under the **Learning Center** sidebar navigation (`/option-strategies.html` and `/option-greeks.html`).
+A dedicated educational and strategy guide portal accessible under the **Learning Center** sidebar navigation (`/option-strategies.html`, `/option-greeks.html`, and `/volatility.html`).
 
 ### Architecture & Capabilities
 
@@ -359,7 +361,13 @@ A dedicated educational and strategy guide portal accessible under the **Learnin
    - Direct reciprocal link to the Option Strategies catalog.
    - Fully responsive on mobile with clean typography and KaTeX/markdown formatting.
 
-5. **REST Endpoints**:
+5. **Volatility Guide (`/volatility.html`)**:
+   - Comprehensive educational guide covering Historical Volatility (HV, $\sigma_{\text{daily}} \times \sqrt{252}$), Implied Volatility (IV backed out from options models), Volatility Risk Premium (VRP), and post-earnings IV crush.
+   - Mathematical formulations for IV Rank (IVR) and IV Percentile (IVP), with detailed analysis of single-day outlier skew and why IV Percentile is the preferred metric for algorithmic bots.
+   - CBOE Volatility Index (VIX) market regimes ($<20$, $20-30$, $>30$) and diagnostic rules for differentiating idiosyncratic (company-specific) catalysts from systemic market-wide panic.
+   - Rendered from `src/main/resources/static/descriptions/Volatility.md` via `renderMarkdown` with complete KaTeX mathematical formatting.
+
+6. **REST Endpoints**:
    - `GET /api/learning/strategies`: Returns catalog metadata for all option strategies.
    - `GET /api/learning/strategies/{id}`: Returns parsed metadata for a single strategy by filename or ID.
    - `GET /api/learning/greeks`: Returns catalog metadata for all Option Greeks.

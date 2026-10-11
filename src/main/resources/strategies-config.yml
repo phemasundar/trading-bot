@@ -67,6 +67,7 @@ optionsStrategies:
         - "DTE <= 50"
         - "MAX_LOSS <= 1000"
         - "RETURN_ON_RISK >= 12"
+        - "IV_PERCENTILE >= HV_RANK * 1.5"
       shortLeg:
         conditions:
           - "DELTA <= 0.2"
@@ -651,6 +652,19 @@ technicalScreeners:
         conditions:
           - "NATR >= 1.5"
           - "PRICE_DROP_FROM_HIGH_5D >= 2 * ATR"
+      DOLLAR_VOLUME:
+        conditions:
+          - "DOLLAR_VOLUME >= 50000000"
+  - enabled: true
+    alias: "High IV over HV"
+    screenerType: "VOLATILITY"
+    securitiesFile: "top100, portfolio, tracking, 2026, SPY, QQQ"
+    technicalFilters:
+      VOLATILITY:
+        config:
+          period: 20
+        conditions:
+          - "IV_PERCENTILE > HV_RANK"
       DOLLAR_VOLUME:
         conditions:
           - "DOLLAR_VOLUME >= 50000000"

@@ -267,3 +267,50 @@ During options strategy execution ([AbstractTradingStrategy.java:L49-L77](file:/
 | **Is HV included?** | **YES**: Historical Volatility (`HV Rank`, `ATR`) is calculated directly alongside SMAs, EMAs, and RSI. | **NO**: HV is realized price volatility, not implied volatility. |
 | **Is IV included?** | **NO**: Implied Volatility is not calculated from equity price bars. | **YES**: Dedicated option-implied volatility metric. |
 
+---
+
+## 6. Unified Volatility Filtering (IV + HV Cross-Evaluation)
+
+Both **IV** (Implied Volatility Rank / Percentile / Current 30-day IV) and **HV** (Historical Volatility Rank) represent stock-level volatility metrics. They are unified under the mathematical expression engine across both **Technical Screeners** and **Options Strategy Filters**:
+
+### Supported Variables in Unified Math Expressions
+
+| Variable | Description | Source |
+|---|---|---|
+| `IV_PERCENTILE` | 1-year IV Percentile (0–100) | Supabase `iv_data` |
+| `IV_RANK` | 52-week IV Rank (0–100) | Supabase `iv_data` |
+| `CURRENT_IV` | Current 30-day ATM implied volatility % | Supabase `iv_data` |
+| `HV_RANK` | 20-day historical volatility rank (0–100) | Price history log-returns |
+
+### Usage in Technical Screeners
+
+```yaml
+  - alias: "High IV over HV"
+    enabled: true
+    screenerType: "VOLATILITY"
+    securitiesFile: "top100, portfolio, tracking"
+    technicalFilters:
+      VOLATILITY:
+        config:
+          period: 20
+        conditions:
+          - "IV_PERCENTILE > HV_RANK"
+```
+
+### Usage in Options Strategy Filters
+
+```yaml
+  - alias: "PCS"
+    strategyType: "PUT_CREDIT_SPREAD"
+    filter:
+      conditions:
+        - "IV_PERCENTILE >= HV_RANK * 1.5"
+        - "RETURN_ON_RISK >= 12"
+```
+
+### Execution Flow & Fail-Open Semantics
+- In technical screening, `TechnicalScreener.ScreeningResult.getIndicatorValue()` dynamically resolves `IV_PERCENTILE`, `IV_RANK`, `CURRENT_IV`, and `HV_RANK`.
+- In options strategy execution, `AbstractTradingStrategy` injects `HV_RANK` and `CURRENT_IV` from `TechnicalIndicatorCache` into the IV evaluation map (`ivVars`).
+- If either IV or HV historical data is unavailable for a symbol, evaluation preserves fail-open behavior to prevent unwarranted trade candidate rejections.
+
+

@@ -267,7 +267,7 @@ public class OptionFilterValueResolver {
                  "NET_EXTRINSIC_VALUE",
                  "ANNUALIZED_EXTRINSIC_PCT",
                  "BREAKEVEN_CAGR",
-                 "IV_RANK", "IV_PERCENTILE",
+                 "IV_RANK", "IV_PERCENTILE", "HV_RANK", "CURRENT_IV",
                  "DAYS_TO_NEXT_EARNINGS", "EARNINGS_NEAREST_TO_DTE",
                  "COST_SAVINGS_PCT",
                  "OPTION_PRICE_PCT", "OPTION_PRICE",

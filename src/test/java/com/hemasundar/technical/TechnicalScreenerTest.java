@@ -371,8 +371,38 @@ public class TechnicalScreenerTest {
         assertEquals(entry.getStrategyName(), "PCS - Short Term");
         assertEquals(entry.getSymbol(), "AAPL");
         assertTrue(entry.getFilterStage().startsWith("Technical:"));
+        assertNotNull(entry.getDetails());
         assertEquals(entry.getTradesIn(), 1);
         assertEquals(entry.getTradesOut(), 1);
+    }
+
+    @Test
+    public void testIVIndicatorValuesAndCrossVolatilityComparison() {
+        TechnicalScreener.ScreeningResult result = TechnicalScreener.ScreeningResult.builder()
+                .symbol("AAPL")
+                .currentPrice(150.0)
+                .historicalVolatilityRank(45.0)
+                .ivPercentile(75.0)
+                .ivRank(60.0)
+                .currentIV(32.5)
+                .build();
+
+        assertEquals(result.getIndicatorValue("IV_PERCENTILE"), 75.0);
+        assertEquals(result.getIndicatorValue("IV_RANK"), 60.0);
+        assertEquals(result.getIndicatorValue("CURRENT_IV"), 32.5);
+        assertEquals(result.getIndicatorValue("HV_RANK"), 45.0);
+
+        // Test expression: IV_PERCENTILE > HV_RANK
+        MathExpression expr1 = com.hemasundar.utils.MathExpressionParser.parseExpression("IV_PERCENTILE > HV_RANK");
+        assertTrue(expr1.evaluate(result::getIndicatorValue));
+
+        // Test expression: IV_PERCENTILE >= HV_RANK * 1.5 (75.0 >= 45.0 * 1.5 = 67.5 -> true)
+        MathExpression expr2 = com.hemasundar.utils.MathExpressionParser.parseExpression("IV_PERCENTILE >= HV_RANK * 1.5");
+        assertTrue(expr2.evaluate(result::getIndicatorValue));
+
+        // Test failing expression: HV_RANK > IV_PERCENTILE
+        MathExpression expr3 = com.hemasundar.utils.MathExpressionParser.parseExpression("HV_RANK > IV_PERCENTILE");
+        assertFalse(expr3.evaluate(result::getIndicatorValue));
     }
 
     private PriceHistoryResponse createMockResponse(double price, int candleCount) {

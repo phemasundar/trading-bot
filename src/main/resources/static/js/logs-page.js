@@ -275,8 +275,11 @@ function renderLogFilterRow(entry) {
     const pct = entry.tradesIn > 0 ? Math.round((entry.tradesOut / entry.tradesIn) * 100) : 100;
     const barColor = pct >= 80 ? 'var(--success)' : (pct >= 40 ? '#f5a623' : '#ef4444');
     const filteredClass = filtered > 0 ? 'text-danger' : 'text-muted';
+    const detailsHtml = entry.details
+        ? '<div class="log-entry-details text-muted" style="font-size:0.75rem;margin-top:2px;">' + escapeHtml(entry.details) + '</div>'
+        : '';
     return '<tr>' +
-        '<td>' + (entry.filterStage || '&mdash;') + '</td>' +
+        '<td>' + (entry.filterStage || '&mdash;') + detailsHtml + '</td>' +
         '<td style="text-align:right">' + (entry.tradesIn != null ? entry.tradesIn : '&mdash;') + '</td>' +
         '<td style="text-align:right"><strong>' + (entry.tradesOut != null ? entry.tradesOut : '&mdash;') + '</strong></td>' +
         '<td style="text-align:right" class="' + filteredClass + '">' + (filtered > 0 ? ('-' + filtered) : '&mdash;') + '</td>' +

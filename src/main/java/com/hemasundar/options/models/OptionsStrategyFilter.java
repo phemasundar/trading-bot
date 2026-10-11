@@ -305,13 +305,16 @@ public class OptionsStrategyFilter {
     }
 
     /**
-     * Returns math expressions targeting IV Rank or IV Percentile.
+     * Returns math expressions targeting IV/HV volatility metrics.
+     * Includes IV_RANK, IV_PERCENTILE, HV_RANK, and CURRENT_IV as these are
+     * all stock-level volatility metrics evaluated in a unified context.
      */
     @JsonIgnore
     public java.util.List<com.hemasundar.technical.MathExpression> getIvExpressions() {
         if (filterExpressions == null) return java.util.Collections.emptyList();
+        java.util.Set<String> volatilityVars = java.util.Set.of("IV_RANK", "IV_PERCENTILE", "HV_RANK", "CURRENT_IV");
         return filterExpressions.stream()
-                .filter(e -> "IV_RANK".equalsIgnoreCase(e.getLeftVariable()) || "IV_PERCENTILE".equalsIgnoreCase(e.getLeftVariable()))
+                .filter(e -> volatilityVars.contains(e.getLeftVariable().toUpperCase()))
                 .toList();
     }
 }

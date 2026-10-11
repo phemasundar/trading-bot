@@ -104,4 +104,24 @@ describe('Logs Page Tests', () => {
         expect(html).not.toContain('log-reduction');
         expect(html).not.toContain('% filtered');
     });
+
+    test('renderLogFilterRow renders details under filter stage when provided', () => {
+        const rowWithDetails = renderLogFilterRow({
+            filterStage: 'IV Percentile Filter',
+            details: 'IV Percentile: 75.0% [bounds: 25.0 - 75.0]',
+            tradesIn: 1,
+            tradesOut: 1
+        });
+        expect(rowWithDetails).toContain('IV Percentile Filter');
+        expect(rowWithDetails).toContain('log-entry-details');
+        expect(rowWithDetails).toContain('IV Percentile: 75.0% [bounds: 25.0 - 75.0]');
+
+        const rowWithoutDetails = renderLogFilterRow({
+            filterStage: 'Delta Filter',
+            tradesIn: 10,
+            tradesOut: 5
+        });
+        expect(rowWithoutDetails).toContain('Delta Filter');
+        expect(rowWithoutDetails).not.toContain('log-entry-details');
+    });
 });

@@ -46,6 +46,10 @@ public class AbstractTradingStrategyTest {
             super(StrategyType.PUT_CREDIT_SPREAD, finnHubAPIs, ThinkOrSwimAPIs, java.util.Optional.empty());
         }
 
+        public DummyStrategy(FinnHubAPIs finnHubAPIs, ThinkOrSwimAPIs ThinkOrSwimAPIs, com.hemasundar.services.SupabaseService supabaseService) {
+            super(StrategyType.PUT_CREDIT_SPREAD, finnHubAPIs, ThinkOrSwimAPIs, java.util.Optional.ofNullable(supabaseService));
+        }
+
         @Override
         protected List<TradeSetup> findValidTrades(OptionChainResponse chain, String expiryDate,
                 OptionsStrategyFilter filter) {
@@ -325,6 +329,102 @@ public class AbstractTradingStrategyTest {
 
         List<TradeSetup> trades = strategy.findTrades(chain, filter);
         assertEquals(1, trades.size()); // Exception should be caught and expiry processed
+    }
+
+    @Test
+    public void testFindTrades_CrossVolatilityExpression_Passes() throws Exception {
+        com.hemasundar.cache.IVRankCache.getInstance().clear();
+        com.hemasundar.cache.TechnicalIndicatorCache.getInstance().clear();
+
+        com.hemasundar.services.SupabaseService supabaseService = mock(com.hemasundar.services.SupabaseService.class);
+        when(supabaseService.getIVRank("AAPL")).thenReturn(60.0);
+        when(supabaseService.getIVPercentile("AAPL")).thenReturn(75.0);
+
+        // Put cached technical indicators with HV_RANK = 40.0
+        // 75.0 >= 40.0 * 1.5 (60.0) -> true
+        com.hemasundar.technical.TechnicalScreener.ScreeningResult screeningResult =
+                com.hemasundar.technical.TechnicalScreener.ScreeningResult.builder()
+                        .symbol("AAPL")
+                        .historicalVolatilityRank(40.0)
+                        .build();
+        com.hemasundar.cache.TechnicalIndicatorCache.getInstance().put("AAPL", screeningResult);
+
+        DummyStrategy customStrategy = new DummyStrategy(finnHubAPIs, ThinkOrSwimAPIs, supabaseService);
+
+        OptionChainResponse chain = mock(OptionChainResponse.class);
+        when(chain.getSymbol()).thenReturn("AAPL");
+        when(chain.getExpiryDatesInRange(anyInt(), anyInt(), anyInt())).thenReturn(Arrays.asList("2024-01-01"));
+
+        OptionsStrategyFilter filter = new OptionsStrategyFilter();
+        filter.setFilterExpressions(com.hemasundar.utils.MathExpressionParser.parseRules(
+                Arrays.asList("IV_PERCENTILE >= HV_RANK * 1.5")));
+
+        List<TradeSetup> trades = customStrategy.findTrades(chain, filter);
+        assertEquals(trades.size(), 1);
+
+        List<com.hemasundar.dto.ExecutionLogEntry> logEntries = com.hemasundar.services.FilterLogStore.getInstance().getEntries();
+        assertFalse(logEntries.isEmpty());
+        com.hemasundar.dto.ExecutionLogEntry lastEntry = logEntries.get(logEntries.size() - 1);
+        assertTrue(lastEntry.getFilterStage().contains("IV_PERCENTILE >= HV_RANK"));
+        assertNotNull(lastEntry.getDetails());
+        assertTrue(lastEntry.getDetails().contains("IV_PERCENTILE: 75.0%"));
+        assertTrue(lastEntry.getDetails().contains("HV_RANK: 40.0%"));
+    }
+
+    @Test
+    public void testFindTrades_CrossVolatilityExpression_Fails() throws Exception {
+        com.hemasundar.cache.IVRankCache.getInstance().clear();
+        com.hemasundar.cache.TechnicalIndicatorCache.getInstance().clear();
+
+        com.hemasundar.services.SupabaseService supabaseService = mock(com.hemasundar.services.SupabaseService.class);
+        when(supabaseService.getIVRank("AAPL")).thenReturn(60.0);
+        when(supabaseService.getIVPercentile("AAPL")).thenReturn(50.0);
+
+        // Put cached technical indicators with HV_RANK = 40.0
+        // 50.0 >= 40.0 * 1.5 (60.0) -> false
+        com.hemasundar.technical.TechnicalScreener.ScreeningResult screeningResult =
+                com.hemasundar.technical.TechnicalScreener.ScreeningResult.builder()
+                        .symbol("AAPL")
+                        .historicalVolatilityRank(40.0)
+                        .build();
+        com.hemasundar.cache.TechnicalIndicatorCache.getInstance().put("AAPL", screeningResult);
+
+        DummyStrategy customStrategy = new DummyStrategy(finnHubAPIs, ThinkOrSwimAPIs, supabaseService);
+
+        OptionChainResponse chain = mock(OptionChainResponse.class);
+        when(chain.getSymbol()).thenReturn("AAPL");
+        when(chain.getExpiryDatesInRange(anyInt(), anyInt(), anyInt())).thenReturn(Arrays.asList("2024-01-01"));
+
+        OptionsStrategyFilter filter = new OptionsStrategyFilter();
+        filter.setFilterExpressions(com.hemasundar.utils.MathExpressionParser.parseRules(
+                Arrays.asList("IV_PERCENTILE >= HV_RANK * 1.5")));
+
+        List<TradeSetup> trades = customStrategy.findTrades(chain, filter);
+        assertEquals(trades.size(), 0);
+    }
+
+    @Test
+    public void testFindTrades_CrossVolatilityExpression_FailOpenWhenDataUnavailable() throws Exception {
+        com.hemasundar.cache.IVRankCache.getInstance().clear();
+        com.hemasundar.cache.TechnicalIndicatorCache.getInstance().clear();
+
+        com.hemasundar.services.SupabaseService supabaseService = mock(com.hemasundar.services.SupabaseService.class);
+        // Supabase has null IV data
+        when(supabaseService.getIVRank("AAPL")).thenReturn(null);
+        when(supabaseService.getIVPercentile("AAPL")).thenReturn(null);
+
+        DummyStrategy customStrategy = new DummyStrategy(finnHubAPIs, ThinkOrSwimAPIs, supabaseService);
+
+        OptionChainResponse chain = mock(OptionChainResponse.class);
+        when(chain.getSymbol()).thenReturn("AAPL");
+        when(chain.getExpiryDatesInRange(anyInt(), anyInt(), anyInt())).thenReturn(Arrays.asList("2024-01-01"));
+
+        OptionsStrategyFilter filter = new OptionsStrategyFilter();
+        filter.setFilterExpressions(com.hemasundar.utils.MathExpressionParser.parseRules(
+                Arrays.asList("IV_PERCENTILE >= HV_RANK * 1.5")));
+
+        List<TradeSetup> trades = customStrategy.findTrades(chain, filter);
+        assertEquals(trades.size(), 1); // fail-open allows the trade
     }
 
 }

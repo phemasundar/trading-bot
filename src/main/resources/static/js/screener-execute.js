@@ -17,6 +17,7 @@ const SCREENER_TYPE_META = {
     BELOW_200_DAY_MA:         { rsi: '',                  bollinger: '',            hasDrop: false },
     PRICE_DROP:               { rsi: '',                  bollinger: '',            hasDrop: true,  hasLookback: true  },
     HIGH_52W_DROP:            { rsi: '',                  bollinger: '',            hasDrop: true,  hasLookback: false },
+    VOLATILITY:               { rsi: '',                  bollinger: '',            hasDrop: false },
 };
 
 const CONDITION_OPERATORS = ['>=', '<=', '>', '<', '=='];

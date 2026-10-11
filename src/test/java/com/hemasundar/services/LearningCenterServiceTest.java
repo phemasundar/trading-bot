@@ -45,6 +45,9 @@ public class LearningCenterServiceTest {
         List<StrategyDescriptionDto> strategies = service.getOptionStrategies();
         boolean hasAtrScreener = strategies.stream().anyMatch(s -> "atr_screener".equalsIgnoreCase(s.getId()));
         Assert.assertFalse(hasAtrScreener, "Option strategies list should exclude technical screeners");
+
+        boolean hasVolatility = strategies.stream().anyMatch(s -> "volatility".equalsIgnoreCase(s.getId()));
+        Assert.assertFalse(hasVolatility, "Option strategies list should exclude educational volatility guides");
     }
 
     @Test
@@ -74,6 +77,19 @@ public class LearningCenterServiceTest {
         Assert.assertNotNull(all);
         boolean hasScreener = all.stream().anyMatch(s -> "atr_screener".equalsIgnoreCase(s.getId()));
         Assert.assertTrue(hasScreener, "All descriptions should include atr_screener");
+
+        boolean hasVolatility = all.stream().anyMatch(s -> "volatility".equalsIgnoreCase(s.getId()));
+        Assert.assertTrue(hasVolatility, "All descriptions should include Volatility");
+    }
+
+    @Test
+    public void testGetStrategyById_Volatility() {
+        Optional<StrategyDescriptionDto> res = service.getStrategyById("Volatility");
+        Assert.assertTrue(res.isPresent());
+        StrategyDescriptionDto vol = res.get();
+        Assert.assertEquals(vol.getCategory(), "Educational");
+        Assert.assertEquals(vol.getBias(), "Market Metric");
+        Assert.assertFalse(vol.getSummary().isEmpty());
     }
 
     @Test
