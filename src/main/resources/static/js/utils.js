@@ -300,7 +300,13 @@ async function showInfo(event, filename, strategyName) {
     });
 
     try {
-        const res = await fetch(`/descriptions/${filename}`);
+        let res = await fetch(`/descriptions/${filename}`);
+        if (!res.ok && !filename.startsWith('strategies/')) {
+            res = await fetch(`/descriptions/strategies/${filename}`);
+        }
+        if (!res.ok && filename.startsWith('strategies/')) {
+            res = await fetch(`/descriptions/${filename.substring(11)}`);
+        }
         if (!res.ok) throw new Error('File not found');
         const text = await res.text();
 

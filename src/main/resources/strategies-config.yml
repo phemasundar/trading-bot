@@ -59,7 +59,7 @@ optionsStrategies:
     enabled: true
     termType: "Short Term"
     strategyType: "PUT_CREDIT_SPREAD"
-    descriptionFile: "put_credit_spread.md"
+    descriptionFile: "strategies/put_credit_spread.md"
     filterType: "CreditSpreadFilter"
     filter:
       conditions:
@@ -86,7 +86,7 @@ optionsStrategies:
     enabled: true
     termType: "Medium Term"
     strategyType: "PUT_CREDIT_SPREAD"
-    descriptionFile: "put_credit_spread.md"
+    descriptionFile: "strategies/put_credit_spread.md"
     filterType: "CreditSpreadFilter"
     filter:
       conditions:
@@ -109,7 +109,7 @@ optionsStrategies:
     enabled: true
     termType: "Short Term"
     strategyType: "PUT_CREDIT_SPREAD"
-    descriptionFile: "tech_put_credit_spread.md"
+    descriptionFile: "strategies/put_credit_spread.md"
     filterType: "CreditSpreadFilter"
     filter:
       targetDTE: 30
@@ -129,7 +129,7 @@ optionsStrategies:
     enabled: true
     termType: "Short Term"
     strategyType: "CALL_CREDIT_SPREAD"
-    descriptionFile: "call_credit_spread.md"
+    descriptionFile: "strategies/call_credit_spread.md"
     filterType: "CreditSpreadFilter"
     filter:
       targetDTE: 30
@@ -154,7 +154,7 @@ optionsStrategies:
     enabled: true
     termType: "Short Term"
     strategyType: "CALL_CREDIT_SPREAD"
-    descriptionFile: "tech_call_credit_spread.md"
+    descriptionFile: "strategies/call_credit_spread.md"
     filterType: "CreditSpreadFilter"
     filter:
       targetDTE: 30
@@ -174,7 +174,7 @@ optionsStrategies:
     enabled: true
     termType: "Daily"
     strategyType: "IRON_CONDOR"
-    descriptionFile: "iron_condor.md"
+    descriptionFile: "strategies/iron_condor.md"
     filterType: "IronCondorFilter"
     filter:
       conditions:
@@ -204,7 +204,7 @@ optionsStrategies:
     enabled: true
     termType: "Medium Term"
     strategyType: "IRON_CONDOR"
-    descriptionFile: "iron_condor.md"
+    descriptionFile: "strategies/iron_condor.md"
     filterType: "IronCondorFilter"
     filter:
       conditions:
@@ -234,7 +234,7 @@ optionsStrategies:
     enabled: true
     termType: "Medium Term 2"
     strategyType: "IRON_CONDOR"
-    descriptionFile: "iron_condor.md"
+    descriptionFile: "strategies/iron_condor.md"
     filterType: "IronCondorFilter"
     filter:
       conditions:
@@ -261,7 +261,7 @@ optionsStrategies:
     enabled: true
     termType: "Extra Long Term"
     strategyType: "LONG_CALL_LEAP"
-    descriptionFile: "long_call_leap.md"
+    descriptionFile: "strategies/long_call_leap.md"
     filterType: "LongCallLeapFilter"
     securitiesFile: "portfolio, tracking, 2026"
     filter:
@@ -282,7 +282,7 @@ optionsStrategies:
     enabled: true
     termType: "Extra Long Term"
     strategyType: "LONG_CALL_LEAP"
-    descriptionFile: "long_call_leap.md"
+    descriptionFile: "strategies/long_call_leap.md"
     filterType: "LongCallLeapFilter"
     securitiesFile: "portfolio, tracking, bullish, 2026, top100, SPY, QQQ"
     filter:
@@ -317,7 +317,7 @@ optionsStrategies:
     enabled: true
     termType: "Extra Long Term"
     strategyType: "LONG_CALL_LEAP"
-    descriptionFile: "long_call_leap.md"
+    descriptionFile: "strategies/long_call_leap.md"
     filterType: "LongCallLeapFilter"
     securitiesFile: "top100, SPY, QQQ"
     filter:
@@ -338,7 +338,7 @@ optionsStrategies:
     enabled: true
     termType: "Extra Long Term"
     strategyType: "LONG_CALL_LEAP"
-    descriptionFile: "long_call_leap.md"
+    descriptionFile: "strategies/long_call_leap.md"
     filterType: "LongCallLeapFilter"
     securitiesFile: "bullish"
     filter:
@@ -369,7 +369,7 @@ optionsStrategies:
     enabled: true
     termType: "Short Term"
     strategyType: "BULLISH_BROKEN_WING_BUTTERFLY"
-    descriptionFile: "bullish_bwb.md"
+    descriptionFile: "strategies/bullish_broken_wing_butterfly.md"
     filterType: "BrokenWingButterflyFilter"
     filter:
       targetDTE: 30
@@ -394,7 +394,7 @@ optionsStrategies:
     termType: "Short Term"
     maxTradesToSend: 10
     strategyType: "BULLISH_BROKEN_WING_BUTTERFLY"
-    descriptionFile: "bullish_bwb.md"
+    descriptionFile: "strategies/bullish_broken_wing_butterfly.md"
     filterType: "BrokenWingButterflyFilter"
     filter:
       conditions:
@@ -419,7 +419,7 @@ optionsStrategies:
     enabled: true
     termType: "Short Term"
     strategyType: "BULLISH_ZEBRA"
-    descriptionFile: "bullish_zebra.md"
+    descriptionFile: "strategies/bullish_zebra.md"
     filterType: "ZebraFilter"
     filter:
       conditions:
@@ -444,7 +444,7 @@ optionsStrategies:
     enabled: true
     termType: "Short Term"
     strategyType: "SHORT_PUT"
-    descriptionFile: "short_put.md"
+    descriptionFile: "strategies/short_put.md"
     filterType: "CreditSpreadFilter"
     filter:
       conditions:
@@ -465,7 +465,7 @@ optionsStrategies:
     enabled: true
     termType: "Medium Term"
     strategyType: "SHORT_PUT"
-    descriptionFile: "short_put.md"
+    descriptionFile: "strategies/short_put.md"
     filterType: "CreditSpreadFilter"
     filter:
       conditions:
@@ -483,7 +483,7 @@ optionsStrategies:
     enabled: true
     termType: "Extra Long Term"
     strategyType: "SHORT_PUT"
-    descriptionFile: "short_put.md"
+    descriptionFile: "strategies/short_put.md"
     filterType: "CreditSpreadFilter"
     filter:
       conditions:
@@ -500,7 +500,7 @@ optionsStrategies:
     enabled: true
     termType: "Up To Medium Term"
     strategyType: "SHORT_STRANGLE"
-    descriptionFile: "short_strangle.md"
+    descriptionFile: "strategies/short_strangle.md"
     filterType: "ShortStrangleFilter"
     filter:
       conditions:
@@ -664,7 +664,7 @@ technicalScreeners:
         config:
           period: 20
         conditions:
-          - "IV_PERCENTILE > HV_RANK"
+          - "IV_PERCENTILE >= HV_RANK * 1.5"
       DOLLAR_VOLUME:
         conditions:
           - "DOLLAR_VOLUME >= 50000000"

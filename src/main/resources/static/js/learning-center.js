@@ -5,9 +5,9 @@
 // Fallback catalog of option strategies if API is unreachable
 const DEFAULT_OPTION_STRATEGIES = [
     {
-        id: "bullish_bwb",
+        id: "bullish_broken_wing_butterfly",
         name: "Bullish Broken Wing Butterfly (BWB)",
-        filename: "bullish_bwb.md",
+        filename: "strategies/bullish_broken_wing_butterfly.md",
         category: "Options Strategy",
         bias: "Bullish",
         summary: "An asymmetric butterfly spread designed with a wider out-of-the-money wing, eliminating upside risk while capturing decay and directional appreciation.",
@@ -16,7 +16,7 @@ const DEFAULT_OPTION_STRATEGIES = [
     {
         id: "bullish_zebra",
         name: "Bullish ZEBRA (Zero Extrinsic Back Ratio)",
-        filename: "bullish_zebra.md",
+        filename: "strategies/bullish_zebra.md",
         category: "Options Strategy",
         bias: "Bullish",
         summary: "A 100-delta stock replacement strategy utilizing 2 long ITM calls and 1 short ATM call with virtually zero extrinsic value risk and capped downside.",
@@ -25,7 +25,7 @@ const DEFAULT_OPTION_STRATEGIES = [
     {
         id: "call_credit_spread",
         name: "Call Credit Spread (CCS)",
-        filename: "call_credit_spread.md",
+        filename: "strategies/call_credit_spread.md",
         category: "Options Strategy",
         bias: "Bearish",
         summary: "A bearish, defined-risk vertical spread profiting when the underlying price remains below the short call strike as time decay accelerates.",
@@ -34,7 +34,7 @@ const DEFAULT_OPTION_STRATEGIES = [
     {
         id: "iron_condor",
         name: "Iron Condor",
-        filename: "iron_condor.md",
+        filename: "strategies/iron_condor.md",
         category: "Options Strategy",
         bias: "Neutral",
         summary: "A market-neutral, defined-risk strategy combining an OTM put credit spread and call credit spread to profit from range-bound price action and IV crush.",
@@ -43,7 +43,7 @@ const DEFAULT_OPTION_STRATEGIES = [
     {
         id: "long_call_leap",
         name: "Long Call LEAPs",
-        filename: "long_call_leap.md",
+        filename: "strategies/long_call_leap.md",
         category: "Options Strategy",
         bias: "Bullish",
         summary: "Deep in-the-money long-term call options providing capital-efficient equity exposure with minimal theta drag and leveraged upside participation.",
@@ -52,7 +52,7 @@ const DEFAULT_OPTION_STRATEGIES = [
     {
         id: "put_credit_spread",
         name: "Put Credit Spread (PCS)",
-        filename: "put_credit_spread.md",
+        filename: "strategies/put_credit_spread.md",
         category: "Options Strategy",
         bias: "Bullish",
         summary: "A high-probability bullish options strategy selling an OTM put while buying a lower strike put for defined risk, profiting from sideways or upward drift.",
@@ -61,7 +61,7 @@ const DEFAULT_OPTION_STRATEGIES = [
     {
         id: "short_put",
         name: "Cash-Secured Put (Short Put / CSP)",
-        filename: "short_put.md",
+        filename: "strategies/short_put.md",
         category: "Options Strategy",
         bias: "Bullish",
         summary: "Selling an out-of-the-money put with cash backing to generate income or acquire top-tier stocks at an effective discount to current market price.",
@@ -70,29 +70,11 @@ const DEFAULT_OPTION_STRATEGIES = [
     {
         id: "short_strangle",
         name: "Short Strangle",
-        filename: "short_strangle.md",
+        filename: "strategies/short_strangle.md",
         category: "Options Strategy",
         bias: "Neutral",
         summary: "Selling an out-of-the-money put and out-of-the-money call simultaneously, maximizing premium collection and profiting from high implied volatility contraction.",
         greeks: { Delta: "Neutral", Gamma: "Negative", Theta: "Positive", Vega: "Negative" }
-    },
-    {
-        id: "tech_call_credit_spread",
-        name: "Technical Call Credit Spread (CCS)",
-        filename: "tech_call_credit_spread.md",
-        category: "Options Strategy",
-        bias: "Bearish",
-        summary: "A systematic call credit spread triggered by technical overbought signals, RSI crossovers, or upper Bollinger Band rejections.",
-        greeks: { Delta: "Negative", Gamma: "Negative", Theta: "Positive", Vega: "Negative" }
-    },
-    {
-        id: "tech_put_credit_spread",
-        name: "Technical Put Credit Spread (PCS)",
-        filename: "tech_put_credit_spread.md",
-        category: "Options Strategy",
-        bias: "Bullish",
-        summary: "A quantitative put credit spread triggered when securities show oversold indicators, moving average support tests, or bullish technical reversals.",
-        greeks: { Delta: "Positive", Gamma: "Negative", Theta: "Positive", Vega: "Negative" }
     }
 ];
 
@@ -100,16 +82,23 @@ let _learningStrategies = [];
 let _activeBiasFilter = 'ALL';
 
 const STRATEGY_TYPE_MAP = {
+    'strategies/bullish_broken_wing_butterfly.md': 'BULLISH_BROKEN_WING_BUTTERFLY',
+    'bullish_broken_wing_butterfly.md': 'BULLISH_BROKEN_WING_BUTTERFLY',
     'bullish_bwb.md': 'BULLISH_BROKEN_WING_BUTTERFLY',
+    'strategies/bullish_zebra.md': 'BULLISH_ZEBRA',
     'bullish_zebra.md': 'BULLISH_ZEBRA',
+    'strategies/call_credit_spread.md': 'CALL_CREDIT_SPREAD',
     'call_credit_spread.md': 'CALL_CREDIT_SPREAD',
+    'strategies/iron_condor.md': 'IRON_CONDOR',
     'iron_condor.md': 'IRON_CONDOR',
+    'strategies/long_call_leap.md': 'LONG_CALL_LEAP',
     'long_call_leap.md': 'LONG_CALL_LEAP',
+    'strategies/put_credit_spread.md': 'PUT_CREDIT_SPREAD',
     'put_credit_spread.md': 'PUT_CREDIT_SPREAD',
+    'strategies/short_put.md': 'SHORT_PUT',
     'short_put.md': 'SHORT_PUT',
-    'short_strangle.md': 'SHORT_STRANGLE',
-    'tech_call_credit_spread.md': 'CALL_CREDIT_SPREAD',
-    'tech_put_credit_spread.md': 'PUT_CREDIT_SPREAD'
+    'strategies/short_strangle.md': 'SHORT_STRANGLE',
+    'short_strangle.md': 'SHORT_STRANGLE'
 };
 
 /**
@@ -333,7 +322,7 @@ async function initStrategyDetailPage() {
 
     // Default to iron_condor if none specified
     if (!strategyParam) {
-        strategyParam = 'iron_condor.md';
+        strategyParam = 'strategies/iron_condor.md';
     }
 
     let filename = strategyParam.trim();
@@ -401,7 +390,13 @@ async function initStrategyDetailPage() {
             `;
         }
 
-        const res = await fetch(`/descriptions/${filename}`);
+        let res = await fetch(`/descriptions/${filename}`);
+        if (!res.ok && !filename.startsWith('strategies/')) {
+            res = await fetch(`/descriptions/strategies/${filename}`);
+        }
+        if (!res.ok && filename.startsWith('strategies/')) {
+            res = await fetch(`/descriptions/${filename.substring(11)}`);
+        }
         if (!res.ok) {
             throw new Error(`Strategy description file "${filename}" not found (HTTP ${res.status})`);
         }

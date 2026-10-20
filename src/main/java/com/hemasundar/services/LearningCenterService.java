@@ -89,19 +89,31 @@ public class LearningCenterService {
     private Map<String, String> loadMarkdownContents() {
         Map<String, String> contents = new LinkedHashMap<>();
         try {
-            Resource[] resources = resourcePatternResolver.getResources("classpath*:static/descriptions/*.md");
-            if (resources != null && resources.length > 0) {
-                for (Resource r : resources) {
-                    String filename = r.getFilename();
-                    if (filename != null && !contents.containsKey(filename)) {
-                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(r.getInputStream(), StandardCharsets.UTF_8))) {
-                            StringBuilder sb = new StringBuilder();
-                            String line;
-                            while ((line = reader.readLine()) != null) {
-                                sb.append(line).append("\n");
-                            }
-                            contents.put(filename, sb.toString());
+            List<Resource> resourceList = new ArrayList<>();
+            Resource[] rootResources = resourcePatternResolver.getResources("classpath*:static/descriptions/*.md");
+            if (rootResources != null) {
+                for (Resource r : rootResources) {
+                    String name = r.getFilename();
+                    if (name != null && ("atr_screener.md".equalsIgnoreCase(name) || "volatility.md".equalsIgnoreCase(name))) {
+                        resourceList.add(r);
+                    }
+                }
+            }
+            Resource[] strategyResources = resourcePatternResolver.getResources("classpath*:static/descriptions/strategies/*.md");
+            if (strategyResources != null) {
+                resourceList.addAll(List.of(strategyResources));
+            }
+
+            for (Resource r : resourceList) {
+                String filename = r.getFilename();
+                if (filename != null && !contents.containsKey(filename)) {
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(r.getInputStream(), StandardCharsets.UTF_8))) {
+                        StringBuilder sb = new StringBuilder();
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            sb.append(line).append("\n");
                         }
+                        contents.put(filename, sb.toString());
                     }
                 }
             }
@@ -112,23 +124,31 @@ public class LearningCenterService {
         // Fallback to local filesystem path if running in IDE/development
         Path localDir = Path.of("src/main/resources/static/descriptions");
         if (Files.exists(localDir)) {
-            try (Stream<Path> stream = Files.list(localDir)) {
-                stream.filter(p -> p.getFileName().toString().endsWith(".md")).forEach(p -> {
-                    String filename = p.getFileName().toString();
-                    if (!contents.containsKey(filename)) {
-                        try {
-                            contents.put(filename, Files.readString(p, StandardCharsets.UTF_8));
-                        } catch (IOException e) {
-                            log.warn("Failed to read local markdown file {}: {}", filename, e.getMessage());
-                        }
-                    }
-                });
-            } catch (IOException e) {
-                log.warn("Failed to list local descriptions folder: {}", e.getMessage());
+            loadFilesFromDir(localDir, contents);
+            Path strategiesDir = localDir.resolve("strategies");
+            if (Files.exists(strategiesDir)) {
+                loadFilesFromDir(strategiesDir, contents);
             }
         }
 
         return contents;
+    }
+
+    private void loadFilesFromDir(Path dir, Map<String, String> contents) {
+        try (Stream<Path> stream = Files.list(dir)) {
+            stream.filter(p -> Files.isRegularFile(p) && p.getFileName().toString().endsWith(".md")).forEach(p -> {
+                String filename = p.getFileName().toString();
+                if (!contents.containsKey(filename)) {
+                    try {
+                        contents.put(filename, Files.readString(p, StandardCharsets.UTF_8));
+                    } catch (IOException e) {
+                        log.warn("Failed to read local markdown file {}: {}", filename, e.getMessage());
+                    }
+                }
+            });
+        } catch (IOException e) {
+            log.warn("Failed to list local descriptions folder {}: {}", dir, e.getMessage());
+        }
     }
 
     private StrategyDescriptionDto parseMarkdown(String filename, String content) {

@@ -133,3 +133,101 @@ By combining two 70-delta options (+140 or -140 delta) with one sold 50-delta op
 #### Ideal Use Case
 **Who Should Use It:** Traders who want exposure to 100 shares of long or short stock while utilizing options leverage.
 **Role in Portfolio:** Described as the **"hybrid club"** in a trader's bag—not meant for every trade, but an excellent tool to get out of a difficult position or replace expensive stock holdings.
+
+---
+
+## Available Filters
+
+The Bullish ZEBRA strategy utilizes the unified mathematical expression filtering engine (`MathExpression`). Filters can be applied at the **trade level**, across both legs (`shortCall`, `longCall`), within **earnings gates** (`earningsFilters`), or against underlying **volatility and technical indicators**.
+
+### Mathematical Expression Syntax
+* **Supported Operators:** `>=` (greater or equal), `<=` (less or equal), `==` (equal), `>` (strictly greater), `<` (strictly less).
+* **LHS (Left-Hand Side):** Standard metric identifier (e.g., `DTE`, `ANNUALIZED_EXTRINSIC_PCT`, `MAX_LOSS`, `BREAK_EVEN_PCT`, `DAYS_TO_NEXT_EARNINGS`).
+* **RHS (Right-Hand Side):** Supports numeric constants (`30`, `5000`, `0.5`), percentages (`5%`), variables (`DTE`), offsets (`DTE - 10`), or scaled variables.
+
+---
+
+### 1. Trade-Level Conditions (`conditions: [...]`)
+Applied to the 2-long / 1-short ratio spread structure:
+
+| Filter (LHS) | Description | Possible LHS Values | Possible RHS Values & Syntax | Example Condition |
+|---|---|---|---|---|
+| `DTE` | Days to expiration (recommended 20–50 DTE) | `DTE` (integer days) | Numeric constant range | `DTE >= 30`<br>`DTE <= 45` |
+| `ANNUALIZED_EXTRINSIC_PCT` | Annualized net extrinsic relative to max loss capital: `(Net Extrinsic / Max Loss) * (365 / DTE) * 100` | Percentage (%) | Numeric decimal threshold (typically `<= 0.5%`) | `ANNUALIZED_EXTRINSIC_PCT <= 0.5` |
+| `MAX_LOSS` | Maximum capital risk per contract block (equal to net debit paid) | Dollars ($) | Numeric constant dollar risk ceiling | `MAX_LOSS <= 5000` |
+| `TOTAL_DEBIT` | Total net debit paid for the position: `((2 * Long Ask) - Short Bid) * 100` | Dollars ($) | Numeric constant debit ceiling | `TOTAL_DEBIT <= 3000` |
+| `BREAK_EVEN_PCT` | Percentage gain required in underlying price to break even by expiry | Percentage (%) | Numeric threshold | `BREAK_EVEN_PCT <= 5.0` |
+| `NET_EXTRINSIC_VALUE` | Raw net extrinsic value across all legs: `(2 * Long Extrinsic) - Short Extrinsic` | Dollars ($) | Numeric dollar limit | `NET_EXTRINSIC_VALUE <= 0.20` |
+
+---
+
+### 2. Option Leg Conditions (`shortCall` & `longCall`)
+Configured in distinct leg blocks or via dotted syntax (`SHORT_LEG.<METRIC>`, `LONG_LEG.<METRIC>`):
+
+| Filter (LHS) | Description | Possible LHS Values | Possible RHS Values & Syntax | Example Condition |
+|---|---|---|---|---|
+| `DELTA` | Absolute delta of option leg | `0.0` to `1.0` | Numeric decimal (`0.45` to `0.55` for short, `0.65` to `0.80` for long) | `shortCall: DELTA >= 0.45`<br>`longCall: DELTA >= 0.65` |
+| `OPEN_INTEREST` | Open contracts outstanding | Integer contracts | Numeric constant enforcing contract liquidity | `OPEN_INTEREST >= 10`<br>`OPEN_INTEREST >= 100` |
+| `VOLUME` | Daily trading volume | Integer contracts | Numeric constant | `VOLUME >= 10` |
+| `IV` | Leg implied volatility | Percentage (%) | Numeric decimal or variable | `IV <= 50.0` |
+| `BID`, `ASK`, `MARK` | Contract pricing per share | Dollars ($) | Numeric dollar limit or offset | `longCall: ASK <= 25.00` |
+
+---
+
+### 3. Volatility Filters
+Evaluated against underlying stock volatility:
+
+| Filter (LHS) | Description | Possible LHS Values | Possible RHS Values & Syntax | Example Condition |
+|---|---|---|---|---|
+| `IV_PERCENTILE` | 52-week IV percentile rank | `0.0` to `100.0` | Numeric constant (prefers low to moderate IV) | `IV_PERCENTILE <= 50` |
+| `IV_RANK` | 52-week IV rank | `0.0` to `100.0` | Numeric constant | `IV_RANK <= 40` |
+| `HV_RANK` | 20-day historical volatility rank | `0.0` to `100.0` | Numeric constant | `HV_RANK <= 40` |
+
+---
+
+### 4. Earnings Quality Gates (`earningsFilters`)
+Guards against holding positions across volatility-crushing earnings releases:
+
+| Filter (LHS) | Description | Possible LHS Values | Possible RHS Values & Syntax | Example Condition |
+|---|---|---|---|---|
+| `DAYS_TO_NEXT_EARNINGS` | Calendar days to next earnings report | Integer days (`999999` if none) | Variable reference (`DTE`) or numeric days | `DAYS_TO_NEXT_EARNINGS >= DTE` |
+| `EARNINGS_NEAREST_TO_DTE` | Days to nearest earnings event on or before expiry | Integer days | Offset expression | `EARNINGS_NEAREST_TO_DTE <= DTE - 10` |
+
+---
+
+### 5. Technical Filters (Underlying Indicators)
+* **Trend Confirmation**: Designed as a stock replacement for bullish uptrends.
+* **Indicators**: `PRICE >= SMA50`, `SMA50 >= SMA200`, `RSI >= 50` and `RSI <= 70`, `VOLUME_SMA20 >= VOLUME_SMA50 * 90%`.
+* **Liquidity**: `DOLLAR_VOLUME >= 50000000`.
+
+---
+
+### 6. Example Configuration (`strategies-config.yml`)
+
+```yaml
+- alias: "Bullish ZEBRA"
+  enabled: true
+  termType: "Short Term"
+  strategyType: "BULLISH_ZEBRA"
+  descriptionFile: "strategies/bullish_zebra.md"
+  filterType: "ZebraFilter"
+  securitiesFile: "portfolio, tracking, 2026, top100, SPY, QQQ"
+  filter:
+    conditions:
+      - "DTE >= 30"
+      - "DTE <= 45"
+      - "ANNUALIZED_EXTRINSIC_PCT <= 0.5"
+      - "MAX_LOSS <= 5000"
+      - "BREAK_EVEN_PCT <= 5"
+    shortCall:
+      conditions:
+        - "DELTA >= 0.45"
+        - "OPEN_INTEREST >= 10"
+    longCall:
+      conditions:
+        - "DELTA >= 0.65"
+        - "OPEN_INTEREST >= 10"
+    earningsFilters:
+      conditions:
+        - "DAYS_TO_NEXT_EARNINGS >= DTE"
+```
