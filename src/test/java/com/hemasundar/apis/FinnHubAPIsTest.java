@@ -25,10 +25,10 @@ public class FinnHubAPIsTest {
 
     @Mock
     private FinnHubConfig mockConfig;
-    
+
     @Mock
     private ApiErrorHandler mockApiErrorHandler;
-    
+
     private FinnHubAPIs apis;
 
     @BeforeMethod
@@ -44,12 +44,12 @@ public class FinnHubAPIsTest {
             EarningsCalendarResponse.EarningCalendar earning = new EarningsCalendarResponse.EarningCalendar();
             earning.setSymbol("AAPL");
             earning.setDate(LocalDate.now().plusDays(1));
-            
+
             mockedCacheManager.when(() -> EarningsCacheManager.getEarningsFromCache(anyString(), any()))
                     .thenReturn(Collections.singletonList(earning));
 
             EarningsCalendarResponse response = apis.getEarningsByTicker("AAPL", LocalDate.now().plusDays(10));
-            
+
             assertNotNull(response);
             assertEquals(response.getEarningsCalendar().size(), 1);
         }
@@ -60,24 +60,49 @@ public class FinnHubAPIsTest {
         try (MockedStatic<RestAssured> mockedRestAssured = mockStatic(RestAssured.class);
              MockedStatic<EarningsCacheManager> mockedCacheManager = mockStatic(EarningsCacheManager.class)) {
             mockedCacheManager.when(() -> EarningsCacheManager.getEarningsFromCache(anyString(), any())).thenReturn(null);
-            
+
             RequestSpecification mockRequest = mock(RequestSpecification.class);
             Response mockResponse = mock(Response.class);
-            
+
             mockedRestAssured.when(RestAssured::given).thenReturn(mockRequest);
             when(mockRequest.baseUri(anyString())).thenReturn(mockRequest);
             when(mockRequest.queryParam(anyString(), (Object) any())).thenReturn(mockRequest);
             when(mockRequest.get(anyString())).thenReturn(mockResponse);
-            
+
             LocalDate futureDate = LocalDate.now().plusDays(5);
             when(mockResponse.statusCode()).thenReturn(200);
             when(mockResponse.asPrettyString()).thenReturn("{\"earningsCalendar\": [{\"symbol\": \"AAPL\", \"date\": \"" + futureDate + "\"}]}");
 
             EarningsCalendarResponse response = apis.getEarningsByTicker("AAPL", LocalDate.now().plusDays(10));
-            
+
             assertNotNull(response);
             assertEquals(response.getEarningsCalendar().size(), 1);
             assertEquals(response.getEarningsCalendar().get(0).getDate(), futureDate);
+            mockedCacheManager.verify(() -> EarningsCacheManager.updateCache(eq("AAPL"), any()), times(1));
+        }
+    }
+
+    @Test
+    public void testGetEarningsByTicker_ForceRefresh_BypassesCache() {
+        try (MockedStatic<RestAssured> mockedRestAssured = mockStatic(RestAssured.class);
+             MockedStatic<EarningsCacheManager> mockedCacheManager = mockStatic(EarningsCacheManager.class)) {
+            RequestSpecification mockRequest = mock(RequestSpecification.class);
+            Response mockResponse = mock(Response.class);
+
+            mockedRestAssured.when(RestAssured::given).thenReturn(mockRequest);
+            when(mockRequest.baseUri(anyString())).thenReturn(mockRequest);
+            when(mockRequest.queryParam(anyString(), (Object) any())).thenReturn(mockRequest);
+            when(mockRequest.get(anyString())).thenReturn(mockResponse);
+
+            LocalDate futureDate = LocalDate.now().plusDays(15);
+            when(mockResponse.statusCode()).thenReturn(200);
+            when(mockResponse.asPrettyString()).thenReturn("{\"earningsCalendar\": [{\"symbol\": \"AAPL\", \"date\": \"" + futureDate + "\"}]}");
+
+            EarningsCalendarResponse response = apis.getEarningsByTicker("AAPL", LocalDate.now().plusDays(30), true);
+
+            assertNotNull(response);
+            assertEquals(response.getEarningsCalendar().size(), 1);
+            mockedCacheManager.verify(() -> EarningsCacheManager.getEarningsFromCache(anyString(), any()), never());
             mockedCacheManager.verify(() -> EarningsCacheManager.updateCache(eq("AAPL"), any()), times(1));
         }
     }
@@ -87,15 +112,15 @@ public class FinnHubAPIsTest {
         try (MockedStatic<RestAssured> mockedRestAssured = mockStatic(RestAssured.class);
              MockedStatic<EarningsCacheManager> mockedCacheManager = mockStatic(EarningsCacheManager.class)) {
             mockedCacheManager.when(() -> EarningsCacheManager.getEarningsFromCache(anyString(), any())).thenReturn(null);
-            
+
             RequestSpecification mockRequest = mock(RequestSpecification.class);
             Response mockResponse = mock(Response.class);
-            
+
             mockedRestAssured.when(RestAssured::given).thenReturn(mockRequest);
             when(mockRequest.baseUri(anyString())).thenReturn(mockRequest);
             when(mockRequest.queryParam(anyString(), (Object) any())).thenReturn(mockRequest);
             when(mockRequest.get(anyString())).thenReturn(mockResponse);
-            
+
             when(mockResponse.statusCode()).thenReturn(500);
             when(mockResponse.statusLine()).thenReturn("Internal Server Error");
 

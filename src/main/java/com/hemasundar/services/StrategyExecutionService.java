@@ -23,6 +23,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -459,6 +460,9 @@ public class StrategyExecutionService {
                 ? config.getSecurities().stream().distinct().collect(Collectors.toList())
                 : Collections.emptyList();
 
+        // Pull earnings upfront for every symbol before any pipeline filter, irrespective of earningsFilters
+        pullEarningsForSymbols(securities, false);
+
         Map<String, TechnicalScreener.ScreeningResult> techResultsMap = new HashMap<>();
 
         // Apply technical filter if configured
@@ -562,6 +566,38 @@ public class StrategyExecutionService {
         }
 
         return result;
+    }
+
+    /**
+     * Pulls earnings data for the provided symbols. When {@code forceRefresh} is true,
+     * bypasses the local cache age check to fetch fresh data for all symbols.
+     *
+     * @param symbols      list of stock symbols
+     * @param forceRefresh true to force an API call regardless of cache age
+     */
+    public void pullEarningsForSymbols(List<String> symbols, boolean forceRefresh) {
+        if (finnHubAPIs == null || CollectionUtils.isEmpty(symbols)) {
+            return;
+        }
+        LocalDate oneYearAhead = LocalDate.now().plusYears(1);
+        for (int i = 0; i < symbols.size(); i++) {
+            if (cancellationRequested.get() || authFailed.get()) {
+                break;
+            }
+            String symbol = symbols.get(i);
+            if (forceRefresh) {
+                setCurrentExecutionTask(String.format("Refreshing Earnings: %s (%d/%d)", symbol, i + 1, symbols.size()));
+            }
+            try {
+                if (forceRefresh) {
+                    finnHubAPIs.getEarningsByTicker(symbol, oneYearAhead, true);
+                } else {
+                    finnHubAPIs.getEarningsByTicker(symbol, oneYearAhead);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to pull earnings for {}: {}", symbol, e.getMessage());
+            }
+        }
     }
 
     /**

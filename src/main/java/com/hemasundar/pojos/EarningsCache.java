@@ -17,6 +17,8 @@ import java.util.Map;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class EarningsCache {
 
+    private String lastUpdated;
+
     @Builder.Default
     private Map<String, CacheEntry> cache = new HashMap<>();
 

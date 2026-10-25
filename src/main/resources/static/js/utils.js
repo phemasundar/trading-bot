@@ -63,7 +63,8 @@ function showToast(message, type = 'success') {
 
 function timeAgo(dateStr) {
     if (!dateStr) return 'Unknown';
-    const diff = Date.now() - new Date(dateStr).getTime();
+    const normalized = /^\d{4}-\d{2}-\d{2}$/.test(String(dateStr)) ? `${dateStr}T00:00:00` : dateStr;
+    const diff = Date.now() - new Date(normalized).getTime();
     if (diff < 60000) return 'Just now';
     
     const mins = Math.floor(diff / 60000);

@@ -2591,6 +2591,76 @@ textarea::placeholder {
     color: var(--text-muted);
 }
 
+.cal-sync-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.cal-refresh-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--primary);
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.45);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+
+.cal-refresh-btn:hover:not(:disabled) {
+    background: rgba(59, 130, 246, 0.16);
+    border-color: var(--primary);
+    box-shadow: 0 0 14px rgba(59, 130, 246, 0.2);
+}
+
+.cal-refresh-btn:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.cal-refresh-btn:disabled,
+.cal-refresh-btn.syncing {
+    opacity: 0.85;
+    cursor: wait;
+}
+
+.cal-refresh-icon {
+    display: inline-block;
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+.cal-refresh-btn.syncing .cal-refresh-icon {
+    animation: spin 1s linear infinite;
+}
+
+.cal-pulled-date {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.cal-pulled-age {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+}
+
 .cal-empty-msg {
     text-align: center;
     color: var(--text-muted);

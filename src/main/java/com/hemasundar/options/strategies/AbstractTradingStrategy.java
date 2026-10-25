@@ -17,6 +17,7 @@ import com.hemasundar.technical.MathExpression;
 import com.hemasundar.technical.MathExpressionEvaluator;
 import com.hemasundar.options.models.OptionFilterValueResolver;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -50,6 +51,15 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
     public List<TradeSetup> findTrades(OptionChainResponse chain, OptionsStrategyFilter filter) {
         String strategyName = getStrategyName(filter);
         String symbol = chain.getSymbol();
+
+        // ── Upfront Earnings Pull (before any filter stage, irrespective of earningsFilters) ──
+        if (finnHubAPIs != null && StringUtils.isNotBlank(symbol)) {
+            try {
+                finnHubAPIs.getEarningsByTicker(symbol, LocalDate.now().plusYears(1));
+            } catch (Exception e) {
+                log.error("[{}] Error fetching upfront earnings data: {}", symbol, e.getMessage());
+            }
+        }
 
         // ── Track C: Fire IV Rank + IV Percentile in parallel ──
         CompletableFuture<Double> ivRankFuture = CompletableFuture
@@ -223,7 +233,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
      * Uses the unique strategyId if available in the filter, otherwise falls back to StrategyType display name.
      */
     public String getStrategyName(OptionsStrategyFilter filter) {
-        if (filter != null && org.apache.commons.lang3.StringUtils.isNotBlank(filter.getStrategyId())) {
+        if (filter != null && StringUtils.isNotBlank(filter.getStrategyId())) {
             return filter.getStrategyId();
         }
         return getStrategyName();
@@ -390,7 +400,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
         if (legFilter == null || CollectionUtils.isEmpty(legFilter.getFilterExpressions())) {
             return pipeline;
         }
-        String prefix = org.apache.commons.lang3.StringUtils.isNotBlank(legFilter.getLegName())
+        String prefix = StringUtils.isNotBlank(legFilter.getLegName())
                 ? legFilter.getLegName() : defaultLegName;
 
         for (MathExpression expr : legFilter.getFilterExpressions()) {
@@ -398,7 +408,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             String stepName;
             if (left != null && left.contains(".")) {
                 stepName = expr.toString();
-            } else if (org.apache.commons.lang3.StringUtils.isNotBlank(prefix)) {
+            } else if (StringUtils.isNotBlank(prefix)) {
                 stepName = prefix + "." + expr.toString();
             } else {
                 stepName = expr.toString();

@@ -7,7 +7,7 @@
     <meta name="description" content="Monthly calendar view of upcoming earnings events for tracked securities">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/style.css?v=10">
+    <link rel="stylesheet" href="/style.css?v=12">
     <script src="/theme.js?v=3"></script>
 </head>
 <body>
@@ -104,10 +104,20 @@
                 <p>Authenticating…</p>
             </div>
 
-            <div class="page-header">
+            <div class="page-header-flex">
                 <div>
                     <h1 class="page-title">Earnings Calendar</h1>
                     <p class="page-subtitle">Monthly view of upcoming earnings events for tracked securities</p>
+                </div>
+                <div class="header-actions">
+                    <span class="cal-sync-badge" id="cal-last-pulled" title="Timestamp of the latest earnings calendar cache update">
+                        <span class="status-dot"></span>
+                        <span id="cal-last-pulled-text">Last Pulled: —</span>
+                    </span>
+                    <button id="cal-refresh-btn" class="btn cal-refresh-btn" data-admin-only onclick="refreshAllEarnings()" title="Fetch latest earnings for all project stocks across all predefined YAML files">
+                        <span class="cal-refresh-icon" id="cal-refresh-icon">↻</span>
+                        <span id="cal-refresh-text">Refresh Earnings</span>
+                    </button>
                 </div>
             </div>
 
@@ -144,7 +154,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/js/utils.js?v=2"></script>
     <script src="/js/auth-api.js?v=1"></script>
-    <script src="/js/earnings-calendar.js?v=1"></script>
+    <script src="/js/earnings-calendar.js?v=3"></script>
     <script src="/app.js?v=7"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
