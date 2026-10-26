@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.List;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 
 import static org.testng.Assert.*;
 
@@ -22,6 +23,18 @@ public class EarningsCacheManagerTest {
     public void snapshotCacheState() {
         if (EarningsCacheManager.getEarningsCache() != null) {
             originalLastUpdated = EarningsCacheManager.getEarningsCache().getLastUpdated();
+        }
+    }
+
+    /**
+     * Resets test-specific ticker entries before each test execution to ensure test isolation.
+     */
+    @BeforeMethod
+    public void cleanupTestTickers() {
+        if (EarningsCacheManager.getEarningsCache() != null && EarningsCacheManager.getEarningsCache().getCache() != null) {
+            EarningsCacheManager.getEarningsCache().getCache().remove("TEST_TICKER");
+            EarningsCacheManager.getEarningsCache().getCache().remove("STALE_TICKER");
+            EarningsCacheManager.getEarningsCache().getCache().remove("META_TEST");
         }
     }
 
