@@ -11,4 +11,5 @@ public class SupabaseConfig {
     private String url;
     private String anonKey;
     private String serviceRoleKey;
+    private int ivMinRecords;
 }

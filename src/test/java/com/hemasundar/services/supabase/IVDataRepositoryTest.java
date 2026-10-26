@@ -41,6 +41,7 @@ public class IVDataRepositoryTest {
         when(client.request()).thenReturn(requestSpec);
         when(client.getUrl(anyString())).thenAnswer(invocation -> "https://test.supabase.co" + invocation.getArgument(0));
         repository = new IVDataRepository(client);
+        repository.setMinIVRecords(20);
     }
 
     @Test
@@ -290,6 +291,42 @@ public class IVDataRepositoryTest {
         assertNotNull(stats);
         assertTrue(stats.isEmpty());
         verify(requestSpec, never()).post(anyString());
+    }
+
+    @Test
+    public void testFetchAndCacheBulkIVStats_IncludesMinRecordsParameter() throws IOException {
+        repository.setMinIVRecords(15);
+        assertEquals(repository.getMinIVRecords(), 15);
+
+        when(requestSpec.body(anyString())).thenReturn(requestSpec);
+        when(requestSpec.post(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn("[]");
+
+        repository.getIVStats("TEST_MIN");
+
+        org.mockito.ArgumentCaptor<String> captor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(requestSpec).body(captor.capture());
+        assertTrue(captor.getValue().contains("\"p_min_records\":15"));
+    }
+
+    @Test(expectedExceptions = IllegalStateException.class)
+    public void testGetIVRank_ThrowsWhenMinRecordsNotConfigured() throws Exception {
+        repository.setMinIVRecords(0);
+        repository.getIVRank("AAPL");
+    }
+
+    @Test(expectedExceptions = IllegalStateException.class)
+    public void testGetIVStats_ThrowsWhenMinRecordsNotConfigured() throws Exception {
+        repository.setMinIVRecords(0);
+        repository.getIVStats("AAPL");
+    }
+
+    @Test(expectedExceptions = IllegalStateException.class)
+    public void testGetIVStatsBulk_ThrowsWhenMinRecordsNotConfigured() {
+        repository.setMinIVRecords(0);
+        repository.getIVStatsForSymbols(List.of("AAPL"));
     }
 
     private IVDataPoint createSampleDataPoint() {

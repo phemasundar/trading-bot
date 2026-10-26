@@ -21,6 +21,7 @@ public class EarningsCacheManagerTest {
 
     @BeforeClass
     public void snapshotCacheState() {
+        EarningsCacheManager.setCacheValidityDays(5);
         if (EarningsCacheManager.getEarningsCache() != null) {
             originalLastUpdated = EarningsCacheManager.getEarningsCache().getLastUpdated();
         }
@@ -31,6 +32,7 @@ public class EarningsCacheManagerTest {
      */
     @BeforeMethod
     public void cleanupTestTickers() {
+        EarningsCacheManager.setCacheValidityDays(5);
         if (EarningsCacheManager.getEarningsCache() != null && EarningsCacheManager.getEarningsCache().getCache() != null) {
             EarningsCacheManager.getEarningsCache().getCache().remove("TEST_TICKER");
             EarningsCacheManager.getEarningsCache().getCache().remove("STALE_TICKER");
@@ -101,6 +103,20 @@ public class EarningsCacheManagerTest {
                 .build();
         cache.getCache().put(symbol, staleEntry);
         assertNull(EarningsCacheManager.getEarningsFromCache(symbol, LocalDate.now()));
+
+        // When cache validity days configured to 10 days, 6-day-old entry becomes valid
+        int originalValidity = EarningsCacheManager.getCacheValidityDays();
+        try {
+            EarningsCacheManager.setCacheValidityDays(10);
+            assertNotNull(EarningsCacheManager.getEarningsFromCache(symbol, LocalDate.now()));
+
+            // When configured to 3 days, 5-day-old entry becomes stale
+            EarningsCacheManager.setCacheValidityDays(3);
+            cache.getCache().put(symbol, validEntry);
+            assertNull(EarningsCacheManager.getEarningsFromCache(symbol, LocalDate.now()));
+        } finally {
+            EarningsCacheManager.setCacheValidityDays(originalValidity);
+        }
     }
 
     @Test
@@ -154,5 +170,16 @@ public class EarningsCacheManagerTest {
         EarningsCacheManager.getEarningsCache().getCache().remove("TEST_TICKER");
         EarningsCacheManager.getEarningsCache().getCache().remove("STALE_TICKER");
         EarningsCacheManager.getEarningsCache().getCache().remove("META_TEST");
+    }
+
+    @Test(expectedExceptions = IllegalStateException.class)
+    public void testGetEarningsFromCache_ThrowsWhenNotConfigured() {
+        int original = EarningsCacheManager.getCacheValidityDays();
+        try {
+            EarningsCacheManager.setCacheValidityDays(0);
+            EarningsCacheManager.getEarningsFromCache("TEST_TICKER", LocalDate.now());
+        } finally {
+            EarningsCacheManager.setCacheValidityDays(original);
+        }
     }
 }

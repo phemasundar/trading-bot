@@ -1,6 +1,5 @@
 package com.hemasundar.dto;
 
-
 import lombok.experimental.UtilityClass;
 
 /**
@@ -15,6 +14,7 @@ public class AlertMessages {
 
     public static final String SRC_SUPABASE = "Supabase";
     public static final String SRC_EXECUTION = "Execution";
+    public static final String SRC_CONFIG = "Configuration";
 
     /** Format args: screenerName */
     public static final String SRC_SCREENER_FMT = "Screener: %s";
@@ -51,4 +51,9 @@ public class AlertMessages {
 
     /** Format args: exception message */
     public static final String SCREENER_EXEC_FAILED_FMT = "Screener failed: %s";
+
+    // ── Configuration ────────────────────────────────────────────────────────
+
+    public static final String CONFIG_MISSING_IV_RECORDS = "Missing required property 'supabase.iv-min-records' in application.properties";
+    public static final String CONFIG_MISSING_EARNINGS_VALIDITY = "Missing required property 'earnings.cache-validity-days' in application.properties";
 }

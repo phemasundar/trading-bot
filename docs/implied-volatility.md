@@ -117,7 +117,7 @@ $$;
 To eliminate self-comparison bias (today-bias) and adhere to commercial platform standards:
 1. Row 1 (`rn = 1`) is today's current observation (`currentIV`).
 2. The trailing historical baseline comprises up to **252 historical trading days** (1 standard market year), explicitly **excluding today**.
-3. A minimum of **20 historical trading records** (~1 trading month) is required; symbols with $< 20$ records return `NULL` (fail-open semantics).
+3. A minimum of **20 historical trading records** (~1 trading month, configurable via `supabase.iv-min-records` in `application.properties`) is required; symbols with insufficient records return `NULL` (fail-open semantics).
 
 #### Step 2: Daily Average IV Normalization
 $$\text{avgIV}(\text{row}) = \begin{cases} 
