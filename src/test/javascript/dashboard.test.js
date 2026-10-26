@@ -142,8 +142,8 @@ describe('Dashboard & Table Rendering Tests', () => {
         });
         expect(res.loadBtn).toContain('style="margin-left: auto;"');
         expect(res.loadBtn).toContain('data-test="val&quot;1"');
-        expect(res.execBtn).toContain('style="margin-left: 4px;"');
-        expect(res.delBtn).toContain('style="margin-left: 4px;"');
+        expect(res.executeBtn).toContain('style="margin-left: 4px;"');
+        expect(res.deleteBtn).toContain('style="margin-left: 4px;"');
     });
 
     test('buildScreenerCard should render technical screener card with table', () => {
@@ -1003,25 +1003,27 @@ describe('Dashboard & Table Rendering Tests', () => {
             expect(toastSpy).toHaveBeenCalledWith('No custom strategies to execute', 'info');
         });
 
-        test('executeAllCustomCards iterates cards, executes sequentially, and reloads', async () => {
+        test('executeAllCustomCards collects requests via buildRequestFn, calls batch API, polls until complete, and reloads', async () => {
             document.body.innerHTML = `
                 <button id="exec-all-btn">▶ Execute All</button>
                 <div id="cards-container">
                     <div class="card">
-                        <button class="exec-btn" onclick="reexecuteCustomStrategy(this, 'strat-1')">▶ Execute</button>
+                        <button class="exec-btn" data-result-id="strat-1">▶ Execute</button>
                     </div>
                     <div class="card">
-                        <button class="exec-btn" onclick="reexecuteCustomStrategy(this, 'strat-2')">▶ Execute</button>
+                        <button class="exec-btn" data-result-id="strat-2">▶ Execute</button>
                     </div>
                 </div>
             `;
 
             global.API = {
-                get: jest.fn().mockResolvedValue({ running: false })
+                post: jest.fn().mockResolvedValue({ message: 'Batch started' })
             };
+            global.startTimer = jest.fn();
+            global.stopTimer = jest.fn();
+            global.pollUntilComplete = jest.fn().mockResolvedValue();
 
-            const loadFiltersFn = jest.fn();
-            const executeFn = jest.fn().mockResolvedValue(true);
+            const buildRequestFn = jest.fn((card, btn) => ({ id: btn.dataset.resultId }));
             const reloadResultsFn = jest.fn().mockResolvedValue();
             const toastSpy = jest.spyOn(window, 'showToast').mockImplementation(() => {});
 
@@ -1029,101 +1031,85 @@ describe('Dashboard & Table Rendering Tests', () => {
                 containerId: 'cards-container',
                 executeAllBtnId: 'exec-all-btn',
                 cardBtnSelector: '.exec-btn',
-                loadFiltersFn,
-                executeFn,
+                batchApiEndpoint: '/api/execute/custom/batch',
+                buildRequestFn,
                 reloadResultsFn,
                 entityNameSingular: 'custom strategy',
                 entityNamePlural: 'custom strategies'
             });
 
-            expect(loadFiltersFn).toHaveBeenCalledTimes(2);
-            expect(executeFn).toHaveBeenCalledWith('strat-1');
-            expect(executeFn).toHaveBeenCalledWith('strat-2');
+            expect(buildRequestFn).toHaveBeenCalledTimes(2);
+            expect(global.API.post).toHaveBeenCalledWith('/api/execute/custom/batch', [
+                { id: 'strat-1' },
+                { id: 'strat-2' }
+            ]);
+            expect(global.pollUntilComplete).toHaveBeenCalled();
+            expect(global.stopTimer).toHaveBeenCalled();
             expect(reloadResultsFn).toHaveBeenCalledTimes(1);
-            expect(toastSpy).toHaveBeenCalledWith('Executed 2 custom strategies successfully!');
+            expect(toastSpy).toHaveBeenCalledWith('Batch execution of custom strategies completed!');
 
             const execAllBtn = document.getElementById('exec-all-btn');
             expect(execAllBtn.disabled).toBe(false);
             expect(execAllBtn.innerHTML).toBe('▶ Execute All');
         });
 
-        test('executeAllCustomCards handles cancellation requested during iteration', async () => {
+        test('executeAllCustomCards handles batch API error and re-enables buttons', async () => {
             document.body.innerHTML = `
                 <button id="exec-all-btn">▶ Execute All</button>
                 <div id="cards-container">
                     <div class="card">
-                        <button class="exec-btn" onclick="reexecuteCustomStrategy(this, 'strat-1')">▶ Execute</button>
-                    </div>
-                    <div class="card">
-                        <button class="exec-btn" onclick="reexecuteCustomStrategy(this, 'strat-2')">▶ Execute</button>
+                        <button class="exec-btn" data-result-id="strat-1">▶ Execute</button>
                     </div>
                 </div>
             `;
 
             global.API = {
-                get: jest.fn().mockResolvedValue({ running: false })
+                post: jest.fn().mockRejectedValue(new Error('Server unavailable'))
             };
 
-            const loadFiltersFn = jest.fn();
-            const executeFn = jest.fn().mockImplementation(async () => {
-                window.cancellationRequested = true;
-                return true;
-            });
-            const reloadResultsFn = jest.fn().mockResolvedValue();
+            const buildRequestFn = jest.fn(() => ({ id: 'strat-1' }));
+            const reloadResultsFn = jest.fn();
             const toastSpy = jest.spyOn(window, 'showToast').mockImplementation(() => {});
 
             await executeAllCustomCards({
                 containerId: 'cards-container',
                 executeAllBtnId: 'exec-all-btn',
                 cardBtnSelector: '.exec-btn',
-                loadFiltersFn,
-                executeFn,
-                reloadResultsFn
+                batchApiEndpoint: '/api/execute/custom/batch',
+                buildRequestFn,
+                reloadResultsFn,
+                entityNamePlural: 'custom strategies'
             });
 
-            expect(executeFn).toHaveBeenCalledTimes(1);
-            expect(toastSpy).toHaveBeenCalledWith('Execution cancelled');
-            expect(reloadResultsFn).toHaveBeenCalled();
+            expect(toastSpy).toHaveBeenCalledWith('Failed to start batch execution: Server unavailable', 'error');
+            const execAllBtn = document.getElementById('exec-all-btn');
+            expect(execAllBtn.disabled).toBe(false);
+            expect(execAllBtn.innerHTML).toBe('▶ Execute All');
         });
 
-        test('executeAllCustomCards catches per-card errors and continues', async () => {
+        test('executeAllCustomCards handles empty requests from buildRequestFn', async () => {
             document.body.innerHTML = `
                 <button id="exec-all-btn">▶ Execute All</button>
                 <div id="cards-container">
                     <div class="card">
-                        <button class="exec-btn" onclick="reexecuteCustomScreener(this, 'sc-1')">▶ Execute</button>
-                    </div>
-                    <div class="card">
-                        <button class="exec-btn" onclick="reexecuteCustomScreener(this, 'sc-2')">▶ Execute</button>
+                        <button class="exec-btn">▶ Execute</button>
                     </div>
                 </div>
             `;
 
-            global.API = {
-                get: jest.fn().mockResolvedValue({ running: false })
-            };
-
-            const loadFiltersFn = jest.fn();
-            const executeFn = jest.fn()
-                .mockRejectedValueOnce(new Error('Card 1 failed'))
-                .mockResolvedValueOnce(true);
-            const reloadResultsFn = jest.fn().mockResolvedValue();
+            const buildRequestFn = jest.fn(() => null);
             const toastSpy = jest.spyOn(window, 'showToast').mockImplementation(() => {});
 
             await executeAllCustomCards({
                 containerId: 'cards-container',
                 executeAllBtnId: 'exec-all-btn',
                 cardBtnSelector: '.exec-btn',
-                loadFiltersFn,
-                executeFn,
-                reloadResultsFn,
-                entityNameSingular: 'screener',
-                entityNamePlural: 'screeners'
+                batchApiEndpoint: '/api/execute/custom/batch',
+                buildRequestFn,
+                entityNamePlural: 'custom strategies'
             });
 
-            expect(loadFiltersFn).toHaveBeenCalledTimes(2);
-            expect(toastSpy).toHaveBeenCalledWith('Executed 1 screener successfully!');
-            expect(reloadResultsFn).toHaveBeenCalledTimes(1);
+            expect(toastSpy).toHaveBeenCalledWith('No valid custom strategies found to execute', 'error');
         });
     });
 });

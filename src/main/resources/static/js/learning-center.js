@@ -5,9 +5,9 @@
 // Fallback catalog of option strategies if API is unreachable
 const DEFAULT_OPTION_STRATEGIES = [
     {
-        id: "bullish_bwb",
+        id: "bullish_broken_wing_butterfly",
         name: "Bullish Broken Wing Butterfly (BWB)",
-        filename: "bullish_bwb.md",
+        filename: "strategies/bullish_broken_wing_butterfly.md",
         category: "Options Strategy",
         bias: "Bullish",
         summary: "An asymmetric butterfly spread designed with a wider out-of-the-money wing, eliminating upside risk while capturing decay and directional appreciation.",
@@ -16,7 +16,7 @@ const DEFAULT_OPTION_STRATEGIES = [
     {
         id: "bullish_zebra",
         name: "Bullish ZEBRA (Zero Extrinsic Back Ratio)",
-        filename: "bullish_zebra.md",
+        filename: "strategies/bullish_zebra.md",
         category: "Options Strategy",
         bias: "Bullish",
         summary: "A 100-delta stock replacement strategy utilizing 2 long ITM calls and 1 short ATM call with virtually zero extrinsic value risk and capped downside.",
@@ -25,7 +25,7 @@ const DEFAULT_OPTION_STRATEGIES = [
     {
         id: "call_credit_spread",
         name: "Call Credit Spread (CCS)",
-        filename: "call_credit_spread.md",
+        filename: "strategies/call_credit_spread.md",
         category: "Options Strategy",
         bias: "Bearish",
         summary: "A bearish, defined-risk vertical spread profiting when the underlying price remains below the short call strike as time decay accelerates.",
@@ -34,7 +34,7 @@ const DEFAULT_OPTION_STRATEGIES = [
     {
         id: "iron_condor",
         name: "Iron Condor",
-        filename: "iron_condor.md",
+        filename: "strategies/iron_condor.md",
         category: "Options Strategy",
         bias: "Neutral",
         summary: "A market-neutral, defined-risk strategy combining an OTM put credit spread and call credit spread to profit from range-bound price action and IV crush.",
@@ -43,7 +43,7 @@ const DEFAULT_OPTION_STRATEGIES = [
     {
         id: "long_call_leap",
         name: "Long Call LEAPs",
-        filename: "long_call_leap.md",
+        filename: "strategies/long_call_leap.md",
         category: "Options Strategy",
         bias: "Bullish",
         summary: "Deep in-the-money long-term call options providing capital-efficient equity exposure with minimal theta drag and leveraged upside participation.",
@@ -52,7 +52,7 @@ const DEFAULT_OPTION_STRATEGIES = [
     {
         id: "put_credit_spread",
         name: "Put Credit Spread (PCS)",
-        filename: "put_credit_spread.md",
+        filename: "strategies/put_credit_spread.md",
         category: "Options Strategy",
         bias: "Bullish",
         summary: "A high-probability bullish options strategy selling an OTM put while buying a lower strike put for defined risk, profiting from sideways or upward drift.",
@@ -61,7 +61,7 @@ const DEFAULT_OPTION_STRATEGIES = [
     {
         id: "short_put",
         name: "Cash-Secured Put (Short Put / CSP)",
-        filename: "short_put.md",
+        filename: "strategies/short_put.md",
         category: "Options Strategy",
         bias: "Bullish",
         summary: "Selling an out-of-the-money put with cash backing to generate income or acquire top-tier stocks at an effective discount to current market price.",
@@ -70,29 +70,11 @@ const DEFAULT_OPTION_STRATEGIES = [
     {
         id: "short_strangle",
         name: "Short Strangle",
-        filename: "short_strangle.md",
+        filename: "strategies/short_strangle.md",
         category: "Options Strategy",
         bias: "Neutral",
         summary: "Selling an out-of-the-money put and out-of-the-money call simultaneously, maximizing premium collection and profiting from high implied volatility contraction.",
         greeks: { Delta: "Neutral", Gamma: "Negative", Theta: "Positive", Vega: "Negative" }
-    },
-    {
-        id: "tech_call_credit_spread",
-        name: "Technical Call Credit Spread (CCS)",
-        filename: "tech_call_credit_spread.md",
-        category: "Options Strategy",
-        bias: "Bearish",
-        summary: "A systematic call credit spread triggered by technical overbought signals, RSI crossovers, or upper Bollinger Band rejections.",
-        greeks: { Delta: "Negative", Gamma: "Negative", Theta: "Positive", Vega: "Negative" }
-    },
-    {
-        id: "tech_put_credit_spread",
-        name: "Technical Put Credit Spread (PCS)",
-        filename: "tech_put_credit_spread.md",
-        category: "Options Strategy",
-        bias: "Bullish",
-        summary: "A quantitative put credit spread triggered when securities show oversold indicators, moving average support tests, or bullish technical reversals.",
-        greeks: { Delta: "Positive", Gamma: "Negative", Theta: "Positive", Vega: "Negative" }
     }
 ];
 
@@ -100,16 +82,23 @@ let _learningStrategies = [];
 let _activeBiasFilter = 'ALL';
 
 const STRATEGY_TYPE_MAP = {
+    'strategies/bullish_broken_wing_butterfly.md': 'BULLISH_BROKEN_WING_BUTTERFLY',
+    'bullish_broken_wing_butterfly.md': 'BULLISH_BROKEN_WING_BUTTERFLY',
     'bullish_bwb.md': 'BULLISH_BROKEN_WING_BUTTERFLY',
+    'strategies/bullish_zebra.md': 'BULLISH_ZEBRA',
     'bullish_zebra.md': 'BULLISH_ZEBRA',
+    'strategies/call_credit_spread.md': 'CALL_CREDIT_SPREAD',
     'call_credit_spread.md': 'CALL_CREDIT_SPREAD',
+    'strategies/iron_condor.md': 'IRON_CONDOR',
     'iron_condor.md': 'IRON_CONDOR',
+    'strategies/long_call_leap.md': 'LONG_CALL_LEAP',
     'long_call_leap.md': 'LONG_CALL_LEAP',
+    'strategies/put_credit_spread.md': 'PUT_CREDIT_SPREAD',
     'put_credit_spread.md': 'PUT_CREDIT_SPREAD',
+    'strategies/short_put.md': 'SHORT_PUT',
     'short_put.md': 'SHORT_PUT',
-    'short_strangle.md': 'SHORT_STRANGLE',
-    'tech_call_credit_spread.md': 'CALL_CREDIT_SPREAD',
-    'tech_put_credit_spread.md': 'PUT_CREDIT_SPREAD'
+    'strategies/short_strangle.md': 'SHORT_STRANGLE',
+    'short_strangle.md': 'SHORT_STRANGLE'
 };
 
 /**
@@ -197,24 +186,67 @@ function getActiveStrategies() {
 }
 
 /**
- * Re-renders the strategy card grid based on current search query and bias filter state.
+ * Shared helpers for Learning Center catalog fetching, filtering, and Markdown guide rendering.
  */
-function renderFilteredStrategies() {
-    const container = document.getElementById('strategies-grid');
-    const countBadge = document.getElementById('strategy-count-badge');
-    const searchInput = document.getElementById('strategy-search-input');
-    const clearBtn = document.getElementById('clear-strategy-search');
+async function fetchLearningCatalog(endpoint, defaultCatalog, warnMessage = null) {
+    try {
+        const res = await API.get(endpoint);
+        if (Array.isArray(res) && res.length > 0) {
+            return res;
+        }
+    } catch (e) {
+        if (warnMessage) {
+            console.warn(warnMessage, e);
+        }
+    }
+    return defaultCatalog;
+}
+
+function updateActiveChipState(selector, attrName, activeValue, buttonElement = null) {
+    if (typeof document === 'undefined') return;
+    const chips = document.querySelectorAll(selector);
+    chips.forEach(chip => {
+        const chipVal = chip.getAttribute(attrName);
+        const matches = buttonElement
+            ? (chip === buttonElement || (chipVal && chipVal.toLowerCase() === activeValue.toLowerCase()))
+            : (chipVal === activeValue);
+        if (matches) {
+            chip.classList.add('active');
+        } else {
+            chip.classList.remove('active');
+        }
+    });
+}
+
+function renderFilteredCatalogGrid({
+    containerId,
+    countBadgeId,
+    searchInputId,
+    clearBtnId,
+    items,
+    filterFn,
+    activeChipFilter,
+    singularLabel,
+    pluralLabel,
+    emptyHeading,
+    emptySubtext,
+    clearFnName,
+    renderCardFn
+}) {
+    const container = document.getElementById(containerId);
+    const countBadge = document.getElementById(countBadgeId);
+    const searchInput = document.getElementById(searchInputId);
+    const clearBtn = document.getElementById(clearBtnId);
 
     const query = searchInput ? searchInput.value : '';
     if (clearBtn) {
         clearBtn.style.display = query && query.length > 0 ? 'inline-block' : 'none';
     }
 
-    const currentStrategies = getActiveStrategies();
-    const filtered = filterStrategies(currentStrategies, query, _activeBiasFilter);
+    const filtered = filterFn(items, query, activeChipFilter);
 
     if (countBadge) {
-        countBadge.textContent = `${filtered.length} ${filtered.length === 1 ? 'Strategy' : 'Strategies'}`;
+        countBadge.textContent = `${filtered.length} ${filtered.length === 1 ? singularLabel : pluralLabel}`;
     }
 
     if (!container) return filtered;
@@ -223,16 +255,83 @@ function renderFilteredStrategies() {
         container.innerHTML = `
             <div class="empty-state" style="grid-column: 1 / -1; padding: 40px 20px;">
                 <div class="empty-state-icon text-muted">🔍</div>
-                <h3>No strategies found</h3>
-                <p class="text-muted">No option strategies matched your criteria.</p>
-                <button class="btn btn-ghost btn-sm" onclick="clearStrategySearch()" style="margin-top: 8px;">Clear Filters</button>
+                <h3>${emptyHeading}</h3>
+                <p class="text-muted">${emptySubtext}</p>
+                <button class="btn btn-ghost btn-sm" onclick="${clearFnName}()" style="margin-top: 8px;">Clear Filters</button>
             </div>
         `;
         return filtered;
     }
 
-    container.innerHTML = filtered.map(renderStrategyCard).join('');
+    container.innerHTML = filtered.map(renderCardFn).join('');
     return filtered;
+}
+
+function renderGuideLoadingState(contentEl, loadingText) {
+    if (!contentEl) return;
+    contentEl.innerHTML = `
+        <div class="loading-state" style="padding: 40px 20px;">
+            <div class="spinner"></div>
+            <p>${loadingText}</p>
+        </div>
+    `;
+}
+
+function renderGuideErrorState(contentEl, heading, message, backHref, backLabel) {
+    if (!contentEl) return;
+    contentEl.innerHTML = `
+        <div class="empty-state" style="padding: 40px 20px;">
+            <div class="empty-state-icon text-warning">⚠️</div>
+            <h3>${heading}</h3>
+            <p class="text-muted">${message}</p>
+            <a href="${backHref}" class="btn btn-primary btn-sm" style="margin-top: 12px;">${backLabel}</a>
+        </div>
+    `;
+}
+
+function renderMarkdownIntoElement(contentEl, markdownText) {
+    if (!contentEl) return;
+    if (typeof renderMarkdown === 'function') {
+        contentEl.innerHTML = renderMarkdown(markdownText);
+    } else if (typeof marked !== 'undefined') {
+        if (typeof initMarkedMath === 'function') initMarkedMath();
+        contentEl.innerHTML = marked.parse(markdownText);
+    } else {
+        contentEl.innerHTML = `<pre style="white-space: pre-wrap; font-family: var(--font-sans);">${escapeAttr(markdownText)}</pre>`;
+    }
+}
+
+async function fetchFirstAvailableMarkdown(urls, buildErrorFn) {
+    let lastStatus = 404;
+    for (const url of urls) {
+        const res = await fetch(url);
+        if (res.ok) {
+            return res.text();
+        }
+        lastStatus = res.status;
+    }
+    throw new Error(buildErrorFn(lastStatus));
+}
+
+/**
+ * Re-renders the strategy card grid based on current search query and bias filter state.
+ */
+function renderFilteredStrategies() {
+    return renderFilteredCatalogGrid({
+        containerId: 'strategies-grid',
+        countBadgeId: 'strategy-count-badge',
+        searchInputId: 'strategy-search-input',
+        clearBtnId: 'clear-strategy-search',
+        items: getActiveStrategies(),
+        filterFn: filterStrategies,
+        activeChipFilter: _activeBiasFilter,
+        singularLabel: 'Strategy',
+        pluralLabel: 'Strategies',
+        emptyHeading: 'No strategies found',
+        emptySubtext: 'No option strategies matched your criteria.',
+        clearFnName: 'clearStrategySearch',
+        renderCardFn: renderStrategyCard
+    });
 }
 
 /**
@@ -240,19 +339,7 @@ function renderFilteredStrategies() {
  */
 function setBiasFilter(bias, buttonElement) {
     _activeBiasFilter = bias || 'ALL';
-
-    if (typeof document !== 'undefined') {
-        const chips = document.querySelectorAll('.strategy-filter-chips .strategy-chip');
-        chips.forEach(chip => {
-            const chipBias = chip.getAttribute('data-bias');
-            if (chip === buttonElement || (chipBias && chipBias.toLowerCase() === _activeBiasFilter.toLowerCase())) {
-                chip.classList.add('active');
-            } else {
-                chip.classList.remove('active');
-            }
-        });
-    }
-
+    updateActiveChipState('.strategy-filter-chips .strategy-chip', 'data-bias', _activeBiasFilter, buttonElement);
     return renderFilteredStrategies();
 }
 
@@ -274,17 +361,7 @@ function clearStrategySearch() {
     }
 
     _activeBiasFilter = 'ALL';
-    if (typeof document !== 'undefined') {
-        const chips = document.querySelectorAll('.strategy-filter-chips .strategy-chip');
-        chips.forEach(chip => {
-            if (chip.getAttribute('data-bias') === 'ALL') {
-                chip.classList.add('active');
-            } else {
-                chip.classList.remove('active');
-            }
-        });
-    }
-
+    updateActiveChipState('.strategy-filter-chips .strategy-chip', 'data-bias', 'ALL');
     return renderFilteredStrategies();
 }
 
@@ -294,17 +371,11 @@ function clearStrategySearch() {
 async function initOptionStrategiesPage() {
     const countBadge = document.getElementById('strategy-count-badge');
 
-    try {
-        const res = await API.get('/api/learning/strategies');
-        if (Array.isArray(res) && res.length > 0) {
-            _learningStrategies = res;
-        } else {
-            _learningStrategies = DEFAULT_OPTION_STRATEGIES;
-        }
-    } catch (e) {
-        console.warn('Failed to fetch learning strategies from API, using default catalog:', e);
-        _learningStrategies = DEFAULT_OPTION_STRATEGIES;
-    }
+    _learningStrategies = await fetchLearningCatalog(
+        '/api/learning/strategies',
+        DEFAULT_OPTION_STRATEGIES,
+        'Failed to fetch learning strategies from API, using default catalog:'
+    );
 
     if (typeof window !== 'undefined') {
         window._learningStrategies = _learningStrategies;
@@ -333,7 +404,7 @@ async function initStrategyDetailPage() {
 
     // Default to iron_condor if none specified
     if (!strategyParam) {
-        strategyParam = 'iron_condor.md';
+        strategyParam = 'strategies/iron_condor.md';
     }
 
     let filename = strategyParam.trim();
@@ -366,14 +437,7 @@ async function initStrategyDetailPage() {
 
     // Populate switcher dropdown
     try {
-        let strategies = [];
-        try {
-            const apiRes = await API.get('/api/learning/strategies');
-            if (Array.isArray(apiRes) && apiRes.length > 0) strategies = apiRes;
-            else strategies = DEFAULT_OPTION_STRATEGIES;
-        } catch {
-            strategies = DEFAULT_OPTION_STRATEGIES;
-        }
+        const strategies = await fetchLearningCatalog('/api/learning/strategies', DEFAULT_OPTION_STRATEGIES);
 
         if (switcherEl) {
             switcherEl.innerHTML = strategies.map(s => {
@@ -392,21 +456,19 @@ async function initStrategyDetailPage() {
 
     // Fetch and render markdown
     try {
-        if (contentEl) {
-            contentEl.innerHTML = `
-                <div class="loading-state" style="padding: 40px 20px;">
-                    <div class="spinner"></div>
-                    <p>Loading strategy guide...</p>
-                </div>
-            `;
+        renderGuideLoadingState(contentEl, 'Loading strategy guide...');
+
+        const candidateUrls = [`/descriptions/${filename}`];
+        if (!filename.startsWith('strategies/')) {
+            candidateUrls.push(`/descriptions/strategies/${filename}`);
+        } else {
+            candidateUrls.push(`/descriptions/${filename.substring(11)}`);
         }
 
-        const res = await fetch(`/descriptions/${filename}`);
-        if (!res.ok) {
-            throw new Error(`Strategy description file "${filename}" not found (HTTP ${res.status})`);
-        }
-
-        const markdownText = await res.text();
+        const markdownText = await fetchFirstAvailableMarkdown(
+            candidateUrls,
+            (status) => `Strategy description file "${filename}" not found (HTTP ${status})`
+        );
 
         // Extract title from markdown if available
         const firstLine = markdownText.split('\n')[0] || '';
@@ -417,28 +479,16 @@ async function initStrategyDetailPage() {
             titleEl.textContent = strategyId.replace(/_/g, ' ').toUpperCase();
         }
 
-        if (contentEl) {
-            if (typeof renderMarkdown === 'function') {
-                contentEl.innerHTML = renderMarkdown(markdownText);
-            } else if (typeof marked !== 'undefined') {
-                if (typeof initMarkedMath === 'function') initMarkedMath();
-                contentEl.innerHTML = marked.parse(markdownText);
-            } else {
-                contentEl.innerHTML = `<pre style="white-space: pre-wrap; font-family: var(--font-sans);">${escapeAttr(markdownText)}</pre>`;
-            }
-        }
+        renderMarkdownIntoElement(contentEl, markdownText);
     } catch (err) {
         console.error('Failed to load strategy description:', err);
-        if (contentEl) {
-            contentEl.innerHTML = `
-                <div class="empty-state" style="padding: 40px 20px;">
-                    <div class="empty-state-icon text-warning">⚠️</div>
-                    <h3>Strategy Guide Not Found</h3>
-                    <p class="text-muted">Could not load documentation for "${escapeAttr(filename)}".</p>
-                    <a href="/option-strategies.html" class="btn btn-primary btn-sm" style="margin-top: 12px;">← Back to Option Strategies</a>
-                </div>
-            `;
-        }
+        renderGuideErrorState(
+            contentEl,
+            'Strategy Guide Not Found',
+            `Could not load documentation for "${escapeAttr(filename)}".`,
+            '/option-strategies.html',
+            '← Back to Option Strategies'
+        );
     }
 }
 
@@ -621,39 +671,21 @@ function getActiveGreeks() {
  * Re-renders the Option Greeks card grid based on current search query and order filter state.
  */
 function renderFilteredGreeks() {
-    const container = document.getElementById('greeks-grid');
-    const countBadge = document.getElementById('greek-count-badge');
-    const searchInput = document.getElementById('greek-search-input');
-    const clearBtn = document.getElementById('clear-greek-search');
-
-    const query = searchInput ? searchInput.value : '';
-    if (clearBtn) {
-        clearBtn.style.display = query && query.length > 0 ? 'inline-block' : 'none';
-    }
-
-    const currentGreeks = getActiveGreeks();
-    const filtered = filterGreeks(currentGreeks, query, _activeGreekOrderFilter);
-
-    if (countBadge) {
-        countBadge.textContent = `${filtered.length} ${filtered.length === 1 ? 'Greek' : 'Greeks'}`;
-    }
-
-    if (!container) return filtered;
-
-    if (filtered.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state" style="grid-column: 1 / -1; padding: 40px 20px;">
-                <div class="empty-state-icon text-muted">🔍</div>
-                <h3>No Option Greeks found</h3>
-                <p class="text-muted">No Greeks matched your search criteria.</p>
-                <button class="btn btn-ghost btn-sm" onclick="clearGreekSearch()" style="margin-top: 8px;">Clear Filters</button>
-            </div>
-        `;
-        return filtered;
-    }
-
-    container.innerHTML = filtered.map(renderGreekCard).join('');
-    return filtered;
+    return renderFilteredCatalogGrid({
+        containerId: 'greeks-grid',
+        countBadgeId: 'greek-count-badge',
+        searchInputId: 'greek-search-input',
+        clearBtnId: 'clear-greek-search',
+        items: getActiveGreeks(),
+        filterFn: filterGreeks,
+        activeChipFilter: _activeGreekOrderFilter,
+        singularLabel: 'Greek',
+        pluralLabel: 'Greeks',
+        emptyHeading: 'No Option Greeks found',
+        emptySubtext: 'No Greeks matched your search criteria.',
+        clearFnName: 'clearGreekSearch',
+        renderCardFn: renderGreekCard
+    });
 }
 
 /**
@@ -661,19 +693,7 @@ function renderFilteredGreeks() {
  */
 function setGreekOrderFilter(order, buttonElement) {
     _activeGreekOrderFilter = order || 'ALL';
-
-    if (typeof document !== 'undefined') {
-        const chips = document.querySelectorAll('#greek-filter-chips .strategy-chip');
-        chips.forEach(chip => {
-            const chipOrder = chip.getAttribute('data-order');
-            if (chip === buttonElement || (chipOrder && chipOrder.toLowerCase() === _activeGreekOrderFilter.toLowerCase())) {
-                chip.classList.add('active');
-            } else {
-                chip.classList.remove('active');
-            }
-        });
-    }
-
+    updateActiveChipState('#greek-filter-chips .strategy-chip', 'data-order', _activeGreekOrderFilter, buttonElement);
     return renderFilteredGreeks();
 }
 
@@ -695,17 +715,7 @@ function clearGreekSearch() {
     }
 
     _activeGreekOrderFilter = 'ALL';
-    if (typeof document !== 'undefined') {
-        const chips = document.querySelectorAll('#greek-filter-chips .strategy-chip');
-        chips.forEach(chip => {
-            if (chip.getAttribute('data-order') === 'ALL') {
-                chip.classList.add('active');
-            } else {
-                chip.classList.remove('active');
-            }
-        });
-    }
-
+    updateActiveChipState('#greek-filter-chips .strategy-chip', 'data-order', 'ALL');
     return renderFilteredGreeks();
 }
 
@@ -715,17 +725,11 @@ function clearGreekSearch() {
 async function initOptionGreeksPage() {
     const countBadge = document.getElementById('greek-count-badge');
 
-    try {
-        const res = await API.get('/api/learning/greeks');
-        if (Array.isArray(res) && res.length > 0) {
-            _learningGreeks = res;
-        } else {
-            _learningGreeks = DEFAULT_OPTION_GREEKS;
-        }
-    } catch (e) {
-        console.warn('Failed to fetch option Greeks from API, using default catalog:', e);
-        _learningGreeks = DEFAULT_OPTION_GREEKS;
-    }
+    _learningGreeks = await fetchLearningCatalog(
+        '/api/learning/greeks',
+        DEFAULT_OPTION_GREEKS,
+        'Failed to fetch option Greeks from API, using default catalog:'
+    );
 
     if (typeof window !== 'undefined') {
         window._learningGreeks = _learningGreeks;
@@ -770,14 +774,7 @@ async function initGreekDetailPage() {
 
     // Populate Greek switcher dropdown
     try {
-        let greeks = [];
-        try {
-            const apiRes = await API.get('/api/learning/greeks');
-            if (Array.isArray(apiRes) && apiRes.length > 0) greeks = apiRes;
-            else greeks = DEFAULT_OPTION_GREEKS;
-        } catch {
-            greeks = DEFAULT_OPTION_GREEKS;
-        }
+        const greeks = await fetchLearningCatalog('/api/learning/greeks', DEFAULT_OPTION_GREEKS);
 
         if (switcherEl) {
             switcherEl.innerHTML = greeks.map(g => {
@@ -796,25 +793,12 @@ async function initGreekDetailPage() {
 
     // Fetch and render markdown
     try {
-        if (contentEl) {
-            contentEl.innerHTML = `
-                <div class="loading-state" style="padding: 40px 20px;">
-                    <div class="spinner"></div>
-                    <p>Loading Greek guide...</p>
-                </div>
-            `;
-        }
+        renderGuideLoadingState(contentEl, 'Loading Greek guide...');
 
-        let res = await fetch(`/descriptions/greeks/${filename}`);
-        if (!res.ok) {
-            // Try fallback path directly under /descriptions/
-            res = await fetch(`/descriptions/${filename}`);
-        }
-        if (!res.ok) {
-            throw new Error(`Option Greek guide "${filename}" not found (HTTP ${res.status})`);
-        }
-
-        const markdownText = await res.text();
+        const markdownText = await fetchFirstAvailableMarkdown(
+            [`/descriptions/greeks/${filename}`, `/descriptions/${filename}`],
+            (status) => `Option Greek guide "${filename}" not found (HTTP ${status})`
+        );
 
         const firstLine = markdownText.split('\n')[0] || '';
         if (firstLine.startsWith('# ')) {
@@ -823,28 +807,16 @@ async function initGreekDetailPage() {
             document.title = `${cleanId.toUpperCase()} — Option Greeks`;
         }
 
-        if (contentEl) {
-            if (typeof renderMarkdown === 'function') {
-                contentEl.innerHTML = renderMarkdown(markdownText);
-            } else if (typeof marked !== 'undefined') {
-                if (typeof initMarkedMath === 'function') initMarkedMath();
-                contentEl.innerHTML = marked.parse(markdownText);
-            } else {
-                contentEl.innerHTML = `<pre style="white-space: pre-wrap; font-family: var(--font-sans);">${escapeAttr(markdownText)}</pre>`;
-            }
-        }
+        renderMarkdownIntoElement(contentEl, markdownText);
     } catch (err) {
         console.error('Failed to load Greek description:', err);
-        if (contentEl) {
-            contentEl.innerHTML = `
-                <div class="empty-state" style="padding: 40px 20px;">
-                    <div class="empty-state-icon text-warning">⚠️</div>
-                    <h3>Greek Guide Not Found</h3>
-                    <p class="text-muted">Could not load documentation for "${escapeAttr(filename)}".</p>
-                    <a href="/option-greeks.html" class="btn btn-primary btn-sm" style="margin-top: 12px;">← Back to Option Greeks</a>
-                </div>
-            `;
-        }
+        renderGuideErrorState(
+            contentEl,
+            'Greek Guide Not Found',
+            `Could not load documentation for "${escapeAttr(filename)}".`,
+            '/option-greeks.html',
+            '← Back to Option Greeks'
+        );
     }
 }
 
@@ -856,97 +828,57 @@ async function initVolatilityPage() {
     if (!contentEl) return;
 
     try {
-        contentEl.innerHTML = `
-            <div class="loading-state" style="padding: 40px 20px;">
-                <div class="spinner"></div>
-                <p>Loading Volatility guide...</p>
-            </div>
-        `;
+        renderGuideLoadingState(contentEl, 'Loading Volatility guide...');
 
-        let res = await fetch('/descriptions/Volatility.md');
-        if (!res.ok) {
-            res = await fetch('/descriptions/volatility.md');
-        }
-        if (!res.ok) {
-            throw new Error(`Volatility guide not found (HTTP ${res.status})`);
-        }
-
-        const markdownText = await res.text();
+        const markdownText = await fetchFirstAvailableMarkdown(
+            ['/descriptions/Volatility.md', '/descriptions/volatility.md'],
+            (status) => `Volatility guide not found (HTTP ${status})`
+        );
 
         const firstLine = markdownText.split('\n')[0] || '';
         if (firstLine.startsWith('# ')) {
             document.title = `${firstLine.substring(2).trim()} — Learning Center`;
         }
 
-        if (typeof renderMarkdown === 'function') {
-            contentEl.innerHTML = renderMarkdown(markdownText);
-        } else if (typeof marked !== 'undefined') {
-            if (typeof initMarkedMath === 'function') initMarkedMath();
-            contentEl.innerHTML = marked.parse(markdownText);
-        } else {
-            contentEl.innerHTML = `<pre style="white-space: pre-wrap; font-family: var(--font-sans);">${escapeAttr(markdownText)}</pre>`;
-        }
+        renderMarkdownIntoElement(contentEl, markdownText);
     } catch (err) {
         console.error('Failed to load volatility guide:', err);
-        contentEl.innerHTML = `
-            <div class="empty-state" style="padding: 40px 20px;">
-                <div class="empty-state-icon text-warning">⚠️</div>
-                <h3>Volatility Guide Not Found</h3>
-                <p class="text-muted">Could not load documentation for Volatility.</p>
-                <a href="/option-strategies.html" class="btn btn-primary btn-sm" style="margin-top: 12px;">← Back to Learning Center</a>
-            </div>
-        `;
+        renderGuideErrorState(
+            contentEl,
+            'Volatility Guide Not Found',
+            'Could not load documentation for Volatility.',
+            '/option-strategies.html',
+            '← Back to Learning Center'
+        );
     }
 }
 
-// Global browser window bindings
+const LEARNING_CENTER_EXPORTS = {
+    DEFAULT_OPTION_STRATEGIES,
+    STRATEGY_TYPE_MAP,
+    renderStrategyCard,
+    filterStrategies,
+    renderFilteredStrategies,
+    setBiasFilter,
+    handleStrategySearch,
+    clearStrategySearch,
+    initOptionStrategiesPage,
+    initStrategyDetailPage,
+    DEFAULT_OPTION_GREEKS,
+    renderGreekCard,
+    filterGreeks,
+    renderFilteredGreeks,
+    setGreekOrderFilter,
+    handleGreekSearch,
+    clearGreekSearch,
+    initOptionGreeksPage,
+    initGreekDetailPage,
+    initVolatilityPage
+};
+
 if (typeof window !== 'undefined') {
-    window.DEFAULT_OPTION_STRATEGIES = DEFAULT_OPTION_STRATEGIES;
-    window.STRATEGY_TYPE_MAP = STRATEGY_TYPE_MAP;
-    window.renderStrategyCard = renderStrategyCard;
-    window.filterStrategies = filterStrategies;
-    window.renderFilteredStrategies = renderFilteredStrategies;
-    window.setBiasFilter = setBiasFilter;
-    window.handleStrategySearch = handleStrategySearch;
-    window.clearStrategySearch = clearStrategySearch;
-    window.initOptionStrategiesPage = initOptionStrategiesPage;
-    window.initStrategyDetailPage = initStrategyDetailPage;
-
-    window.DEFAULT_OPTION_GREEKS = DEFAULT_OPTION_GREEKS;
-    window.renderGreekCard = renderGreekCard;
-    window.filterGreeks = filterGreeks;
-    window.renderFilteredGreeks = renderFilteredGreeks;
-    window.setGreekOrderFilter = setGreekOrderFilter;
-    window.handleGreekSearch = handleGreekSearch;
-    window.clearGreekSearch = clearGreekSearch;
-    window.initOptionGreeksPage = initOptionGreeksPage;
-    window.initGreekDetailPage = initGreekDetailPage;
-    window.initVolatilityPage = initVolatilityPage;
+    Object.assign(window, LEARNING_CENTER_EXPORTS);
 }
-
-// CommonJS Exports
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        DEFAULT_OPTION_STRATEGIES,
-        STRATEGY_TYPE_MAP,
-        renderStrategyCard,
-        filterStrategies,
-        renderFilteredStrategies,
-        setBiasFilter,
-        handleStrategySearch,
-        clearStrategySearch,
-        initOptionStrategiesPage,
-        initStrategyDetailPage,
-
-        DEFAULT_OPTION_GREEKS,
-        renderGreekCard,
-        filterGreeks,
-        renderFilteredGreeks,
-        setGreekOrderFilter,
-        handleGreekSearch,
-        clearGreekSearch,
-        initOptionGreeksPage,
-        initGreekDetailPage,
-        initVolatilityPage
-    };
+    module.exports = LEARNING_CENTER_EXPORTS;
 }

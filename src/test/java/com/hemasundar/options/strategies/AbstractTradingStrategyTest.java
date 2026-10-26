@@ -30,13 +30,13 @@ import static org.mockito.Mockito.*;
 public class AbstractTradingStrategyTest {
 
     private DummyStrategy strategy;
-    
+
     @Mock
     private FinnHubAPIs finnHubAPIs;
-    
+
     @Mock
     private ThinkOrSwimAPIs ThinkOrSwimAPIs;
-    
+
     private AutoCloseable mocks;
 
     // A concrete subclass strictly for testing AbstractTradingStrategy logic
@@ -279,7 +279,7 @@ public class AbstractTradingStrategyTest {
     }
 
     @Test
-    public void testFindTrades_IgnoresEarnings() throws Exception {
+    public void testFindTrades_PullsEarningsEvenWithoutEarningsFilter() throws Exception {
         OptionChainResponse chain = mock(OptionChainResponse.class);
         when(chain.getSymbol()).thenReturn("AAPL");
         when(chain.getExpiryDatesInRange(anyInt(), anyInt(), anyInt())).thenReturn(Arrays.asList("2024-01-01"));
@@ -289,7 +289,26 @@ public class AbstractTradingStrategyTest {
 
         List<TradeSetup> trades = strategy.findTrades(chain, filter);
         assertEquals(1, trades.size());
-        verifyNoInteractions(finnHubAPIs); // Should not even call FinnHub
+        verify(finnHubAPIs).getEarningsByTicker(eq("AAPL"), any(LocalDate.class));
+    }
+
+    @Test
+    public void testFindTrades_PullsEarningsBeforeIVRankFilterRejects() throws Exception {
+        com.hemasundar.services.SupabaseService supabaseService = mock(com.hemasundar.services.SupabaseService.class);
+        when(supabaseService.getIVRank("AAPL")).thenReturn(20.0);
+
+        DummyStrategy customStrategy = new DummyStrategy(finnHubAPIs, ThinkOrSwimAPIs, supabaseService);
+
+        OptionChainResponse chain = mock(OptionChainResponse.class);
+        when(chain.getSymbol()).thenReturn("AAPL");
+
+        OptionsStrategyFilter filter = new OptionsStrategyFilter();
+        filter.setMinIVRank(80.0); // Rejects AAPL (20.0 < 80.0)
+
+        List<TradeSetup> trades = customStrategy.findTrades(chain, filter);
+        assertTrue(trades.isEmpty());
+        // Earnings pull happens before IV Rank filter
+        verify(finnHubAPIs).getEarningsByTicker(eq("AAPL"), any(LocalDate.class));
     }
 
     @Test
@@ -333,7 +352,6 @@ public class AbstractTradingStrategyTest {
 
     @Test
     public void testFindTrades_CrossVolatilityExpression_Passes() throws Exception {
-        com.hemasundar.cache.IVRankCache.getInstance().clear();
         com.hemasundar.cache.TechnicalIndicatorCache.getInstance().clear();
 
         com.hemasundar.services.SupabaseService supabaseService = mock(com.hemasundar.services.SupabaseService.class);
@@ -373,7 +391,6 @@ public class AbstractTradingStrategyTest {
 
     @Test
     public void testFindTrades_CrossVolatilityExpression_Fails() throws Exception {
-        com.hemasundar.cache.IVRankCache.getInstance().clear();
         com.hemasundar.cache.TechnicalIndicatorCache.getInstance().clear();
 
         com.hemasundar.services.SupabaseService supabaseService = mock(com.hemasundar.services.SupabaseService.class);
@@ -405,7 +422,6 @@ public class AbstractTradingStrategyTest {
 
     @Test
     public void testFindTrades_CrossVolatilityExpression_FailOpenWhenDataUnavailable() throws Exception {
-        com.hemasundar.cache.IVRankCache.getInstance().clear();
         com.hemasundar.cache.TechnicalIndicatorCache.getInstance().clear();
 
         com.hemasundar.services.SupabaseService supabaseService = mock(com.hemasundar.services.SupabaseService.class);

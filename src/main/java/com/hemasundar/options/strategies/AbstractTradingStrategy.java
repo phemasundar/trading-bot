@@ -2,7 +2,6 @@ package com.hemasundar.options.strategies;
 
 import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.apis.ThinkOrSwimAPIs;
-import com.hemasundar.cache.IVRankCache;
 import com.hemasundar.cache.PriceHistoryCache;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionChainResponse.ExpirationDateKey;
@@ -17,6 +16,7 @@ import com.hemasundar.technical.MathExpression;
 import com.hemasundar.technical.MathExpressionEvaluator;
 import com.hemasundar.options.models.OptionFilterValueResolver;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -50,6 +50,15 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
     public List<TradeSetup> findTrades(OptionChainResponse chain, OptionsStrategyFilter filter) {
         String strategyName = getStrategyName(filter);
         String symbol = chain.getSymbol();
+
+        // ── Upfront Earnings Pull (before any filter stage, irrespective of earningsFilters) ──
+        if (finnHubAPIs != null && StringUtils.isNotBlank(symbol)) {
+            try {
+                finnHubAPIs.getEarningsByTicker(symbol, LocalDate.now().plusYears(1));
+            } catch (Exception e) {
+                log.error("[{}] Error fetching upfront earnings data: {}", symbol, e.getMessage());
+            }
+        }
 
         // ── Track C: Fire IV Rank + IV Percentile in parallel ──
         CompletableFuture<Double> ivRankFuture = CompletableFuture
@@ -223,7 +232,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
      * Uses the unique strategyId if available in the filter, otherwise falls back to StrategyType display name.
      */
     public String getStrategyName(OptionsStrategyFilter filter) {
-        if (filter != null && org.apache.commons.lang3.StringUtils.isNotBlank(filter.getStrategyId())) {
+        if (filter != null && StringUtils.isNotBlank(filter.getStrategyId())) {
             return filter.getStrategyId();
         }
         return getStrategyName();
@@ -390,7 +399,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
         if (legFilter == null || CollectionUtils.isEmpty(legFilter.getFilterExpressions())) {
             return pipeline;
         }
-        String prefix = org.apache.commons.lang3.StringUtils.isNotBlank(legFilter.getLegName())
+        String prefix = StringUtils.isNotBlank(legFilter.getLegName())
                 ? legFilter.getLegName() : defaultLegName;
 
         for (MathExpression expr : legFilter.getFilterExpressions()) {
@@ -398,7 +407,7 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             String stepName;
             if (left != null && left.contains(".")) {
                 stepName = expr.toString();
-            } else if (org.apache.commons.lang3.StringUtils.isNotBlank(prefix)) {
+            } else if (StringUtils.isNotBlank(prefix)) {
                 stepName = prefix + "." + expr.toString();
             } else {
                 stepName = expr.toString();
@@ -453,26 +462,19 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
 
 
     /**
-     * Resolves the IV Rank for a symbol, using the per-execution {@link IVRankCache}.
+     * Resolves the IV Rank for a symbol using Supabase and its internal cache.
      *
-     * <p>If the value has already been fetched this run it is returned from cache.
-     * If Supabase is disabled, or if an error occurs, {@code null} is returned (fail-open).
+     * <p>If Supabase is disabled, or if an error occurs, {@code null} is returned (fail-open).
      *
      * @param symbol stock ticker
      * @return IV Rank in [0, 100], or {@code null} if unavailable
      */
     protected Double resolveIVRank(String symbol) {
-        IVRankCache cache = IVRankCache.getInstance();
-        if (cache.isCached(symbol)) {
-            return cache.get(symbol).orElse(null);
-        }
         if (supabaseService.isEmpty()) {
-            cache.put(symbol, null);
             return null;
         }
         try {
             Double rank = supabaseService.get().getIVRank(symbol);
-            cache.put(symbol, rank);
             if (rank != null) {
                 log.debug("[{}] Fetched IV Rank: {:.1f}%", symbol, rank);
             } else {
@@ -481,32 +483,24 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             return rank;
         } catch (Exception e) {
             log.error("[{}] Error fetching IV Rank: {}, allowing trade (fail-open)", symbol, e.getMessage());
-            cache.put(symbol, null);
             return null;
         }
     }
 
     /**
-     * Resolves the IV Percentile for a symbol, using the per-execution {@link IVRankCache}.
+     * Resolves the IV Percentile for a symbol using Supabase and its internal cache.
      *
-     * <p>If the value has already been fetched this run it is returned from cache.
-     * If Supabase is disabled, or if an error occurs, {@code null} is returned (fail-open).
+     * <p>If Supabase is disabled, or if an error occurs, {@code null} is returned (fail-open).
      *
      * @param symbol stock ticker
      * @return IV Percentile in [0, 100], or {@code null} if unavailable
      */
     protected Double resolveIVPercentile(String symbol) {
-        IVRankCache cache = IVRankCache.getInstance();
-        if (cache.isPercentileCached(symbol)) {
-            return cache.getPercentile(symbol).orElse(null);
-        }
         if (supabaseService.isEmpty()) {
-            cache.putPercentile(symbol, null);
             return null;
         }
         try {
             Double percentile = supabaseService.get().getIVPercentile(symbol);
-            cache.putPercentile(symbol, percentile);
             if (percentile != null) {
                 log.debug("[{}] Fetched IV Percentile: {:.1f}%", symbol, percentile);
             } else {
@@ -515,7 +509,6 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             return percentile;
         } catch (Exception e) {
             log.error("[{}] Error fetching IV Percentile: {}, allowing trade (fail-open)", symbol, e.getMessage());
-            cache.putPercentile(symbol, null);
             return null;
         }
     }

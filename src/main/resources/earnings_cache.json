@@ -3882,20 +3882,6 @@
         "year" : 2026
       } ]
     },
-    "TEST_TICKER" : {
-      "lastFetched" : "2026-08-02",
-      "earnings" : [ {
-        "date" : "2026-08-07",
-        "epsActual" : null,
-        "epsEstimate" : null,
-        "hour" : null,
-        "quarter" : null,
-        "revenueActual" : null,
-        "revenueEstimate" : null,
-        "symbol" : "TEST_TICKER",
-        "year" : null
-      } ]
-    },
     "DASH" : {
       "lastFetched" : "2026-07-28",
       "earnings" : [ {
@@ -3939,10 +3925,6 @@
         "symbol" : "DASH",
         "year" : 2026
       } ]
-    },
-    "STALE_TICKER" : {
-      "lastFetched" : "2026-06-23",
-      "earnings" : [ ]
     },
     "RKLB" : {
       "lastFetched" : "2026-07-18",

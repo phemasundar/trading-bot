@@ -23,6 +23,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -182,6 +183,9 @@ public class StrategyExecutionService {
 
         try {
             log.info("Starting execution: {}", executionId);
+            if (supabaseService != null) {
+                supabaseService.clearIVStatsCache();
+            }
 
             // Load all enabled strategies
             List<OptionsConfig> allStrategies = getEnabledStrategies();
@@ -273,15 +277,6 @@ public class StrategyExecutionService {
                     .telegramSent(true) // Telegram is sent during strategy execution
                     .build();
 
-            // Save to Supabase
-            try {
-                supabaseService.saveExecutionResult(executionResult);
-                log.debug("Saved execution result to Supabase: {}", executionId);
-            } catch (IOException e) {
-                addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE,
-                        AlertMessages.SAVE_EXEC_RESULT_FAILED + " (" + e.getMessage() + ")");
-            }
-
             // Print cache statistics
             cache.printStats();
 
@@ -346,6 +341,9 @@ public class StrategyExecutionService {
 
         try {
             log.info("Starting custom execution batch: {} ({} strategies)", executionId, configs.size());
+            if (supabaseService != null) {
+                supabaseService.clearIVStatsCache();
+            }
 
             OptionChainCache cache = new OptionChainCache(ThinkOrSwimAPIs);
 
@@ -459,6 +457,9 @@ public class StrategyExecutionService {
                 ? config.getSecurities().stream().distinct().collect(Collectors.toList())
                 : Collections.emptyList();
 
+        // Pull earnings upfront for every symbol before any pipeline filter, irrespective of earningsFilters
+        pullEarningsForSymbols(securities, false);
+
         Map<String, TechnicalScreener.ScreeningResult> techResultsMap = new HashMap<>();
 
         // Apply technical filter if configured
@@ -565,6 +566,38 @@ public class StrategyExecutionService {
     }
 
     /**
+     * Pulls earnings data for the provided symbols. When {@code forceRefresh} is true,
+     * bypasses the local cache age check to fetch fresh data for all symbols.
+     *
+     * @param symbols      list of stock symbols
+     * @param forceRefresh true to force an API call regardless of cache age
+     */
+    public void pullEarningsForSymbols(List<String> symbols, boolean forceRefresh) {
+        if (finnHubAPIs == null || CollectionUtils.isEmpty(symbols)) {
+            return;
+        }
+        LocalDate oneYearAhead = LocalDate.now().plusYears(1);
+        for (int i = 0; i < symbols.size(); i++) {
+            if (cancellationRequested.get() || authFailed.get()) {
+                break;
+            }
+            String symbol = symbols.get(i);
+            if (forceRefresh) {
+                setCurrentExecutionTask(String.format("Refreshing Earnings: %s (%d/%d)", symbol, i + 1, symbols.size()));
+            }
+            try {
+                if (forceRefresh) {
+                    finnHubAPIs.getEarningsByTicker(symbol, oneYearAhead, true);
+                } else {
+                    finnHubAPIs.getEarningsByTicker(symbol, oneYearAhead);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to pull earnings for {}: {}", symbol, e.getMessage());
+            }
+        }
+    }
+
+    /**
      * Finds trades for a strategy across all symbols.
      * Extracted from SampleTestNG.findTradesForStrategy()
      */
@@ -642,18 +675,6 @@ public class StrategyExecutionService {
         }
 
         return allTrades;
-    }
-
-    /**
-     * Retrieves the latest execution result from Supabase.
-     */
-    public Optional<ExecutionResult> getLatestExecutionResult() {
-        try {
-            return supabaseService.getLatestExecutionResult();
-        } catch (IOException e) {
-            log.error("Failed to retrieve latest execution result: {}", e.getMessage());
-            return Optional.empty();
-        }
     }
 
     /**

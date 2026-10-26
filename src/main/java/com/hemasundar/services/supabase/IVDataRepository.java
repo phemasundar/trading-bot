@@ -1,22 +1,29 @@
 package com.hemasundar.services.supabase;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.hemasundar.pojos.IVDataPoint;
 import io.restassured.response.Response;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.ListUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -27,54 +34,93 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class IVDataRepository {
     private static final String IV_DATA_PATH = "/rest/v1/iv_data";
+    private static final String IV_STATS_BULK_RPC_PATH = "/rest/v1/rpc/get_iv_stats_bulk";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
-    private static final int MIN_RECORDS_REQUIRED = 20;
+    private static final int BATCH_SIZE = 500;
 
     private final SupabaseClient client;
-    private final Map<String, Map<String, Object>> ivStatsCache = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, Map<String, Object>> ivStatsCache = new ConcurrentHashMap<>();
 
     /**
-     * Upserts (inserts or updates) IV data point to Supabase.
-     * Uses PostgreSQL's ON CONFLICT to update if entry exists for same symbol and
-     * date.
+     * Upserts a single IV data point to Supabase by delegating to {@link #upsertIVDataBatch(List)}.
      *
      * @param dataPoint IV data point to upsert
-     * @throws IOException if API call fails after retries
+     * @throws IOException if API call fails
      */
     public void upsertIVData(IVDataPoint dataPoint) throws IOException {
-        String symbol = dataPoint.getSymbol();
-        String date = dataPoint.getCurrentDate().format(DATE_FORMATTER);
-        String jsonPayload = buildJsonPayload(dataPoint);
+        if (dataPoint != null) {
+            upsertIVDataBatch(Collections.singletonList(dataPoint));
+        }
+    }
+
+    /**
+     * Upserts a batch of IV data points to Supabase in chunks of 500 records.
+     * Uses PostgreSQL's ON CONFLICT to update if entry exists for same symbol and date.
+     * All JSON objects contain uniform keys to satisfy PostgREST batch constraints.
+     *
+     * @param dataPoints list of IV data points to upsert
+     * @throws IOException if API call fails after retries
+     */
+    public void upsertIVDataBatch(List<IVDataPoint> dataPoints) throws IOException {
+        if (CollectionUtils.isEmpty(dataPoints)) {
+            return;
+        }
+
         String url = client.getUrl(IV_DATA_PATH + "?on_conflict=symbol,date");
 
+        for (List<IVDataPoint> chunk : ListUtils.partition(dataPoints, BATCH_SIZE)) {
+            ArrayNode arrayNode = client.getObjectMapper().createArrayNode();
+            for (IVDataPoint dp : chunk) {
+                if (dp == null || StringUtils.isBlank(dp.getSymbol())) continue;
+                ObjectNode node = client.getObjectMapper().createObjectNode();
+                node.put("symbol", dp.getSymbol().toUpperCase());
+                node.put("date", dp.getCurrentDate().format(DATE_FORMATTER));
+                node.put("strike", dp.getStrike());
+                node.put("dte", dp.getDte());
+                node.put("expiry_date", dp.getExpiryDate());
+                node.put("put_iv", dp.getAtmPutIV());
+                node.put("call_iv", dp.getAtmCallIV());
+                node.put("underlying_price", dp.getUnderlyingPrice());
+                arrayNode.add(node);
+            }
+
+            if (arrayNode.isEmpty()) continue;
+
+            String jsonPayload = client.getObjectMapper().writeValueAsString(arrayNode);
+            sendUpsertBatchWithRetry(url, jsonPayload, chunk);
+        }
+    }
+
+    private void sendUpsertBatchWithRetry(String url, String jsonPayload, List<IVDataPoint> batch) throws IOException {
         int maxRetries = 3;
         int retryCount = 0;
 
         while (retryCount <= maxRetries) {
             try {
                 Response response = client.request()
-                        .header("Prefer", "resolution=merge-duplicates") // UPSERT behavior
+                        .header("Prefer", "resolution=merge-duplicates,return=minimal")
                         .body(jsonPayload)
                         .post(url);
 
                 int statusCode = response.getStatusCode();
 
                 if (statusCode == 200 || statusCode == 201) {
-                    ivStatsCache.remove(symbol.toUpperCase());
-                    log.debug("[{}] Successfully upserted IV data for {} - PUT: {}%, CALL: {}%",
-                            symbol, date, dataPoint.getAtmPutIV(), dataPoint.getAtmCallIV());
-                    return; // Success
+                    for (IVDataPoint dp : batch) {
+                        if (dp != null && dp.getSymbol() != null) {
+                            ivStatsCache.remove(dp.getSymbol().toUpperCase());
+                        }
+                    }
+                    log.debug("Successfully upserted {} IV records to Supabase", batch.size());
+                    return;
                 } else if (statusCode == 429 && retryCount < maxRetries) {
                     retryCount++;
                     long waitTime = (long) Math.pow(2, retryCount) * 1000;
-                    log.warn("[{}] Rate limit exceeded (429), retry {}/{} after {}ms",
-                            symbol, retryCount, maxRetries, waitTime);
+                    log.warn("Rate limit exceeded (429), retry {}/{} after {}ms", retryCount, maxRetries, waitTime);
                     Thread.sleep(waitTime);
                 } else {
-                    String errorBody = response.getBody().asString();
-                    throw new IOException(String.format(
-                            "[%s] Supabase API error: %d - %s. Body: %s",
-                            symbol, statusCode, response.getStatusLine(), errorBody));
+                    String errorBody = response.getBody() != null ? response.getBody().asString() : "";
+                    throw new IOException(String.format("Supabase API error: %d - %s. Body: %s",
+                            statusCode, response.getStatusLine(), errorBody));
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -83,243 +129,65 @@ public class IVDataRepository {
                 if (e instanceof IOException) {
                     throw (IOException) e;
                 }
-                throw new IOException("Failed to upsert data: " + e.getMessage(), e);
+                throw new IOException("Failed to upsert IV batch: " + e.getMessage(), e);
             }
         }
 
-        throw new IOException(String.format("[%s] Failed to upsert data after %d retries", symbol, maxRetries));
-    }
-
-    private String buildJsonPayload(IVDataPoint dataPoint) {
-        return String.format(
-                "{\"symbol\":\"%s\",\"date\":\"%s\",\"strike\":%s,\"dte\":%d,\"expiry_date\":\"%s\",\"put_iv\":%s,\"call_iv\":%s,\"underlying_price\":%s}",
-                dataPoint.getSymbol(),
-                dataPoint.getCurrentDate().format(DATE_FORMATTER),
-                dataPoint.getStrike(),
-                dataPoint.getDte(),
-                dataPoint.getExpiryDate(),
-                dataPoint.getAtmPutIV(),
-                dataPoint.getAtmCallIV(),
-                dataPoint.getUnderlyingPrice());
+        throw new IOException(String.format("Failed to upsert IV batch of %d items after %d retries", batch.size(), maxRetries));
     }
 
     /**
-     * Computes the IV Rank for a symbol using up to 1 year of historical data from
-     * Supabase.
-     *
-     * <p>
-     * IV Rank = (current_iv - min_iv) / (max_iv - min_iv) * 100
-     * where {@code current_iv} is the average of the most recent row's put_iv and
-     * call_iv.
-     *
-     * <p>
-     * Returns {@code null} (fail-open) when fewer than 20 records exist for the
-     * symbol,
-     * meaning the filter should be skipped for that symbol.
+     * Computes the IV Rank for a symbol using the PostgreSQL get_iv_stats_bulk RPC.
      *
      * @param symbol stock ticker
-     * @return IV Rank in range [0, 100], or {@code null} if data is insufficient
+     * @return IV Rank in range [0, 100], or {@code null} if data is insufficient (< 20 records)
      * @throws IOException if the Supabase API call fails
      */
     public Double getIVRank(String symbol) throws IOException {
-        List<Map<String, Object>> rows = fetchIVRows(symbol);
-        if (rows == null)
-            return null;
-
-        double currentIV = toAvgIV(rows.get(0), symbol);
-        List<Map<String, Object>> historicalRows = getHistoricalBaseline(rows);
-        if (historicalRows.size() < MIN_RECORDS_REQUIRED) {
-            return null;
+        Map<String, Object> stats = getIVStats(symbol);
+        if (stats.get("ivRank") instanceof Number num) {
+            return num.doubleValue();
         }
-
-        double minIV = currentIV;
-        double maxIV = currentIV;
-        for (Map<String, Object> row : historicalRows) {
-            double avg = toAvgIV(row, symbol);
-            if (avg < minIV)
-                minIV = avg;
-            if (avg > maxIV)
-                maxIV = avg;
-        }
-
-        if (maxIV == minIV) {
-            log.debug("[{}] IV range is zero (all values = {}), returning IV Rank = 0", symbol, currentIV);
-            return 0.0;
-        }
-
-        double ivRank = (currentIV - minIV) / (maxIV - minIV) * 100.0;
-        log.debug("[{}] IV Rank = {:.1f}% (current={}, min={}, max={}, {} records)",
-                symbol, ivRank, currentIV, minIV, maxIV, historicalRows.size());
-        return ivRank;
+        return null;
     }
 
     /**
-     * Computes the IV Percentile for a symbol using up to 1 year of historical data
-     * from Supabase.
-     *
-     * <p>
-     * IV Percentile = (number of historical days where avgIV &lt; currentIV) /
-     * totalDays * 100.
-     * Unlike IV Rank, this metric is not distorted by a single outlier spike
-     * because it counts
-     * frequency rather than measuring distance from the absolute high/low.
-     *
-     * <p>
-     * Returns {@code null} (fail-open) when fewer than 20 records exist.
+     * Computes the IV Percentile for a symbol using the PostgreSQL get_iv_stats_bulk RPC.
      *
      * @param symbol stock ticker
-     * @return IV Percentile in range [0, 100], or {@code null} if data is
-     *         insufficient
+     * @return IV Percentile in range [0, 100], or {@code null} if data is insufficient (< 20 records)
      * @throws IOException if the Supabase API call fails
      */
     public Double getIVPercentile(String symbol) throws IOException {
-        List<Map<String, Object>> rows = fetchIVRows(symbol);
-        if (rows == null)
-            return null;
-
-        double currentIV = toAvgIV(rows.get(0), symbol);
-        List<Map<String, Object>> historicalRows = getHistoricalBaseline(rows);
-        if (historicalRows.size() < MIN_RECORDS_REQUIRED) {
-            return null;
+        Map<String, Object> stats = getIVStats(symbol);
+        if (stats.get("ivPercentile") instanceof Number num) {
+            return num.doubleValue();
         }
-
-        long daysBelow = historicalRows.stream()
-                .filter(row -> toAvgIV(row, symbol) < currentIV)
-                .count();
-
-        double ivPercentile = (double) daysBelow / historicalRows.size() * 100.0;
-        log.debug("[{}] IV Percentile = {:.1f}% ({} of {} days below current IV {})",
-                symbol, ivPercentile, daysBelow, historicalRows.size(), currentIV);
-        return ivPercentile;
-    }
-
-    /**
-     * Fetches up to 1 year of IV rows for a symbol from Supabase, ordered
-     * newest-first.
-     * Returns {@code null} (fail-open) when fewer than 20 records exist.
-     *
-     * @param symbol stock ticker
-     * @return list of rows, or {@code null} if insufficient data
-     * @throws IOException if the Supabase API call fails
-     */
-    private List<Map<String, Object>> fetchIVRows(String symbol) throws IOException {
-        String oneYearAgo = LocalDate.now().minusYears(1).format(DATE_FORMATTER);
-        String url = client.getUrl(
-                IV_DATA_PATH
-                        + "?select=date,put_iv,call_iv"
-                        + "&symbol=eq." + symbol
-                        + "&date=gte." + oneYearAgo
-                        + "&order=date.desc");
-
-        Response response = client.request().get(url);
-        if (response.getStatusCode() != 200) {
-            throw new IOException(String.format(
-                    "[%s] IV data query failed: %d - %s",
-                    symbol, response.getStatusCode(), response.getStatusLine()));
-        }
-
-        List<Map<String, Object>> rows;
-        try {
-            rows = client.getObjectMapper().readValue(
-                    response.getBody().asString(),
-                    new TypeReference<List<Map<String, Object>>>() {
-                    });
-        } catch (Exception e) {
-            throw new IOException("[" + symbol + "] Failed to parse IV data response: " + e.getMessage(), e);
-        }
-
-        if (rows == null || rows.size() < MIN_RECORDS_REQUIRED) {
-            log.debug("[{}] Insufficient IV data ({} records, min required {}) — skipping filter",
-                    symbol, rows == null ? 0 : rows.size(), MIN_RECORDS_REQUIRED);
-            return null;
-        }
-        return rows;
-    }
-
-    /**
-     * Extracts the average IV from a row map (average of put_iv and call_iv).
-     * Falls back to whichever field is non-null; returns 0.0 if both are null.
-     */
-    private double toAvgIV(Map<String, Object> row, String symbol) {
-        Object putIVObj = row.get("put_iv");
-        Object callIVObj = row.get("call_iv");
-        double putIV = putIVObj != null ? ((Number) putIVObj).doubleValue() : 0.0;
-        double callIV = callIVObj != null ? ((Number) callIVObj).doubleValue() : 0.0;
-        if (putIVObj == null && callIVObj == null) {
-            log.debug("[{}] Row has null put_iv and call_iv, treating avg IV as 0", symbol);
-            return 0.0;
-        }
-        if (putIVObj == null)
-            return callIV;
-        if (callIVObj == null)
-            return putIV;
-        return (putIV + callIV) / 2.0;
-    }
-
-    /**
-     * Extracts the trailing historical baseline (excluding today's row) capped at 252 trading days.
-     * Commercial platforms evaluate IV metrics on a rolling 252-day window (1 calendar year of market sessions).
-     */
-    private List<Map<String, Object>> getHistoricalBaseline(List<Map<String, Object>> rows) {
-        // rows is ordered newest-first; rows.get(0) is today's observation
-        return rows.subList(1, Math.min(rows.size(), 253));
+        return null;
     }
 
     /**
      * Returns a map of IV statistics for a symbol over the past 1 year:
-     * {@code minIV}, {@code maxIV}, {@code currentIV}, {@code recordCount}, and
-     * {@code ivPercentile}.
-     *
-     * <p>
-     * Returns {@code null} when fewer than 20 records exist (fail-open).
+     * {@code currentIV}, {@code minIV}, {@code maxIV}, {@code ivPercentile}, {@code ivRank},
+     * and {@code recordCount}.
      *
      * @param symbol stock ticker
-     * @return map of stats, or {@code null} if data is insufficient
+     * @return map of stats, or empty map if data is insufficient
      * @throws IOException if the Supabase API call fails
      */
     public Map<String, Object> getIVStats(String symbol) throws IOException {
-        if (symbol == null) return null;
-        String symUpper = symbol.toUpperCase();
+        if (StringUtils.isBlank(symbol)) {
+            return Collections.emptyMap();
+        }
+        String symUpper = symbol.trim().toUpperCase();
+
         Map<String, Object> cached = ivStatsCache.get(symUpper);
         if (cached != null) {
             return cached;
         }
 
-        List<Map<String, Object>> rows = fetchIVRows(symbol);
-        if (rows == null)
-            return null;
-
-        double currentIV = toAvgIV(rows.get(0), symbol);
-        List<Map<String, Object>> historicalRows = getHistoricalBaseline(rows);
-        if (historicalRows.size() < MIN_RECORDS_REQUIRED) {
-            return null;
-        }
-
-        double minIV = currentIV;
-        double maxIV = currentIV;
-        for (Map<String, Object> row : historicalRows) {
-            double avg = toAvgIV(row, symbol);
-            if (avg < minIV)
-                minIV = avg;
-            if (avg > maxIV)
-                maxIV = avg;
-        }
-
-        long daysBelow = historicalRows.stream()
-                .filter(row -> toAvgIV(row, symbol) < currentIV)
-                .count();
-        double ivPercentile = (double) daysBelow / historicalRows.size() * 100.0;
-        double ivRank = (maxIV > minIV) ? ((currentIV - minIV) / (maxIV - minIV) * 100.0) : 0.0;
-
-        Map<String, Object> stats = new java.util.LinkedHashMap<>();
-        stats.put("currentIV", Math.round(currentIV * 100.0) / 100.0);
-        stats.put("minIV", Math.round(minIV * 100.0) / 100.0);
-        stats.put("maxIV", Math.round(maxIV * 100.0) / 100.0);
-        stats.put("ivPercentile", Math.round(ivPercentile * 10.0) / 10.0);
-        stats.put("ivRank", Math.round(ivRank * 10.0) / 10.0);
-        stats.put("recordCount", historicalRows.size());
-        ivStatsCache.put(symUpper, stats);
-        return stats;
+        Map<String, Map<String, Object>> result = getIVStatsForSymbols(Collections.singletonList(symUpper));
+        return result.getOrDefault(symUpper, Collections.emptyMap());
     }
 
     /**
@@ -327,10 +195,21 @@ public class IVDataRepository {
      */
     public void clearIVStatsCache() {
         ivStatsCache.clear();
+        log.debug("IV stats cache cleared");
     }
 
     /**
-     * Computes IV statistics for multiple symbols in parallel.
+     * Preloads IV statistics for a collection of symbols into memory using bulk RPC.
+     *
+     * @param symbols collection of stock tickers
+     */
+    public void preloadIVStats(Collection<String> symbols) {
+        getIVStatsForSymbols(symbols);
+    }
+
+    /**
+     * Computes IV statistics for multiple symbols in a single bulk RPC request to Supabase.
+     * Results are cached in memory for subsequent single or multi-symbol lookups.
      *
      * @param symbols collection of stock tickers
      * @return map of uppercase symbol to IV stats map
@@ -339,19 +218,78 @@ public class IVDataRepository {
         if (CollectionUtils.isEmpty(symbols)) {
             return Collections.emptyMap();
         }
-        return symbols.parallelStream()
-                .map(symbol -> {
-                    try {
-                        Map<String, Object> stats = getIVStats(symbol);
-                        if (stats != null) {
-                            return Map.entry(symbol.toUpperCase(), stats);
-                        }
-                    } catch (Exception e) {
-                        log.debug("[{}] Unable to fetch IV stats: {}", symbol, e.getMessage());
-                    }
-                    return null;
-                })
+
+        List<String> uncached = symbols.stream()
                 .filter(Objects::nonNull)
-                .collect(Collectors.toConcurrentMap(Map.Entry::getKey, Map.Entry::getValue));
+                .map(String::trim)
+                .filter(StringUtils::isNotBlank)
+                .map(String::toUpperCase)
+                .distinct()
+                .filter(sym -> !ivStatsCache.containsKey(sym))
+                .collect(Collectors.toList());
+
+        if (!uncached.isEmpty()) {
+            for (List<String> chunk : ListUtils.partition(uncached, BATCH_SIZE)) {
+                fetchAndCacheBulkIVStats(chunk);
+            }
+        }
+
+        Map<String, Map<String, Object>> results = new LinkedHashMap<>();
+        for (String sym : symbols) {
+            if (StringUtils.isNotBlank(sym)) {
+                String upper = sym.trim().toUpperCase();
+                Map<String, Object> stats = ivStatsCache.get(upper);
+                if (stats != null && !stats.isEmpty()) {
+                    results.put(upper, stats);
+                }
+            }
+        }
+        return results;
+    }
+
+    private void fetchAndCacheBulkIVStats(List<String> symbols) {
+        try {
+            String url = client.getUrl(IV_STATS_BULK_RPC_PATH);
+            ObjectNode requestBody = client.getObjectMapper().createObjectNode();
+            ArrayNode symbolsNode = requestBody.putArray("p_symbols");
+            symbols.forEach(symbolsNode::add);
+
+            String payload = client.getObjectMapper().writeValueAsString(requestBody);
+            Response response = client.request()
+                    .body(payload)
+                    .post(url);
+
+            if (response.getStatusCode() == 200) {
+                String body = response.getBody().asString();
+                JsonNode arrayNode = client.getObjectMapper().readTree(body);
+
+                if (arrayNode.isArray()) {
+                    for (JsonNode item : arrayNode) {
+                        String sym = item.hasNonNull("symbol") ? item.get("symbol").asText().toUpperCase() : null;
+                        if (sym == null) continue;
+
+                        Map<String, Object> stats = new LinkedHashMap<>();
+                        if (item.hasNonNull("current_iv")) stats.put("currentIV", item.get("current_iv").asDouble());
+                        if (item.hasNonNull("min_iv")) stats.put("minIV", item.get("min_iv").asDouble());
+                        if (item.hasNonNull("max_iv")) stats.put("maxIV", item.get("max_iv").asDouble());
+                        if (item.hasNonNull("iv_percentile")) stats.put("ivPercentile", item.get("iv_percentile").asDouble());
+                        if (item.hasNonNull("iv_rank")) stats.put("ivRank", item.get("iv_rank").asDouble());
+                        if (item.hasNonNull("record_count")) stats.put("recordCount", item.get("record_count").asInt());
+
+                        ivStatsCache.put(sym, stats);
+                    }
+                    // Negative caching: mark requested symbols that have < 20 records (absent from RPC response)
+                    for (String sym : symbols) {
+                        ivStatsCache.putIfAbsent(sym, Collections.emptyMap());
+                    }
+                    log.debug("Successfully retrieved bulk IV stats for {} symbols via RPC", arrayNode.size());
+                }
+            } else {
+                log.error("Failed to fetch bulk IV stats from Supabase RPC: {} - {}",
+                        response.getStatusCode(), response.getStatusLine());
+            }
+        } catch (Exception e) {
+            log.error("Exception fetching bulk IV stats via RPC: {}", e.getMessage(), e);
+        }
     }
 }

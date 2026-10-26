@@ -4,24 +4,129 @@
  */
 
 let _calEvents = {};
+let _calLastUpdated = null;
 let _calCurrentDate = new Date();
 let _calSelectedDate = null;
+let _calRefreshPollTimer = null;
 
 const MONTH_NAMES = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-async function initEarningsCalendar() {
+async function initEarningsCalendar(preserveMonth = false) {
+    let res = null;
     try {
-        const res = await API.get('/api/earnings-calendar');
+        res = await API.get('/api/earnings-calendar');
         _calEvents = res.events || {};
+        _calLastUpdated = res.lastUpdated || null;
     } catch (e) {
         console.error('Failed to load earnings calendar:', e);
         _calEvents = {};
+        _calLastUpdated = null;
     }
-    _calCurrentDate = new Date();
+    renderLastPulled(_calLastUpdated);
+    if (!preserveMonth) {
+        _calCurrentDate = new Date();
+    }
     renderCalendar();
+
+    if (preserveMonth && _calSelectedDate) {
+        const parts = _calSelectedDate.split('-').map(Number);
+        if (parts.length === 3) {
+            onDayClick(_calSelectedDate, new Date(parts[0], parts[1] - 1, parts[2]));
+        }
+    }
+
+    const btn = document.getElementById('cal-refresh-btn');
+    const textEl = document.getElementById('cal-refresh-text');
+    const isSyncing = Boolean(res && res.refreshing);
+    if (btn) {
+        btn.disabled = isSyncing;
+        btn.classList.toggle('syncing', isSyncing);
+        if (textEl) {
+            textEl.textContent = isSyncing ? (res.currentTask || 'Syncing…') : 'Refresh Earnings';
+        }
+    }
+
+    if (isSyncing) {
+        if (!_calRefreshPollTimer) {
+            _calRefreshPollTimer = setInterval(() => initEarningsCalendar(true), 1500);
+        }
+    } else if (_calRefreshPollTimer) {
+        stopEarningsRefreshPolling();
+        if (typeof showToast === 'function') {
+            showToast('Earnings calendar refreshed for all project stocks', 'success');
+        }
+    }
+}
+
+/**
+ * Triggers a forced earnings refresh for all stocks across all predefined YAML files.
+ */
+async function refreshAllEarnings() {
+    const btn = document.getElementById('cal-refresh-btn');
+    const textEl = document.getElementById('cal-refresh-text');
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('syncing');
+        if (textEl) textEl.textContent = 'Syncing…';
+    }
+    try {
+        const res = await API.post('/api/earnings-calendar/refresh', {});
+        if (res && res.error) {
+            if (btn) {
+                btn.disabled = false;
+                btn.classList.remove('syncing');
+                if (textEl) textEl.textContent = 'Refresh Earnings';
+            }
+            if (typeof showToast === 'function') showToast(res.error, 'error');
+            return;
+        }
+        if (!_calRefreshPollTimer) {
+            _calRefreshPollTimer = setInterval(() => initEarningsCalendar(true), 1500);
+        }
+    } catch (e) {
+        console.error('Failed to refresh earnings calendar:', e);
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('syncing');
+            if (textEl) textEl.textContent = 'Refresh Earnings';
+        }
+        if (typeof showToast === 'function') showToast('Failed to refresh earnings calendar', 'error');
+    }
+}
+
+function stopEarningsRefreshPolling() {
+    if (_calRefreshPollTimer) {
+        clearInterval(_calRefreshPollTimer);
+        _calRefreshPollTimer = null;
+    }
+}
+
+/**
+ * Formats and renders the page-level earnings cache pull timestamp in America/Chicago (CDT/CST).
+ */
+function renderLastPulled(isoStr) {
+    const el = document.getElementById('cal-last-pulled-text');
+    if (!el) return;
+    if (!isoStr || isNaN(new Date(isoStr).getTime())) {
+        el.textContent = 'Last Pulled: —';
+        return;
+    }
+    const formatted = new Date(isoStr).toLocaleString('en-US', {
+        timeZone: 'America/Chicago',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZoneName: 'short'
+    });
+    const age = typeof timeAgo === 'function' ? timeAgo(isoStr) : '';
+    el.textContent = age && age !== 'Unknown'
+        ? `Last Pulled: ${formatted} (${age})`
+        : `Last Pulled: ${formatted}`;
 }
 
 function calNavigate(delta) {
@@ -108,6 +213,9 @@ function createDayCell(date, isOtherMonth, isToday = false) {
             if (ev.hour === 'bmo') chip.classList.add('cal-event-bmo');
             else if (ev.hour === 'amc') chip.classList.add('cal-event-amc');
             chip.textContent = ev.symbol;
+            if (ev.lastFetched) {
+                chip.title = `${ev.symbol} (${(ev.hour || 'TBD').toUpperCase()}) • Pulled: ${formatExpiryDate(ev.lastFetched)}`;
+            }
             eventsDiv.appendChild(chip);
         });
 
@@ -159,12 +267,19 @@ function onDayClick(dateStr, date) {
                     <th>EPS Act.</th>
                     <th>Rev. Est.</th>
                     <th>Rev. Act.</th>
+                    <th>Last Pulled</th>
                 </tr>
             </thead>
             <tbody>`;
         sorted.forEach(ev => {
             const hourBadge = formatHourBadge(ev.hour);
             const quarter = ev.quarter && ev.year ? `Q${ev.quarter} ${ev.year}` : '—';
+            const pulledTs = (ev.lastFetched && ev.lastFetched.length === 10 && _calLastUpdated && _calLastUpdated.startsWith(ev.lastFetched))
+                ? _calLastUpdated
+                : ev.lastFetched;
+            const pulledCell = ev.lastFetched
+                ? `<span class="cal-pulled-date">${escapeAttr(formatExpiryDate(ev.lastFetched))}<span class="cal-pulled-age"> (${escapeAttr(timeAgo(pulledTs))})</span></span>`
+                : '—';
             html += `<tr>
                 <td class="cal-symbol">${escapeAttr(ev.symbol)}</td>
                 <td>${hourBadge}</td>
@@ -173,6 +288,7 @@ function onDayClick(dateStr, date) {
                 <td>${ev.epsActual || '—'}</td>
                 <td>${formatRevenue(ev.revenueEstimate)}</td>
                 <td>${formatRevenue(ev.revenueActual)}</td>
+                <td>${pulledCell}</td>
             </tr>`;
         });
         html += '</tbody></table>';
@@ -198,6 +314,9 @@ if (typeof module !== 'undefined' && module.exports) {
 
     module.exports = {
         initEarningsCalendar,
+        refreshAllEarnings,
+        stopEarningsRefreshPolling,
+        renderLastPulled,
         calNavigate,
         calGoToday,
         renderCalendar,

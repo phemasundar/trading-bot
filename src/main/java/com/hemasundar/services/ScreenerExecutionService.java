@@ -1,6 +1,8 @@
 package com.hemasundar.services;
 
 import com.hemasundar.apis.ThinkOrSwimAPIs;
+import com.hemasundar.cache.PriceHistoryCache;
+import com.hemasundar.cache.QuotesCache;
 import com.hemasundar.config.StrategiesConfigLoader;
 import com.hemasundar.dto.AlertMessages;
 import com.hemasundar.dto.ExecutionAlert;
@@ -10,8 +12,6 @@ import com.hemasundar.utils.SecuritiesResolver;
 import com.hemasundar.utils.TelegramUtils;
 import com.hemasundar.utils.SchwabApiExecutor;
 import com.hemasundar.utils.VolatilityCalculator;
-import com.hemasundar.cache.PriceHistoryCache;
-import com.hemasundar.cache.QuotesCache;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.CollectionUtils;
@@ -131,6 +131,10 @@ public class ScreenerExecutionService {
             return;
         }
 
+        if (supabaseService != null) {
+            supabaseService.clearIVStatsCache();
+        }
+
         // PREWARM CACHE (Parallel Fetch) for all unique symbols
         List<String> allSymbolsToPrewarm = configs.stream()
                 .filter(s -> s.getSecurities() != null)
@@ -179,6 +183,10 @@ public class ScreenerExecutionService {
         if (CollectionUtils.isEmpty(screenerIndices) || allScreeners == null) {
             log.debug("No screener indices provided, skipping technical screeners");
             return;
+        }
+
+        if (supabaseService != null) {
+            supabaseService.clearIVStatsCache();
         }
 
         // Filter to only selected screener indices

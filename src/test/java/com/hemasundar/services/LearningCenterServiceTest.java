@@ -43,11 +43,16 @@ public class LearningCenterServiceTest {
     @Test
     public void testGetOptionStrategies_ExcludesNonOptionScreeners() {
         List<StrategyDescriptionDto> strategies = service.getOptionStrategies();
+        Assert.assertEquals(strategies.size(), 8, "Must return exactly 8 option strategies matching StrategyType");
+
         boolean hasAtrScreener = strategies.stream().anyMatch(s -> "atr_screener".equalsIgnoreCase(s.getId()));
         Assert.assertFalse(hasAtrScreener, "Option strategies list should exclude technical screeners");
 
         boolean hasVolatility = strategies.stream().anyMatch(s -> "volatility".equalsIgnoreCase(s.getId()));
         Assert.assertFalse(hasVolatility, "Option strategies list should exclude educational volatility guides");
+
+        boolean hasTechSpreads = strategies.stream().anyMatch(s -> s.getId().toLowerCase().contains("tech_"));
+        Assert.assertFalse(hasTechSpreads, "Option strategies list must exclude legacy tech spread strategies");
     }
 
     @Test

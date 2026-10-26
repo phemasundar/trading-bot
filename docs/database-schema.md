@@ -1,5 +1,25 @@
 # Database Schema & Supabase Configuration
 
+## Feature: Supabase Disk I/O Budget Optimization & Schema Migration (2026-10-25)
+
+Addressed Supabase Disk I/O budget depletion and database storage growth through comprehensive database schema optimization, RPC computation migration, and application batching.
+
+### 1. Database Size & Index Optimization
+- **Dropped `strategy_executions`**: Dropped redundant, rapidly growing `strategy_executions` table (`CASCADE`), reducing database size from **133 MB to 54 MB** (reclaiming **79 MB / 59.4%** of database storage).
+- **Dropped Redundant Indexes**: Removed duplicate indexes `idx_iv_data_symbol`, `idx_iv_data_symbol_date`, and `idx_hist_trades_hash`.
+- **Created Covering Unique Index**: Replaced default unique constraint with `CREATE UNIQUE INDEX iv_data_symbol_date_cov_uq ON public.iv_data (symbol, date) INCLUDE (put_iv, call_iv);`. This allows all IV queries to execute via PostgreSQL **Index-Only Scan** without touching heap table blocks (buffer reads dropped from 75 blocks to 4 blocks per symbol).
+
+### 2. PostgreSQL Bulk RPC (`get_iv_stats_bulk`)
+- Moved IV statistics calculation (Current IV, Min IV, Max IV, IV Rank, IV Percentile, and Record Count) into PostgreSQL via `public.get_iv_stats_bulk(p_symbols text[])`.
+- At execution start, the bot pre-warms all unique symbols across active strategies and screeners in a single HTTP POST request (`/rest/v1/rpc/get_iv_stats_bulk`). 503 symbols are evaluated in **~579 ms**, completely eliminating individual row fetch queries.
+- Thread-safe memory cache (`IVDataRepository.ivStatsCache`) serves subsequent leg evaluations and dashboard endpoints with zero network latency.
+
+### 3. Batched Inserts & PostgREST Uniform Keys
+- Ingestion job `IVDataJobService` batch-upserts up to 500 records per HTTP request via `upsertIVDataBatch` with automatic 3x exponential backoff retry.
+- All JSON objects in batch payloads emit uniform keys (with `putNull` for null attributes) to prevent PostgREST `HTTP 400 (All object keys must match)` errors.
+
+---
+
 ## Feature: Latest Trade Upsert for Historical Trades Table (2026-08-16)
 
 Updated strategy historical trade persistence to save and retain the **latest** trade opportunity details (such as current underlying price, return on risk, net credit, and execution timestamp) when identical trade setups are scanned multiple times on the same day (e.g. morning vs. evening runs).

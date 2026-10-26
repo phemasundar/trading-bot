@@ -17,7 +17,7 @@ flowchart TD
     Collector --> Repo[IVDataRepository<br>Upsert into public.iv_data]
     Repo --> Supabase[(Supabase DB<br>public.iv_data table)]
     
-    Supabase --> Cache[IVRankCache<br>Per-Execution Thread-Safe Cache]
+    Supabase --> Cache[IVDataRepository<br>In-Memory ivStatsCache]
     Cache --> Strategy[AbstractTradingStrategy<br>Parallel Track C Evaluation]
     Strategy --> Filters{Passes min/max<br>IV Rank & Percentile?}
     Filters -- Yes --> Trades[Execute Trade Setup]
@@ -87,30 +87,39 @@ The constant-maturity variance method accurately accounts for the greater total 
 
 ### Implementation Details ([IVDataRepository.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java))
 
-#### Step 1: Historical Data Fetch
-Fetches up to 1 year of historical daily IV records from Supabase:
+#### High-Performance PostgreSQL RPC Architecture
+IV metrics are calculated directly inside PostgreSQL via the stored procedure `public.get_iv_stats_bulk(p_symbols text[])`, backed by the covering unique index `iv_data_symbol_date_cov_uq (symbol, date) INCLUDE (put_iv, call_iv)`. This eliminates row serialization over HTTP and enables 100% Index-Only Scans with zero heap lookups.
+
+At execution startup, the application bulk pre-warms IV statistics for all unique symbols across active strategies and screeners in a single HTTP POST request, caching them in-memory (`ivStatsCache`).
+
+#### PostgreSQL Function Logic (`get_iv_stats_bulk`):
 ```sql
-SELECT date, put_iv, call_iv 
-FROM public.iv_data 
-WHERE symbol = :symbol 
-  AND date >= CURRENT_DATE - INTERVAL '1 year' 
-ORDER BY date DESC;
+CREATE OR REPLACE FUNCTION public.get_iv_stats_bulk(p_symbols text[])
+RETURNS TABLE(
+    symbol text,
+    current_iv numeric,
+    min_iv numeric,
+    max_iv numeric,
+    iv_percentile numeric,
+    iv_rank numeric,
+    record_count integer
+) LANGUAGE plpgsql STABLE AS $$
+...
+-- Daily average IV normalization:
+avg_iv = (COALESCE(put_iv, call_iv) + COALESCE(call_iv, put_iv)) / 2.0
+-- Historical baseline:
+-- Excludes today's observation (rn > 1) and caps at 252 trading days (rn <= 253)
+-- Requires >= 20 historical records to eliminate self-comparison bias
+$$;
 ```
 
-#### Step 2: Historical Baseline & Minimum Record Threshold
+#### Step 1: Trailing Historical Baseline & Minimum Record Threshold
 To eliminate self-comparison bias (today-bias) and adhere to commercial platform standards:
-1. `rows.get(0)` is today's current observation (`currentIV`).
-2. The trailing historical baseline is extracted as `rows.subList(1, Math.min(rows.size(), 253))`, capping at exactly **252 historical trading days** (1 standard market year) and explicitly **excluding today**.
-3. A minimum of **20 historical trading records** (~1 trading month) is required:
-```java
-List<Map<String, Object>> historicalRows = getHistoricalBaseline(rows);
-if (historicalRows.size() < MIN_RECORDS_REQUIRED) { // MIN_RECORDS_REQUIRED = 20
-    return null; // Returns null to fail-open (trade is permitted)
-}
-```
+1. Row 1 (`rn = 1`) is today's current observation (`currentIV`).
+2. The trailing historical baseline comprises up to **252 historical trading days** (1 standard market year), explicitly **excluding today**.
+3. A minimum of **20 historical trading records** (~1 trading month) is required; symbols with $< 20$ records return `NULL` (fail-open semantics).
 
-#### Step 3: Daily Average IV Normalization
-Each historical row and the current day's row are converted into a blended average IV:
+#### Step 2: Daily Average IV Normalization
 $$\text{avgIV}(\text{row}) = \begin{cases} 
 \frac{\text{put\_iv} + \text{call\_iv}}{2.0}, & \text{if both present} \\
 \text{put\_iv}, & \text{if call\_iv is null} \\
@@ -118,11 +127,7 @@ $$\text{avgIV}(\text{row}) = \begin{cases}
 0.0, & \text{if both are null}
 \end{cases}$$
 
-Current IV is defined as today's observation:
-$$\text{currentIV} = \text{avgIV}(\text{rows}[0])$$
-
-#### Step 4: Frequency Count & Percentile Calculation
-The system counts the number of historical baseline days where average IV was strictly less than `currentIV`:
+#### Step 3: Frequency Count & Percentile Calculation
 $$\text{daysBelow} = \sum_{i=1}^{M} \mathbf{1}_{[\text{avgIV}(\text{historicalRows}[i-1]) < \text{currentIV}]}$$
 
 $$\text{IV Percentile} = \left( \frac{\text{daysBelow}}{M} \right) \times 100.0$$
@@ -132,26 +137,6 @@ Where $M = \text{historicalRows.size()}$ ($20 \le M \le 252$).
 Because today's row is excluded from the denominator:
 - If current IV is higher than all trailing days, IV Percentile reaches a true **100.0%**.
 - If current IV is lower than all trailing days, IV Percentile is **0.0%**.
-
-### Code in [IVDataRepository.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java):
-```java
-public Double getIVPercentile(String symbol) throws IOException {
-    List<Map<String, Object>> rows = fetchIVRows(symbol);
-    if (rows == null || rows.isEmpty()) return null;
-
-    double currentIV = toAvgIV(rows.get(0), symbol);
-    List<Map<String, Object>> historicalRows = getHistoricalBaseline(rows);
-    if (historicalRows.size() < MIN_RECORDS_REQUIRED) {
-        return null;
-    }
-
-    long daysBelow = historicalRows.stream()
-            .filter(row -> toAvgIV(row, symbol) < currentIV)
-            .count();
-
-    return (double) daysBelow / historicalRows.size() * 100.0;
-}
-```
 
 ### Numerical Example
 Suppose an asset has $M = 250$ trailing historical trading days of IV data:
@@ -242,7 +227,7 @@ The system calculates several complementary volatility metrics:
 During options strategy execution ([AbstractTradingStrategy.java:L49-L77](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/options/strategies/AbstractTradingStrategy.java#L49-L77)):
 
 1. **Parallel Execution**: `resolveIVRank(symbol)` and `resolveIVPercentile(symbol)` execute concurrently in background worker threads via `CompletableFuture.supplyAsync()`.
-2. **In-Memory Memoization**: Handled by [IVRankCache.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/cache/IVRankCache.java). The underlying database query `fetchIVRows(symbol)` is only performed once per symbol per run, ensuring zero redundant network latency.
+2. **In-Memory Memoization**: Handled by [IVDataRepository.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java) via `ivStatsCache`. Pre-loaded in bulk via `get_iv_stats_bulk` RPC, ensuring zero redundant network latency.
 3. **Configurable Strategy Filters** (`strategies-config.yml`):
    ```yaml
    optionsStrategyFilter:
@@ -263,7 +248,7 @@ During options strategy execution ([AbstractTradingStrategy.java:L49-L77](file:/
 | **Engine / Calculator** | [TechnicalScreener.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/technical/TechnicalScreener.java), [TechnicalIndicatorUtils.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/technical/TechnicalIndicatorUtils.java), and [VolatilityCalculator.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/utils/VolatilityCalculator.java) | [IVDataCollector.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/IVDataCollector.java) and [IVDataRepository.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java) |
 | **Pre-Calculation Service** | [TechnicalIndicatorPreCalculationService.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/TechnicalIndicatorPreCalculationService.java) | [IVDataJobService.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/jobs/IVDataJobService.java) (scheduled daily job `IV_DATA`) |
 | **Supabase Destination** | Table `latest_security_indicators` (JSONB columns: `moving_averages`, `rsi`, `bollinger`, `volatility.historicalVolatility`) | Table `public.iv_data` (1 row per symbol per day: `put_iv`, `call_iv`, `strike`, `dte`) |
-| **In-Memory Cache** | [TechnicalIndicatorCache.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/cache/TechnicalIndicatorCache.java) | [IVRankCache.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/cache/IVRankCache.java) |
+| **In-Memory Cache** | [TechnicalIndicatorCache.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/cache/TechnicalIndicatorCache.java) | [IVDataRepository.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java) (`ivStatsCache`) |
 | **Is HV included?** | **YES**: Historical Volatility (`HV Rank`, `ATR`) is calculated directly alongside SMAs, EMAs, and RSI. | **NO**: HV is realized price volatility, not implied volatility. |
 | **Is IV included?** | **NO**: Implied Volatility is not calculated from equity price bars. | **YES**: Dedicated option-implied volatility metric. |
 

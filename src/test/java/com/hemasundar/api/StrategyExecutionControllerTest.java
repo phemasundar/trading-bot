@@ -776,6 +776,40 @@ public class StrategyExecutionControllerTest {
     public void testGetEarningsCalendar() throws Exception {
         mockMvc.perform(get("/api/earnings-calendar"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.events").exists());
+                .andExpect(jsonPath("$.events").exists())
+                .andExpect(jsonPath("$.refreshing").exists());
+    }
+
+    @Test
+    public void testRefreshEarningsCalendar_Success() throws Exception {
+        when(executionService.isExecutionRunning()).thenReturn(false);
+        when(securitiesResolver.loadSecuritiesMaps()).thenReturn(Map.of(
+                "portfolio", List.of("AAPL", "MSFT"),
+                "top100", List.of("MSFT", "NVDA")));
+
+        mockMvc.perform(post("/api/earnings-calendar/refresh"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("started"))
+                .andExpect(jsonPath("$.refreshing").value(true))
+                .andExpect(jsonPath("$.totalSymbols").value(3));
+    }
+
+    @Test
+    public void testRefreshEarningsCalendar_AlreadyRunning() throws Exception {
+        when(executionService.isExecutionRunning()).thenReturn(true);
+
+        mockMvc.perform(post("/api/earnings-calendar/refresh"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("An execution is already running"));
+    }
+
+    @Test
+    public void testRefreshEarningsCalendar_EmptySecurities() throws Exception {
+        when(executionService.isExecutionRunning()).thenReturn(false);
+        when(securitiesResolver.loadSecuritiesMaps()).thenReturn(Collections.emptyMap());
+
+        mockMvc.perform(post("/api/earnings-calendar/refresh"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("No securities found in predefined YAML files"));
     }
 }

@@ -3,9 +3,10 @@
  * Screener dashboard management and custom technical screener execution.
  */
 
-function escapeHtml(str) {
-    if (typeof escapeHtmlContent === 'function') return escapeHtmlContent(str);
-    return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+if (typeof window === 'undefined' && typeof require === 'function') {
+    const _utils = require('./utils');
+    const _dashboard = require('./dashboard');
+    Object.assign(global, _utils, _dashboard);
 }
 
 const SCREENER_TYPE_META = {
@@ -14,7 +15,6 @@ const SCREENER_TYPE_META = {
     RSI_OVERSOLD:             { rsi: 'OVERSOLD',          bollinger: '',            hasDrop: false },
     BB_LOWER:                 { rsi: '',                  bollinger: 'LOWER_BAND',  hasDrop: false },
     BELOW_200_DAY_SMA:        { rsi: '',                  bollinger: '',            hasDrop: false },
-    BELOW_200_DAY_MA:         { rsi: '',                  bollinger: '',            hasDrop: false },
     PRICE_DROP:               { rsi: '',                  bollinger: '',            hasDrop: true,  hasLookback: true  },
     HIGH_52W_DROP:            { rsi: '',                  bollinger: '',            hasDrop: true,  hasLookback: false },
     VOLATILITY:               { rsi: '',                  bollinger: '',            hasDrop: false },
@@ -408,7 +408,7 @@ function addConditionRow(containerId, variables, prefill = null) {
     const infoBtn = document.createElement('button');
     infoBtn.type = 'button';
     infoBtn.className = 'info-btn condition-info-btn';
-    infoBtn.innerHTML = `<svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+    infoBtn.innerHTML = INFO_ICON_SVG;
 
     const updateInfoBtn = () => {
         const selectedVal = varSelect.value;
@@ -552,6 +552,18 @@ function getConditionsFromContainer(containerOrId) {
     return conditions;
 }
 
+function populateTechConditionSection({ val, containerId, variables }) {
+    const conds = (val && typeof val === 'object' && val.conditions)
+        ? val.conditions
+        : (Array.isArray(val) ? val : null);
+    const container = document.getElementById(containerId);
+    if (container && Array.isArray(conds)) {
+        conds.forEach(cond => {
+            if (cond && typeof cond === 'string') addConditionRow(containerId, variables, cond);
+        });
+    }
+}
+
 function fillTechFiltersForm(techFilters) {
     document.querySelectorAll('[data-tech-filter]').forEach(inp => {
         inp.value = '';
@@ -570,64 +582,36 @@ function fillTechFiltersForm(techFilters) {
 
     for (const [filterKey, val] of Object.entries(techFilters)) {
         if (filterKey === 'SIMPLE_MOVING_AVERAGE' || filterKey === 'EXP_MOVING_AVERAGE') {
-            const conds = (val && typeof val === 'object' && val.conditions) ? val.conditions : (Array.isArray(val) ? val : (typeof val === 'string' ? [val] : []));
-            const maContainer = document.getElementById('ma-conditions');
-            if (maContainer && Array.isArray(conds)) {
-                conds.forEach(cond => {
-                    if (cond && typeof cond === 'string') addConditionRow('ma-conditions', MA_VARIABLES, cond);
-                });
-            }
-            const el = document.querySelector(`[data-tech-filter="${filterKey}"][data-tech-field="rules"]`);
-            if (el) {
-                const rulesStr = Array.isArray(conds) ? conds.join(', ') : conds;
-                el.value = rulesStr;
-            }
+            populateTechConditionSection({
+                val,
+                containerId: 'ma-conditions',
+                variables: MA_VARIABLES
+            });
             if (filterKey === 'SIMPLE_MOVING_AVERAGE') continue;
         }
 
         if (filterKey === 'VOLUME' || filterKey === 'DOLLAR_VOLUME') {
-            const conds = (val && typeof val === 'object' && val.conditions) ? val.conditions : (Array.isArray(val) ? val : null);
-            const volContainer = document.getElementById('volume-conditions');
-            if (volContainer && Array.isArray(conds)) {
-                conds.forEach(cond => {
-                    if (typeof cond === 'string') addConditionRow('volume-conditions', VOLUME_VARIABLES, cond);
-                });
-            }
-            const el = document.querySelector(`[data-tech-filter="VOLUME"][data-tech-field="rules"], [data-tech-filter="DOLLAR_VOLUME"][data-tech-field="rules"]`);
-            if (el && conds) {
-                const rulesStr = Array.isArray(conds) ? conds.map(c => typeof c === 'string' ? c : '').filter(Boolean).join(', ') : conds;
-                if (rulesStr) el.value = rulesStr;
-            }
+            populateTechConditionSection({
+                val,
+                containerId: 'volume-conditions',
+                variables: VOLUME_VARIABLES
+            });
         }
 
         if (filterKey === 'HISTORICAL_VOLATILITY') {
-            const conds = (val && typeof val === 'object' && val.conditions) ? val.conditions : (Array.isArray(val) ? val : null);
-            const hvContainer = document.getElementById('hv-conditions');
-            if (hvContainer && Array.isArray(conds)) {
-                conds.forEach(cond => {
-                    if (typeof cond === 'string') addConditionRow('hv-conditions', HV_VARIABLES, cond);
-                });
-            }
-            const el = document.querySelector(`[data-tech-filter="HISTORICAL_VOLATILITY"][data-tech-field="rules"]`);
-            if (el && conds) {
-                const rulesStr = Array.isArray(conds) ? conds.join(', ') : conds;
-                if (rulesStr) el.value = rulesStr;
-            }
+            populateTechConditionSection({
+                val,
+                containerId: 'hv-conditions',
+                variables: HV_VARIABLES
+            });
         }
 
         if (filterKey === 'PRICE_DROP') {
-            const conds = (val && typeof val === 'object' && val.conditions) ? val.conditions : (Array.isArray(val) ? val : null);
-            const dropContainer = document.getElementById('priceDrop-conditions');
-            if (dropContainer && Array.isArray(conds)) {
-                conds.forEach(cond => {
-                    if (typeof cond === 'string') addConditionRow('priceDrop-conditions', PRICE_DROP_VARIABLES, cond);
-                });
-            }
-            const el = document.querySelector(`[data-tech-filter="PRICE_DROP"][data-tech-field="rules"]`);
-            if (el && conds) {
-                const rulesStr = Array.isArray(conds) ? conds.join(', ') : conds;
-                if (rulesStr) el.value = rulesStr;
-            }
+            populateTechConditionSection({
+                val,
+                containerId: 'priceDrop-conditions',
+                variables: PRICE_DROP_VARIABLES
+            });
         }
 
         if (val && typeof val === 'object') {
@@ -687,9 +671,7 @@ async function loadScreenerStrategies() {
             screenerContainer.innerHTML = `<span class="text-muted">No screeners configured</span>`;
         } else {
             screenerContainer.innerHTML = screeners.map(s => {
-                const infoBtn = s.descriptionFile
-                    ? `<button type="button" class="info-btn" style="margin-left: 4px;" onclick="showInfo(event, '${s.descriptionFile}', '${escapeAttr(s.name)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>`
-                    : '';
+                const infoBtn = renderDocInfoBtn(s.descriptionFile, s.name, 'margin-left: 4px;');
                 return `
                 <div class="flex items-center" style="margin-bottom: 8px;">
                     <label class="checkbox-label" style="margin: 0;">
@@ -834,8 +816,8 @@ function onScreenerTypeChange() {
         return;
     }
 
-    const rsiSel = document.getElementById('execute-rsiCondition') || document.getElementById('sc-rsiCondition');
-    const bbSel  = document.getElementById('execute-bollingerCondition') || document.getElementById('sc-bollingerCondition') || document.querySelector('[data-tech-filter="BOLLINGER_BAND"][data-tech-field="condition"]');
+    const rsiSel = document.getElementById('execute-rsiCondition');
+    const bbSel  = document.getElementById('execute-bollingerCondition') || document.querySelector('[data-tech-filter="BOLLINGER_BAND"][data-tech-field="condition"]');
     if (rsiSel && meta.rsi !== undefined) {
         rsiSel.value = meta.rsi;
         if (typeof rsiSel.onchange === 'function') rsiSel.onchange();
@@ -843,7 +825,7 @@ function onScreenerTypeChange() {
     if (bbSel  && meta.bollinger !== undefined) bbSel.value = meta.bollinger;
 
     // Pre-seed default conditions based on selected screener type
-    if (type === 'BELOW_200_DAY_SMA' || type === 'BELOW_200_DAY_MA') {
+    if (type === 'BELOW_200_DAY_SMA') {
         if (maContainer) addConditionRow('ma-conditions', MA_VARIABLES, 'PRICE < SMA200');
     } else if (type === 'PRICE_DROP') {
         if (dropContainer) addConditionRow('priceDrop-conditions', PRICE_DROP_VARIABLES, 'DROP_PCT >= 3.0');
@@ -857,74 +839,25 @@ function onScreenerTypeChange() {
 }
 
 async function renderScreenerTemplates(screenerType) {
-    const container = document.getElementById('screener-templates');
-    if (!container) return;
-
-    if (!window.appConfig) {
-        try {
-            window.appConfig = await API.get('/api/config');
-        } catch (e) {
-            container.innerHTML = '';
-            return;
-        }
-    }
-
-    const screeners = (window.appConfig && window.appConfig.technicalScreeners) || [];
-    const matching = screeners.filter(s => s.screenerType === screenerType);
-
-    if (matching.length === 0) {
-        container.innerHTML = '';
-        return;
-    }
-
-    const heading = document.createElement('h4');
-    heading.style.fontSize = '0.8rem';
-    heading.style.color = 'var(--text-secondary)';
-    heading.style.marginBottom = '8px';
-    heading.textContent = 'Configured Templates (Click to view, Load to edit)';
-
-    container.innerHTML = '';
-    container.appendChild(heading);
-
-    matching.forEach(screener => {
-        const card = document.createElement('div');
-        card.className = 'config-card';
-        card.style.marginBottom = '8px';
-
-        const enabledPill = screener.enabled
-            ? '<span class="pill pill-enabled">Enabled</span>'
-            : '<span class="pill pill-disabled">Disabled</span>';
-
-        const loadBtn = `<button type="button" class="btn btn-primary" style="padding: 2px 8px; font-size: 0.75rem; margin-left: auto;" onclick="loadScreenerTemplateParams('${escapeAttr(JSON.stringify(screener))}')">Load Filters</button>`;
-
-        const infoBtn = screener.descriptionFile
-            ? `<button type="button" class="info-btn" onclick="showInfo(event, '${screener.descriptionFile}', '${escapeAttr(screener.alias || screener.screenerType)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>`
-            : '';
-
-        card.innerHTML = `
-            <div class="config-card-header">
-                <div class="flex items-center gap-sm flex-wrap" style="width: 100%;">
-                    <span class="card-arrow">▶</span>
-                    <strong>${screener.alias || screener.screenerType}</strong>
-                    ${infoBtn}
-                    <span class="card-badge">${screener.screenerType} <button type="button" class="info-btn" style="font-size: 0.7rem; padding: 0; color: inherit" onclick="showFilterHelp(event, 'screenerType', 'Screener Type')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></span>
-                    <span class="card-badge">${screener.securitiesFile || 'Custom'}</span>
-                    ${enabledPill}
-                    ${loadBtn}
-                </div>
-            </div>
-            <div class="config-card-body">
-                ${renderTechFiltersGrid(screener.technicalFilters)}
-                ${screener.securities ? `<div class="mt-sm"><span class="config-item-label">Securities (Inline)</span> <span class="config-item-value">${screener.securities}</span></div>` : ''}
-            </div>`;
-
-        card.querySelector('.config-card-header').addEventListener('click', function (e) {
-            if (e.target.tagName === 'BUTTON') return;
-            this.querySelector('.card-arrow').classList.toggle('open');
-            this.nextElementSibling.classList.toggle('open');
-        });
-
-        container.appendChild(card);
+    return renderTemplateAccordionList({
+        containerId: 'screener-templates',
+        configKey: 'technicalScreeners',
+        filterFn: s => s.screenerType === screenerType,
+        buildHeaderContentFn: (screener, enabledPill) => {
+            const loadBtn = `<button type="button" class="btn btn-primary" style="padding: 2px 8px; font-size: 0.75rem; margin-left: auto;" onclick="loadScreenerTemplateParams('${escapeAttr(JSON.stringify(screener))}')">Load Filters</button>`;
+            const infoBtn = renderDocInfoBtn(screener.descriptionFile, screener.alias || screener.screenerType);
+            return `
+                <span class="card-arrow">▶</span>
+                <strong>${screener.alias || screener.screenerType}</strong>
+                ${infoBtn}
+                <span class="card-badge">${screener.screenerType} ${renderFilterHelpBtn('screenerType', 'Screener Type', 'font-size: 0.7rem; padding: 0; color: inherit')}</span>
+                <span class="card-badge">${screener.securitiesFile || 'Custom'}</span>
+                ${enabledPill}
+                ${loadBtn}`;
+        },
+        buildBodyContentFn: (screener) => `
+            ${renderTechFiltersGrid(screener.technicalFilters)}
+            ${screener.securities ? `<div class="mt-sm"><span class="config-item-label">Securities (Inline)</span> <span class="config-item-value">${screener.securities}</span></div>` : ''}`
     });
 }
 
@@ -943,17 +876,6 @@ function loadScreenerTemplateParams(screenerJson) {
 
         const techFilters = screener.technicalFilters || {};
         fillTechFiltersForm(techFilters);
-
-        // Fallback for elements using legacy sc-* IDs (e.g. tests or custom markup)
-        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val !== undefined && val !== null ? val : ''; };
-        if (techFilters.RSI) {
-            setVal('sc-rsiCondition', techFilters.RSI.condition || techFilters.RSI);
-            setVal('execute-rsiCondition', techFilters.RSI.condition || techFilters.RSI);
-        }
-        if (techFilters.BOLLINGER_BAND) {
-            setVal('sc-bollingerCondition', techFilters.BOLLINGER_BAND.condition || techFilters.BOLLINGER_BAND);
-            setVal('execute-bollingerCondition', techFilters.BOLLINGER_BAND.condition || techFilters.BOLLINGER_BAND);
-        }
 
         showToast('Template filters loaded!');
     } catch (e) {
@@ -1030,30 +952,17 @@ function loadScreenerFiltersFromResult(paramOrBtn, eventOrReexecute = false) {
 }
 
 async function reexecuteCustomScreener(btn, screenerId) {
-    if (!screenerId) return;
-
-    const progress = document.getElementById('screener-custom-progress');
-    if (progress && (progress.classList.contains('active') || progress.style.display === 'block')) {
-        showToast('An execution is already in progress', 'error');
-        return;
-    }
-
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '⏳ Executing...';
-
-    try {
-        loadScreenerFiltersFromResult(btn, true);
-        const success = await executeCustomScreener(screenerId);
-        if (success === false) {
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-        }
-    } catch (e) {
-        console.error('Error re-executing custom screener:', e);
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-    }
+    return reexecuteSingleCustomCard({
+        btn,
+        resultId: screenerId,
+        isProgressActiveFn: () => {
+            const progress = document.getElementById('screener-custom-progress');
+            return progress && (progress.classList.contains('active') || progress.style.display === 'block');
+        },
+        loadFiltersFn: loadScreenerFiltersFromResult,
+        executeFn: executeCustomScreener,
+        logLabel: 'custom screener'
+    });
 }
 
 function getCustomScreenerPayload(customResultId = null) {
@@ -1145,9 +1054,7 @@ function getTechnicalFiltersFromDOM(container = document) {
 
         if (!technicalFilters[filterKey]) technicalFilters[filterKey] = {};
 
-        if ((filterKey === 'SIMPLE_MOVING_AVERAGE' || filterKey === 'VOLUME' || filterKey === 'HISTORICAL_VOLATILITY' || filterKey === 'PRICE_DROP') && fieldKey === 'rules') {
-            technicalFilters[filterKey] = { conditions: rawVal.split(',').map(s => s.trim()).filter(Boolean) };
-        } else if (fieldKey === 'condition') {
+        if (fieldKey === 'condition') {
             if (typeof technicalFilters[filterKey].condition === 'object') {
                 technicalFilters[filterKey].condition.type = rawVal;
             } else {
@@ -1162,12 +1069,7 @@ function getTechnicalFiltersFromDOM(container = document) {
         } else if (['min', 'max', 'lookbackDays'].includes(fieldKey)) {
             const num = parseFloat(rawVal);
             if (!isNaN(num)) {
-                if (filterKey === 'VOLUME') {
-                    if (!technicalFilters[filterKey].conditions) {
-                        technicalFilters[filterKey].conditions = [ { type: 'MIN_VOLUME' } ];
-                    }
-                    technicalFilters[filterKey].conditions[0][fieldKey] = num;
-                } else if (fieldKey === 'lookbackDays') {
+                if (fieldKey === 'lookbackDays') {
                     if (!technicalFilters[filterKey].config) technicalFilters[filterKey].config = {};
                     technicalFilters[filterKey].config.lookbackDays = num;
                 } else {
@@ -1216,60 +1118,18 @@ function getTechnicalFiltersFromDOM(container = document) {
 }
 
 async function loadCustomScreenerResults(updatedResultId = null) {
-    const container = document.getElementById('screener-custom-results');
-    if (!container) return;
-    try {
-        const openCardIds = new Set();
-        container.querySelectorAll('.card-content.open').forEach(el => {
-            const id = el.id.replace(/^content-/, '');
-            openCardIds.add(id);
-        });
-        const openFilterIds = new Set();
-        container.querySelectorAll('.filter-details-body.open').forEach(el => {
-            openFilterIds.add(el.id);
-        });
-
-        const results = await API.get('/api/results/custom/screeners');
-        container.innerHTML = '';
-        if (typeof updateExecuteAllButtonState === 'function') {
-            updateExecuteAllButtonState({
-                btnId: 'execute-all-screener-btn',
-                countBadgeId: 'screener-custom-results-count-badge',
-                count: results ? results.length : 0
-            });
-        }
-        if (!results || results.length === 0) {
-            container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔬</div>No screener results yet. Run a custom screener above.</div>';
-            return;
-        }
-        for (const r of results) {
-            const cardEl = buildScreenerCard(r, true);
-            container.appendChild(cardEl);
-            const cardId = (r.screenerId || '').replace(/\s+/g, '-');
-            const shouldOpen = openCardIds.has(cardId) || (updatedResultId && String(r.screenerId) === String(updatedResultId));
-            if (shouldOpen && r.results && r.results.length > 0) {
-                const content = cardEl.querySelector(`[id="content-${cardId}"]`);
-                const arrow = cardEl.querySelector(`[id="arrow-${cardId}"]`);
-                if (content) content.classList.add('open');
-                if (arrow) arrow.classList.add('open');
-            }
-            if (openFilterIds.has(`filters-${cardId}`)) {
-                const filterBody = cardEl.querySelector(`[id="filters-${cardId}"]`);
-                const filterArrow = cardEl.querySelector(`[id="arrow-filters-${cardId}"]`);
-                if (filterBody) filterBody.classList.add('open');
-                if (filterArrow) filterArrow.classList.add('open');
-            }
-        }
-    } catch (e) {
-        container.innerHTML = `<div class="empty-state text-danger">Failed to load results: ${e.message}</div>`;
-        if (typeof updateExecuteAllButtonState === 'function') {
-            updateExecuteAllButtonState({
-                btnId: 'execute-all-screener-btn',
-                countBadgeId: 'screener-custom-results-count-badge',
-                count: 0
-            });
-        }
-    }
+    return loadCustomCardsList({
+        containerId: 'screener-custom-results',
+        endpoint: '/api/results/custom/screeners',
+        executeAllBtnId: 'execute-all-screener-btn',
+        countBadgeId: 'screener-custom-results-count-badge',
+        emptyMessage: 'No screener results yet. Run a custom screener above.',
+        errorPrefix: 'Failed to load results',
+        updatedResultId,
+        buildCardFn: r => buildScreenerCard(r, true),
+        getIdFn: r => r.screenerId || '',
+        hasItemsFn: r => r.results && r.results.length > 0
+    });
 }
 
 function reexecuteAllCustomScreeners() {
@@ -1282,11 +1142,9 @@ function reexecuteAllCustomScreeners() {
             loadScreenerFiltersFromResult(execBtn, true);
             const onclickAttr = execBtn.getAttribute('onclick') || '';
             const match = onclickAttr.match(/reexecuteCustomScreener\(\s*this\s*,\s*['"]?([^'")]+)['"]?\s*\)/);
-            const customResultId = match ? match[1] : null;
+            const customResultId = (execBtn.dataset && execBtn.dataset.resultId) || (match ? match[1] : null);
             return getCustomScreenerPayload(customResultId);
         },
-        loadFiltersFn: (btn) => loadScreenerFiltersFromResult(btn, true),
-        executeFn: (id) => executeCustomScreener(id, true),
         reloadResultsFn: () => loadCustomScreenerResults(),
         entityNameSingular: 'custom screener',
         entityNamePlural: 'custom screeners',
@@ -1331,74 +1189,43 @@ function setCustomScreenerBusy(busy) {
     if (progress) progress.style.display = busy ? 'block' : 'none';
 }
 
-if (typeof window !== 'undefined') {
-    window.SCREENER_TYPE_META = SCREENER_TYPE_META;
-    window.CONDITION_OPERATORS = CONDITION_OPERATORS;
-    window.MA_VARIABLES = MA_VARIABLES;
-    window.VOLUME_VARIABLES = VOLUME_VARIABLES;
-    window.HV_VARIABLES = HV_VARIABLES;
-    window.PRICE_DROP_VARIABLES = PRICE_DROP_VARIABLES;
-    window.parseConditionString = parseConditionString;
-    window.createConditionValElement = createConditionValElement;
-    window.addConditionRow = addConditionRow;
-    window.getConditionsFromContainer = getConditionsFromContainer;
-    window.fillTechFiltersForm = fillTechFiltersForm;
-    window.initScreenerDashboard = initScreenerDashboard;
-    window.loadScreenerStrategies = loadScreenerStrategies;
-    window.loadScreenerResults = loadScreenerResults;
-    window.checkScreenerExecutionStatus = checkScreenerExecutionStatus;
-    window.executeScreenersSelected = executeScreenersSelected;
-    window.initExecuteScreenerPage = initExecuteScreenerPage;
-    window.onScreenerTypeChange = onScreenerTypeChange;
-    window.renderScreenerTemplates = renderScreenerTemplates;
-    window.loadScreenerTemplateParams = loadScreenerTemplateParams;
-    window.loadScreenerFiltersFromResult = loadScreenerFiltersFromResult;
-    window.reexecuteCustomScreener = reexecuteCustomScreener;
-    window.reexecuteAllCustomScreeners = reexecuteAllCustomScreeners;
-    window.getCustomScreenerPayload = getCustomScreenerPayload;
-    window.executeCustomScreener = executeCustomScreener;
-    window.getTechnicalFiltersFromDOM = getTechnicalFiltersFromDOM;
-    window.loadCustomScreenerResults = loadCustomScreenerResults;
-    window.checkCustomScreenerExecutionStatus = checkCustomScreenerExecutionStatus;
-    window.setCustomScreenerBusy = setCustomScreenerBusy;
-}
-
-// CommonJS Exports
 if (typeof module !== 'undefined' && module.exports) {
     const utils = require('./utils');
     const authApi = require('./auth-api');
     const dashboard = require('./dashboard');
     Object.assign(global, utils, authApi, dashboard);
-
-    module.exports = {
-        SCREENER_TYPE_META,
-        CONDITION_OPERATORS,
-        MA_VARIABLES,
-        VOLUME_VARIABLES,
-        HV_VARIABLES,
-        PRICE_DROP_VARIABLES,
-        parseConditionString,
-        createConditionValElement,
-        addConditionRow,
-        getConditionsFromContainer,
-        fillTechFiltersForm,
-        initScreenerDashboard,
-        loadScreenerStrategies,
-        loadScreenerResults,
-        checkScreenerExecutionStatus,
-        executeScreenersSelected,
-        initExecuteScreenerPage,
-        onScreenerTypeChange,
-        renderScreenerTemplates,
-        loadScreenerTemplateParams,
-        loadScreenerFiltersFromResult,
-        reexecuteCustomScreener,
-        reexecuteAllCustomScreeners,
-        getCustomScreenerPayload,
-        executeCustomScreener,
-        getTechnicalFiltersFromDOM,
-        loadCustomScreenerResults,
-        checkCustomScreenerExecutionStatus,
-        setCustomScreenerBusy
-    };
 }
+
+const SCREENER_EXECUTE_EXPORTS = {
+    SCREENER_TYPE_META,
+    CONDITION_OPERATORS,
+    MA_VARIABLES,
+    VOLUME_VARIABLES,
+    HV_VARIABLES,
+    PRICE_DROP_VARIABLES,
+    parseConditionString,
+    createConditionValElement,
+    addConditionRow,
+    getConditionsFromContainer,
+    fillTechFiltersForm,
+    initScreenerDashboard,
+    loadScreenerStrategies,
+    loadScreenerResults,
+    checkScreenerExecutionStatus,
+    executeScreenersSelected,
+    initExecuteScreenerPage,
+    onScreenerTypeChange,
+    renderScreenerTemplates,
+    loadScreenerTemplateParams,
+    loadScreenerFiltersFromResult,
+    reexecuteCustomScreener,
+    reexecuteAllCustomScreeners,
+    getCustomScreenerPayload,
+    executeCustomScreener,
+    getTechnicalFiltersFromDOM,
+    loadCustomScreenerResults,
+    checkCustomScreenerExecutionStatus,
+    setCustomScreenerBusy
+};
+
+registerModuleExports(SCREENER_EXECUTE_EXPORTS, typeof module !== 'undefined' ? module : null);

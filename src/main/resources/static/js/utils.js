@@ -27,7 +27,28 @@ function escapeHtmlContent(str) {
 }
 
 function escapeHtml(str) {
-    return escapeHtmlContent(str);
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+const INFO_ICON_SVG = '<svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+
+/** Builds a filter help tooltip button with the shared info SVG icon */
+function renderFilterHelpBtn(key, label, styleAttr = '') {
+    const style = styleAttr ? ` style="${styleAttr}"` : '';
+    return `<button type="button" class="info-btn"${style} onclick="showFilterHelp(event, '${key}', '${escapeAttr(label)}')">${INFO_ICON_SVG}</button>`;
+}
+
+/** Builds a markdown documentation modal button with the shared info SVG icon */
+function renderDocInfoBtn(descriptionFile, title, styleAttr = '') {
+    if (!descriptionFile) return '';
+    const style = styleAttr ? ` style="${styleAttr}"` : '';
+    return `<button type="button" class="info-btn"${style} onclick="showInfo(event, '${descriptionFile}', '${escapeAttr(title)}')">${INFO_ICON_SVG}</button>`;
 }
 
 function decodeAttr(str) {
@@ -63,7 +84,8 @@ function showToast(message, type = 'success') {
 
 function timeAgo(dateStr) {
     if (!dateStr) return 'Unknown';
-    const diff = Date.now() - new Date(dateStr).getTime();
+    const normalized = /^\d{4}-\d{2}-\d{2}$/.test(String(dateStr)) ? `${dateStr}T00:00:00` : dateStr;
+    const diff = Date.now() - new Date(normalized).getTime();
     if (diff < 60000) return 'Just now';
     
     const mins = Math.floor(diff / 60000);
@@ -88,6 +110,15 @@ function formatLargeNumber(num) {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
     if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
     return num.toString();
+}
+
+/** Formats share volume with K/M/B suffixes, defaulting to '0' when empty */
+function formatVolume(vol) {
+    if (vol == null || isNaN(vol) || vol === 0) return '0';
+    if (vol >= 1_000_000_000) return (vol / 1_000_000_000).toFixed(2) + 'B';
+    if (vol >= 1_000_000) return (vol / 1_000_000).toFixed(2) + 'M';
+    if (vol >= 1_000) return (vol / 1_000).toFixed(1) + 'K';
+    return String(Math.round(vol));
 }
 
 function formatMarketCap(capB) {
@@ -265,6 +296,50 @@ function renderMarkdown(text) {
     return `<pre style="white-space: pre-wrap; font-family: var(--font-sans);">${escapeAttr(text)}</pre>`;
 }
 
+/**
+ * Creates and mounts a modal overlay with ARIA dialog semantics, backdrop-click dismissal,
+ * and Escape-key dismissal.
+ */
+function createModalOverlay({
+    id = '',
+    overlayClass = '',
+    modalId = '',
+    modalStyle = '',
+    overlayStyle = '',
+    contentHtml = ''
+} = {}) {
+    const overlay = document.createElement('div');
+    if (id) overlay.id = id;
+    overlay.className = ['modal-overlay', overlayClass].filter(Boolean).join(' ');
+    if (overlayStyle) overlay.style.cssText = overlayStyle;
+
+    overlay.innerHTML = `
+        <div class="modal"${modalId ? ` id="${modalId}"` : ''} role="dialog" aria-modal="true"${modalStyle ? ` style="${modalStyle}"` : ''}>
+            ${contentHtml}
+        </div>`;
+
+    const closeOverlay = () => {
+        document.removeEventListener('keydown', onKeyDown);
+        overlay.remove();
+    };
+
+    const onKeyDown = (e) => {
+        if (e.key === 'Escape') {
+            closeOverlay();
+        }
+    };
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            closeOverlay();
+        }
+    });
+
+    document.addEventListener('keydown', onKeyDown);
+    document.body.appendChild(overlay);
+    return overlay;
+}
+
 async function showInfo(event, filename, strategyName) {
     if (event) {
         event.stopPropagation();
@@ -273,11 +348,10 @@ async function showInfo(event, filename, strategyName) {
 
     if (document.querySelector('.info-modal-overlay')) return;
 
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay info-modal-overlay';
-
-    let modalContent = `
-        <div class="modal" style="max-width: 600px;">
+    const overlay = createModalOverlay({
+        overlayClass: 'info-modal-overlay',
+        modalStyle: 'max-width: 600px;',
+        contentHtml: `
             <div class="flex justify-between items-center" style="margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
                 <h2 style="margin:0;">${strategyName}</h2>
                 <button class="btn-icon modal-close" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;" onclick="this.closest('.modal-overlay').remove()">✕</button>
@@ -287,20 +361,17 @@ async function showInfo(event, filename, strategyName) {
                     <span class="loading-spinner-icon">⏳</span>
                     <p>Loading description...</p>
                 </div>
-            </div>
-        </div>`;
-
-    overlay.innerHTML = modalContent;
-    document.body.appendChild(overlay);
-
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) {
-            overlay.remove();
-        }
+            </div>`
     });
 
     try {
-        const res = await fetch(`/descriptions/${filename}`);
+        let res = await fetch(`/descriptions/${filename}`);
+        if (!res.ok && !filename.startsWith('strategies/')) {
+            res = await fetch(`/descriptions/strategies/${filename}`);
+        }
+        if (!res.ok && filename.startsWith('strategies/')) {
+            res = await fetch(`/descriptions/${filename.substring(11)}`);
+        }
         if (!res.ok) throw new Error('File not found');
         const text = await res.text();
 
@@ -590,52 +661,65 @@ function pollUntilComplete(delayMs = 300) {
     });
 }
 
-// CommonJS Exports
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        escapeAttr,
-        escapeHtmlContent,
-        escapeHtml,
-        decodeAttr,
-        showToast,
-        timeAgo,
-        formatDuration,
-        formatLargeNumber,
-        formatMarketCap,
-        formatCompanyName,
-        formatRevenue,
-        formatHourBadge,
-        rsiValue,
-        formatLegs,
-        formatBreakeven,
-        formatExpiryDate,
-        renderGreeksPills,
-        toggleSidebar,
-        toggleCard,
-        toggleSection,
-        selectAll,
-        selectAllScreeners,
-        setDashboardBusy,
-        showInfo,
-        loadFilterDescriptions,
-        showFilterHelp,
-        showTechFilterHelp,
-        showScreenerTypeHelp,
-        autoAdjustSelectWidth,
-        startTimer,
-        stopTimer,
-        showErrorPanel,
-        dismissErrorPanel,
-        dismissSingleAlert,
-        dismissAllAlerts,
-        startPolling,
-        pollUntilComplete,
-        initMarkedMath,
-        renderMarkdown
-    };
+/**
+ * Unified module export helper that registers symbols on both `window` (for browser scripts)
+ * and `moduleObj.exports` (for CommonJS / Jest) from a single definition map.
+ */
+function registerModuleExports(exportsObj, moduleObj) {
+    if (typeof window !== 'undefined') {
+        Object.assign(window, exportsObj);
+    }
+    if (moduleObj && moduleObj.exports) {
+        moduleObj.exports = exportsObj;
+    }
 }
 
-if (typeof window !== 'undefined') {
-    window.initMarkedMath = initMarkedMath;
-    window.renderMarkdown = renderMarkdown;
-}
+const UTILS_EXPORTS = {
+    registerModuleExports,
+    createModalOverlay,
+    escapeAttr,
+    escapeHtmlContent,
+    escapeHtml,
+    INFO_ICON_SVG,
+    renderFilterHelpBtn,
+    renderDocInfoBtn,
+    decodeAttr,
+    showToast,
+    timeAgo,
+    formatDuration,
+    formatLargeNumber,
+    formatVolume,
+    formatMarketCap,
+    formatCompanyName,
+    formatRevenue,
+    formatHourBadge,
+    rsiValue,
+    formatLegs,
+    formatBreakeven,
+    formatExpiryDate,
+    renderGreeksPills,
+    toggleSidebar,
+    toggleCard,
+    toggleSection,
+    selectAll,
+    selectAllScreeners,
+    setDashboardBusy,
+    showInfo,
+    loadFilterDescriptions,
+    showFilterHelp,
+    showTechFilterHelp,
+    showScreenerTypeHelp,
+    autoAdjustSelectWidth,
+    startTimer,
+    stopTimer,
+    showErrorPanel,
+    dismissErrorPanel,
+    dismissSingleAlert,
+    dismissAllAlerts,
+    startPolling,
+    pollUntilComplete,
+    initMarkedMath,
+    renderMarkdown
+};
+
+registerModuleExports(UTILS_EXPORTS, typeof module !== 'undefined' ? module : null);

@@ -17,33 +17,7 @@ import lombok.experimental.UtilityClass;
 public class FilterParser {
 
     public static OptionsStrategyFilter buildFilter(StrategyType type, Map<String, Object> filterMap) {
-        OptionsStrategyFilter filter;
-
-        // Create the appropriate filter subclass based on strategy type
-        switch (type) {
-            case PUT_CREDIT_SPREAD:
-            case CALL_CREDIT_SPREAD:
-            case SHORT_PUT:
-                filter = new CreditSpreadFilter();
-                break;
-            case IRON_CONDOR:
-                filter = new IronCondorFilter();
-                break;
-            case LONG_CALL_LEAP:
-                filter = new LongCallLeapFilter();
-                break;
-            case BULLISH_BROKEN_WING_BUTTERFLY:
-                filter = new BrokenWingButterflyFilter();
-                break;
-            case BULLISH_ZEBRA:
-                filter = new ZebraFilter();
-                break;
-            case SHORT_STRANGLE:
-                filter = new ShortStrangleFilter();
-                break;
-            default:
-                filter = new OptionsStrategyFilter();
-        }
+        OptionsStrategyFilter filter = type != null ? type.createFilter() : new OptionsStrategyFilter();
 
         if (filterMap == null) return filter;
 
@@ -238,42 +212,11 @@ public class FilterParser {
             }
         }
 
-        // 4. Leg conditions
-        if (filter instanceof CreditSpreadFilter csFilter) {
-            setLegNameIfPresent(csFilter.getShortLeg(), "shortLeg");
-            setLegNameIfPresent(csFilter.getLongLeg(), "longLeg");
-            initLegExpressions(csFilter.getShortLeg());
-            initLegExpressions(csFilter.getLongLeg());
-        } else if (filter instanceof IronCondorFilter icFilter) {
-            setLegNameIfPresent(icFilter.getPutShortLeg(), "putShortLeg");
-            setLegNameIfPresent(icFilter.getPutLongLeg(), "putLongLeg");
-            setLegNameIfPresent(icFilter.getCallShortLeg(), "callShortLeg");
-            setLegNameIfPresent(icFilter.getCallLongLeg(), "callLongLeg");
-            initLegExpressions(icFilter.getPutShortLeg());
-            initLegExpressions(icFilter.getPutLongLeg());
-            initLegExpressions(icFilter.getCallShortLeg());
-            initLegExpressions(icFilter.getCallLongLeg());
-        } else if (filter instanceof LongCallLeapFilter leapFilter) {
-            setLegNameIfPresent(leapFilter.getLongCall(), "longCall");
-            initLegExpressions(leapFilter.getLongCall());
-        } else if (filter instanceof BrokenWingButterflyFilter bwbFilter) {
-            setLegNameIfPresent(bwbFilter.getLeg1Long(), "leg1Long");
-            setLegNameIfPresent(bwbFilter.getLeg2Short(), "leg2Short");
-            setLegNameIfPresent(bwbFilter.getLeg3Long(), "leg3Long");
-            initLegExpressions(bwbFilter.getLeg1Long());
-            initLegExpressions(bwbFilter.getLeg2Short());
-            initLegExpressions(bwbFilter.getLeg3Long());
-        } else if (filter instanceof ZebraFilter zebraFilter) {
-            setLegNameIfPresent(zebraFilter.getShortCall(), "shortCall");
-            setLegNameIfPresent(zebraFilter.getLongCall(), "longCall");
-            initLegExpressions(zebraFilter.getShortCall());
-            initLegExpressions(zebraFilter.getLongCall());
-        } else if (filter instanceof ShortStrangleFilter strangleFilter) {
-            setLegNameIfPresent(strangleFilter.getPutShortLeg(), "putShortLeg");
-            setLegNameIfPresent(strangleFilter.getCallShortLeg(), "callShortLeg");
-            initLegExpressions(strangleFilter.getPutShortLeg());
-            initLegExpressions(strangleFilter.getCallShortLeg());
-        }
+        // 4. Leg conditions (polymorphic dispatch to concrete filter subclass)
+        filter.initLegs((leg, name) -> {
+            setLegNameIfPresent(leg, name);
+            initLegExpressions(leg);
+        });
 
         // 5. Route dotted expressions from root filter to legs
         routeLegExpressions(filter);
@@ -399,60 +342,9 @@ public class FilterParser {
 
     private static void attachExprToLeg(OptionsStrategyFilter filter, String legPrefix, MathExpression expr) {
         String clean = legPrefix.replace("_", "").toUpperCase();
-        if (filter instanceof CreditSpreadFilter csFilter) {
-            if (clean.equals("SHORTLEG")) {
-                if (csFilter.getShortLeg() == null) csFilter.setShortLeg(new LegFilter());
-                addExprIfAbsent(csFilter.getShortLeg(), expr);
-            } else if (clean.equals("LONGLEG")) {
-                if (csFilter.getLongLeg() == null) csFilter.setLongLeg(new LegFilter());
-                addExprIfAbsent(csFilter.getLongLeg(), expr);
-            }
-        } else if (filter instanceof IronCondorFilter icFilter) {
-            if (clean.equals("PUTSHORT")) {
-                if (icFilter.getPutShortLeg() == null) icFilter.setPutShortLeg(new LegFilter());
-                addExprIfAbsent(icFilter.getPutShortLeg(), expr);
-            } else if (clean.equals("PUTLONG")) {
-                if (icFilter.getPutLongLeg() == null) icFilter.setPutLongLeg(new LegFilter());
-                addExprIfAbsent(icFilter.getPutLongLeg(), expr);
-            } else if (clean.equals("CALLSHORT")) {
-                if (icFilter.getCallShortLeg() == null) icFilter.setCallShortLeg(new LegFilter());
-                addExprIfAbsent(icFilter.getCallShortLeg(), expr);
-            } else if (clean.equals("CALLLONG")) {
-                if (icFilter.getCallLongLeg() == null) icFilter.setCallLongLeg(new LegFilter());
-                addExprIfAbsent(icFilter.getCallLongLeg(), expr);
-            }
-        } else if (filter instanceof BrokenWingButterflyFilter bwbFilter) {
-            if (clean.equals("LEG1")) {
-                if (bwbFilter.getLeg1Long() == null) bwbFilter.setLeg1Long(new LegFilter());
-                addExprIfAbsent(bwbFilter.getLeg1Long(), expr);
-            } else if (clean.equals("LEG2")) {
-                if (bwbFilter.getLeg2Short() == null) bwbFilter.setLeg2Short(new LegFilter());
-                addExprIfAbsent(bwbFilter.getLeg2Short(), expr);
-            } else if (clean.equals("LEG3")) {
-                if (bwbFilter.getLeg3Long() == null) bwbFilter.setLeg3Long(new LegFilter());
-                addExprIfAbsent(bwbFilter.getLeg3Long(), expr);
-            }
-        } else if (filter instanceof ZebraFilter zebraFilter) {
-            if (clean.equals("SHORTLEG") || clean.equals("CALLSHORT")) {
-                if (zebraFilter.getShortCall() == null) zebraFilter.setShortCall(new LegFilter());
-                addExprIfAbsent(zebraFilter.getShortCall(), expr);
-            } else if (clean.equals("LONGLEG") || clean.equals("CALLLONG")) {
-                if (zebraFilter.getLongCall() == null) zebraFilter.setLongCall(new LegFilter());
-                addExprIfAbsent(zebraFilter.getLongCall(), expr);
-            }
-        } else if (filter instanceof ShortStrangleFilter strangleFilter) {
-            if (clean.equals("PUTSHORT")) {
-                if (strangleFilter.getPutShortLeg() == null) strangleFilter.setPutShortLeg(new LegFilter());
-                addExprIfAbsent(strangleFilter.getPutShortLeg(), expr);
-            } else if (clean.equals("CALLSHORT")) {
-                if (strangleFilter.getCallShortLeg() == null) strangleFilter.setCallShortLeg(new LegFilter());
-                addExprIfAbsent(strangleFilter.getCallShortLeg(), expr);
-            }
-        } else if (filter instanceof LongCallLeapFilter leapFilter) {
-            if (clean.equals("LONGLEG") || clean.equals("CALLLONG")) {
-                if (leapFilter.getLongCall() == null) leapFilter.setLongCall(new LegFilter());
-                addExprIfAbsent(leapFilter.getLongCall(), expr);
-            }
+        LegFilter targetLeg = filter.getOrCreateLegByPrefix(clean);
+        if (targetLeg != null) {
+            addExprIfAbsent(targetLeg, expr);
         }
     }
 

@@ -61,8 +61,6 @@ const {
     checkScreenerExecutionStatus,
     executeScreenersSelected,
     STRATEGY_TYPES,
-    getLegFilters,
-    STRATEGY_SPECIFIC_FILTERS,
     checkCustomExecutionStatus,
     renderStrategyTemplates,
     loadTemplateParams,
@@ -98,7 +96,6 @@ const {
     createDayCell,
     confirmDeleteCustomResult,
     deleteCustomResult,
-    promptDeleteCustomScreenerResult,
     deleteCustomScreenerResult,
     renderOptionDataTable,
     initTradeRowClicks,
@@ -1120,12 +1117,9 @@ describe('Execute Strategy Configuration', () => {
     beforeEach(() => {
         window.scrollTo = jest.fn();
     });
-    test('STRATEGY_TYPES and getLegFilters should generate valid filter schemas', () => {
+    test('STRATEGY_TYPES should generate valid filter schemas', () => {
         expect(STRATEGY_TYPES.length).toBeGreaterThan(0);
-        const legFilters = getLegFilters('shortLeg', 'Short Leg');
-        expect(legFilters.length).toBe(8);
-        expect(legFilters[0].key).toBe('shortLeg.minDelta');
-        expect(STRATEGY_SPECIFIC_FILTERS['credit_spread'].length).toBe(16);
+        expect(STRATEGY_TYPES[0].value).toBeDefined();
     });
 
     test('checkCustomExecutionStatus should handle running status', async () => {
@@ -1422,7 +1416,7 @@ describe('Execute Screener Configuration', () => {
             <input id="screener-alias-input">
             <input id="screener-securities-input">
             <input id="screener-securities-file-input">
-            <input id="sc-rsiCondition">
+            <input id="execute-rsiCondition" data-tech-filter="RSI" data-tech-field="condition">
         `;
 
         const screener = {
@@ -1437,7 +1431,7 @@ describe('Execute Screener Configuration', () => {
 
         expect(document.getElementById('screener-alias-input').value).toContain('RSI Oversold (Custom)');
         expect(document.getElementById('screener-securities-input').value).toBe('AAPL');
-        expect(document.getElementById('sc-rsiCondition').value).toBe('OVERSOLD');
+        expect(document.getElementById('execute-rsiCondition').value).toBe('OVERSOLD');
     });
 
     test('executeCustomScreener should post payload to /api/execute/screener/custom', async () => {
@@ -1466,9 +1460,10 @@ describe('Technical Filters DOM Parser', () => {
         document.body.innerHTML = `
             <input data-tech-filter="RSI" data-tech-field="condition" value="OVERSOLD">
             <input data-tech-filter="RSI" data-tech-field="period" value="14">
-            <input data-tech-filter="SIMPLE_MOVING_AVERAGE" data-tech-field="rules" value="SMA20 > SMA50">
+            <div id="ma-conditions"></div>
         `;
 
+        addConditionRow('ma-conditions', MA_VARIABLES, 'SMA20 > SMA50');
         const tf = getTechnicalFiltersFromDOM();
 
         expect(tf.RSI.condition).toBe('OVERSOLD');
@@ -1595,9 +1590,9 @@ describe('Delete Result Modals and Actions', () => {
         expect(API.delete).toHaveBeenCalledWith('/api/results/custom/screeners/scr-456');
     });
 
-    test('promptDeleteCustomScreenerResult should insert screener delete overlay', () => {
+    test('confirmDeleteCustomScreenerResult should insert screener delete overlay', () => {
         document.body.innerHTML = '';
-        promptDeleteCustomScreenerResult('scr-456', { stopPropagation: jest.fn() });
+        confirmDeleteCustomScreenerResult('scr-456', document.createElement('div'));
 
         const overlay = document.querySelector('.modal-overlay');
         expect(overlay).not.toBeNull();
@@ -2506,18 +2501,18 @@ describe('Technical Filters Form Filling', () => {
     test('fillTechFiltersForm should fill inputs from technical filters config map', () => {
         document.body.innerHTML = `
             <input data-tech-filter="RSI" data-tech-field="condition" />
-            <input data-tech-filter="VOLUME" data-tech-field="rules" />
+            <div id="volume-conditions"></div>
         `;
 
         const techFilters = {
             RSI: { condition: 'RSI_UNDER_30' },
-            VOLUME: { conditions: ['MIN_VOLUME:1000000'] }
+            VOLUME: { conditions: ['VOLUME >= 1000000'] }
         };
 
         fillTechFiltersForm(techFilters);
 
         expect(document.querySelector('[data-tech-filter="RSI"][data-tech-field="condition"]').value).toBe('RSI_UNDER_30');
-        expect(document.querySelector('[data-tech-filter="VOLUME"][data-tech-field="rules"]').value).toBe('MIN_VOLUME:1000000');
+        expect(getConditionsFromContainer('volume-conditions')).toEqual(['VOLUME >= 1000000']);
     });
 });
 
@@ -2545,7 +2540,7 @@ describe('Custom Strategy Execution Payload', () => {
 });
 
 describe('Custom Result Deletion Modals', () => {
-    test('promptDeleteCustomScreenerResult should show modal', () => {
+    test('confirmDeleteCustomScreenerResult should show modal', () => {
         document.body.innerHTML = `
             <div class="card">
                 <div class="card-header" data-target="sc-123">Header</div>
@@ -2553,7 +2548,7 @@ describe('Custom Result Deletion Modals', () => {
         `;
 
         const mockEvent = { stopPropagation: jest.fn() };
-        promptDeleteCustomScreenerResult('sc-123', mockEvent);
+        confirmDeleteCustomScreenerResult('sc-123', document.querySelector('.card'));
 
         const overlay = document.querySelector('.modal-overlay');
         expect(overlay).not.toBeNull();
@@ -2708,12 +2703,12 @@ describe('Result Card Filter Details Toggle', () => {
         expect(overlay.querySelector('#confirm-delete-btn')).not.toBeNull();
     });
 
-    test('promptDeleteCustomScreenerResult should render deletion overlay with confirm button', () => {
+    test('confirmDeleteCustomScreenerResult should render deletion overlay with confirm button', () => {
         document.body.innerHTML = '';
         const card = document.createElement('div');
 
         const mockEvent = { stopPropagation: jest.fn() };
-        promptDeleteCustomScreenerResult('sc-777', mockEvent);
+        confirmDeleteCustomScreenerResult('sc-777', card);
         const overlay = document.querySelector('.modal-overlay');
         expect(overlay).not.toBeNull();
         expect(overlay.querySelector('#confirm-delete-btn')).not.toBeNull();

@@ -124,6 +124,9 @@ async function initAuth() {
 function injectUserInfo(user) {
     const sidebar = document.querySelector('.sidebar');
     if (!sidebar || sidebar.querySelector('.user-info')) return;
+    if (sidebar.hasAttribute('data-sidebar') && !sidebar.querySelector('.sidebar-brand') && typeof renderAppSidebar === 'function') {
+        renderAppSidebar(sidebar);
+    }
 
     const email = user?.email || '';
     const avatar = user?.user_metadata?.avatar_url || '';
@@ -257,17 +260,21 @@ const API = {
     delete(path) { return this.request('DELETE', path); }
 };
 
-// CommonJS Exports
+const AUTH_API_EXPORTS = {
+    initAuth,
+    injectUserInfo,
+    applyReadOnlyRestrictions,
+    isReadOnly,
+    logout,
+    normalizePath,
+    isPathAllowed,
+    API
+};
+
+if (typeof window !== 'undefined') {
+    Object.assign(window, AUTH_API_EXPORTS);
+}
 if (typeof module !== 'undefined' && module.exports) {
     global.API = API;
-    module.exports = {
-        initAuth,
-        injectUserInfo,
-        applyReadOnlyRestrictions,
-        isReadOnly,
-        logout,
-        normalizePath,
-        isPathAllowed,
-        API
-    };
+    module.exports = AUTH_API_EXPORTS;
 }

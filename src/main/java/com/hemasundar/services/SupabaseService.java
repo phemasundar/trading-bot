@@ -1,6 +1,5 @@
 package com.hemasundar.services;
 
-import com.hemasundar.dto.ExecutionResult;
 import com.hemasundar.pojos.IVDataPoint;
 import com.hemasundar.services.supabase.*;
 import com.hemasundar.technical.TechnicalScreener.ScreeningResult;
@@ -17,14 +16,13 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
  * Service to interact with Supabase REST API for storing IV data and strategy
  * execution results.
- * This class now acts as a facade, delegating to specific repositories.
+ * This class acts as a facade, delegating to specific repositories.
  */
 @Log4j2
 @Service
@@ -49,10 +47,17 @@ public class SupabaseService {
     }
 
     /**
-     * Upserts (inserts or updates) IV data point to Supabase.
+     * Upserts (inserts or updates) a single IV data point to Supabase.
      */
     public void upsertIVData(IVDataPoint dataPoint) throws IOException {
         ivDataRepository.upsertIVData(dataPoint);
+    }
+
+    /**
+     * Upserts a batch of IV data points to Supabase.
+     */
+    public void upsertIVDataBatch(List<IVDataPoint> dataPoints) throws IOException {
+        ivDataRepository.upsertIVDataBatch(dataPoints);
     }
 
     /**
@@ -91,17 +96,20 @@ public class SupabaseService {
     }
 
     /**
-     * Saves a strategy execution result to Supabase.
+     * Computes IV statistics for multiple symbols in a single bulk RPC request to Supabase.
+     *
+     * @param symbols collection of stock tickers
+     * @return map of uppercase symbol to IV stats map
      */
-    public void saveExecutionResult(ExecutionResult result) throws IOException {
-        customExecutionRepository.saveExecutionResult(result);
+    public Map<String, Map<String, Object>> getIVStatsForSymbols(Collection<String> symbols) {
+        return ivDataRepository.getIVStatsForSymbols(symbols);
     }
 
     /**
-     * Retrieves the latest strategy execution result from Supabase.
+     * Clears the in-memory IV stats cache.
      */
-    public Optional<ExecutionResult> getLatestExecutionResult() throws IOException {
-        return customExecutionRepository.getLatestExecutionResult();
+    public void clearIVStatsCache() {
+        ivDataRepository.clearIVStatsCache();
     }
 
     // ==================== Per-Strategy Result Persistence ====================
@@ -284,7 +292,7 @@ public class SupabaseService {
     }
 
     private void applyStatsToResult(ScreeningResult res, Map<String, Object> stats) {
-        if (res == null || stats == null) {
+        if (res == null || stats == null || stats.isEmpty()) {
             return;
         }
         if (stats.get("ivPercentile") instanceof Number num) {

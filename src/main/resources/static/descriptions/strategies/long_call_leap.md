@@ -21,9 +21,111 @@ A LEAP (Long-Term Equity Anticipation Securities) is simply an options contract 
 
 ---
 
-## Strategy Filters & Configuration
+## Available Filters
 
-The Long Call LEAP strategy supports a comprehensive suite of symbol-level, leg-level, risk-management, and carrying-cost filters. Below is a detailed breakdown of each filter, explaining why and how to use it.
+The Long Call LEAP strategy utilizes the unified mathematical expression filtering engine (`MathExpression`). Filters can be applied at the **trade level**, on the **long call leg** (`longCall`), within **earnings gates** (`earningsFilters`), or against underlying **volatility and technical indicators**.
+
+### Mathematical Expression Syntax
+* **Supported Operators:** `>=` (greater or equal), `<=` (less or equal), `==` (equal), `>` (strictly greater), `<` (strictly less).
+* **LHS (Left-Hand Side):** Standard metric identifier (e.g., `DTE`, `MAX_LOSS`, `OPTION_PRICE_PCT`, `BREAKEVEN_CAGR`, `COST_SAVINGS_PCT`, `longCall.DELTA`, `DAYS_TO_NEXT_EARNINGS`).
+* **RHS (Right-Hand Side):** Supports numeric constants (`330`, `5000`, `40`), percentages (`40%`, `10%`), variables (`DTE`), offsets (`DTE - 10`), or scaled variables.
+
+---
+
+### 1. Trade-Level Conditions (`conditions: [...]`)
+Applied to the overall LEAP trade candidate:
+
+| Filter (LHS) | Description | Possible LHS Values | Possible RHS Values & Syntax | Example Condition |
+|---|---|---|---|---|
+| `DTE` | Days to expiration (LEAPs typically >= 1 year / 330–730+ days) | `DTE` (integer days) | Numeric constant range | `DTE >= 330`<br>`DTE <= 730` |
+| `MAX_LOSS` | Maximum capital risk per contract: `Call Premium * 100` | Dollars ($) | Numeric constant dollar risk ceiling | `MAX_LOSS <= 5000` |
+| `OPTION_PRICE_PCT` | Option premium as percentage of current stock price: `(Premium / Stock Price) * 100` | Percentage (%) | Numeric threshold (typically `<= 40%` to `<= 50%`) | `OPTION_PRICE_PCT <= 40%`<br>`OPTION_PRICE_PCT <= 50` |
+| `BREAKEVEN_CAGR` | Annualized compound growth rate the stock must achieve to break even by expiry | Percentage (%) | Numeric threshold (Conservative: `10%`, Moderate: `15%`, Aggressive: `20%`) | `BREAKEVEN_CAGR <= 10%`<br>`BREAKEVEN_CAGR <= 15` |
+| `COST_SAVINGS_PCT` | Percentage carrying-cost savings of the option vs buying stock on 50% Regulation T margin | Percentage (%) | Numeric percentage (e.g. `>= 10%` or negative threshold under margin carrying model) | `COST_SAVINGS_PCT >= 10%`<br>`COST_SAVINGS_PCT >= -40` |
+| `BREAK_EVEN_PRICE` | Nominal breakeven stock price: `Strike Price + Call Premium` | Dollars ($) | Numeric price or variable reference | `BREAK_EVEN_PRICE <= CURRENT_PRICE * 115%` |
+| `BREAK_EVEN_PCT` | Unannualized percentage move required to hit breakeven | Percentage (%) | Numeric threshold | `BREAK_EVEN_PCT <= 20.0` |
+| `TOTAL_DEBIT` | Total debit paid per contract: `Call Premium * 100` | Dollars ($) | Numeric constant | `TOTAL_DEBIT <= 3500` |
+| `FINAL_COST_OF_OPTION` | Carrying cost of option: Extrinsic Value + Missed Dividends per share | Dollars ($) | Numeric dollar amount | `FINAL_COST_OF_OPTION <= 15.0` |
+| `FINAL_COST_OF_BUYING` | Carrying cost of stock on 50% margin: Margin Interest + Forfeited Savings Return | Dollars ($) | Numeric dollar amount | `FINAL_COST_OF_BUYING >= 10.0` |
+
+---
+
+### 2. Option Leg Conditions (`longCall`)
+Applied to the deep in-the-money long call leg:
+
+| Filter (LHS) | Description | Possible LHS Values | Possible RHS Values & Syntax | Example Condition |
+|---|---|---|---|---|
+| `DELTA` | Delta / share equivalence of the long call (stock replacement target: 0.70–0.90) | `0.0` to `1.0` | Numeric decimal | `DELTA >= 0.70`<br>`longCall: DELTA >= 0.75` |
+| `OPEN_INTEREST` | Open contracts outstanding | Integer contracts | Numeric constant enforcing liquidity | `OPEN_INTEREST >= 100`<br>`OPEN_INTEREST >= 50` |
+| `VOLUME` | Daily contract trading volume | Integer contracts | Numeric constant | `VOLUME >= 10` |
+| `IV` | Option contract implied volatility | Percentage (%) | Numeric decimal or variable | `IV <= 45.0` |
+| `ASK`, `BID`, `MARK` | Contract premium per share | Dollars ($) | Numeric dollar limit or offset | `ASK <= 50.00` |
+| `EXTRINSIC_VALUE` | Time value portion of the option premium | Dollars ($) | Numeric dollar amount | `EXTRINSIC_VALUE <= 8.00` |
+
+---
+
+### 3. Volatility Filters
+LEAPs have significant positive Vega; buying during low volatility regimes maximizes gains when volatility expands:
+
+| Filter (LHS) | Description | Possible LHS Values | Possible RHS Values & Syntax | Example Condition |
+|---|---|---|---|---|
+| `IV_PERCENTILE` | 52-week IV percentile rank | `0.0` to `100.0` | Numeric constant (recommended `<= 30` to avoid paying inflated premiums) | `IV_PERCENTILE <= 30` |
+| `IV_RANK` | Where current IV sits between 52-week low and high | `0.0` to `100.0` | Numeric constant | `IV_RANK <= 40` |
+| `HV_RANK` | 20-day historical volatility rank | `0.0` to `100.0` | Numeric constant | `HV_RANK <= 40` |
+
+---
+
+### 4. Earnings Quality Gates (`earningsFilters`)
+LEAPs span multiple quarters of earnings; event filters protect against short-term pre-earnings IV crush:
+
+| Filter (LHS) | Description | Possible LHS Values | Possible RHS Values & Syntax | Example Condition |
+|---|---|---|---|---|
+| `DAYS_TO_NEXT_EARNINGS` | Calendar days to next earnings event | Integer days (`999999` if none) | Numeric days threshold | `DAYS_TO_NEXT_EARNINGS >= 10` |
+
+---
+
+### 5. Technical Filters (Underlying Indicators)
+* **Trend Confirmation**: High-conviction long-term compounders.
+* **Indicators**: `PRICE >= SMA50`, `SMA50 >= SMA200` (golden cross), `RSI >= 45` and `RSI <= 65`, `VOLUME_SMA20 >= VOLUME_SMA50 * 90%`.
+* **Liquidity**: `DOLLAR_VOLUME >= 50000000`.
+
+---
+
+### 6. Example Configuration (`strategies-config.yml`)
+
+```yaml
+- alias: "Moderate LEAP"
+  enabled: true
+  termType: "Extra Long Term"
+  strategyType: "LONG_CALL_LEAP"
+  descriptionFile: "strategies/long_call_leap.md"
+  filterType: "LongCallLeapFilter"
+  securitiesFile: "portfolio, tracking, 2026"
+  filter:
+    conditions:
+      - "DTE >= 330"
+      - "OPTION_PRICE_PCT <= 40"
+      - "BREAKEVEN_CAGR <= 15"
+      - "COST_SAVINGS_PCT >= 10"
+      - "IV_PERCENTILE <= 30"
+    longCall:
+      conditions:
+        - "DELTA >= 0.70"
+        - "OPEN_INTEREST >= 50"
+    relaxationPriority:
+      - "maxCAGRForBreakEven"
+      - "maxOptionPricePercent"
+      - "minCostSavingsPercent"
+    sortPriority:
+      - "daysToExpiration"
+      - "costSavingsPercent"
+      - "optionPricePercent"
+      - "breakevenCAGR"
+```
+
+---
+
+## Detailed Model & Architecture Deep Dive
 
 ---
 

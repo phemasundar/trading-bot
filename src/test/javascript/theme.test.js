@@ -1,4 +1,4 @@
-const { toggleTheme, updateThemeIcon, applyEarlyRbac } = require('../../main/resources/static/theme');
+const { toggleTheme, updateThemeIcon, applyEarlyRbac, renderAppSidebar } = require('../../main/resources/static/theme');
 
 describe('Theme Manager', () => {
     beforeEach(() => {
@@ -67,5 +67,17 @@ describe('Theme Manager', () => {
         expect(style).not.toBeNull();
         expect(style.textContent).toContain('[data-admin-only]');
         expect(style.textContent).toContain(':not([href="/config.html"])');
+    });
+
+    test('renderAppSidebar should populate nav[data-sidebar] and mark active route', () => {
+        document.body.innerHTML = '<nav class="sidebar" data-sidebar></nav>';
+        const sidebar = document.querySelector('nav.sidebar');
+        renderAppSidebar(sidebar, '/execute.html');
+
+        expect(sidebar.querySelector('.sidebar-brand')).not.toBeNull();
+        expect(sidebar.querySelectorAll('.sidebar-section').length).toBeGreaterThanOrEqual(5);
+        const activeLink = sidebar.querySelector('.nav-link.active');
+        expect(activeLink).not.toBeNull();
+        expect(activeLink.getAttribute('href')).toBe('/execute.html');
     });
 });

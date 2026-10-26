@@ -27,25 +27,40 @@ public class FinnHubAPIs {
     private final ApiErrorHandler apiErrorHandler;
 
     /**
-     * Fetches the Earnings Calendar for a specific ticker.
-     * Finnhub supports server-side filtering by symbol for this endpoint.
+     * Fetches the Earnings Calendar for a specific ticker, using cached data if fresh.
      *
-     * @return
+     * @param ticker the stock ticker symbol
+     * @param toDate the upper bound date for returned earnings events
+     * @return EarningsCalendarResponse filtered up to {@code toDate}
      */
     public EarningsCalendarResponse getEarningsByTicker(String ticker, LocalDate toDate) {
+        return getEarningsByTicker(ticker, toDate, false);
+    }
 
-        // 1. Try Cache First
-        List<EarningsCalendarResponse.EarningCalendar> cachedEarnings = EarningsCacheManager
-                .getEarningsFromCache(ticker, toDate);
+    /**
+     * Fetches the Earnings Calendar for a specific ticker.
+     * When {@code forceRefresh} is true, bypasses the local cache age check and pulls fresh data from FinnHub.
+     *
+     * @param ticker       the stock ticker symbol
+     * @param toDate       the upper bound date for returned earnings events
+     * @param forceRefresh true to force an API call regardless of cache age
+     * @return EarningsCalendarResponse filtered up to {@code toDate}
+     */
+    public EarningsCalendarResponse getEarningsByTicker(String ticker, LocalDate toDate, boolean forceRefresh) {
+        if (!forceRefresh) {
+            // 1. Try Cache First
+            List<EarningsCalendarResponse.EarningCalendar> cachedEarnings = EarningsCacheManager
+                    .getEarningsFromCache(ticker, toDate);
 
-        if (cachedEarnings != null) {
-            List<EarningsCalendarResponse.EarningCalendar> filteredCached = cachedEarnings.stream()
-                    .filter(e -> e.getDate() != null && !e.getDate().isAfter(toDate))
-                    .toList();
-            return new EarningsCalendarResponse(filteredCached);
+            if (cachedEarnings != null) {
+                List<EarningsCalendarResponse.EarningCalendar> filteredCached = cachedEarnings.stream()
+                        .filter(e -> e.getDate() != null && !e.getDate().isAfter(toDate))
+                        .toList();
+                return new EarningsCalendarResponse(filteredCached);
+            }
         }
 
-        log.debug("Fetching fresh earnings for: {}", ticker);
+        log.debug("Fetching fresh earnings for: {} (forceRefresh={})", ticker, forceRefresh);
 
         // 2. Fetch Fresh Data (Always fetch 1 year ahead for better caching)
         LocalDate oneYearFromNow = LocalDate.now().plusYears(1);
@@ -54,13 +69,30 @@ public class FinnHubAPIs {
         // satisfy current request
         LocalDate fetchUntilDate = toDate.isAfter(oneYearFromNow) ? toDate : oneYearFromNow;
 
-        Response response = RestAssured.given()
-                .baseUri(BaseURLs.FINNHUB_BASE_URL)
-                .queryParam("symbol", ticker)
-                .queryParam("from", LocalDate.now().toString())
-                .queryParam("to", fetchUntilDate.toString())
-                .queryParam("token", finnhubConfig.getApiKey())
-                .get("/calendar/earnings");
+        Response response = null;
+        int maxAttempts = 3;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            response = RestAssured.given()
+                    .baseUri(BaseURLs.FINNHUB_BASE_URL)
+                    .queryParam("symbol", ticker)
+                    .queryParam("from", LocalDate.now().toString())
+                    .queryParam("to", fetchUntilDate.toString())
+                    .queryParam("token", finnhubConfig.getApiKey())
+                    .get("/calendar/earnings");
+
+            if (response.statusCode() == 429 && attempt < maxAttempts) {
+                log.warn("FinnHub rate limit (429) hit for {} (attempt {}/{}), waiting before retry...",
+                        ticker, attempt, maxAttempts);
+                try {
+                    Thread.sleep(2000L * attempt);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+                continue;
+            }
+            break;
+        }
 
         if (response.statusCode() != 200) {
             if (response.statusCode() == 400) {

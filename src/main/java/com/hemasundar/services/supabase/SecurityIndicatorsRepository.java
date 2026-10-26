@@ -9,6 +9,8 @@ import com.hemasundar.technical.TechnicalScreener.ScreeningResult;
 import io.restassured.response.Response;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.ListUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -50,20 +52,17 @@ public class SecurityIndicatorsRepository {
         String url = client.getUrl(SECURITY_INDICATORS_PATH);
         String nowStr = Instant.now().toString();
 
-        for (int i = 0; i < results.size(); i += BATCH_SIZE) {
-            int end = Math.min(i + BATCH_SIZE, results.size());
-            List<ScreeningResult> batch = results.subList(i, end);
-
+        for (List<ScreeningResult> batch : ListUtils.partition(results, BATCH_SIZE)) {
             ArrayNode arrayNode = mapper.createArrayNode();
             for (ScreeningResult r : batch) {
-                if (r == null || r.getSymbol() == null || r.getSymbol().isBlank()) {
+                if (r == null || StringUtils.isBlank(r.getSymbol())) {
                     continue;
                 }
                 ObjectNode node = mapper.createObjectNode();
                 node.put("symbol", r.getSymbol().toUpperCase());
-                if (r.getCompanyName() != null) node.put("company_name", r.getCompanyName());
+                node.put("company_name", r.getCompanyName());
                 node.put("current_price", r.getCurrentPrice());
-                if (r.getMarketCapB() != null) node.put("market_cap_b", r.getMarketCapB());
+                node.put("market_cap_b", r.getMarketCapB());
 
                 // 1. RSI (Config + Values, keyed by config name)
                 ObjectNode rsiContainer = mapper.createObjectNode();
@@ -133,9 +132,7 @@ public class SecurityIndicatorsRepository {
                 String summary = r.getAllTechnicalIndicatorsSummary() != null
                         ? r.getAllTechnicalIndicatorsSummary()
                         : r.getFormattedSummary();
-                if (summary != null) {
-                    node.put("indicators_summary", summary);
-                }
+                node.put("indicators_summary", summary);
                 node.put("updated_at", nowStr);
 
                 arrayNode.add(node);
@@ -154,14 +151,13 @@ public class SecurityIndicatorsRepository {
 
                 int statusCode = response.getStatusCode();
                 if (statusCode != 200 && statusCode != 201) {
-                    throw new IOException(String.format(
-                            "Failed to save security indicators batch [%d-%d]: %d - %s. Body: %s",
-                            i, end, statusCode, response.getStatusLine(), response.getBody().asString()));
+                    log.error("Failed to save security indicators batch of {} records: {} - {}. Body: {}",
+                            batch.size(), statusCode, response.getStatusLine(), response.getBody().asString());
+                } else {
+                    log.debug("Successfully saved/updated indicators for {} securities in Supabase", arrayNode.size());
                 }
-                log.debug("Successfully saved/updated indicators for {} securities in Supabase", arrayNode.size());
             } catch (Exception e) {
-                if (e instanceof IOException) throw (IOException) e;
-                throw new IOException("Failed to save security indicators batch: " + e.getMessage(), e);
+                log.error("Failed to save security indicators batch of {} records: {}", batch.size(), e.getMessage());
             }
         }
     }

@@ -173,3 +173,46 @@ By cross-referencing single-stock IV Percentile against the market-wide VIX, tra
 ### Algorithmic Execution Rule
 
 $$\text{Short Volatility Candidate} \iff (\text{IVP} \ge 75) \land (\text{VIX} \le 28) \land (\text{DAYS\_TO\_EARNINGS} > \text{DTE})$$
+
+## Volatility Skew / Volatility Smirk
+
+So far, we have treated a stock's Implied Volatility as a single, uniform number. But in reality, if you open an options chain, you will notice that IV changes depending on which specific strike price you are looking at.
+
+Volatility Skew is the difference in implied volatility between out-of-the-money (OTM) puts and OTM calls for the same expiration date.
+
+Here is why it exists: Large financial institutions hold massive amounts of stock. To protect themselves from a sudden market crash, they constantly buy OTM puts. This acts exactly like fire insurance for their portfolios. This massive, relentless demand for downside protection drives up the price of puts, which in turn mathematically drives up their IV.
+
+Because of this, in a normal market, OTM Puts almost always have a higher IV than equidistant OTM Calls. The market prices in fear (crashes) more aggressively than greed (rallies).
+
+For your trading bot, you can measure this sentiment directly. A standard way to program this is to have your bot compare the IV of the 25-delta Put to the 25-delta Call:
+
+- Normal Skew: Put IV > Call IV (Market is bracing for normal downside risk). 
+- Reverse Skew: Call IV > Put IV (Market is aggressively betting on an upside explosion).
+
+Your bot can use Volatility Skew as a directional safety filter. If Call_IV > Put_IV by a significant margin, the bot should immediately block any strategies that sell calls. Conversely, if Put_IV is massively higher than Call_IV, it knows the market is pricing in heavy crash risk.
+
+### Skew Ratio:
+
+Skew Ratio = (25-delta Put IV) / (25-delta Call IV)
+
+If the ratio drops below 1, your bot flags a potential upside squeeze.
+
+If the ratio spikes to something like 1.8, your bot knows the market is in a state of extreme panic.
+
+### Probable Bot Logic
+#### 1. Block Call Credit Spreads (Upside Squeeze Filter)
+IF (Skew_Ratio < 1.0) OR (Skew_Percentile < 20):
+Action = "BLOCK Call Credit Spreads"
+Reason = "Call IV is higher than Put IV, or call demand is abnormally high."
+
+#### 2. Block Put Credit Spreads (Crash Panic Filter)
+IF (Skew_Percentile > 80):
+Action = "BLOCK Put Credit Spreads"
+Reason = "Put demand is in the top 20% of its yearly range (heavy crash risk)."
+
+#### 3. Safe Zone for Selling Spreads
+IF (Skew_Ratio >= 1.0) AND (Skew_Percentile >= 20 AND Skew_Percentile <= 80):
+Action = "ALLOW Put Credit Spreads, Call Credit Spreads, or Iron Condors"
+
+### Strike prices selection
+$$\text{Expected Move (in $ terms)} = \text{Stock Price} \times \text{IV} \times \sqrt{\frac{\text{Days to Expiration}}{365}}$$

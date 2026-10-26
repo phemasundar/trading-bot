@@ -17,7 +17,6 @@ import org.yaml.snakeyaml.Yaml;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
 
@@ -120,6 +119,8 @@ public class IVDataJobService {
                 symbol -> ivDataCollector.collectIVDataPoint(symbol)
         );
 
+        List<IVDataPoint> pointsToUpsert = new ArrayList<>();
+
         for (int i = 0; i < symbols.size(); i++) {
             String symbol = symbols.get(i);
             IVDataPoint dataPoint = results.get(i);
@@ -129,18 +130,34 @@ public class IVDataJobService {
                 skipCount++;
                 skippedSymbols.add(symbol);
             } else if (dataPoint != null && (dataPoint.getAtmPutIV() != null || dataPoint.getAtmCallIV() != null)) {
-                if (supabaseService.isPresent()) {
-                    try {
-                        supabaseService.get().upsertIVData(dataPoint);
-                        log.debug("[{}] ✓ Saved to Supabase", symbol);
-                    } catch (Exception e) {
-                        log.error("[{}] Error saving to Supabase: {}", symbol, e.getMessage());
-                    }
-                }
-                successCount++;
+                pointsToUpsert.add(dataPoint);
             } else {
                 failCount++;
                 failedSymbols.add(symbol);
+            }
+        }
+
+        if (!pointsToUpsert.isEmpty()) {
+            if (supabaseService.isPresent()) {
+                try {
+                    supabaseService.get().upsertIVDataBatch(pointsToUpsert);
+                    successCount += pointsToUpsert.size();
+                    log.info("✓ Batch-saved {} IV records to Supabase", pointsToUpsert.size());
+                } catch (Exception e) {
+                    log.error("Error batch-saving IV records to Supabase: {}. Falling back to individual records.", e.getMessage());
+                    for (IVDataPoint dp : pointsToUpsert) {
+                        try {
+                            supabaseService.get().upsertIVData(dp);
+                            successCount++;
+                        } catch (Exception ex) {
+                            log.error("[{}] Error saving individual IV record to Supabase: {}", dp.getSymbol(), ex.getMessage());
+                            failCount++;
+                            failedSymbols.add(dp.getSymbol());
+                        }
+                    }
+                }
+            } else {
+                successCount += pointsToUpsert.size();
             }
         }
     }

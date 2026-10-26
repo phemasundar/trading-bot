@@ -23,6 +23,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.*;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -60,7 +61,7 @@ public class StrategyExecutionServiceTest {
 
     @Mock
     private TelegramUtils telegramUtils;
-    
+
     @Mock
     private TechnicalIndicatorPreCalculationService technicalIndicatorPreCalculationService;
 
@@ -108,7 +109,7 @@ public class StrategyExecutionServiceTest {
         mockedFilePaths.when(() -> FilePaths.readResource(anyString())).thenReturn("securities: []");
         mockedJavaUtils.when(() -> JavaUtils.convertYamlToPojo(anyString(), eq(Securities.class)))
                 .thenReturn(new Securities(Collections.emptyList()));
-                
+
         try {
             when(securitiesResolver.loadSecuritiesMaps()).thenReturn(new HashMap<>());
         } catch (IOException e) {
@@ -160,7 +161,8 @@ public class StrategyExecutionServiceTest {
 
         assertNotNull(result);
         assertEquals(result.getResults().size(), 1);
-        verify(supabaseService).saveExecutionResult(any());
+        verify(supabaseService).clearIVStatsCache();
+        verify(finnHubAPIs).getEarningsByTicker(eq("AAPL"), any(LocalDate.class));
     }
 
     @Test
@@ -217,8 +219,6 @@ public class StrategyExecutionServiceTest {
         assertEquals(result.getResults().size(), 1, "Should have cancelled after first strategy");
         assertTrue(strategyExecutionService.isCancellationRequested());
     }
-
-
 
     @Test
     public void testExecuteCustomStrategy() throws IOException {
@@ -370,6 +370,18 @@ public class StrategyExecutionServiceTest {
 
         assertNotNull(result);
         verify(technicalScreener).screenStocks(eq(List.of("AAPL", "MSFT")), any(), any(), eq("Tech Strategy"));
+        // Earnings pull happens upfront for BOTH AAPL and MSFT before technical filter
+        verify(finnHubAPIs).getEarningsByTicker(eq("AAPL"), any(LocalDate.class));
+        verify(finnHubAPIs).getEarningsByTicker(eq("MSFT"), any(LocalDate.class));
+    }
+
+    @Test
+    public void testPullEarningsForSymbols_ForceRefresh() {
+        strategyExecutionService.pullEarningsForSymbols(List.of("AAPL", "MSFT", "NVDA"), true);
+
+        verify(finnHubAPIs).getEarningsByTicker(eq("AAPL"), any(LocalDate.class), eq(true));
+        verify(finnHubAPIs).getEarningsByTicker(eq("MSFT"), any(LocalDate.class), eq(true));
+        verify(finnHubAPIs).getEarningsByTicker(eq("NVDA"), any(LocalDate.class), eq(true));
     }
 
     @Test
@@ -393,7 +405,7 @@ public class StrategyExecutionServiceTest {
         strategyExecutionService.startGlobalExecution("Test");
         strategyExecutionService.cancelExecution();
         assertTrue(strategyExecutionService.isCancellationRequested());
-        
+
         strategyExecutionService.finishGlobalExecution();
         assertFalse(strategyExecutionService.isCancellationRequested());
     }
@@ -405,16 +417,10 @@ public class StrategyExecutionServiceTest {
         assertNotNull(customResults);
         verify(supabaseService).getRecentCustomExecutions(5);
 
-        when(supabaseService.getLatestExecutionResult()).thenReturn(Optional.empty());
-        Optional<ExecutionResult> latestExec = strategyExecutionService.getLatestExecutionResult();
-        assertFalse(latestExec.isPresent());
-        verify(supabaseService).getLatestExecutionResult();
-
         when(supabaseService.getAllLatestStrategyResults()).thenReturn(Collections.emptyList());
         List<?> allResults = strategyExecutionService.getAllLatestStrategyResults();
         assertNotNull(allResults);
         verify(supabaseService).getAllLatestStrategyResults();
     }
-
 
 }

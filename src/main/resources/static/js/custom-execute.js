@@ -3,15 +3,12 @@
  * Options custom execution form logic, leg filters, strategy templates, and custom results loading.
  */
 
-function escapeHtml(str) {
-    if (typeof escapeHtmlContent === 'function') return escapeHtmlContent(str);
-    return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-// In Node.js testing environment, load shared technical catalogs and condition builders from screener-execute
+// In Node.js testing environment, load shared utilities, dashboard helpers, and technical condition builders
 if (typeof window === 'undefined' && typeof require === 'function') {
+    const _utils = require('./utils');
+    const _dashboard = require('./dashboard');
     const _screener = require('./screener-execute');
-    Object.assign(global, _screener);
+    Object.assign(global, _utils, _dashboard, _screener);
 }
 
 const STRATEGY_TYPES = [
@@ -116,60 +113,6 @@ const STRATEGY_SCALAR_FIELDS = {
     zebra: [],
     short_put: [],
     short_strangle: [],
-};
-
-function getLegFilters(prefix, title) {
-    return [
-        { key: `${prefix}.minDelta`, label: `${title} Min Delta`, placeholder: '0.10', step: '0.01' },
-        { key: `${prefix}.maxDelta`, label: `${title} Max Delta`, placeholder: '0.30', step: '0.01' },
-        { key: `${prefix}.minOpenInterest`, label: `${title} Min OI`, placeholder: '100' },
-        { key: `${prefix}.minVolume`, label: `${title} Min Volume`, placeholder: '10' },
-        { key: `${prefix}.minPremium`, label: `${title} Min Premium`, placeholder: '0.50', step: '0.10' },
-        { key: `${prefix}.maxPremium`, label: `${title} Max Premium`, placeholder: '5.00', step: '0.10' },
-        { key: `${prefix}.minVolatility`, label: `${title} Min Volatility`, placeholder: '10.0', step: '0.1' },
-        { key: `${prefix}.maxVolatility`, label: `${title} Max Volatility`, placeholder: '50.0', step: '0.1' },
-    ];
-}
-
-const STRATEGY_SPECIFIC_FILTERS = {
-    credit_spread: [
-        ...getLegFilters('shortLeg', 'Short Leg'),
-        ...getLegFilters('longLeg', 'Long Leg')
-    ],
-    iron_condor: [
-        ...getLegFilters('putShortLeg', 'Put Short'),
-        ...getLegFilters('putLongLeg', 'Put Long'),
-        ...getLegFilters('callShortLeg', 'Call Short'),
-        ...getLegFilters('callLongLeg', 'Call Long'),
-        { key: 'minCombinedCredit', label: 'Min Combined Credit', placeholder: '100' },
-    ],
-    leap: [
-        ...getLegFilters('longCall', 'Long Call'),
-        { key: 'minCostSavingsPercent', label: 'Min Cost Savings %', placeholder: '10.0', step: '0.1' },
-        { key: 'maxCAGRForBreakEven', label: 'Max Breakeven CAGR', placeholder: '15.0', step: '0.1' },
-        { key: 'maxOptionPricePercent', label: 'Max Option Price %', placeholder: '30.0', step: '0.1' },
-        { key: 'marginInterestRate', label: 'Margin Interest Rate', placeholder: '6.0', step: '0.1' },
-        { key: 'savingsInterestRate', label: 'Savings Interest Rate', placeholder: '10.0', step: '0.1' },
-        { key: 'relaxationPriority', label: 'Relaxation Priority (comma separated)', placeholder: 'maxCAGRForBreakEven,maxOptionPricePercent', type: 'text' },
-        { key: 'sortPriority', label: 'Sort Priority (comma separated)', placeholder: 'daysToExpiration,costSavingsPercent', type: 'text' },
-    ],
-    bwb: [
-        ...getLegFilters('leg1Long', 'Lower Strike Long Leg'),
-        ...getLegFilters('leg2Short', 'Middle Short Legs'),
-        ...getLegFilters('leg3Long', 'Upper Strike Long Leg'),
-        { key: 'priceVsMaxDebitRatio', label: 'Price/Debit Ratio', placeholder: '2.0', step: '0.1' },
-    ],
-    zebra: [
-        ...getLegFilters('shortCall', 'Short Call'),
-        ...getLegFilters('longCall', 'Long Call'),
-    ],
-    short_put: [
-        ...getLegFilters('shortLeg', 'Short Put Leg'),
-    ],
-    short_strangle: [
-        ...getLegFilters('putShortLeg', 'Short Put Leg'),
-        ...getLegFilters('callShortLeg', 'Short Call Leg'),
-    ],
 };
 
 const EARNINGS_PRESETS = [
@@ -300,75 +243,66 @@ async function checkCustomExecutionStatus() {
     } catch (e) { /* ignore */ }
 }
 
-async function renderStrategyTemplates(strategyType) {
-    const container = document.getElementById('strategy-templates');
-    if (!container) return;
-
-    if (!window.appConfig) {
-        try {
-            window.appConfig = await API.get('/api/config');
-        } catch (e) {
-            container.innerHTML = '';
-            return;
+function flattenFilterObject(ob, prefix = '') {
+    const res = {};
+    for (const [k, v] of Object.entries(ob || {})) {
+        if (prefix === '' && k === 'conditions') continue;
+        if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
+            Object.assign(res, flattenFilterObject(v, prefix + k + '.'));
+        } else {
+            res[prefix + k] = v;
         }
     }
+    return res;
+}
 
-    const strategies = (window.appConfig && window.appConfig.optionsStrategies) || [];
-    const matching = strategies.filter(s => s.strategyType === strategyType);
+function resetScalarFilterInputs() {
+    document.querySelectorAll('[data-filter]').forEach(inp => {
+        if (inp.type === 'checkbox') {
+            inp.checked = false;
+        } else {
+            inp.value = '';
+        }
+    });
+}
 
-    if (matching.length === 0) {
-        container.innerHTML = '';
-        return;
+function populateScalarFilterInputs(flatFilters) {
+    for (const [k, v] of Object.entries(flatFilters)) {
+        const el = document.querySelector(`[data-filter="${k}"]`);
+        if (el) {
+            if (el.type === 'checkbox') {
+                el.checked = !!v;
+            } else if (Array.isArray(v)) {
+                el.value = v.join(', ');
+            } else if (v !== null && v !== undefined) {
+                el.value = v;
+            }
+        }
     }
+}
 
-    const heading = document.createElement('h4');
-    heading.style.fontSize = '0.8rem';
-    heading.style.color = 'var(--text-secondary)';
-    heading.style.marginBottom = '8px';
-    heading.textContent = 'Configured Templates (Click to view, Load to edit)';
-
-    container.innerHTML = '';
-    container.appendChild(heading);
-
-    matching.forEach(strategy => {
-        const card = document.createElement('div');
-        card.className = 'config-card';
-        card.style.marginBottom = '8px';
-
-        const enabledPill = strategy.enabled
-            ? '<span class="pill pill-enabled">Enabled</span>'
-            : '<span class="pill pill-disabled">Disabled</span>';
-
-        const loadBtn = `<button type="button" class="btn btn-primary" style="padding: 2px 8px; font-size: 0.75rem; margin-left: auto;" onclick="loadTemplateParams('${escapeAttr(JSON.stringify(strategy))}')">Load Filters</button>`;
-
-        const baseName = strategy.alias || strategy.name || (STRATEGY_TYPES.find(t => t.value === strategy.strategyType)?.label || strategy.strategyType);
-        const detailedName = (strategy.termType && !baseName.toLowerCase().includes(strategy.termType.toLowerCase()))
-            ? `${baseName} - ${strategy.termType}`
-            : baseName;
-
-        card.innerHTML = `
-            <div class="config-card-header">
-                <div class="flex items-center gap-sm flex-wrap" style="width: 100%;">
-                    <span class="card-arrow">▶</span>
-                    <strong>${detailedName}</strong>
-                    <span class="card-badge">${strategy.securitiesFile || 'Custom'}</span>
-                    ${enabledPill}
-                    ${loadBtn}
-                </div>
-            </div>
-            <div class="config-card-body">
-                ${renderFilterGrid(strategy.filter || {})}
-                ${renderTechFiltersGrid(strategy.technicalFilters)}
-                ${strategy.securities ? `<div class="mt-sm"><span class="config-item-label">Securities (Inline)</span> <span class="config-item-value">${strategy.securities}</span></div>` : ''}
-            </div>`;
-
-        card.querySelector('.config-card-header').addEventListener('click', function (e) {
-            if (e.target.tagName === 'BUTTON') return;
-            this.querySelector('.card-arrow').classList.toggle('open');
-            this.nextElementSibling.classList.toggle('open');
-        });
-
-        container.appendChild(card);
+async function renderStrategyTemplates(strategyType) {
+    return renderTemplateAccordionList({
+        containerId: 'strategy-templates',
+        configKey: 'optionsStrategies',
+        filterFn: s => s.strategyType === strategyType,
+        buildHeaderContentFn: (strategy, enabledPill) => {
+            const loadBtn = `<button type="button" class="btn btn-primary" style="padding: 2px 8px; font-size: 0.75rem; margin-left: auto;" onclick="loadTemplateParams('${escapeAttr(JSON.stringify(strategy))}')">Load Filters</button>`;
+            const baseName = strategy.alias || strategy.name || (STRATEGY_TYPES.find(t => t.value === strategy.strategyType)?.label || strategy.strategyType);
+            const detailedName = (strategy.termType && !baseName.toLowerCase().includes(strategy.termType.toLowerCase()))
+                ? `${baseName} - ${strategy.termType}`
+                : baseName;
+            return `
+                <span class="card-arrow">▶</span>
+                <strong>${detailedName}</strong>
+                <span class="card-badge">${strategy.securitiesFile || 'Custom'}</span>
+                ${enabledPill}
+                ${loadBtn}`;
+        },
+        buildBodyContentFn: (strategy) => `
+            ${renderFilterGrid(strategy.filter || {})}
+            ${renderTechFiltersGrid(strategy.technicalFilters)}
+            ${strategy.securities ? `<div class="mt-sm"><span class="config-item-label">Securities (Inline)</span> <span class="config-item-value">${strategy.securities}</span></div>` : ''}`
     });
 }
 
@@ -394,14 +328,7 @@ function loadTemplateParams(strategyJson) {
             secFileInput.value = strategy.securitiesFile || '';
         }
 
-        // Reset scalar filter inputs
-        document.querySelectorAll('[data-filter]').forEach(inp => {
-            if (inp.type === 'checkbox') {
-                inp.checked = false;
-            } else {
-                inp.value = '';
-            }
-        });
+        resetScalarFilterInputs();
 
         // Reset and populate trade conditions
         const tradeCondContainer = document.getElementById('trade-conditions');
@@ -434,41 +361,7 @@ function loadTemplateParams(strategyJson) {
             }
         });
 
-        // Flatten remaining scalar fields (e.g. targetDTE, topTradesCount, marginInterestRate, etc.)
-        const flattenObj = (ob, prefix = '') => {
-            let res = {};
-            for (const [k, v] of Object.entries(ob)) {
-                if (prefix === '' && k === 'conditions') continue;
-                if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
-                    Object.assign(res, flattenObj(v, prefix + k + '.'));
-                } else {
-                    res[prefix + k] = v;
-                }
-            }
-            return res;
-        };
-
-        const flatFilters = flattenObj(filter);
-
-        for (const [k, v] of Object.entries(flatFilters)) {
-            const el = document.querySelector(`[data-filter="${k}"]`);
-            if (el) {
-                if (el.type === 'checkbox') {
-                    el.checked = !!v;
-                } else if (Array.isArray(v)) {
-                    el.value = v.join(', ');
-                } else {
-                    el.value = v;
-                }
-            }
-        }
-
-        if (flatFilters['earningsFilters.conditions'] === undefined && flatFilters.ignoreEarnings !== undefined) {
-            const condEl = document.getElementById('earnings-conditions-input');
-            if (condEl) {
-                condEl.value = flatFilters.ignoreEarnings === false ? 'DAYS_TO_NEXT_EARNINGS >= DTE' : '';
-            }
-        }
+        populateScalarFilterInputs(flattenFilterObject(filter));
         syncEarningsPresetFromInput();
 
         fillTechFiltersForm(strategy.technicalFilters);
@@ -521,14 +414,7 @@ function loadFiltersFromResult(btn, isReexecute = false) {
             }
         }
 
-        // Reset scalar filter inputs
-        document.querySelectorAll('[data-filter]').forEach(inp => {
-            if (inp.type === 'checkbox') {
-                inp.checked = false;
-            } else {
-                inp.value = '';
-            }
-        });
+        resetScalarFilterInputs();
 
         // Reset trade conditions
         const tradeCondContainer = document.getElementById('trade-conditions');
@@ -537,31 +423,10 @@ function loadFiltersFromResult(btn, isReexecute = false) {
         }
 
         // Populate trade conditions
-        if (Array.isArray(filterConfig.conditions) && filterConfig.conditions.length > 0) {
+        if (Array.isArray(filterConfig.conditions)) {
             filterConfig.conditions.forEach(cond => {
                 addConditionRow('trade-conditions', TRADE_VARIABLES, cond);
             });
-        } else {
-            // Graceful fallback for legacy records that stored named properties
-            if (filterConfig.minDTE && filterConfig.minDTE > 0) addConditionRow('trade-conditions', TRADE_VARIABLES, `DTE >= ${filterConfig.minDTE}`);
-            if (filterConfig.maxDTE && filterConfig.maxDTE < 2147483647 && filterConfig.maxDTE > 0) addConditionRow('trade-conditions', TRADE_VARIABLES, `DTE <= ${filterConfig.maxDTE}`);
-            if (filterConfig.maxLossLimit) addConditionRow('trade-conditions', TRADE_VARIABLES, `MAX_LOSS <= ${filterConfig.maxLossLimit}`);
-            if (filterConfig.minReturnOnRisk && filterConfig.minReturnOnRisk > 0) addConditionRow('trade-conditions', TRADE_VARIABLES, `RETURN_ON_RISK >= ${filterConfig.minReturnOnRisk}`);
-            if (filterConfig.minReturnOnRiskCAGR && filterConfig.minReturnOnRiskCAGR > 0) addConditionRow('trade-conditions', TRADE_VARIABLES, `CAGR >= ${filterConfig.minReturnOnRiskCAGR}`);
-            if (filterConfig.minIVRank) addConditionRow('trade-conditions', TRADE_VARIABLES, `IV_RANK >= ${filterConfig.minIVRank}`);
-            if (filterConfig.maxIVRank) addConditionRow('trade-conditions', TRADE_VARIABLES, `IV_RANK <= ${filterConfig.maxIVRank}`);
-            if (filterConfig.minIVPercentile) addConditionRow('trade-conditions', TRADE_VARIABLES, `IV_PERCENTILE >= ${filterConfig.minIVPercentile}`);
-            if (filterConfig.maxIVPercentile) addConditionRow('trade-conditions', TRADE_VARIABLES, `IV_PERCENTILE <= ${filterConfig.maxIVPercentile}`);
-            if (filterConfig.maxBreakEvenPercentage) addConditionRow('trade-conditions', TRADE_VARIABLES, `BREAK_EVEN_PCT <= ${filterConfig.maxBreakEvenPercentage}`);
-            if (filterConfig.maxUpperBreakevenDelta) addConditionRow('trade-conditions', TRADE_VARIABLES, `UPPER_BREAK_EVEN_DELTA <= ${filterConfig.maxUpperBreakevenDelta}`);
-            if (filterConfig.maxTotalDebit) addConditionRow('trade-conditions', TRADE_VARIABLES, `TOTAL_DEBIT <= ${filterConfig.maxTotalDebit}`);
-            if (filterConfig.maxTotalCredit) addConditionRow('trade-conditions', TRADE_VARIABLES, `NET_CREDIT <= ${filterConfig.maxTotalCredit}`);
-            if (filterConfig.minTotalCredit) addConditionRow('trade-conditions', TRADE_VARIABLES, `NET_CREDIT >= ${filterConfig.minTotalCredit}`);
-            if (filterConfig.maxNetExtrinsicValueToPricePercentage) addConditionRow('trade-conditions', TRADE_VARIABLES, `ANNUALIZED_EXTRINSIC_PCT <= ${filterConfig.maxNetExtrinsicValueToPricePercentage}`);
-            if (filterConfig.minNetExtrinsicValueToPricePercentage) addConditionRow('trade-conditions', TRADE_VARIABLES, `ANNUALIZED_EXTRINSIC_PCT >= ${filterConfig.minNetExtrinsicValueToPricePercentage}`);
-            if (filterConfig.maxCAGRForBreakEven) addConditionRow('trade-conditions', TRADE_VARIABLES, `BREAKEVEN_CAGR <= ${filterConfig.maxCAGRForBreakEven}`);
-            if (filterConfig.maxOptionPricePercent) addConditionRow('trade-conditions', TRADE_VARIABLES, `OPTION_PRICE_PCT <= ${filterConfig.maxOptionPricePercent}`);
-            if (filterConfig.minCostSavingsPercent) addConditionRow('trade-conditions', TRADE_VARIABLES, `COST_SAVINGS_PCT >= ${filterConfig.minCostSavingsPercent}`);
         }
 
         // Reset and populate leg conditions
@@ -573,41 +438,15 @@ function loadFiltersFromResult(btn, isReexecute = false) {
             if (legContainer) {
                 legContainer.innerHTML = '';
                 const legObj = filterConfig[leg.prefix];
-                if (legObj) {
-                    if (Array.isArray(legObj.conditions) && legObj.conditions.length > 0) {
-                        legObj.conditions.forEach(cond => {
-                            addConditionRow(`${leg.prefix}-conditions`, LEG_VARIABLES, cond);
-                        });
-                    } else {
-                        // Legacy leg properties fallback
-                        if (legObj.minDelta !== undefined && legObj.minDelta !== null) addConditionRow(`${leg.prefix}-conditions`, LEG_VARIABLES, `DELTA >= ${legObj.minDelta}`);
-                        if (legObj.maxDelta !== undefined && legObj.maxDelta !== null) addConditionRow(`${leg.prefix}-conditions`, LEG_VARIABLES, `DELTA <= ${legObj.maxDelta}`);
-                        if (legObj.minOpenInterest !== undefined && legObj.minOpenInterest !== null) addConditionRow(`${leg.prefix}-conditions`, LEG_VARIABLES, `OPEN_INTEREST >= ${legObj.minOpenInterest}`);
-                        if (legObj.minVolume !== undefined && legObj.minVolume !== null) addConditionRow(`${leg.prefix}-conditions`, LEG_VARIABLES, `VOLUME >= ${legObj.minVolume}`);
-                        if (legObj.minPremium !== undefined && legObj.minPremium !== null) addConditionRow(`${leg.prefix}-conditions`, LEG_VARIABLES, `MARK >= ${legObj.minPremium}`);
-                        if (legObj.maxPremium !== undefined && legObj.maxPremium !== null) addConditionRow(`${leg.prefix}-conditions`, LEG_VARIABLES, `MARK <= ${legObj.maxPremium}`);
-                        if (legObj.minVolatility !== undefined && legObj.minVolatility !== null) addConditionRow(`${leg.prefix}-conditions`, LEG_VARIABLES, `IV >= ${legObj.minVolatility}`);
-                        if (legObj.maxVolatility !== undefined && legObj.maxVolatility !== null) addConditionRow(`${leg.prefix}-conditions`, LEG_VARIABLES, `IV <= ${legObj.maxVolatility}`);
-                    }
+                if (legObj && Array.isArray(legObj.conditions)) {
+                    legObj.conditions.forEach(cond => {
+                        addConditionRow(`${leg.prefix}-conditions`, LEG_VARIABLES, cond);
+                    });
                 }
             }
         });
 
-        // Flatten scalar properties
-        const flattenObj = (ob, prefix = '') => {
-            let res = {};
-            for (const [k, v] of Object.entries(ob)) {
-                if (prefix === '' && k === 'conditions') continue;
-                if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
-                    Object.assign(res, flattenObj(v, prefix + k + '.'));
-                } else {
-                    res[prefix + k] = v;
-                }
-            }
-            return res;
-        };
-
-        const flatFilters = flattenObj(filterConfig);
+        const flatFilters = flattenFilterObject(filterConfig);
 
         if (flatFilters.securitiesFile !== undefined) {
             const secFileEl = document.getElementById('securities-file-input');
@@ -620,25 +459,7 @@ function loadFiltersFromResult(btn, isReexecute = false) {
             }
         }
 
-        for (const [k, v] of Object.entries(flatFilters)) {
-            const el = document.querySelector(`[data-filter="${k}"]`);
-            if (el) {
-                if (el.type === 'checkbox') {
-                    el.checked = !!v;
-                } else if (Array.isArray(v)) {
-                    el.value = v.join(', ');
-                } else if (v !== null && v !== undefined) {
-                    el.value = v;
-                }
-            }
-        }
-
-        if (flatFilters['earningsFilters.conditions'] === undefined && flatFilters.ignoreEarnings !== undefined) {
-            const condEl = document.getElementById('earnings-conditions-input');
-            if (condEl) {
-                condEl.value = flatFilters.ignoreEarnings === false ? 'DAYS_TO_NEXT_EARNINGS >= DTE' : '';
-            }
-        }
+        populateScalarFilterInputs(flatFilters);
         syncEarningsPresetFromInput();
 
         fillTechFiltersForm(filterConfig.technicalFilters);
@@ -672,7 +493,7 @@ function renderSpecificFilters(strategyValue) {
 
     // Render scalar fields if any (e.g. marginInterestRate, priceVsMaxDebitRatio)
     for (const f of scalarFields) {
-        const infoBtn = `<button type="button" class="info-btn" onclick="showFilterHelp(event, '${f.key}', '${escapeAttr(f.label)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>`;
+        const infoBtn = renderFilterHelpBtn(f.key, f.label);
         if (f.type === 'text') {
             html += `<div class="form-group">
                 <label class="form-label">${f.label} ${infoBtn}</label>
@@ -692,7 +513,7 @@ function renderSpecificFilters(strategyValue) {
     for (const leg of legs) {
         html += `<div class="condition-section">
             <div class="condition-section-header">
-                <label class="condition-section-title">${escapeHtml(leg.title)} Conditions <button type="button" class="info-btn" onclick="showFilterHelp(event, 'legConditions', '${escapeAttr(leg.title)} Conditions')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></label>
+                <label class="condition-section-title">${escapeHtml(leg.title)} Conditions ${renderFilterHelpBtn('legConditions', `${leg.title} Conditions`)}</label>
                 <button type="button" class="btn btn-ghost btn-sm condition-add-btn" onclick="addConditionRow('${leg.prefix}-conditions', LEG_VARIABLES)">+ Add Condition</button>
             </div>
             <div id="${leg.prefix}-conditions" class="conditions-list"></div>
@@ -703,30 +524,17 @@ function renderSpecificFilters(strategyValue) {
 }
 
 async function reexecuteCustomStrategy(btn, strategyId) {
-    if (!strategyId) return;
-
-    const progress = document.getElementById('custom-progress');
-    if (progress && progress.classList.contains('active')) {
-        showToast('An execution is already in progress', 'error');
-        return;
-    }
-
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '⏳ Executing...';
-
-    try {
-        loadFiltersFromResult(btn, true);
-        const success = await executeCustom(strategyId);
-        if (success === false) {
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-        }
-    } catch (e) {
-        console.error('Error re-executing custom strategy:', e);
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-    }
+    return reexecuteSingleCustomCard({
+        btn,
+        resultId: strategyId,
+        isProgressActiveFn: () => {
+            const progress = document.getElementById('custom-progress');
+            return progress && progress.classList.contains('active');
+        },
+        loadFiltersFn: loadFiltersFromResult,
+        executeFn: executeCustom,
+        logLabel: 'custom strategy'
+    });
 }
 
 function getCustomStrategyPayload(customResultId = null) {
@@ -867,64 +675,24 @@ async function executeCustom(customResultId = null, isBatch = false) {
 }
 
 async function loadCustomResults(updatedResultId = null) {
-    const container = document.getElementById('custom-results');
-    if (!container) return;
-    try {
-        const openCardIds = new Set();
-        container.querySelectorAll('.card-content.open').forEach(el => {
-            const id = el.id.replace(/^content-/, '');
-            openCardIds.add(id);
-        });
-        const openFilterIds = new Set();
-        container.querySelectorAll('.filter-details-body.open').forEach(el => {
-            openFilterIds.add(el.id);
-        });
-
-        const results = await API.get('/api/results/custom');
-        container.innerHTML = '';
-        if (typeof updateExecuteAllButtonState === 'function') {
-            updateExecuteAllButtonState({
-                btnId: 'execute-all-custom-btn',
-                countBadgeId: 'custom-results-count-badge',
-                count: results ? results.length : 0
-            });
-        }
-        if (!results || results.length === 0) {
-            container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔬</div>No custom executions yet</div>';
-            return;
-        }
-        for (const r of results) {
-            const cardEl = buildResultCard(r, 'Custom');
-            container.appendChild(cardEl);
-            const cardId = String(r.strategyId || r.screenerId || '').replace(/\s+/g, '-');
-            const shouldOpen = openCardIds.has(cardId) || (updatedResultId && String(r.strategyId) === String(updatedResultId));
-            if (shouldOpen && r.trades && r.trades.length > 0) {
-                const content = cardEl.querySelector(`[id="content-${cardId}"]`);
-                const arrow = cardEl.querySelector(`[id="arrow-${cardId}"]`);
-                if (content) content.classList.add('open');
-                if (arrow) arrow.classList.add('open');
-            }
-            if (openFilterIds.has(`filters-${cardId}`)) {
-                const filterBody = cardEl.querySelector(`[id="filters-${cardId}"]`);
-                const filterArrow = cardEl.querySelector(`[id="arrow-filters-${cardId}"]`);
-                if (filterBody) filterBody.classList.add('open');
-                if (filterArrow) filterArrow.classList.add('open');
+    return loadCustomCardsList({
+        containerId: 'custom-results',
+        endpoint: '/api/results/custom',
+        executeAllBtnId: 'execute-all-custom-btn',
+        countBadgeId: 'custom-results-count-badge',
+        emptyMessage: 'No custom executions yet',
+        errorPrefix: 'Failed to load',
+        updatedResultId,
+        buildCardFn: r => buildResultCard(r, 'Custom'),
+        getIdFn: r => r.strategyId || r.screenerId || '',
+        hasItemsFn: r => r.trades && r.trades.length > 0,
+        onLoadedFn: container => fetchAndInjectTodayPerformance(container),
+        onErrorFn: () => {
+            if (typeof checkExecutionStatus === 'function') {
+                checkExecutionStatus();
             }
         }
-        fetchAndInjectTodayPerformance(container);
-    } catch (e) {
-        container.innerHTML = `<div class="empty-state text-danger">Failed to load: ${e.message}</div>`;
-        if (typeof updateExecuteAllButtonState === 'function') {
-            updateExecuteAllButtonState({
-                btnId: 'execute-all-custom-btn',
-                countBadgeId: 'custom-results-count-badge',
-                count: 0
-            });
-        }
-        if (typeof checkExecutionStatus === 'function') {
-            checkExecutionStatus();
-        }
-    }
+    });
 }
 
 function reexecuteAllCustomStrategies() {
@@ -937,13 +705,10 @@ function reexecuteAllCustomStrategies() {
             loadFiltersFromResult(execBtn, true);
             const onclickAttr = execBtn.getAttribute('onclick') || '';
             const match = onclickAttr.match(/reexecuteCustomStrategy\(\s*this\s*,\s*['"]?([^'")]+)['"]?\s*\)/);
-            const customResultId = match ? match[1] : null;
+            const customResultId = (execBtn.dataset && execBtn.dataset.resultId) || (match ? match[1] : null);
             return getCustomStrategyPayload(customResultId);
         },
-        loadFiltersFn: (btn) => loadFiltersFromResult(btn, true),
-        executeFn: (id) => executeCustom(id, true),
         reloadResultsFn: () => loadCustomResults(),
-        entityNameSingular: 'custom strategy',
         entityNamePlural: 'custom strategies',
         isProgressActiveFn: () => {
             const p = document.getElementById('custom-progress');
@@ -952,72 +717,47 @@ function reexecuteAllCustomStrategies() {
     });
 }
 
-if (typeof window !== 'undefined') {
-    window.getCustomStrategyPayload = getCustomStrategyPayload;
-    window.loadFiltersFromResult = loadFiltersFromResult;
-    window.reexecuteCustomStrategy = reexecuteCustomStrategy;
-    window.reexecuteAllCustomStrategies = reexecuteAllCustomStrategies;
-    window.executeCustom = executeCustom;
-    window.loadCustomResults = loadCustomResults;
-    if (typeof addConditionRow !== 'undefined') window.addConditionRow = addConditionRow;
-    if (typeof createConditionValElement !== 'undefined') window.createConditionValElement = createConditionValElement;
-    if (typeof getConditionsFromContainer !== 'undefined') window.getConditionsFromContainer = getConditionsFromContainer;
-    if (typeof parseConditionString !== 'undefined') window.parseConditionString = parseConditionString;
-    if (typeof fillTechFiltersForm !== 'undefined') window.fillTechFiltersForm = fillTechFiltersForm;
-    window.TRADE_VARIABLES = TRADE_VARIABLES;
-    window.LEG_VARIABLES = LEG_VARIABLES;
-    if (typeof MA_VARIABLES !== 'undefined') window.MA_VARIABLES = MA_VARIABLES;
-    if (typeof VOLUME_VARIABLES !== 'undefined') window.VOLUME_VARIABLES = VOLUME_VARIABLES;
-    if (typeof HV_VARIABLES !== 'undefined') window.HV_VARIABLES = HV_VARIABLES;
-    if (typeof PRICE_DROP_VARIABLES !== 'undefined') window.PRICE_DROP_VARIABLES = PRICE_DROP_VARIABLES;
-    if (typeof CONDITION_OPERATORS !== 'undefined') window.CONDITION_OPERATORS = CONDITION_OPERATORS;
-    window.STRATEGY_LEG_CONFIG = STRATEGY_LEG_CONFIG;
-    window.STRATEGY_SCALAR_FIELDS = STRATEGY_SCALAR_FIELDS;
-    window.escapeHtml = escapeHtml;
-}
-
-// CommonJS Exports
 if (typeof module !== 'undefined' && module.exports) {
     const utils = require('./utils');
     const authApi = require('./auth-api');
     const dashboard = require('./dashboard');
     const screenerExecute = require('./screener-execute');
     Object.assign(global, utils, authApi, dashboard, screenerExecute);
-
-    module.exports = {
-        STRATEGY_TYPES,
-        TRADE_VARIABLES,
-        LEG_VARIABLES,
-        MA_VARIABLES,
-        VOLUME_VARIABLES,
-        HV_VARIABLES,
-        PRICE_DROP_VARIABLES,
-        CONDITION_OPERATORS,
-        STRATEGY_LEG_CONFIG,
-        STRATEGY_SCALAR_FIELDS,
-        parseConditionString,
-        createConditionValElement,
-        addConditionRow,
-        getConditionsFromContainer,
-        getLegFilters,
-        STRATEGY_SPECIFIC_FILTERS,
-        initExecutePage,
-        checkCustomExecutionStatus,
-        renderStrategyTemplates,
-        loadTemplateParams,
-        loadFiltersFromResult,
-        reexecuteCustomStrategy,
-        reexecuteAllCustomStrategies,
-        fillTechFiltersForm,
-        renderSpecificFilters,
-        getCustomStrategyPayload,
-        executeCustom,
-        loadCustomResults,
-        EARNINGS_PRESETS,
-        onEarningsPresetChange,
-        syncEarningsPresetFromInput,
-        escapeHtml
-    };
 }
+
+const CUSTOM_EXECUTE_EXPORTS = {
+    STRATEGY_TYPES,
+    TRADE_VARIABLES,
+    LEG_VARIABLES,
+    MA_VARIABLES: typeof MA_VARIABLES !== 'undefined' ? MA_VARIABLES : undefined,
+    VOLUME_VARIABLES: typeof VOLUME_VARIABLES !== 'undefined' ? VOLUME_VARIABLES : undefined,
+    HV_VARIABLES: typeof HV_VARIABLES !== 'undefined' ? HV_VARIABLES : undefined,
+    PRICE_DROP_VARIABLES: typeof PRICE_DROP_VARIABLES !== 'undefined' ? PRICE_DROP_VARIABLES : undefined,
+    CONDITION_OPERATORS: typeof CONDITION_OPERATORS !== 'undefined' ? CONDITION_OPERATORS : undefined,
+    STRATEGY_LEG_CONFIG,
+    STRATEGY_SCALAR_FIELDS,
+    parseConditionString: typeof parseConditionString !== 'undefined' ? parseConditionString : undefined,
+    createConditionValElement: typeof createConditionValElement !== 'undefined' ? createConditionValElement : undefined,
+    addConditionRow: typeof addConditionRow !== 'undefined' ? addConditionRow : undefined,
+    getConditionsFromContainer: typeof getConditionsFromContainer !== 'undefined' ? getConditionsFromContainer : undefined,
+    initExecutePage,
+    checkCustomExecutionStatus,
+    renderStrategyTemplates,
+    loadTemplateParams,
+    loadFiltersFromResult,
+    reexecuteCustomStrategy,
+    reexecuteAllCustomStrategies,
+    fillTechFiltersForm: typeof fillTechFiltersForm !== 'undefined' ? fillTechFiltersForm : undefined,
+    renderSpecificFilters,
+    getCustomStrategyPayload,
+    executeCustom,
+    loadCustomResults,
+    EARNINGS_PRESETS,
+    onEarningsPresetChange,
+    syncEarningsPresetFromInput,
+    escapeHtml
+};
+
+registerModuleExports(CUSTOM_EXECUTE_EXPORTS, typeof module !== 'undefined' ? module : null);
 
 

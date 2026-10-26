@@ -19,84 +19,7 @@
         <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
 
         <!-- Sidebar -->
-        <nav class="sidebar">
-            <div class="sidebar-brand">
-                Trading Bot
-                <small>Automated Systems</small>
-            </div>
-
-            <div class="sidebar-section">
-                <div class="sidebar-section-title">Options</div>
-                <a href="/" class="nav-link">
-                    <span class="nav-icon">📊</span>
-                    <span>Dashboard</span>
-                </a>
-                <a href="/execute.html" class="nav-link">
-                    <span class="nav-icon">▶️</span>
-                    <span>Execute Strategy</span>
-                </a>
-            </div>
-
-            <div class="sidebar-section">
-                <div class="sidebar-section-title">Screeners</div>
-                <a href="/screeners.html" class="nav-link">
-                    <span class="nav-icon">🔎</span>
-                    <span>Dashboard</span>
-                </a>
-                <a href="/execute-screener.html" class="nav-link">
-                    <span class="nav-icon">🧪</span>
-                    <span>Execute Screener</span>
-                </a>
-            </div>
-
-            <div class="sidebar-section">
-                <div class="sidebar-section-title">Research</div>
-                <a href="/securities.html" class="nav-link">
-                    <span class="nav-icon">📁</span>
-                    <span>Securities</span>
-                </a>
-                <a href="/earnings-calendar.html" class="nav-link">
-                    <span class="nav-icon">📅</span>
-                    <span>Earnings Calendar</span>
-                </a>
-            </div>
-
-            <div class="sidebar-section">
-                <div class="sidebar-section-title">Learning Center</div>
-                <a href="/option-strategies.html" class="nav-link">
-                    <span class="nav-icon">📚</span>
-                    <span>Option Strategies</span>
-                </a>
-                <a href="/option-greeks.html" class="nav-link active">
-                    <span class="nav-icon">📐</span>
-                    <span>Option Greeks</span>
-                </a>
-                <a href="/volatility.html" class="nav-link">
-                    <span class="nav-icon">🌊</span>
-                    <span>Volatility</span>
-                </a>
-            </div>
-
-            <div class="sidebar-section">
-                <div class="sidebar-section-title">System</div>
-                <a href="/config.html" class="nav-link">
-                    <span class="nav-icon">⚙️</span>
-                    <span>Config</span>
-                </a>
-                <a href="/logs.html" class="nav-link">
-                    <span class="nav-icon">📋</span>
-                    <span>Execution Logs</span>
-                </a>
-            </div>
-
-            <div style="flex: 1;"></div>
-            <div class="sidebar-section" style="border:none; margin-bottom: 0;">
-                <button id="theme-toggle" class="btn btn-ghost" style="width:100%; justify-content:center; gap: 8px;" onclick="toggleTheme()">
-                    <span id="theme-icon">☀️</span>
-                    <span id="theme-text">Light Mode</span>
-                </button>
-            </div>
-        </nav>
+        <nav class="sidebar" data-sidebar></nav>
         <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
 
         <!-- Main Content -->
@@ -151,7 +74,7 @@
     <script src="https://cdn.jsdelivr.net/npm/marked-katex-extension@5.1.2/lib/index.umd.js"></script>
     <script src="/js/utils.js?v=12"></script>
     <script src="/js/auth-api.js?v=11"></script>
-    <script src="/js/learning-center.js?v=2"></script>
+    <script src="/js/learning-center.js?v=4"></script>
     <script src="/app.js?v=8"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {

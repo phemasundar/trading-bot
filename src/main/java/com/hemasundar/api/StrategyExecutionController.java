@@ -10,6 +10,7 @@ import com.hemasundar.dto.StrategyResult;
 import com.hemasundar.options.models.OptionsConfig;
 import com.hemasundar.options.models.OptionsStrategyFilter;
 import com.hemasundar.options.strategies.StrategyType;
+import com.hemasundar.pojos.EarningsCache;
 import com.hemasundar.pojos.MarketHoursResponse;
 import com.hemasundar.pojos.QuotesResponse;
 import com.hemasundar.services.ScreenerExecutionService;
@@ -17,18 +18,18 @@ import com.hemasundar.services.StrategyExecutionService;
 import com.hemasundar.services.supabase.IVDataRepository;
 import com.hemasundar.technical.ScreenerConfig;
 import com.hemasundar.utils.AuthErrorUtils;
+import com.hemasundar.utils.EarningsCacheManager;
 import com.hemasundar.utils.FilterParser;
 import com.hemasundar.utils.SecuritiesResolver;
 import com.hemasundar.utils.WikipediaSecuritiesFetcher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -560,9 +561,7 @@ public class StrategyExecutionController {
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("symbol", symbol);
             response.put("ivRank", Math.round(ivRank * 10.0) / 10.0);
-            if (ivStats != null) {
-                response.putAll(ivStats);
-            }
+            response.putAll(ivStats);
             return ResponseEntity.ok(response);
         } catch (IOException e) {
             log.error("Error fetching IV Rank for {}: {}", symbol, e.getMessage());
@@ -571,24 +570,12 @@ public class StrategyExecutionController {
     }
 
     /**
-     * Returns cached earnings calendar data.
+     * Returns cached earnings calendar data and cache pull timestamps.
      */
     @GetMapping("/earnings-calendar")
     public ResponseEntity<?> getEarningsCalendar() {
         try {
-            Path cachePath = Path.of(System.getProperty("user.home"), ".trading-bot", "earnings_cache.json");
-            if (!Files.exists(cachePath)) {
-                cachePath = Path.of("src/main/resources/earnings_cache.json");
-            }
-            if (!Files.exists(cachePath)) {
-                return ResponseEntity.ok(Map.of("events", Map.of()));
-            }
-            String json = Files.readString(cachePath);
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper()
-                    .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
-            com.hemasundar.pojos.EarningsCache cache = mapper.readValue(json,
-                    com.hemasundar.pojos.EarningsCache.class);
-
+            EarningsCache cache = EarningsCacheManager.getEarningsCache();
             Map<String, List<Map<String, Object>>> eventsByDate = new TreeMap<>();
             if (cache != null && cache.getCache() != null) {
                 cache.getCache().forEach((symbol, entry) -> {
@@ -606,14 +593,60 @@ public class StrategyExecutionController {
                         event.put("epsActual", earning.getEpsActual());
                         event.put("revenueEstimate", earning.getRevenueEstimate());
                         event.put("revenueActual", earning.getRevenueActual());
+                        event.put("lastFetched", entry.getLastFetched());
                         eventsByDate.computeIfAbsent(dateKey, k -> new ArrayList<>()).add(event);
                     }
                 });
             }
 
-            return ResponseEntity.ok(Map.of("events", eventsByDate));
+            Map<String, Object> responseBody = new LinkedHashMap<>();
+            responseBody.put("events", eventsByDate);
+            responseBody.put("lastUpdated", cache != null ? cache.getLastUpdated() : null);
+            responseBody.put("refreshing", executionService.isExecutionRunning());
+            responseBody.put("currentTask", executionService.getCurrentExecutionTask());
+            return ResponseEntity.ok(responseBody);
         } catch (Exception e) {
             log.error("Error reading earnings calendar: {}", e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Triggers an asynchronous forced refresh of earnings data for all unique stocks
+     * across all predefined securities YAML files, irrespective of cache age.
+     */
+    @PostMapping("/earnings-calendar/refresh")
+    public ResponseEntity<?> refreshEarningsCalendar() {
+        if (executionService.isExecutionRunning()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "An execution is already running"));
+        }
+        try {
+            List<String> symbols = securitiesResolver.loadSecuritiesMaps().values().stream()
+                    .filter(Objects::nonNull)
+                    .flatMap(Collection::stream)
+                    .filter(StringUtils::isNotBlank)
+                    .map(s -> s.trim().toUpperCase())
+                    .distinct()
+                    .toList();
+            if (CollectionUtils.isEmpty(symbols)) {
+                return ResponseEntity.badRequest().body(Map.of("error", "No securities found in predefined YAML files"));
+            }
+            CompletableFuture.runAsync(() -> {
+                executionService.startGlobalExecution("Refreshing Earnings...");
+                try {
+                    executionService.pullEarningsForSymbols(symbols, true);
+                } finally {
+                    executionService.finishGlobalExecution();
+                }
+            });
+            return ResponseEntity.ok(Map.of(
+                    "status", "started",
+                    "refreshing", true,
+                    "totalSymbols", symbols.size(),
+                    "message", "Started refreshing earnings for " + symbols.size() + " stocks"));
+        } catch (Exception e) {
+            log.error("Failed to start earnings calendar refresh: {}", e.getMessage());
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
     }

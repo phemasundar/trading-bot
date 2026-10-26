@@ -1,5 +1,8 @@
 const {
     initEarningsCalendar,
+    refreshAllEarnings,
+    stopEarningsRefreshPolling,
+    renderLastPulled,
     calNavigate,
     calGoToday,
     renderCalendar,
@@ -14,15 +17,25 @@ Element.prototype.scrollIntoView = jest.fn();
 
 describe('Earnings Calendar Tests', () => {
     beforeEach(() => {
+        stopEarningsRefreshPolling();
         document.body.innerHTML = '';
         jest.restoreAllMocks();
     });
 
-    test('initEarningsCalendar fetches events and renders calendar', async () => {
+    afterEach(() => {
+        stopEarningsRefreshPolling();
+    });
+
+    test('initEarningsCalendar fetches events, renders pull time and calendar', async () => {
         const eventsData = {
+            lastUpdated: '2026-10-22T13:48:00-05:00',
+            refreshing: false,
             events: {
                 '2026-04-17': [
-                    { symbol: 'AAPL', hour: 'bmo', quarter: 1, year: 2026, epsEstimate: 1.5, revenueEstimate: 90000000000 }
+                    { symbol: 'AAPL', hour: 'bmo', quarter: 1, year: 2026, epsEstimate: 1.5, revenueEstimate: 90000000000, lastFetched: '2026-10-03' },
+                    { symbol: 'MSFT', hour: 'amc', quarter: 1, year: 2026, epsEstimate: 2.5, revenueEstimate: 60000000000, lastFetched: '2026-10-03' },
+                    { symbol: 'GOOG', hour: 'amc', quarter: 1, year: 2026, epsEstimate: 1.8, revenueEstimate: 80000000000, lastFetched: '2026-10-03' },
+                    { symbol: 'META', hour: 'amc', quarter: 1, year: 2026, epsEstimate: 4.5, revenueEstimate: 40000000000, lastFetched: '2026-10-03' }
                 ]
             }
         };
@@ -30,6 +43,8 @@ describe('Earnings Calendar Tests', () => {
         API.get = jest.fn().mockResolvedValueOnce(eventsData);
 
         document.body.innerHTML = `
+            <span id="cal-last-pulled-text">Last Pulled: —</span>
+            <button id="cal-refresh-btn"><span id="cal-refresh-text">Refresh Earnings</span></button>
             <div id="cal-month-label"></div>
             <div id="cal-grid">
                 <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
@@ -42,7 +57,114 @@ describe('Earnings Calendar Tests', () => {
 
         await initEarningsCalendar();
         expect(document.getElementById('cal-month-label').textContent).not.toBe('');
+        expect(document.getElementById('cal-last-pulled-text').textContent).toContain('Last Pulled: Oct 22, 2026');
         expect(document.querySelectorAll('.cal-day').length).toBeGreaterThan(25);
+        expect(document.getElementById('cal-refresh-btn').disabled).toBe(false);
+
+        const cell = createDayCell(new Date(2026, 3, 17), false, false);
+        expect(cell.querySelectorAll('.cal-event-chip').length).toBe(3);
+        expect(cell.querySelector('.cal-event-more').textContent).toBe('+1 more');
+    });
+
+    test('initEarningsCalendar handles API error and active refreshing state', async () => {
+        API.get = jest.fn().mockRejectedValueOnce(new Error('Network error'));
+        document.body.innerHTML = `<span id="cal-last-pulled-text"></span><div id="cal-grid"></div>`;
+        await initEarningsCalendar();
+        expect(document.getElementById('cal-last-pulled-text').textContent).toBe('Last Pulled: —');
+
+        API.get = jest.fn().mockResolvedValueOnce({
+            lastUpdated: '2026-10-22T13:48:00-05:00',
+            refreshing: true,
+            currentTask: 'Pulling Earnings (5/126): AAPL...',
+            events: {}
+        });
+        document.body.innerHTML = `
+            <span id="cal-last-pulled-text"></span>
+            <button id="cal-refresh-btn"><span id="cal-refresh-text">Refresh Earnings</span></button>
+            <div id="cal-grid"></div>
+        `;
+        await initEarningsCalendar();
+        expect(document.getElementById('cal-refresh-btn').disabled).toBe(true);
+        expect(document.getElementById('cal-refresh-text').textContent).toContain('Pulling Earnings (5/126): AAPL...');
+        stopEarningsRefreshPolling();
+    });
+
+    test('refreshAllEarnings triggers refresh endpoint, shows syncing progress, and polls via initEarningsCalendar until complete', async () => {
+        document.body.innerHTML = `
+            <span id="cal-last-pulled-text">Last Pulled: —</span>
+            <button id="cal-refresh-btn">
+                <span id="cal-refresh-icon">↻</span>
+                <span id="cal-refresh-text">Refresh Earnings</span>
+            </button>
+            <div id="cal-month-label"></div>
+            <div id="cal-grid">
+                <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+            </div>
+        `;
+
+        API.post = jest.fn().mockResolvedValueOnce({
+            status: 'started',
+            refreshing: true,
+            totalSymbols: 126
+        });
+
+        await refreshAllEarnings();
+
+        const btn = document.getElementById('cal-refresh-btn');
+        const text = document.getElementById('cal-refresh-text');
+        expect(API.post).toHaveBeenCalledWith('/api/earnings-calendar/refresh', {});
+        expect(btn.disabled).toBe(true);
+        expect(btn.classList.contains('syncing')).toBe(true);
+        expect(text.textContent).toContain('Syncing…');
+
+        // Simulate poll while still refreshing
+        API.get = jest.fn().mockResolvedValueOnce({
+            lastUpdated: '2026-10-22T23:49:00-05:00',
+            refreshing: true,
+            currentTask: 'Pulling Earnings (60/126): NVDA...',
+            events: {}
+        });
+        await initEarningsCalendar(true);
+        expect(text.textContent).toContain('Pulling Earnings (60/126): NVDA...');
+
+        // Simulate poll completion
+        API.get = jest.fn().mockResolvedValueOnce({
+            lastUpdated: '2026-10-22T23:50:00-05:00',
+            refreshing: false,
+            currentTask: '',
+            events: {}
+        });
+
+        await initEarningsCalendar(true);
+        expect(btn.disabled).toBe(false);
+        expect(btn.classList.contains('syncing')).toBe(false);
+        expect(text.textContent).toBe('Refresh Earnings');
+        expect(document.getElementById('cal-last-pulled-text').textContent).toContain('Last Pulled: Oct 22, 2026');
+    });
+
+    test('refreshAllEarnings handles error response and thrown error gracefully', async () => {
+        document.body.innerHTML = `
+            <button id="cal-refresh-btn"><span id="cal-refresh-text">Refresh Earnings</span></button>
+        `;
+        API.post = jest.fn().mockResolvedValueOnce({ error: 'An execution is already running' });
+        await refreshAllEarnings();
+        expect(document.getElementById('cal-refresh-btn').disabled).toBe(false);
+
+        API.post = jest.fn().mockRejectedValueOnce(new Error('Server down'));
+        await refreshAllEarnings();
+        expect(document.getElementById('cal-refresh-btn').disabled).toBe(false);
+    });
+
+    test('renderLastPulled handles valid and empty inputs', () => {
+        document.body.innerHTML = `<span id="cal-last-pulled-text"></span>`;
+        renderLastPulled(null);
+        expect(document.getElementById('cal-last-pulled-text').textContent).toBe('Last Pulled: —');
+
+        renderLastPulled('invalid-date');
+        expect(document.getElementById('cal-last-pulled-text').textContent).toBe('Last Pulled: —');
+
+        renderLastPulled('2026-10-22T13:48:00-05:00');
+        expect(document.getElementById('cal-last-pulled-text').textContent).toContain('Last Pulled: Oct 22, 2026');
     });
 
     test('calNavigate and calGoToday updates month view', () => {
@@ -62,7 +184,17 @@ describe('Earnings Calendar Tests', () => {
         expect(document.getElementById('cal-month-label').textContent).toBe(initialMonth);
     });
 
-    test('onDayClick opens detail panel with earnings events table', () => {
+    test('onDayClick opens detail panel with earnings events table', async () => {
+        API.get = jest.fn().mockResolvedValueOnce({
+            lastUpdated: '2026-10-22T13:48:00-05:00',
+            refreshing: false,
+            events: {
+                '2026-04-17': [
+                    { symbol: 'AAPL', hour: 'bmo', quarter: 1, year: 2026, epsEstimate: 1.5, revenueEstimate: 90000000000, lastFetched: '2026-10-03' }
+                ]
+            }
+        });
+
         document.body.innerHTML = `
             <div id="cal-grid"></div>
             <div id="cal-detail-panel" style="display:none">
@@ -71,11 +203,19 @@ describe('Earnings Calendar Tests', () => {
             </div>
         `;
 
+        await initEarningsCalendar();
         const date = new Date(2026, 3, 17);
         onDayClick('2026-04-17', date);
 
         const panel = document.getElementById('cal-detail-panel');
         expect(panel.style.display).toBe('block');
+        const bodyHtml = document.getElementById('cal-detail-body').innerHTML;
+        expect(bodyHtml).toContain('Last Pulled');
+        expect(bodyHtml).toContain('2026-10-03');
+
+        // Also test empty day
+        onDayClick('2026-04-18', new Date(2026, 3, 18));
+        expect(document.getElementById('cal-detail-body').innerHTML).toContain('No events on this day');
 
         closeDetailPanel();
         expect(panel.style.display).toBe('none');
