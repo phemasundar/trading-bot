@@ -74,6 +74,8 @@ public class StrategyExecutionServiceTest {
     @BeforeMethod
     public void setUp() {
         MockitoAnnotations.openMocks(this);
+        when(supabaseService.getMinIVRecords()).thenReturn(20);
+        com.hemasundar.utils.EarningsCacheManager.setCacheValidityDays(5);
         // Explicit initialization to ensure all mocks are correctly injected into final fields
         strategyExecutionService = new StrategyExecutionService(
                 supabaseService,
@@ -422,5 +424,4 @@ public class StrategyExecutionServiceTest {
         assertNotNull(allResults);
         verify(supabaseService).getAllLatestStrategyResults();
     }
-
 }

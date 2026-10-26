@@ -481,6 +481,9 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
                 log.debug("[{}] IV Rank unavailable (insufficient data)", symbol);
             }
             return rank;
+        } catch (IllegalStateException e) {
+            log.error("[{}] Configuration error fetching IV Rank: {}", symbol, e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error("[{}] Error fetching IV Rank: {}, allowing trade (fail-open)", symbol, e.getMessage());
             return null;
@@ -507,6 +510,9 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
                 log.debug("[{}] IV Percentile unavailable (insufficient data)", symbol);
             }
             return percentile;
+        } catch (IllegalStateException e) {
+            log.error("[{}] Configuration error fetching IV Percentile: {}", symbol, e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error("[{}] Error fetching IV Percentile: {}, allowing trade (fail-open)", symbol, e.getMessage());
             return null;

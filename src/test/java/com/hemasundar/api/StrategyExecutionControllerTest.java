@@ -3,6 +3,8 @@ package com.hemasundar.api;
 import com.hemasundar.options.strategies.StrategyType;
 import com.hemasundar.pojos.MarketHoursResponse;
 import com.hemasundar.services.StrategyExecutionService;
+import com.hemasundar.config.ApplicationConfigValidator;
+import com.hemasundar.config.ConfigValidationInterceptor;
 import com.hemasundar.config.properties.SupabaseConfig;
 import com.hemasundar.dto.ExecuteRequest;
 import com.hemasundar.dto.ExecutionAlert;
@@ -67,6 +69,8 @@ public class StrategyExecutionControllerTest {
 
     @Mock
     private com.hemasundar.config.RolesConfigLoader rolesConfigLoader;
+    @Mock
+    private ApplicationConfigValidator configValidator;
 
     private StrategyExecutionController strategyController;
     private AuthConfigController authConfigController;
@@ -76,10 +80,16 @@ public class StrategyExecutionControllerTest {
     private LogController logController;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private ConfigValidationInterceptor interceptor;
 
     @BeforeMethod
     public void setup() {
         MockitoAnnotations.openMocks(this);
+        interceptor = new ConfigValidationInterceptor(configValidator, objectMapper);
+        when(configValidator.validateConfig()).thenReturn(Collections.emptyList());
+        when(configValidator.validateEarningsCache()).thenReturn(java.util.Optional.empty());
+        when(configValidator.validateIVData()).thenReturn(java.util.Optional.empty());
+        com.hemasundar.utils.EarningsCacheManager.setCacheValidityDays(5);
         strategyController = new StrategyExecutionController(executionService, screenerExecutionService, securitiesResolver, ThinkOrSwimAPIs, strategiesConfigLoader, authErrorUtils, java.util.Optional.empty(), wikipediaFetcher);
         authConfigController = new AuthConfigController(supabaseConfig, rolesConfigLoader);
         screenerController = new ScreenerController(screenerExecutionService, executionService, supabaseService, securitiesResolver, strategiesConfigLoader, wikipediaFetcher);
@@ -87,7 +97,9 @@ public class StrategyExecutionControllerTest {
         configController = new ConfigController();
         logController = new LogController(executionService);
 
-        mockMvc = MockMvcBuilders.standaloneSetup(strategyController, authConfigController, screenerController, securitiesController, configController, logController).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(strategyController, authConfigController, screenerController, securitiesController, configController, logController)
+                .addInterceptors(interceptor)
+                .build();
     }
 
     @Test
@@ -709,8 +721,9 @@ public class StrategyExecutionControllerTest {
         when(mockRepo.getIVRank("AAPL")).thenReturn(62.3);
         when(mockRepo.getIVStats("AAPL")).thenReturn(Map.of("minIV", 18.4, "maxIV", 45.6, "currentIV", 34.1));
 
+        when(mockRepo.getMinIVRecords()).thenReturn(20);
         StrategyExecutionController customController = new StrategyExecutionController(executionService, screenerExecutionService, securitiesResolver, ThinkOrSwimAPIs, strategiesConfigLoader, authErrorUtils, java.util.Optional.of(mockRepo), wikipediaFetcher);
-        MockMvc customMockMvc = MockMvcBuilders.standaloneSetup(customController).build();
+        MockMvc customMockMvc = MockMvcBuilders.standaloneSetup(customController).addInterceptors(interceptor).build();
 
         customMockMvc.perform(get("/api/iv-rank?symbol=AAPL"))
                 .andExpect(status().isOk())
@@ -726,8 +739,9 @@ public class StrategyExecutionControllerTest {
         IVDataRepository mockRepo = mock(IVDataRepository.class);
         when(mockRepo.getIVRank("AAPL")).thenReturn(null);
 
+        when(mockRepo.getMinIVRecords()).thenReturn(20);
         StrategyExecutionController customController = new StrategyExecutionController(executionService, screenerExecutionService, securitiesResolver, ThinkOrSwimAPIs, strategiesConfigLoader, authErrorUtils, java.util.Optional.of(mockRepo), wikipediaFetcher);
-        MockMvc customMockMvc = MockMvcBuilders.standaloneSetup(customController).build();
+        MockMvc customMockMvc = MockMvcBuilders.standaloneSetup(customController).addInterceptors(interceptor).build();
 
         customMockMvc.perform(get("/api/iv-rank?symbol=AAPL"))
                 .andExpect(status().isNoContent());
@@ -738,8 +752,9 @@ public class StrategyExecutionControllerTest {
         IVDataRepository mockRepo = mock(IVDataRepository.class);
         when(mockRepo.getIVRank("AAPL")).thenThrow(new IOException("Connection reset"));
 
+        when(mockRepo.getMinIVRecords()).thenReturn(20);
         StrategyExecutionController customController = new StrategyExecutionController(executionService, screenerExecutionService, securitiesResolver, ThinkOrSwimAPIs, strategiesConfigLoader, authErrorUtils, java.util.Optional.of(mockRepo), wikipediaFetcher);
-        MockMvc customMockMvc = MockMvcBuilders.standaloneSetup(customController).build();
+        MockMvc customMockMvc = MockMvcBuilders.standaloneSetup(customController).addInterceptors(interceptor).build();
 
         customMockMvc.perform(get("/api/iv-rank?symbol=AAPL"))
                 .andExpect(status().isInternalServerError())
@@ -811,5 +826,46 @@ public class StrategyExecutionControllerTest {
         mockMvc.perform(post("/api/earnings-calendar/refresh"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("No securities found in predefined YAML files"));
+    }
+
+    @Test
+    public void testExecute_ConfigValidationFailure() throws Exception {
+        when(configValidator.validateConfig()).thenReturn(List.of("Missing required property: supabase.iv-min-records"));
+
+        mockMvc.perform(post("/api/execute")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new ExecuteRequest(List.of(0), null))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Missing required property: supabase.iv-min-records"));
+    }
+
+    @Test
+    public void testExecuteCustom_ConfigValidationFailure() throws Exception {
+        when(configValidator.validateConfig()).thenReturn(List.of("Missing required property: earnings.cache-validity-days"));
+
+        mockMvc.perform(post("/api/execute/custom")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(CustomExecuteRequest.builder().build())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Missing required property: earnings.cache-validity-days"));
+    }
+
+    @Test
+    public void testGetIVRank_MinRecordsMissing() throws Exception {
+        when(configValidator.validateIVData()).thenReturn(java.util.Optional.of(com.hemasundar.dto.AlertMessages.CONFIG_MISSING_IV_RECORDS));
+
+        mockMvc.perform(get("/api/iv-rank?symbol=AAPL"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(com.hemasundar.dto.AlertMessages.CONFIG_MISSING_IV_RECORDS));
+    }
+
+    @Test
+    public void testGetEarningsCalendar_ValidityDaysMissing() throws Exception {
+        when(configValidator.validateEarningsCache()).thenReturn(java.util.Optional.of(com.hemasundar.dto.AlertMessages.CONFIG_MISSING_EARNINGS_VALIDITY));
+
+        mockMvc.perform(get("/api/earnings-calendar"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(com.hemasundar.dto.AlertMessages.CONFIG_MISSING_EARNINGS_VALIDITY));
+
     }
 }

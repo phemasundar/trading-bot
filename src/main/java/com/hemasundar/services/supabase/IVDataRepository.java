@@ -6,12 +6,15 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.hemasundar.pojos.IVDataPoint;
 import io.restassured.response.Response;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -40,6 +43,17 @@ public class IVDataRepository {
 
     private final SupabaseClient client;
     private final Map<String, Map<String, Object>> ivStatsCache = new ConcurrentHashMap<>();
+
+    @Getter
+    @Setter
+    @Value("${supabase.iv-min-records:${iv.min-records:0}}")
+    private int minIVRecords;
+
+    private void validateConfig() {
+        if (minIVRecords <= 0) {
+            throw new IllegalStateException("Required configuration 'supabase.iv-min-records' is not configured or invalid in application.properties");
+        }
+    }
 
     /**
      * Upserts a single IV data point to Supabase by delegating to {@link #upsertIVDataBatch(List)}.
@@ -144,6 +158,7 @@ public class IVDataRepository {
      * @throws IOException if the Supabase API call fails
      */
     public Double getIVRank(String symbol) throws IOException {
+        validateConfig();
         Map<String, Object> stats = getIVStats(symbol);
         if (stats.get("ivRank") instanceof Number num) {
             return num.doubleValue();
@@ -159,6 +174,7 @@ public class IVDataRepository {
      * @throws IOException if the Supabase API call fails
      */
     public Double getIVPercentile(String symbol) throws IOException {
+        validateConfig();
         Map<String, Object> stats = getIVStats(symbol);
         if (stats.get("ivPercentile") instanceof Number num) {
             return num.doubleValue();
@@ -176,6 +192,7 @@ public class IVDataRepository {
      * @throws IOException if the Supabase API call fails
      */
     public Map<String, Object> getIVStats(String symbol) throws IOException {
+        validateConfig();
         if (StringUtils.isBlank(symbol)) {
             return Collections.emptyMap();
         }
@@ -215,6 +232,7 @@ public class IVDataRepository {
      * @return map of uppercase symbol to IV stats map
      */
     public Map<String, Map<String, Object>> getIVStatsForSymbols(Collection<String> symbols) {
+        validateConfig();
         if (CollectionUtils.isEmpty(symbols)) {
             return Collections.emptyMap();
         }
@@ -253,6 +271,7 @@ public class IVDataRepository {
             ObjectNode requestBody = client.getObjectMapper().createObjectNode();
             ArrayNode symbolsNode = requestBody.putArray("p_symbols");
             symbols.forEach(symbolsNode::add);
+            requestBody.put("p_min_records", minIVRecords);
 
             String payload = client.getObjectMapper().writeValueAsString(requestBody);
             Response response = client.request()

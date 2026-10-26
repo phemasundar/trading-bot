@@ -5,6 +5,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.hemasundar.pojos.EarningsCache;
 import com.hemasundar.pojos.EarningsCalendarResponse;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.experimental.UtilityClass;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.CollectionUtils;
@@ -30,7 +31,9 @@ import java.util.List;
 @UtilityClass
 public class EarningsCacheManager {
 
-    private static final int CACHE_VALIDITY_DAYS = 5;
+    @Getter
+    @Setter
+    private static int cacheValidityDays;
     private static final Path CACHE_FILE_PATH = resolveCacheFilePath();
     private static final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     @Getter
@@ -60,6 +63,9 @@ public class EarningsCacheManager {
      */
     public static synchronized List<EarningsCalendarResponse.EarningCalendar> getEarningsFromCache(String symbol,
             LocalDate targetDate) {
+        if (cacheValidityDays <= 0) {
+            throw new IllegalStateException("earnings.cache-validity-days is not configured or invalid in application.properties");
+        }
         if (earningsCache == null || earningsCache.getCache() == null || !earningsCache.getCache().containsKey(symbol)) {
             return null;
         }
@@ -72,8 +78,9 @@ public class EarningsCacheManager {
         LocalDate lastFetched = LocalDate.parse(entry.getLastFetched().substring(0, 10));
         long daysSinceFetch = ChronoUnit.DAYS.between(lastFetched, LocalDate.now());
 
-        if (daysSinceFetch > CACHE_VALIDITY_DAYS) {
-            log.debug("Cache stale for {} (fetched {} days ago). Requesting fresh data.", symbol, daysSinceFetch);
+        if (daysSinceFetch > cacheValidityDays) {
+            log.debug("Cache stale for {} (fetched {} days ago, max allowed: {}). Requesting fresh data.",
+                    symbol, daysSinceFetch, cacheValidityDays);
             return null;
         }
 

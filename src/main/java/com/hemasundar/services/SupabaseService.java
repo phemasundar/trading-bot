@@ -37,6 +37,13 @@ public class SupabaseService {
     private final SecurityIndicatorsRepository securityIndicatorsRepository;
 
     /**
+     * Returns the minimum IV records threshold configured on {@link IVDataRepository}.
+     */
+    public int getMinIVRecords() {
+        return ivDataRepository != null ? ivDataRepository.getMinIVRecords() : 0;
+    }
+
+    /**
      * Tests connection to Supabase by making a simple GET request.
      *
      * @return true if connection is successful
