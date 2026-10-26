@@ -2,6 +2,7 @@ package com.hemasundar.options.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.function.BiConsumer;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -316,5 +317,19 @@ public class OptionsStrategyFilter {
         return filterExpressions.stream()
                 .filter(e -> volatilityVars.contains(e.getLeftVariable().toUpperCase()))
                 .toList();
+    }
+
+    /**
+     * Initializes strategy-specific legs by invoking the given consumer with each leg and its canonical name.
+     */
+    public void initLegs(BiConsumer<LegFilter, String> legInitializer) {
+        // Default no-op for base filter
+    }
+
+    /**
+     * Resolves (creating if absent) the strategy-specific leg matching the normalized dotted-expression prefix.
+     */
+    public LegFilter getOrCreateLegByPrefix(String cleanPrefix) {
+        return null;
     }
 }

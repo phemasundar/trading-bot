@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.hemasundar.dto.ExecutionResult;
 import com.hemasundar.dto.StrategyResult;
 import com.hemasundar.dto.Trade;
 import io.restassured.response.Response;
@@ -14,19 +13,15 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
- * Repository for handling custom executions and historical execution results with Supabase.
+ * Repository for handling custom strategy executions with Supabase.
  */
 @Log4j2
 @Component
 public class CustomExecutionRepository {
-    private static final String EXECUTIONS_PATH = "/rest/v1/strategy_executions";
     private static final String CUSTOM_EXECUTION_RESULTS_PATH = "/rest/v1/custom_execution_results";
 
     private final SupabaseClient client;
@@ -35,110 +30,6 @@ public class CustomExecutionRepository {
     public CustomExecutionRepository(SupabaseClient client) {
         this.client = client;
         this.mapper = client.getObjectMapper();
-    }
-
-    /**
-     * Saves a full strategy execution batch result to Supabase.
-     */
-    public void saveExecutionResult(ExecutionResult result) throws IOException {
-        try {
-            String jsonResults = mapper.writeValueAsString(result.getResults());
-            String[] strategyIds = result.getResults().stream()
-                    .map(StrategyResult::getStrategyId)
-                    .toArray(String[]::new);
-
-            String payload = String.format(
-                    "{\"execution_id\":\"%s\",\"executed_at\":\"%s\",\"strategy_ids\":[\"%s\"],\"results\":%s,\"total_trades_found\":%d,\"execution_time_ms\":%d,\"telegram_sent\":%b}",
-                    result.getExecutionId(),
-                    result.getTimestamp(),
-                    String.join("\",\"", strategyIds),
-                    jsonResults,
-                    result.getTotalTradesFound(),
-                    result.getTotalExecutionTimeMs(),
-                    result.isTelegramSent());
-
-            String url = client.getUrl(EXECUTIONS_PATH);
-
-            Response response = client.request()
-                    .header("Prefer", "return=minimal")
-                    .body(payload)
-                    .post(url);
-
-            int statusCode = response.getStatusCode();
-            if (statusCode == 200 || statusCode == 201) {
-                log.debug("Successfully saved execution result: {} with {} trades",
-                        result.getExecutionId(), result.getTotalTradesFound());
-            } else {
-                String errorBody = response.getBody().asString();
-                throw new IOException(String.format("Failed to save execution result: %d - %s. Body: %s",
-                        statusCode, response.getStatusLine(), errorBody));
-            }
-        } catch (Exception e) {
-            if (e instanceof IOException) throw (IOException) e;
-            throw new IOException("Failed to save execution result: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Retrieves the latest strategy execution result.
-     */
-    public Optional<ExecutionResult> getLatestExecutionResult() throws IOException {
-        try {
-            String url = client.getUrl(EXECUTIONS_PATH + "?select=*&order=executed_at.desc&limit=1");
-            Response response = client.request().get(url);
-
-            int statusCode = response.getStatusCode();
-            if (statusCode == 200) {
-                String body = response.getBody().asString();
-                if (body.equals("[]") || body.isEmpty()) {
-                    log.debug("No execution results found in database");
-                    return Optional.empty();
-                }
-
-                JsonNode arrayNode = mapper.readTree(body);
-                if (arrayNode.isArray() && arrayNode.size() > 0) {
-                    JsonNode resultNode = arrayNode.get(0);
-                    ExecutionResult executionResult = parseExecutionResult(resultNode);
-                    log.debug("Retrieved latest execution result: {} from {}",
-                            executionResult.getExecutionId(), executionResult.getTimestamp());
-                    return Optional.of(executionResult);
-                }
-                return Optional.empty();
-            } else {
-                String errorBody = response.getBody().asString();
-                throw new IOException(String.format("Failed to retrieve execution results: %d - %s. Body: %s",
-                        statusCode, response.getStatusLine(), errorBody));
-            }
-        } catch (Exception e) {
-            if (e instanceof IOException) throw (IOException) e;
-            throw new IOException("Failed to retrieve execution result: " + e.getMessage(), e);
-        }
-    }
-
-    private ExecutionResult parseExecutionResult(JsonNode node) throws IOException {
-        try {
-            String executionId = node.get("execution_id").asText();
-            String timestamp = node.get("executed_at").asText();
-            int totalTrades = node.get("total_trades_found").asInt();
-            long executionTime = node.get("execution_time_ms").asLong();
-            boolean telegramSent = node.get("telegram_sent").asBoolean();
-
-            JsonNode resultsNode = node.get("results");
-            List<StrategyResult> strategyResults = mapper.readValue(
-                    resultsNode.toString(),
-                    mapper.getTypeFactory().constructCollectionType(List.class, StrategyResult.class));
-
-            return ExecutionResult.builder()
-                    .executionId(executionId)
-                    .timestamp(LocalDateTime.parse(timestamp, DateTimeFormatter.ISO_DATE_TIME))
-                    .results(strategyResults)
-                    .totalTradesFound(totalTrades)
-                    .totalExecutionTimeMs(executionTime)
-                    .telegramSent(telegramSent)
-                    .build();
-        } catch (Exception e) {
-            throw new IOException("Failed to parse execution result: " + e.getMessage(), e);
-        }
     }
 
     /**
@@ -311,8 +202,15 @@ public class CustomExecutionRepository {
                     tradesNode.toString(),
                     mapper.getTypeFactory().constructCollectionType(List.class, Trade.class));
 
-            String createdAtStr = node.get("created_at").asText();
-            Instant createdAt = Instant.parse(createdAtStr);
+            String createdAtStr = node.hasNonNull("created_at")
+                    ? node.get("created_at").asText()
+                    : (node.hasNonNull("executed_at") ? node.get("executed_at").asText() : Instant.now().toString());
+            Instant createdAt;
+            try {
+                createdAt = Instant.parse(createdAtStr);
+            } catch (Exception e) {
+                createdAt = Instant.now();
+            }
 
             String filterConfig = null;
             JsonNode filterNode = node.get("filter_config");

@@ -1,6 +1,8 @@
 package com.hemasundar.options.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.List;
+import java.util.function.BiConsumer;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -42,7 +44,7 @@ public class LongCallLeapFilter extends OptionsStrategyFilter {
      * If null or not set, defaults to the order above.
      * Filters NOT in this list are considered hard filters and never relaxed.
      */
-    private java.util.List<String> relaxationPriority;
+    private List<String> relaxationPriority;
 
     /**
      * Controls the order in which trades are sorted (most important first).
@@ -56,5 +58,19 @@ public class LongCallLeapFilter extends OptionsStrategyFilter {
      * 
      * If null or not set, defaults to the order above.
      */
-    private java.util.List<String> sortPriority;
+    private List<String> sortPriority;
+
+    @Override
+    public void initLegs(BiConsumer<LegFilter, String> legInitializer) {
+        legInitializer.accept(longCall, "longCall");
+    }
+
+    @Override
+    public LegFilter getOrCreateLegByPrefix(String cleanPrefix) {
+        if ("LONGLEG".equals(cleanPrefix) || "CALLLONG".equals(cleanPrefix)) {
+            if (longCall == null) longCall = new LegFilter();
+            return longCall;
+        }
+        return null;
+    }
 }

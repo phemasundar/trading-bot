@@ -3,12 +3,59 @@
  * Dashboard initialization, results loading, card/table builders, sorting, live quote performance, and filter bar.
  */
 
-// ── Global State for Sorting & Strategy Mapping ──
+// ── Global State & CardStore Registry for Sorting & Strategy Mapping ──
 window.tableSortState = window.tableSortState || {};
 window.tradeDataMap = window.tradeDataMap || {};
 window.tradeStrategyIdMap = window.tradeStrategyIdMap || {};
 window.tradeStrategyTypeMap = window.tradeStrategyTypeMap || {};
 window.strategyColumnsConfig = window.strategyColumnsConfig || null;
+
+const CardStore = {
+    getTrades(cardId) {
+        return (window.tradeDataMap && window.tradeDataMap[cardId]) || [];
+    },
+    setTrades(cardId, trades, type = null) {
+        if (!window.tradeDataMap) window.tradeDataMap = {};
+        window.tradeDataMap[cardId] = trades || [];
+        if (type && window.tradeDataMap[cardId]) {
+            window.tradeDataMap[cardId]._type = type;
+        }
+    },
+    getStrategyId(cardId) {
+        return (window.tradeStrategyIdMap && window.tradeStrategyIdMap[cardId]) || null;
+    },
+    setStrategyId(cardId, strategyId) {
+        if (!window.tradeStrategyIdMap) window.tradeStrategyIdMap = {};
+        window.tradeStrategyIdMap[cardId] = strategyId;
+    },
+    getStrategyType(cardId) {
+        return (window.tradeStrategyTypeMap && window.tradeStrategyTypeMap[cardId]) || null;
+    },
+    setStrategyType(cardId, strategyType) {
+        if (!window.tradeStrategyTypeMap) window.tradeStrategyTypeMap = {};
+        if (cardId && strategyType) {
+            window.tradeStrategyTypeMap[cardId] = strategyType;
+        }
+    },
+    getSortState(cardId) {
+        return (window.tableSortState && window.tableSortState[cardId]) || null;
+    },
+    setSortState(cardId, state) {
+        if (!window.tableSortState) window.tableSortState = {};
+        window.tableSortState[cardId] = state;
+    },
+    toggleSort(cardId, column) {
+        const current = this.getSortState(cardId);
+        if (!current || current.column !== column) {
+            this.setSortState(cardId, { column, direction: 'asc' });
+        } else if (current.direction === 'asc') {
+            current.direction = 'desc';
+        } else {
+            this.setSortState(cardId, { column: null, direction: null });
+        }
+        return this.getSortState(cardId);
+    }
+};
 
 // ── Card Action Buttons Component ──
 
@@ -56,8 +103,6 @@ function renderCardActionButtons({
         loadBtn,
         executeBtn,
         deleteBtn,
-        execBtn: executeBtn,
-        delBtn: deleteBtn,
         html: `${loadBtn}${executeBtn}${deleteBtn}`
     };
 }
@@ -126,7 +171,7 @@ function buildResultCard(result, badgeText = 'Standard') {
 
     const cardId = String(result.strategyId || result.screenerId || 'card-' + Math.random()).replace(/\s+/g, '-');
     const actualStrategyId = result.strategyId || result.strategyName || '';
-    window.tradeStrategyIdMap[cardId] = actualStrategyId;
+    CardStore.setStrategyId(cardId, actualStrategyId);
 
     let strategyType = result.strategyType;
     if (!strategyType && result.filterConfig) {
@@ -138,9 +183,7 @@ function buildResultCard(result, badgeText = 'Standard') {
     if (!strategyType && result.trades && result.trades.length > 0 && result.trades[0].strategyType) {
         strategyType = result.trades[0].strategyType;
     }
-    if (cardId && strategyType) {
-        window.tradeStrategyTypeMap[cardId] = strategyType;
-    }
+    CardStore.setStrategyType(cardId, strategyType);
 
     const arrow = `<span class="card-arrow" id="arrow-${cardId}">▶</span>`;
     const filterId = `filters-${cardId}`;
@@ -159,6 +202,7 @@ function buildResultCard(result, badgeText = 'Standard') {
         hasDelete: hasDeleteBtn,
         deleteFn: `confirmDeleteCustomResult('${escapeAttr(result.strategyId)}', this.closest('.card'))`,
         dataAttrs: {
+            'data-result-id': result.strategyId,
             'data-filter-config': typeof result.filterConfig === 'string' ? result.filterConfig : JSON.stringify(result.filterConfig),
             'data-strategy-name': result.strategyName || ''
         }
@@ -182,7 +226,7 @@ function buildResultCard(result, badgeText = 'Standard') {
             <div class="flex items-center gap-sm flex-wrap" style="width: 100%;">
                 ${arrow}
                 <span class="card-name">${displayName}</span>
-                ${result.descriptionFile ? `<button type="button" class="info-btn" onclick="showInfo(event, '${result.descriptionFile}', '${escapeAttr(displayName)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>` : ''}
+                ${renderDocInfoBtn(result.descriptionFile, displayName)}
                 <span class="card-badge">${badgeText}</span>
                 ${(() => { try { const cfg = typeof result.filterConfig === 'string' ? JSON.parse(result.filterConfig) : result.filterConfig; return renderGreeksPills(cfg && cfg.greeks); } catch(e) { return ''; } })()}
                 ${loadFiltersBtn}
@@ -194,10 +238,10 @@ function buildResultCard(result, badgeText = 'Standard') {
 
         ${filterDetailsHtml}
         <div class="card-content" id="content-${cardId}">
-            ${buildTradeTable(result.trades || [], cardId, actualStrategyId, false, strategyType)}
+            ${buildTradeTable({ trades: result.trades || [], cardId, strategyId: actualStrategyId, isHistoryModal: false, strategyType })}
         </div>`;
 
-    window.tradeDataMap[cardId] = result.trades || [];
+    CardStore.setTrades(cardId, result.trades || []);
 
     if (hasTrades) {
         card.querySelector('.card-header').addEventListener('click', () => toggleCard(cardId));
@@ -407,10 +451,10 @@ function showDeleteConfirmationModal({
 }) {
     if (document.querySelector('.delete-confirm-overlay')) return;
 
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay delete-confirm-overlay';
-    overlay.innerHTML = `
-        <div class="modal" style="max-width: 420px; text-align: center;">
+    const overlay = createModalOverlay({
+        overlayClass: 'delete-confirm-overlay',
+        modalStyle: 'max-width: 420px; text-align: center;',
+        contentHtml: `
             <div style="font-size: 2.5rem; margin-bottom: 12px;">🗑</div>
             <h2 style="margin: 0 0 8px;">${title}</h2>
             <p style="color: var(--text-secondary); margin: 0 0 24px; font-size: 0.9rem;">
@@ -419,11 +463,8 @@ function showDeleteConfirmationModal({
             <div class="flex gap-sm" style="justify-content: center;">
                 <button class="btn btn-secondary" id="cancel-delete-btn" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
                 <button class="btn btn-danger" id="confirm-delete-btn">🗑 Delete</button>
-            </div>
-        </div>`;
-
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-    document.body.appendChild(overlay);
+            </div>`
+    });
 
     overlay.querySelector('#confirm-delete-btn').addEventListener('click', async () => {
         overlay.remove();
@@ -457,21 +498,28 @@ function confirmDeleteCustomResult(resultId, card) {
     });
 }
 
-async function deleteCustomResult(resultId, card) {
-    await deleteCardWithAnimation(
-        card,
-        () => API.delete(`/api/results/custom/${resultId}`),
-        'Execution result deleted.'
-    );
-    const container = document.getElementById('custom-results');
+async function deleteCustomCardAndRefreshCount({ card, apiDeleteFn, toastMessage, containerId, btnId, countBadgeId }) {
+    await deleteCardWithAnimation(card, apiDeleteFn, toastMessage);
+    const container = document.getElementById(containerId);
     if (container) {
         const remaining = container.querySelectorAll('.card').length - (card ? 1 : 0);
         updateExecuteAllButtonState({
-            btnId: 'execute-all-custom-btn',
-            countBadgeId: 'custom-results-count-badge',
+            btnId,
+            countBadgeId,
             count: Math.max(0, remaining)
         });
     }
+}
+
+async function deleteCustomResult(resultId, card) {
+    await deleteCustomCardAndRefreshCount({
+        card,
+        apiDeleteFn: () => API.delete(`/api/results/custom/${resultId}`),
+        toastMessage: 'Execution result deleted.',
+        containerId: 'custom-results',
+        btnId: 'execute-all-custom-btn',
+        countBadgeId: 'custom-results-count-badge'
+    });
 }
 
 function confirmDeleteCustomScreenerResult(resultId, card) {
@@ -482,28 +530,174 @@ function confirmDeleteCustomScreenerResult(resultId, card) {
     });
 }
 
-function promptDeleteCustomScreenerResult(resultId, event) {
-    if (event && event.stopPropagation) event.stopPropagation();
-    const card = (event && event.target && event.target.closest && event.target.closest('.card')) ||
-                 document.querySelector(`.card-header[data-target="${resultId}"]`)?.closest('.card');
-    confirmDeleteCustomScreenerResult(resultId, card);
+async function deleteCustomScreenerResult(resultId, card) {
+    await deleteCustomCardAndRefreshCount({
+        card,
+        apiDeleteFn: () => API.delete(`/api/results/custom/screeners/${resultId}`),
+        toastMessage: 'Screener execution result deleted.',
+        containerId: 'screener-custom-results',
+        btnId: 'execute-all-screener-btn',
+        countBadgeId: 'screener-custom-results-count-badge'
+    });
 }
 
-async function deleteCustomScreenerResult(resultId, card) {
-    await deleteCardWithAnimation(
-        card,
-        () => API.delete(`/api/results/custom/screeners/${resultId}`),
-        'Screener execution result deleted.'
-    );
-    const container = document.getElementById('screener-custom-results');
-    if (container) {
-        const remaining = container.querySelectorAll('.card').length - (card ? 1 : 0);
-        updateExecuteAllButtonState({
-            btnId: 'execute-all-screener-btn',
-            countBadgeId: 'screener-custom-results-count-badge',
-            count: Math.max(0, remaining)
+/** Shared helper to load and render custom execution / screener cards while preserving open card & filter state */
+async function loadCustomCardsList({
+    containerId,
+    endpoint,
+    executeAllBtnId,
+    countBadgeId,
+    emptyMessage,
+    errorPrefix = 'Failed to load',
+    updatedResultId = null,
+    buildCardFn,
+    getIdFn,
+    hasItemsFn,
+    onLoadedFn = null,
+    onErrorFn = null
+}) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    try {
+        const openCardIds = new Set();
+        container.querySelectorAll('.card-content.open').forEach(el => {
+            openCardIds.add(el.id.replace(/^content-/, ''));
         });
+        const openFilterIds = new Set();
+        container.querySelectorAll('.filter-details-body.open').forEach(el => {
+            openFilterIds.add(el.id);
+        });
+
+        const results = await API.get(endpoint);
+        container.innerHTML = '';
+        if (typeof updateExecuteAllButtonState === 'function') {
+            updateExecuteAllButtonState({
+                btnId: executeAllBtnId,
+                countBadgeId,
+                count: results ? results.length : 0
+            });
+        }
+        if (!results || results.length === 0) {
+            container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔬</div>${emptyMessage}</div>`;
+            return;
+        }
+        for (const r of results) {
+            const cardEl = buildCardFn(r);
+            container.appendChild(cardEl);
+            const rawId = getIdFn(r);
+            const cardId = String(rawId || '').replace(/\s+/g, '-');
+            const shouldOpen = openCardIds.has(cardId) || (updatedResultId && String(rawId) === String(updatedResultId));
+            if (shouldOpen && hasItemsFn(r)) {
+                const content = cardEl.querySelector(`[id="content-${cardId}"]`);
+                const arrow = cardEl.querySelector(`[id="arrow-${cardId}"]`);
+                if (content) content.classList.add('open');
+                if (arrow) arrow.classList.add('open');
+            }
+            if (openFilterIds.has(`filters-${cardId}`)) {
+                const filterBody = cardEl.querySelector(`[id="filters-${cardId}"]`);
+                const filterArrow = cardEl.querySelector(`[id="arrow-filters-${cardId}"]`);
+                if (filterBody) filterBody.classList.add('open');
+                if (filterArrow) filterArrow.classList.add('open');
+            }
+        }
+        if (onLoadedFn) onLoadedFn(container);
+    } catch (e) {
+        container.innerHTML = `<div class="empty-state text-danger">${errorPrefix}: ${e.message}</div>`;
+        if (typeof updateExecuteAllButtonState === 'function') {
+            updateExecuteAllButtonState({
+                btnId: executeAllBtnId,
+                countBadgeId,
+                count: 0
+            });
+        }
+        if (onErrorFn) onErrorFn();
     }
+}
+
+/** Shared helper for single-card in-place re-execution on execute and execute-screener pages */
+async function reexecuteSingleCustomCard({ btn, resultId, isProgressActiveFn, loadFiltersFn, executeFn, logLabel }) {
+    if (!resultId) return;
+    if (isProgressActiveFn && isProgressActiveFn()) {
+        showToast('An execution is already in progress', 'error');
+        return;
+    }
+
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Executing...';
+
+    try {
+        loadFiltersFn(btn, true);
+        const success = await executeFn(resultId);
+        if (success === false) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    } catch (e) {
+        console.error(`Error re-executing ${logLabel}:`, e);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+/** Shared helper to render collapsible template cards on execute and execute-screener pages */
+async function renderTemplateAccordionList({ containerId, configKey, filterFn, buildHeaderContentFn, buildBodyContentFn }) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (!window.appConfig) {
+        try {
+            window.appConfig = await API.get('/api/config');
+        } catch (e) {
+            container.innerHTML = '';
+            return;
+        }
+    }
+
+    const list = (window.appConfig && window.appConfig[configKey]) || [];
+    const matching = list.filter(filterFn);
+
+    if (matching.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const heading = document.createElement('h4');
+    heading.style.fontSize = '0.8rem';
+    heading.style.color = 'var(--text-secondary)';
+    heading.style.marginBottom = '8px';
+    heading.textContent = 'Configured Templates (Click to view, Load to edit)';
+
+    container.innerHTML = '';
+    container.appendChild(heading);
+
+    matching.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'config-card';
+        card.style.marginBottom = '8px';
+
+        const enabledPill = item.enabled
+            ? '<span class="pill pill-enabled">Enabled</span>'
+            : '<span class="pill pill-disabled">Disabled</span>';
+
+        card.innerHTML = `
+            <div class="config-card-header">
+                <div class="flex items-center gap-sm flex-wrap" style="width: 100%;">
+                    ${buildHeaderContentFn(item, enabledPill)}
+                </div>
+            </div>
+            <div class="config-card-body">
+                ${buildBodyContentFn(item)}
+            </div>`;
+
+        card.querySelector('.config-card-header').addEventListener('click', function (e) {
+            if (e.target.tagName === 'BUTTON') return;
+            this.querySelector('.card-arrow').classList.toggle('open');
+            this.nextElementSibling.classList.toggle('open');
+        });
+
+        container.appendChild(card);
+    });
 }
 
 // ── Common "Execute All" Orchestrator ──
@@ -530,8 +724,6 @@ async function executeAllCustomCards({
     cardBtnSelector,
     batchApiEndpoint,
     buildRequestFn,
-    loadFiltersFn,
-    executeFn,
     reloadResultsFn,
     entityNameSingular = 'item',
     entityNamePlural = 'items',
@@ -561,33 +753,46 @@ async function executeAllCustomCards({
     const allExecBtns = Array.from(container.querySelectorAll(cardBtnSelector));
     allExecBtns.forEach(b => b.disabled = true);
 
-    // If batchApiEndpoint and buildRequestFn are provided, use backend batch execution
-    if (batchApiEndpoint && typeof buildRequestFn === 'function') {
-        try {
-            const requests = [];
-            for (const card of cards) {
-                const execBtn = card.querySelector(cardBtnSelector);
-                if (!execBtn) continue;
-                const req = buildRequestFn(card, execBtn);
-                if (req) requests.push(req);
+    try {
+        const requests = [];
+        for (const card of cards) {
+            const execBtn = card.querySelector(cardBtnSelector);
+            if (!execBtn) continue;
+            const req = typeof buildRequestFn === 'function' ? buildRequestFn(card, execBtn) : null;
+            if (req) requests.push(req);
+        }
+
+        if (requests.length === 0) {
+            showToast(`No valid ${entityNamePlural} found to execute`, 'error');
+            if (executeAllBtn) {
+                executeAllBtn.disabled = false;
+                executeAllBtn.innerHTML = originalAllText;
             }
+            allExecBtns.forEach(b => b.disabled = false);
+            return;
+        }
 
-            if (requests.length === 0) {
-                showToast(`No valid ${entityNamePlural} found to execute`, 'error');
-                if (executeAllBtn) {
-                    executeAllBtn.disabled = false;
-                    executeAllBtn.innerHTML = originalAllText;
-                }
-                allExecBtns.forEach(b => b.disabled = false);
-                return;
+        const res = await API.post(batchApiEndpoint, requests);
+        showToast(res.message);
+        startTimer(Date.now());
+
+        if (typeof pollUntilComplete === 'function') {
+            await pollUntilComplete();
+            stopTimer();
+            if (executeAllBtn) {
+                executeAllBtn.disabled = false;
+                executeAllBtn.innerHTML = originalAllText;
             }
-
-            const res = await API.post(batchApiEndpoint, requests);
-            showToast(res.message);
-            startTimer(Date.now());
-
-            if (typeof pollUntilComplete === 'function') {
-                await pollUntilComplete();
+            allExecBtns.forEach(b => {
+                b.disabled = false;
+                b.innerHTML = '▶ Execute';
+            });
+            if (reloadResultsFn) {
+                await reloadResultsFn();
+            }
+            showToast(`Batch execution of ${entityNamePlural} completed!`);
+        } else {
+            startPolling(() => {
                 stopTimer();
                 if (executeAllBtn) {
                     executeAllBtn.disabled = false;
@@ -598,97 +803,14 @@ async function executeAllCustomCards({
                     b.innerHTML = '▶ Execute';
                 });
                 if (reloadResultsFn) {
-                    await reloadResultsFn();
+                    reloadResultsFn();
                 }
                 showToast(`Batch execution of ${entityNamePlural} completed!`);
-            } else {
-                startPolling(() => {
-                    stopTimer();
-                    if (executeAllBtn) {
-                        executeAllBtn.disabled = false;
-                        executeAllBtn.innerHTML = originalAllText;
-                    }
-                    allExecBtns.forEach(b => {
-                        b.disabled = false;
-                        b.innerHTML = '▶ Execute';
-                    });
-                    if (reloadResultsFn) {
-                        reloadResultsFn();
-                    }
-                    showToast(`Batch execution of ${entityNamePlural} completed!`);
-                });
-            }
-            return;
-        } catch (e) {
-            console.error(`Error in batch execute (${entityNamePlural}):`, e);
-            showToast(`Failed to start batch execution: ${e.message}`, 'error');
-            if (executeAllBtn) {
-                executeAllBtn.disabled = false;
-                executeAllBtn.innerHTML = originalAllText;
-            }
-            allExecBtns.forEach(b => {
-                b.disabled = false;
-                b.innerHTML = '▶ Execute';
             });
-            return;
-        }
-    }
-
-    // Fallback: sequential loop if batchApiEndpoint not provided
-    window.cancellationRequested = false;
-    let executedCount = 0;
-    try {
-        for (let i = 0; i < cards.length; i++) {
-            if (window.cancellationRequested) {
-                showToast('Execution cancelled');
-                break;
-            }
-
-            const card = cards[i];
-            const execBtn = card.querySelector(cardBtnSelector);
-            if (!execBtn) continue;
-
-            if (executeAllBtn) {
-                executeAllBtn.innerHTML = `⏳ Executing (${i + 1}/${cards.length})...`;
-            }
-            execBtn.innerHTML = '⏳ Executing...';
-
-            if (loadFiltersFn) loadFiltersFn(execBtn);
-
-            const onclickAttr = execBtn.getAttribute('onclick') || '';
-            const match = onclickAttr.match(/reexecuteCustom(?:Strategy|Screener)\(\s*this\s*,\s*['"]?([^'")]+)['"]?\s*\)/);
-            const itemId = match ? match[1] : null;
-
-            try {
-                let status = await API.get('/api/status');
-                while (status && status.running) {
-                    await new Promise(r => setTimeout(r, 400));
-                    status = await API.get('/api/status');
-                }
-            } catch (e) { /* ignore */ }
-
-            try {
-                if (executeFn) {
-                    const started = await executeFn(itemId);
-                    if (started) {
-                        executedCount++;
-                    }
-                }
-            } catch (cardErr) {
-                console.error(`Error executing ${entityNameSingular} ${itemId}:`, cardErr);
-            }
-
-            execBtn.innerHTML = '▶ Execute';
-        }
-
-        if (executedCount > 0) {
-            showToast(`Executed ${executedCount} ${executedCount === 1 ? entityNameSingular : entityNamePlural} successfully!`);
         }
     } catch (e) {
-        console.error(`Error in executeAll (${entityNamePlural}):`, e);
-        showToast(`Execution stopped: ${e.message}`, 'error');
-    } finally {
-        window.cancellationRequested = false;
+        console.error(`Error in batch execute (${entityNamePlural}):`, e);
+        showToast(`Failed to start batch execution: ${e.message}`, 'error');
         if (executeAllBtn) {
             executeAllBtn.disabled = false;
             executeAllBtn.innerHTML = originalAllText;
@@ -697,9 +819,6 @@ async function executeAllCustomCards({
             b.disabled = false;
             b.innerHTML = '▶ Execute';
         });
-        if (reloadResultsFn) {
-            await reloadResultsFn();
-        }
     }
 }
 
@@ -714,8 +833,7 @@ function buildScreenerCard(result, isCustom = false) {
     const arrow = `<span class="card-arrow" id="arrow-${cardId}">▶</span>`;
 
     const isDropScreener = hasResults && result.results[0].dropType && result.results[0].dropType.length > 0;
-    window.tradeDataMap[cardId] = result.results || [];
-    window.tradeDataMap[cardId]._type = isDropScreener ? 'drop' : 'screener';
+    CardStore.setTrades(cardId, result.results || [], isDropScreener ? 'drop' : 'screener');
     
     const isExecuteScreenerPage = !!document.getElementById('screener-type');
     const filterConfig = result.filterConfig || result.requestParams || getScreenerConfigFallback(result);
@@ -738,6 +856,7 @@ function buildScreenerCard(result, isCustom = false) {
         hasDelete: hasDeleteBtn,
         deleteFn: `confirmDeleteCustomScreenerResult('${escapeAttr(result.screenerId || '')}', this.closest('.card'))`,
         dataAttrs: {
+            'data-result-id': result.screenerId || '',
             'data-request-params': paramsStr,
             'data-filter-config': paramsStr,
             'data-screener-name': screenerNameStr,
@@ -779,6 +898,17 @@ function buildScreenerCard(result, isCustom = false) {
     return card;
 }
 
+/** Shared builder for sortable table column headers */
+function createSortableHeaderFn(cardId, state) {
+    return (key, label) => {
+        if (!cardId) return `<th>${label}</th>`;
+        const active = state && state.column === key;
+        const arrow = active ? (state.direction === 'asc' ? ' ↑' : ' ↓') : '';
+        const cls = active ? 'sort-header active' : 'sort-header';
+        return `<th class="${cls}" onclick="handleTableSort('${cardId}', '${key}')" title="Sort by ${label}">${label}${arrow}</th>`;
+    };
+}
+
 function buildScreenerTable(results, cardId = null) {
     if (!results || results.length === 0) {
         return '<div class="empty-state"><div class="empty-state-icon">🔎</div>No stocks found</div>';
@@ -791,14 +921,7 @@ function buildScreenerTable(results, cardId = null) {
     }
 
     const state = cardId ? (window.tableSortState[cardId] || { column: null, direction: 'asc' }) : null;
-
-    const th = (key, label) => {
-        if (!cardId) return `<th>${label}</th>`;
-        const active = state && state.column === key;
-        const arrow = active ? (state.direction === 'asc' ? ' ↑' : ' ↓') : '';
-        const cls = active ? 'sort-header active' : 'sort-header';
-        return `<th class="${cls}" onclick="handleTableSort('${cardId}', '${key}')" title="Sort by ${label}">${label}${arrow}</th>`;
-    };
+    const th = createSortableHeaderFn(cardId, state);
 
     let hasRsi = false;
     let hasBb = false;
@@ -903,14 +1026,7 @@ function buildScreenerTable(results, cardId = null) {
 
 function buildDropScreenerTable(results, cardId = null) {
     const state = cardId ? (window.tableSortState[cardId] || { column: null, direction: 'asc' }) : null;
-
-    const th = (key, label) => {
-        if (!cardId) return `<th>${label}</th>`;
-        const active = state && state.column === key;
-        const arrow = active ? (state.direction === 'asc' ? ' ↑' : ' ↓') : '';
-        const cls = active ? 'sort-header active' : 'sort-header';
-        return `<th class="${cls}" onclick="handleTableSort('${cardId}', '${key}')" title="Sort by ${label}">${label}${arrow}</th>`;
-    };
+    const th = createSortableHeaderFn(cardId, state);
 
     const hasMarketCapDrop = results.some(r => r.marketCapB != null);
 
@@ -980,6 +1096,17 @@ function getTradeCostSavings(t) {
         }
     }
     return null;
+}
+
+/** Computes or parses a trade's annualized Return-on-Risk (CAGR) percentage */
+function computeTradeRorCagr(t) {
+    let rorCagr = t.returnOnRiskCAGR;
+    if (typeof rorCagr === 'string') rorCagr = parseFloat(rorCagr);
+    if (rorCagr == null && t.returnOnRisk != null && t.dte > 0 && t.maxLoss > 0) {
+        const rawRoR = t.returnOnRisk / 100.0;
+        rorCagr = (Math.pow(1.0 + rawRoR, 365.0 / t.dte) - 1.0) * 100.0;
+    }
+    return rorCagr;
 }
 
 const AVAILABLE_TRADE_COLUMNS = {
@@ -1054,12 +1181,7 @@ const AVAILABLE_TRADE_COLUMNS = {
         sortable: true,
         render: (t) => {
             const rorClass = (t.returnOnRisk || 0) >= 0 ? 'text-success' : 'text-danger';
-            let rorCagr = t.returnOnRiskCAGR;
-            if (typeof rorCagr === 'string') rorCagr = parseFloat(rorCagr);
-            if (rorCagr == null && t.returnOnRisk != null && t.dte > 0 && t.maxLoss > 0) {
-                const rawRoR = t.returnOnRisk / 100.0;
-                rorCagr = (Math.pow(1.0 + rawRoR, 365.0 / t.dte) - 1.0) * 100.0;
-            }
+            const rorCagr = computeTradeRorCagr(t);
             let rorCagrDisplay = '';
             if (rorCagr != null && !isNaN(rorCagr) && isFinite(rorCagr)) {
                 rorCagrDisplay = ` <span class="text-muted">(${rorCagr.toFixed(1)}% CAGR)</span>`;
@@ -1067,13 +1189,9 @@ const AVAILABLE_TRADE_COLUMNS = {
             return `<td class="${rorClass}">${(t.returnOnRisk || 0).toFixed(1)}%${rorCagrDisplay}</td>`;
         },
         getSortVal: (t) => {
-            let c = t.returnOnRiskCAGR;
-            if (typeof c === 'string') c = parseFloat(c);
-            if (c == null && t.returnOnRisk != null && t.dte > 0 && t.maxLoss > 0) {
-                c = (Math.pow(1.0 + (t.returnOnRisk / 100.0), 365.0 / t.dte) - 1.0) * 100.0;
-            }
+            const c = computeTradeRorCagr(t);
             if (c == null || isNaN(c) || !isFinite(c)) {
-                c = t.maxReturnOnRiskPercentage || t.returnOnRisk || 0;
+                return t.maxReturnOnRiskPercentage || t.returnOnRisk || 0;
             }
             return c;
         }
@@ -1122,26 +1240,30 @@ function getTradeColumns(strategyType) {
         .filter(Boolean);
 }
 
-function buildTradeTable(trades, cardId = null, strategyId = null, isHistoryModal = false, strategyType = null) {
+function buildTradeTable(tradesOrOpts, cardId = null, strategyId = null, isHistoryModal = false, strategyType = null) {
+    let trades = tradesOrOpts;
+    if (tradesOrOpts && typeof tradesOrOpts === 'object' && !Array.isArray(tradesOrOpts)) {
+        ({
+            trades = [],
+            cardId = null,
+            strategyId = null,
+            isHistoryModal = false,
+            strategyType = null
+        } = tradesOrOpts);
+    }
+
     if (!trades || trades.length === 0) {
         return '<div class="empty-state"><div class="empty-state-icon">📊</div>No trades found</div>';
     }
 
     const resolvedStrategyType = strategyType
-        || (window.tradeStrategyTypeMap && cardId ? window.tradeStrategyTypeMap[cardId] : null)
+        || (cardId ? CardStore.getStrategyType(cardId) : null)
         || (trades && trades[0] && trades[0].strategyType)
         || (strategyId && /LONG_CALL_LEAP|LEAP/i.test(strategyId) ? 'LONG_CALL_LEAP' : null)
         || (trades && trades.some(t => t.costSavingsPercent != null) ? 'LONG_CALL_LEAP' : null);
 
-    const state = cardId ? (window.tableSortState[cardId] || { column: null, direction: 'asc' }) : null;
-
-    const th = (key, label) => {
-        if (!cardId) return `<th>${label}</th>`;
-        const active = state && state.column === key;
-        const arrow = active ? (state.direction === 'asc' ? ' ↑' : ' ↓') : '';
-        const cls = active ? 'sort-header active' : 'sort-header';
-        return `<th class="${cls}" onclick="handleTableSort('${cardId}', '${key}')" title="Sort by ${label}">${label}${arrow}</th>`;
-    };
+    const state = cardId ? (CardStore.getSortState(cardId) || { column: null, direction: 'asc' }) : null;
+    const th = createSortableHeaderFn(cardId, state);
 
     const columns = getTradeColumns(resolvedStrategyType);
 
@@ -1152,7 +1274,8 @@ function buildTradeTable(trades, cardId = null, strategyId = null, isHistoryModa
             ${!isHistoryModal ? '<th>History</th>' : ''}
         </tr></thead><tbody>`;
 
-    for (const t of trades) {
+    for (let idx = 0; idx < trades.length; idx++) {
+        const t = trades[idx];
         const detailsEscaped = escapeAttr(t.tradeDetails || '');
         const techIndicatorsAttr = t.techIndicators ? escapeAttr(t.techIndicators) : '';
         const sym = t.symbol || '';
@@ -1160,14 +1283,14 @@ function buildTradeTable(trades, cardId = null, strategyId = null, isHistoryModa
         const legsAttr = escapeAttr(JSON.stringify(legsOptionData));
         const tradeEscaped = escapeAttr(JSON.stringify(t));
 
-        const effectiveStrategyId = strategyId || (cardId && window.tradeStrategyIdMap ? window.tradeStrategyIdMap[cardId] : '') || cardId || '';
+        const effectiveStrategyId = strategyId || (cardId ? CardStore.getStrategyId(cardId) : '') || cardId || '';
         const foundDateDisplay = (t.foundDate && t.foundDate !== '1969-12-31' && t.foundDate !== '1970-01-01' && t.foundDate !== 'null')
             ? t.foundDate
             : (t.executionTimeMs && Number(t.executionTimeMs) > 86400000
                 ? new Date(Number(t.executionTimeMs)).toISOString().slice(0, 10)
                 : '--');
 
-        html += `<tr class="trade-row" data-details="${detailsEscaped}" data-tech-indicators="${techIndicatorsAttr}" data-legs-option-data="${legsAttr}" data-symbol="${escapeAttr(sym)}">
+        html += `<tr class="trade-row" data-card-id="${escapeAttr(cardId || '')}" data-row-index="${idx}" data-details="${detailsEscaped}" data-tech-indicators="${techIndicatorsAttr}" data-legs-option-data="${legsAttr}" data-symbol="${escapeAttr(sym)}">
             ${isHistoryModal ? `<td><span class="text-muted text-mono">${escapeHtmlContent(foundDateDisplay)}</span></td>` : ''}
             ${columns.map(col => col.render(t)).join('\n            ')}
             ${!isHistoryModal ? `<td onclick="event.stopPropagation(); showTradeHistoryModal('${escapeAttr(effectiveStrategyId)}', this.dataset.trade, event)" data-trade="${tradeEscaped}">
@@ -1180,129 +1303,50 @@ function buildTradeTable(trades, cardId = null, strategyId = null, isHistoryModa
     return html;
 }
 
+const SCREENER_SORT_EXTRACTORS = {
+    volume: a => a.volume || a.totalVolume || 0,
+    marketCapB: a => a.marketCapB || 0,
+    rsi: a => a.rsi || 0,
+    ma200: a => a.ma200 || 0,
+    ma100: a => a.ma100 || 0,
+    ma50: a => a.ma50 || 0,
+    ma20: a => a.ma20 || 0,
+    refPrice: a => a.referencePrice || 0,
+    dropPct: a => a.dropPercent || 0
+};
+
 function handleTableSort(cardId, column) {
-    const originalData = window.tradeDataMap[cardId];
+    const originalData = CardStore.getTrades(cardId);
     if (!originalData || originalData.length === 0) return;
 
-    if (!window.tableSortState[cardId] || window.tableSortState[cardId].column !== column) {
-        window.tableSortState[cardId] = { column: column, direction: 'asc' };
-    } else {
-        const state = window.tableSortState[cardId];
-        if (state.direction === 'asc') {
-            state.direction = 'desc';
-        } else {
-            window.tableSortState[cardId] = { column: null, direction: null };
-        }
-    }
-
+    const state = CardStore.toggleSort(cardId, column);
     let data = [...originalData];
-    const state = window.tableSortState[cardId];
 
     if (state && state.column && state.direction) {
         const dirMultiplier = state.direction === 'asc' ? 1 : -1;
+        const col = state.column;
 
         data.sort((a, b) => {
-            let valA, valB;
-            switch (state.column) {
-                case 'ticker':
-                    valA = a.symbol || '';
-                    valB = b.symbol || '';
-                    return valA.localeCompare(valB) * dirMultiplier;
-                case 'volume':
-                    valA = a.volume || a.totalVolume || 0;
-                    valB = b.volume || b.totalVolume || 0;
-                    break;
-
-                case 'expiry':
-                    valA = a.dte || 0;
-                    valB = b.dte || 0;
-                    break;
-                case 'maxLoss':
-                    valA = a.maxLoss || 0;
-                    valB = b.maxLoss || 0;
-                    break;
-                case 'extrinsic':
-                    valA = a.anulizedNetExtrinsicValueToCapitalPercentage || 0;
-                    valB = b.anulizedNetExtrinsicValueToCapitalPercentage || 0;
-                    break;
-                case 'breakeven':
-                    const hasCagr = a.breakevenCAGR != null && b.breakevenCAGR != null;
-                    valA = hasCagr ? a.breakevenCAGR : (a.breakEvenPercent || 0);
-                    valB = hasCagr ? b.breakevenCAGR : (b.breakEvenPercent || 0);
-                    break;
-                case 'ror':
-                    const getRoRCagr = (x) => {
-                        let c = x.returnOnRiskCAGR;
-                        if (typeof c === 'string') c = parseFloat(c);
-                        if (c == null && x.returnOnRisk != null && x.dte > 0 && x.maxLoss > 0) {
-                            c = (Math.pow(1.0 + (x.returnOnRisk/100.0), 365.0/x.dte) - 1.0) * 100.0;
-                        }
-                        if (c == null || isNaN(c) || !isFinite(c)) {
-                            c = x.maxReturnOnRiskPercentage || x.returnOnRisk || 0;
-                        }
-                        return c;
-                    };
-                    valA = getRoRCagr(a);
-                    valB = getRoRCagr(b);
-                    break;
-                case 'costSavings':
-                    valA = getTradeCostSavings(a) ?? -Infinity;
-                    valB = getTradeCostSavings(b) ?? -Infinity;
-                    break;
-                case 'marketCapB':
-                    valA = a.marketCapB || 0;
-                    valB = b.marketCapB || 0;
-                    break;
-
-                case 'todayPct':
-                    valA = a._todayPct != null ? a._todayPct : -Infinity;
-                    valB = b._todayPct != null ? b._todayPct : -Infinity;
-                    break;
-
-                case 'price':
-                    valA = a.currentPrice || a.underlyingPrice || 0;
-                    valB = b.currentPrice || b.underlyingPrice || 0;
-                    break;
-                case 'rsi':
-                    valA = a.rsi || 0;
-                    valB = b.rsi || 0;
-                    break;
-                case 'ma200':
-                    valA = a.ma200 || 0;
-                    valB = b.ma200 || 0;
-                    break;
-                case 'ma100':
-                    valA = a.ma100 || 0;
-                    valB = b.ma100 || 0;
-                    break;
-                case 'ma50':
-                    valA = a.ma50 || 0;
-                    valB = b.ma50 || 0;
-                    break;
-                case 'ma20':
-                    valA = a.ma20 || 0;
-                    valB = b.ma20 || 0;
-                    break;
-
-                case 'refPrice':
-                    valA = a.referencePrice || 0;
-                    valB = b.referencePrice || 0;
-                    break;
-                case 'dropPct':
-                    valA = a.dropPercent || 0;
-                    valB = b.dropPercent || 0;
-                    break;
-
-                default:
-                    const colDef = AVAILABLE_TRADE_COLUMNS[state.column];
-                    if (colDef && colDef.getSortVal) {
-                        valA = colDef.getSortVal(a);
-                        valB = colDef.getSortVal(b);
-                        break;
-                    }
-                    return 0;
+            if (col === 'ticker') {
+                return (a.symbol || '').localeCompare(b.symbol || '') * dirMultiplier;
             }
-            return (valA - valB) * dirMultiplier;
+            if (col === 'breakeven') {
+                const hasCagr = a.breakevenCAGR != null && b.breakevenCAGR != null;
+                const valA = hasCagr ? a.breakevenCAGR : (a.breakEvenPercent || 0);
+                const valB = hasCagr ? b.breakevenCAGR : (b.breakEvenPercent || 0);
+                return (valA - valB) * dirMultiplier;
+            }
+            if (col.startsWith('ma_')) {
+                const period = col.slice(3);
+                const valA = (a.maValues && a.maValues[period]) || 0;
+                const valB = (b.maValues && b.maValues[period]) || 0;
+                return (valA - valB) * dirMultiplier;
+            }
+            const extractor = SCREENER_SORT_EXTRACTORS[col] || (AVAILABLE_TRADE_COLUMNS[col] && AVAILABLE_TRADE_COLUMNS[col].getSortVal);
+            if (extractor) {
+                return (extractor(a) - extractor(b)) * dirMultiplier;
+            }
+            return 0;
         });
     }
 
@@ -1314,9 +1358,9 @@ function handleTableSort(cardId, column) {
         } else if (tableType === 'screener') {
             contentDiv.innerHTML = buildScreenerTable(data, cardId);
         } else {
-            const actualStrategyId = window.tradeStrategyIdMap ? window.tradeStrategyIdMap[cardId] : null;
-            const strategyType = window.tradeStrategyTypeMap ? window.tradeStrategyTypeMap[cardId] : null;
-            contentDiv.innerHTML = buildTradeTable(data, cardId, actualStrategyId, false, strategyType);
+            const actualStrategyId = CardStore.getStrategyId(cardId);
+            const strategyType = CardStore.getStrategyType(cardId);
+            contentDiv.innerHTML = buildTradeTable({ trades: data, cardId, strategyId: actualStrategyId, isHistoryModal: false, strategyType });
             const symbols = [...new Set(data.map(t => t.symbol).filter(Boolean))];
             if (symbols.length > 0) {
                 injectTodayPerformance(symbols, contentDiv);
@@ -1475,10 +1519,18 @@ function initTradeRowClicks() {
 
         const symbol = row.querySelector('td strong')?.textContent || '';
         let legsOptionData = null;
-        try {
-            const raw = row.dataset.legsOptionData ? decodeAttr(row.dataset.legsOptionData) : null;
-            legsOptionData = raw ? JSON.parse(raw) : null;
-        } catch(e) {}
+        if (row.dataset.cardId && row.dataset.rowIndex !== undefined) {
+            const cachedTrade = CardStore.getTrades(row.dataset.cardId)[Number(row.dataset.rowIndex)];
+            if (cachedTrade && Array.isArray(cachedTrade.legs)) {
+                legsOptionData = cachedTrade.legs.map(l => ({ action: l.action, optionType: l.optionType, optionData: l.optionData || null }));
+            }
+        }
+        if (!legsOptionData) {
+            try {
+                const raw = row.dataset.legsOptionData ? decodeAttr(row.dataset.legsOptionData) : null;
+                legsOptionData = raw ? JSON.parse(raw) : null;
+            } catch(e) {}
+        }
         
         const panel = document.createElement('tr');
         panel.className = 'trade-detail-panel';
@@ -1544,19 +1596,18 @@ function showTradeHistoryModal(cardId, tradeRaw, event) {
 
     if (!trade || !trade.symbol) return;
 
-    let overlay = document.getElementById('history-modal-overlay');
-    if (overlay) overlay.remove();
-
-    overlay = document.createElement('div');
-    overlay.id = 'history-modal-overlay';
-    overlay.className = 'modal-overlay';
-    overlay.style.zIndex = '1000';
+    let existingOverlay = document.getElementById('history-modal-overlay');
+    if (existingOverlay) existingOverlay.remove();
 
     const symbolEscaped = escapeHtmlContent(trade.symbol || '');
     const expiryEscaped = escapeHtmlContent(trade.expiryDate || '');
 
-    overlay.innerHTML = `
-        <div class="modal" id="historyModal" style="max-width: 960px; width: 92%; max-height: 85vh; overflow-y: auto;">
+    createModalOverlay({
+        id: 'history-modal-overlay',
+        overlayStyle: 'z-index: 1000;',
+        modalId: 'historyModal',
+        modalStyle: 'max-width: 960px; width: 92%; max-height: 85vh; overflow-y: auto;',
+        contentHtml: `
             <div class="flex items-center justify-between" style="margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
                 <div>
                     <h3 style="margin: 0; font-size: 1.25rem; color: var(--text-primary);">🕒 Similar Historical Trades</h3>
@@ -1566,15 +1617,8 @@ function showTradeHistoryModal(cardId, tradeRaw, event) {
             </div>
             <div id="history-modal-body">
                 <div class="empty-state"><div class="spinner"></div>Loading similar historical trades...</div>
-            </div>
-        </div>
-    `;
-
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) overlay.remove();
+            </div>`
     });
-
-    document.body.appendChild(overlay);
 
     const strategyId = cardId ? cardId.replace(/-[0-9a-fA-F-]+$/, '') : '';
     API.post('/api/strategies/history/similar-trades', { strategyId: strategyId, trade: trade, limit: 20 })
@@ -1587,7 +1631,7 @@ function showTradeHistoryModal(cardId, tradeRaw, event) {
                 return;
             }
 
-            bodyEl.innerHTML = buildTradeTable(matches, 'history-modal-table', null, true);
+            bodyEl.innerHTML = buildTradeTable({ trades: matches, cardId: 'history-modal-table', isHistoryModal: true });
             const symbols = [...new Set(matches.map(m => m.symbol).filter(Boolean))];
             if (symbols.length > 0) {
                 injectTodayPerformance(symbols, bodyEl);
@@ -1926,7 +1970,7 @@ async function loadOptionsStrategies() {
                         <input type="checkbox" value="${s.index}" data-type="strategy">
                         <span>${displayName}</span>
                     </label>
-                    ${s.descriptionFile ? `<button type="button" class="info-btn" onclick="showInfo(event, '${s.descriptionFile}', '${escapeAttr(displayName)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>` : ''}
+                    ${renderDocInfoBtn(s.descriptionFile, displayName)}
                 </div>`;
             }).join('');
             const badge = document.getElementById('strategy-count-badge');
@@ -1938,30 +1982,8 @@ async function loadOptionsStrategies() {
 }
 
 async function loadStrategies() {
-    const strategyContainer = document.getElementById('strategy-checkboxes');
+    await loadOptionsStrategies();
     const screenerContainer = document.getElementById('screener-checkboxes');
-
-    if (strategyContainer) {
-        try {
-            const strategies = await API.get('/api/strategies');
-            strategyContainer.innerHTML = strategies.map(s => {
-                const parts = [s.name, s.termType].filter(Boolean);
-                const displayName = parts.join(' - ');
-                return `
-                <div class="flex items-center gap-sm" style="margin-bottom: 8px;">
-                    <label class="checkbox-label" style="margin: 0;">
-                        <input type="checkbox" value="${s.index}" data-type="strategy">
-                        <span>${displayName}</span>
-                    </label>
-                    ${s.descriptionFile ? `<button type="button" class="info-btn" onclick="showInfo(event, '${s.descriptionFile}', '${escapeAttr(displayName)}')"><svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>` : ''}
-                </div>`;
-            }).join('');
-            const badge = document.getElementById('strategy-count-badge');
-            if (badge) badge.textContent = `(${strategies.length})`;
-        } catch (e) {
-            strategyContainer.innerHTML = `<span class="text-muted">Failed to load strategies</span>`;
-        }
-    }
 
     if (screenerContainer) {
         try {
@@ -2273,18 +2295,22 @@ function onFilterColumnChange(prefix) {
     if (summary) summary.innerHTML = '';
 }
 
+const DASHBOARD_FILTER_EXTRACTORS = {
+    ticker: item => (item.symbol || '').toLowerCase(),
+    expiry: item => (item.expiryDate || '').substring(0, 10)
+};
+
 function getDashboardItemValue(item, columnKey) {
-    switch (columnKey) {
-        case 'ticker':
-            return (item.symbol || '').toLowerCase();
-        case 'expiry':
-            return (item.expiryDate || '').substring(0, 10);
-        default:
-            return '';
-    }
+    const extractor = DASHBOARD_FILTER_EXTRACTORS[columnKey];
+    return extractor ? extractor(item) : '';
 }
 
-function matchesDashboardFilter(item, columnKey, filterValue, dateMode) {
+function matchesDashboardFilter(itemOrOpts, columnKey, filterValue, dateMode = 'before') {
+    let item = itemOrOpts;
+    if (itemOrOpts && typeof itemOrOpts === 'object' && 'item' in itemOrOpts && 'columnKey' in itemOrOpts) {
+        ({ item, columnKey, filterValue, dateMode = 'before' } = itemOrOpts);
+    }
+
     const itemValue = getDashboardItemValue(item, columnKey);
     if (!itemValue) return false;
 
@@ -2337,12 +2363,12 @@ function applyDashboardFilter(prefix) {
         const cardId = card.querySelector('.card-header')?.dataset?.target;
         if (!cardId) return;
 
-        const rawData = window.tradeDataMap[cardId];
+        const rawData = CardStore.getTrades(cardId);
         if (!rawData || !Array.isArray(rawData)) return;
 
         const matchingSymbols = new Set();
         rawData.forEach(item => {
-            if (matchesDashboardFilter(item, columnKey, filterValue, dateMode)) {
+            if (matchesDashboardFilter({ item, columnKey, filterValue, dateMode })) {
                 matchingSymbols.add(getDashboardItemValue(item, 'ticker'));
             }
         });
@@ -2356,7 +2382,7 @@ function applyDashboardFilter(prefix) {
             let isMatch;
             if (columnKey === 'expiry') {
                 const rawItem = rawData.find(d => (d.symbol || '').toLowerCase() === sym);
-                isMatch = rawItem ? matchesDashboardFilter(rawItem, columnKey, filterValue, dateMode) : false;
+                isMatch = rawItem ? matchesDashboardFilter({ item: rawItem, columnKey, filterValue, dateMode }) : false;
             } else {
                 isMatch = matchingSymbols.has(sym);
             }
@@ -2462,89 +2488,74 @@ function clearDashboardFilter(prefix) {
     }
 }
 
-if (typeof window !== 'undefined') {
-    window.renderCardActionButtons = renderCardActionButtons;
-    window.showDeleteConfirmationModal = showDeleteConfirmationModal;
-    window.deleteCardWithAnimation = deleteCardWithAnimation;
-    window.confirmDeleteCustomResult = confirmDeleteCustomResult;
-    window.deleteCustomResult = deleteCustomResult;
-    window.confirmDeleteCustomScreenerResult = confirmDeleteCustomScreenerResult;
-    window.promptDeleteCustomScreenerResult = promptDeleteCustomScreenerResult;
-    window.deleteCustomScreenerResult = deleteCustomScreenerResult;
-    window.updateExecuteAllButtonState = updateExecuteAllButtonState;
-    window.executeAllCustomCards = executeAllCustomCards;
-    window.renderFilterDetailsSection = renderFilterDetailsSection;
-    window.attachFilterDetailsToggle = attachFilterDetailsToggle;
-    window.getScreenerConfigFallback = getScreenerConfigFallback;
-    window.TECH_FILTER_LABELS = TECH_FILTER_LABELS;
-    window.TECH_CONDITION_LABELS = TECH_CONDITION_LABELS;
-    window.SCREENER_TYPE_LABELS = SCREENER_TYPE_LABELS;
-}
-
-// CommonJS Exports
 if (typeof module !== 'undefined' && module.exports) {
     const utils = require('./utils');
     const authApi = require('./auth-api');
     Object.assign(global, utils, authApi);
-
-    module.exports = {
-        renderCardActionButtons,
-        showDeleteConfirmationModal,
-        deleteCardWithAnimation,
-        updateExecuteAllButtonState,
-        executeAllCustomCards,
-        renderFilterDetailsSection,
-        attachFilterDetailsToggle,
-        getScreenerConfigFallback,
-        TECH_FILTER_LABELS,
-        TECH_CONDITION_LABELS,
-        SCREENER_TYPE_LABELS,
-        buildResultCard,
-        renderTermGroups,
-        computeTermDteRange,
-        confirmDeleteCustomResult,
-        deleteCustomResult,
-        confirmDeleteCustomScreenerResult,
-        promptDeleteCustomScreenerResult,
-        deleteCustomScreenerResult,
-        buildScreenerCard,
-        buildScreenerTable,
-        buildDropScreenerTable,
-        buildTradeTable,
-        handleTableSort,
-        AVAILABLE_TRADE_COLUMNS,
-        DEFAULT_STRATEGY_COLUMNS,
-        loadStrategyColumnsConfig,
-        getTradeColumns,
-        getTradeCostSavings,
-        injectTodayPerformance,
-        fetchAndInjectTodayPerformance,
-        renderOptionDataTable,
-        initTradeRowClicks,
-        showTradeHistoryModal,
-        formatTechFilterValue,
-        renderFilterGrid,
-        renderTechFiltersGrid,
-        renderFundamentalFiltersGrid,
-        initDashboard,
-        loadOptionsStrategies,
-        loadStrategies,
-        loadOptionsResults,
-        loadResults,
-        checkExecutionStatus,
-        executeSelected,
-        cancelExecution,
-        fetchAndRenderMarketStatus,
-        DASHBOARD_FILTER_CONFIG,
-        showDashboardFilterBar,
-        hideDashboardFilterBar,
-        resetDashboardFilter,
-        onFilterColumnChange,
-        getDashboardItemValue,
-        matchesDashboardFilter,
-        applyDashboardFilter,
-        clearDashboardFilter,
-        updateToggleAllTermsButtonState,
-        toggleAllTermGroups
-    };
 }
+
+const DASHBOARD_EXPORTS = {
+    CardStore,
+    renderCardActionButtons,
+    showDeleteConfirmationModal,
+    deleteCardWithAnimation,
+    updateExecuteAllButtonState,
+    executeAllCustomCards,
+    loadCustomCardsList,
+    reexecuteSingleCustomCard,
+    renderTemplateAccordionList,
+    renderFilterDetailsSection,
+    attachFilterDetailsToggle,
+    getScreenerConfigFallback,
+    TECH_FILTER_LABELS,
+    TECH_CONDITION_LABELS,
+    SCREENER_TYPE_LABELS,
+    buildResultCard,
+    renderTermGroups,
+    computeTermDteRange,
+    confirmDeleteCustomResult,
+    deleteCustomResult,
+    confirmDeleteCustomScreenerResult,
+    deleteCustomScreenerResult,
+    buildScreenerCard,
+    buildScreenerTable,
+    buildDropScreenerTable,
+    buildTradeTable,
+    handleTableSort,
+    AVAILABLE_TRADE_COLUMNS,
+    DEFAULT_STRATEGY_COLUMNS,
+    loadStrategyColumnsConfig,
+    getTradeColumns,
+    getTradeCostSavings,
+    injectTodayPerformance,
+    fetchAndInjectTodayPerformance,
+    renderOptionDataTable,
+    initTradeRowClicks,
+    showTradeHistoryModal,
+    formatTechFilterValue,
+    renderFilterGrid,
+    renderTechFiltersGrid,
+    renderFundamentalFiltersGrid,
+    initDashboard,
+    loadOptionsStrategies,
+    loadStrategies,
+    loadOptionsResults,
+    loadResults,
+    checkExecutionStatus,
+    executeSelected,
+    cancelExecution,
+    fetchAndRenderMarketStatus,
+    DASHBOARD_FILTER_CONFIG,
+    showDashboardFilterBar,
+    hideDashboardFilterBar,
+    resetDashboardFilter,
+    onFilterColumnChange,
+    getDashboardItemValue,
+    matchesDashboardFilter,
+    applyDashboardFilter,
+    clearDashboardFilter,
+    updateToggleAllTermsButtonState,
+    toggleAllTermGroups
+};
+
+registerModuleExports(DASHBOARD_EXPORTS, typeof module !== 'undefined' ? module : null);

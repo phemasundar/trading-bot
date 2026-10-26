@@ -183,6 +183,9 @@ public class StrategyExecutionService {
 
         try {
             log.info("Starting execution: {}", executionId);
+            if (supabaseService != null) {
+                supabaseService.clearIVStatsCache();
+            }
 
             // Load all enabled strategies
             List<OptionsConfig> allStrategies = getEnabledStrategies();
@@ -274,15 +277,6 @@ public class StrategyExecutionService {
                     .telegramSent(true) // Telegram is sent during strategy execution
                     .build();
 
-            // Save to Supabase
-            try {
-                supabaseService.saveExecutionResult(executionResult);
-                log.debug("Saved execution result to Supabase: {}", executionId);
-            } catch (IOException e) {
-                addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE,
-                        AlertMessages.SAVE_EXEC_RESULT_FAILED + " (" + e.getMessage() + ")");
-            }
-
             // Print cache statistics
             cache.printStats();
 
@@ -347,6 +341,9 @@ public class StrategyExecutionService {
 
         try {
             log.info("Starting custom execution batch: {} ({} strategies)", executionId, configs.size());
+            if (supabaseService != null) {
+                supabaseService.clearIVStatsCache();
+            }
 
             OptionChainCache cache = new OptionChainCache(ThinkOrSwimAPIs);
 
@@ -678,18 +675,6 @@ public class StrategyExecutionService {
         }
 
         return allTrades;
-    }
-
-    /**
-     * Retrieves the latest execution result from Supabase.
-     */
-    public Optional<ExecutionResult> getLatestExecutionResult() {
-        try {
-            return supabaseService.getLatestExecutionResult();
-        } catch (IOException e) {
-            log.error("Failed to retrieve latest execution result: {}", e.getMessage());
-            return Optional.empty();
-        }
     }
 
     /**

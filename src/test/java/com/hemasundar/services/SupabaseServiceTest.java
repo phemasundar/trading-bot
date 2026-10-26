@@ -1,6 +1,5 @@
 package com.hemasundar.services;
 
-import com.hemasundar.dto.ExecutionResult;
 import com.hemasundar.dto.StrategyResult;
 import com.hemasundar.services.supabase.*;
 import com.hemasundar.technical.TechnicalScreener.ScreeningResult;
@@ -11,11 +10,8 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.mockito.Mockito.*;
 
@@ -67,20 +63,16 @@ public class SupabaseServiceTest {
     }
 
     @Test
-    public void testSaveExecutionResult() throws IOException {
-        ExecutionResult result = mock(ExecutionResult.class);
-        supabaseService.saveExecutionResult(result);
-        verify(customExecutionRepository).saveExecutionResult(result);
+    public void testUpsertIVDataBatch() throws IOException {
+        com.hemasundar.pojos.IVDataPoint data = mock(com.hemasundar.pojos.IVDataPoint.class);
+        supabaseService.upsertIVDataBatch(List.of(data));
+        verify(ivDataRepository).upsertIVDataBatch(List.of(data));
     }
 
     @Test
-    public void testGetLatestExecutionResult() throws IOException {
-        ExecutionResult result = mock(ExecutionResult.class);
-        when(customExecutionRepository.getLatestExecutionResult()).thenReturn(Optional.of(result));
-        
-        Optional<ExecutionResult> latest = supabaseService.getLatestExecutionResult();
-        Assert.assertTrue(latest.isPresent());
-        verify(customExecutionRepository).getLatestExecutionResult();
+    public void testClearIVStatsCache() {
+        supabaseService.clearIVStatsCache();
+        verify(ivDataRepository).clearIVStatsCache();
     }
 
     @Test
@@ -222,4 +214,3 @@ public class SupabaseServiceTest {
         verify(securityIndicatorsRepository).saveSecurityIndicators(anyList());
     }
 }
-

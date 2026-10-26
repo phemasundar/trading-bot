@@ -1,6 +1,7 @@
 package com.hemasundar.options.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.function.BiConsumer;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -18,4 +19,23 @@ import lombok.experimental.SuperBuilder;
 public class ZebraFilter extends OptionsStrategyFilter {
     private LegFilter shortCall; // The option being sold (usually ~0.5 Delta)
     private LegFilter longCall; // The options being bought (usually 2 at ~0.7 Delta)
+
+    @Override
+    public void initLegs(BiConsumer<LegFilter, String> legInitializer) {
+        legInitializer.accept(shortCall, "shortCall");
+        legInitializer.accept(longCall, "longCall");
+    }
+
+    @Override
+    public LegFilter getOrCreateLegByPrefix(String cleanPrefix) {
+        if ("SHORTLEG".equals(cleanPrefix) || "CALLSHORT".equals(cleanPrefix)) {
+            if (shortCall == null) shortCall = new LegFilter();
+            return shortCall;
+        }
+        if ("LONGLEG".equals(cleanPrefix) || "CALLLONG".equals(cleanPrefix)) {
+            if (longCall == null) longCall = new LegFilter();
+            return longCall;
+        }
+        return null;
+    }
 }

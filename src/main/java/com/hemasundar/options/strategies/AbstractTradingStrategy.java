@@ -2,7 +2,6 @@ package com.hemasundar.options.strategies;
 
 import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.apis.ThinkOrSwimAPIs;
-import com.hemasundar.cache.IVRankCache;
 import com.hemasundar.cache.PriceHistoryCache;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionChainResponse.ExpirationDateKey;
@@ -463,26 +462,19 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
 
 
     /**
-     * Resolves the IV Rank for a symbol, using the per-execution {@link IVRankCache}.
+     * Resolves the IV Rank for a symbol using Supabase and its internal cache.
      *
-     * <p>If the value has already been fetched this run it is returned from cache.
-     * If Supabase is disabled, or if an error occurs, {@code null} is returned (fail-open).
+     * <p>If Supabase is disabled, or if an error occurs, {@code null} is returned (fail-open).
      *
      * @param symbol stock ticker
      * @return IV Rank in [0, 100], or {@code null} if unavailable
      */
     protected Double resolveIVRank(String symbol) {
-        IVRankCache cache = IVRankCache.getInstance();
-        if (cache.isCached(symbol)) {
-            return cache.get(symbol).orElse(null);
-        }
         if (supabaseService.isEmpty()) {
-            cache.put(symbol, null);
             return null;
         }
         try {
             Double rank = supabaseService.get().getIVRank(symbol);
-            cache.put(symbol, rank);
             if (rank != null) {
                 log.debug("[{}] Fetched IV Rank: {:.1f}%", symbol, rank);
             } else {
@@ -491,32 +483,24 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             return rank;
         } catch (Exception e) {
             log.error("[{}] Error fetching IV Rank: {}, allowing trade (fail-open)", symbol, e.getMessage());
-            cache.put(symbol, null);
             return null;
         }
     }
 
     /**
-     * Resolves the IV Percentile for a symbol, using the per-execution {@link IVRankCache}.
+     * Resolves the IV Percentile for a symbol using Supabase and its internal cache.
      *
-     * <p>If the value has already been fetched this run it is returned from cache.
-     * If Supabase is disabled, or if an error occurs, {@code null} is returned (fail-open).
+     * <p>If Supabase is disabled, or if an error occurs, {@code null} is returned (fail-open).
      *
      * @param symbol stock ticker
      * @return IV Percentile in [0, 100], or {@code null} if unavailable
      */
     protected Double resolveIVPercentile(String symbol) {
-        IVRankCache cache = IVRankCache.getInstance();
-        if (cache.isPercentileCached(symbol)) {
-            return cache.getPercentile(symbol).orElse(null);
-        }
         if (supabaseService.isEmpty()) {
-            cache.putPercentile(symbol, null);
             return null;
         }
         try {
             Double percentile = supabaseService.get().getIVPercentile(symbol);
-            cache.putPercentile(symbol, percentile);
             if (percentile != null) {
                 log.debug("[{}] Fetched IV Percentile: {:.1f}%", symbol, percentile);
             } else {
@@ -525,7 +509,6 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
             return percentile;
         } catch (Exception e) {
             log.error("[{}] Error fetching IV Percentile: {}, allowing trade (fail-open)", symbol, e.getMessage());
-            cache.putPercentile(symbol, null);
             return null;
         }
     }

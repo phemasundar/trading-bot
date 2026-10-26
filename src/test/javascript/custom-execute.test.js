@@ -13,9 +13,7 @@ const {
     createConditionValElement,
     addConditionRow,
     getConditionsFromContainer,
-    getLegFilters,
     getTechnicalFiltersFromDOM,
-    STRATEGY_SPECIFIC_FILTERS,
     initExecutePage,
     checkCustomExecutionStatus,
     renderStrategyTemplates,
@@ -221,7 +219,7 @@ describe('Custom Options Execute Tests', () => {
             <select data-tech-filter="RSI" data-tech-field="condition">
                 <option value="OVERSOLD">Oversold</option>
             </select>
-            <input data-tech-filter="SIMPLE_MOVING_AVERAGE" data-tech-field="rules">
+            <div id="ma-conditions"></div>
         `;
 
         fillTechFiltersForm({
@@ -230,7 +228,7 @@ describe('Custom Options Execute Tests', () => {
         });
 
         expect(document.querySelector('[data-tech-filter="RSI"]').value).toBe('OVERSOLD');
-        expect(document.querySelector('[data-tech-filter="SIMPLE_MOVING_AVERAGE"]').value).toBe('SMA20 > SMA50');
+        expect(getConditionsFromContainer('ma-conditions')).toEqual(['SMA20 > SMA50']);
     });
 
     test('executeCustom validates strategy type and submits nested filters', async () => {
@@ -677,76 +675,6 @@ describe('Custom Options Execute Tests', () => {
         loadFiltersFromResult(btnA);
         expect(getConditionsFromContainer('trade-conditions')).toEqual(['DTE >= 20', 'MAX_LOSS <= 800']);
         expect(getConditionsFromContainer('shortLeg-conditions')).toEqual(['DELTA <= 0.15']);
-
-        // Case B: Legacy result without conditions array (historical fallback)
-        const legacyResult = {
-            strategyType: 'PUT_CREDIT_SPREAD',
-            minDTE: 25,
-            maxDTE: 50,
-            maxLossLimit: 600,
-            minReturnOnRisk: 15,
-            minReturnOnRiskCAGR: 40,
-            minIVRank: 20,
-            maxIVRank: 85,
-            minIVPercentile: 30,
-            maxIVPercentile: 90,
-            maxBreakEvenPercentage: 4.5,
-            maxUpperBreakevenDelta: 0.2,
-            maxTotalDebit: 500,
-            maxTotalCredit: 1500,
-            minTotalCredit: 100,
-            maxNetExtrinsicValueToPricePercentage: 0.6,
-            minNetExtrinsicValueToPricePercentage: 0.1,
-            maxCAGRForBreakEven: 12.0,
-            maxOptionPricePercent: 25.0,
-            minCostSavingsPercent: 15.0,
-            shortLeg: {
-                minDelta: 0.12,
-                maxDelta: 0.25,
-                minOpenInterest: 200,
-                minVolume: 20,
-                minPremium: 0.75,
-                maxPremium: 4.00,
-                minVolatility: 15.0,
-                maxVolatility: 60.0
-            }
-        };
-
-        const btnB = document.createElement('button');
-        btnB.dataset.filterConfig = escapeAttr(JSON.stringify(legacyResult));
-        btnB.dataset.strategyName = 'PCS Legacy Run';
-
-        loadFiltersFromResult(btnB);
-        const legacyTradeConds = getConditionsFromContainer('trade-conditions');
-        expect(legacyTradeConds).toContain('DTE >= 25');
-        expect(legacyTradeConds).toContain('DTE <= 50');
-        expect(legacyTradeConds).toContain('MAX_LOSS <= 600');
-        expect(legacyTradeConds).toContain('RETURN_ON_RISK >= 15');
-        expect(legacyTradeConds).toContain('CAGR >= 40');
-        expect(legacyTradeConds).toContain('IV_RANK >= 20');
-        expect(legacyTradeConds).toContain('IV_RANK <= 85');
-        expect(legacyTradeConds).toContain('IV_PERCENTILE >= 30');
-        expect(legacyTradeConds).toContain('IV_PERCENTILE <= 90');
-        expect(legacyTradeConds).toContain('BREAK_EVEN_PCT <= 4.5');
-        expect(legacyTradeConds).toContain('UPPER_BREAK_EVEN_DELTA <= 0.2');
-        expect(legacyTradeConds).toContain('TOTAL_DEBIT <= 500');
-        expect(legacyTradeConds).toContain('NET_CREDIT <= 1500');
-        expect(legacyTradeConds).toContain('NET_CREDIT >= 100');
-        expect(legacyTradeConds).toContain('ANNUALIZED_EXTRINSIC_PCT <= 0.6');
-        expect(legacyTradeConds).toContain('ANNUALIZED_EXTRINSIC_PCT >= 0.1');
-        expect(legacyTradeConds).toContain('BREAKEVEN_CAGR <= 12');
-        expect(legacyTradeConds).toContain('OPTION_PRICE_PCT <= 25');
-        expect(legacyTradeConds).toContain('COST_SAVINGS_PCT >= 15');
-
-        const legacyLegConds = getConditionsFromContainer('shortLeg-conditions');
-        expect(legacyLegConds).toContain('DELTA >= 0.12');
-        expect(legacyLegConds).toContain('DELTA <= 0.25');
-        expect(legacyLegConds).toContain('OPEN_INTEREST >= 200');
-        expect(legacyLegConds).toContain('VOLUME >= 20');
-        expect(legacyLegConds).toContain('MARK >= 0.75');
-        expect(legacyLegConds).toContain('MARK <= 4');
-        expect(legacyLegConds).toContain('IV >= 15');
-        expect(legacyLegConds).toContain('IV <= 60');
     });
 
     test('executeCustom collects trade and leg condition containers into payload', async () => {

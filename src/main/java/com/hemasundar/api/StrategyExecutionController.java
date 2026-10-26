@@ -561,9 +561,7 @@ public class StrategyExecutionController {
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("symbol", symbol);
             response.put("ivRank", Math.round(ivRank * 10.0) / 10.0);
-            if (ivStats != null) {
-                response.putAll(ivStats);
-            }
+            response.putAll(ivStats);
             return ResponseEntity.ok(response);
         } catch (IOException e) {
             log.error("Error fetching IV Rank for {}: {}", symbol, e.getMessage());

@@ -10,28 +10,6 @@ const indicatorsCache = new Map();
 const loadedGroups = new Set();
 let globalSearchQuery = '';
 
-async function apiGet(path) {
-    if (typeof API !== 'undefined' && API.get) {
-        return await API.get(path);
-    }
-    const res = await fetch(path);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-}
-
-async function apiPost(path, body) {
-    if (typeof API !== 'undefined' && API.post) {
-        return await API.post(path, body);
-    }
-    const res = await fetch(path, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-}
-
 async function initSecuritiesPage() {
     await Promise.all([
         loadFilterConfig(),
@@ -44,7 +22,7 @@ async function initSecuritiesPage() {
  */
 async function loadFilterConfig() {
     try {
-        filterConfig = await apiGet('/api/securities/filter-config');
+        filterConfig = await API.get('/api/securities/filter-config');
         renderFilterSummary(filterConfig);
     } catch (e) {
         console.warn('Failed to load filter config:', e);
@@ -56,8 +34,8 @@ function renderFilterSummary(cfg) {
     const f = cfg?.filters || {};
     const rsi = f.rsi;
     const bb = f.bollinger;
-    const ma = f.moving_averages || f.movingAverages;
-    const ema = f.exponential_moving_averages || f.exponentialMovingAverages;
+    const ma = f.moving_averages;
+    const ema = f.exponential_moving_averages;
     const vol = f.volume;
     const vola = f.volatility;
 
@@ -73,12 +51,11 @@ function renderFilterSummary(cfg) {
     if (ema?.periods) {
         setChipText('chip-ema', `EMAs: ${ema.periods.join(', ')}`);
     }
-    if (vol?.smaPeriods || vol?.sma_periods) {
-        const periods = vol.smaPeriods || vol.sma_periods;
-        setChipText('chip-vol', `Vol SMAs: ${periods.join(', ')}`);
+    if (vol?.sma_periods) {
+        setChipText('chip-vol', `Vol SMAs: ${vol.sma_periods.join(', ')}`);
     }
     if (vola) {
-        setChipText('chip-vola', `ATR (${vola.atrPeriod || vola.atr_period}) / HV (${vola.hvPeriod || vola.hv_period})`);
+        setChipText('chip-vola', `ATR (${vola.atr_period}) / HV (${vola.hv_period})`);
     }
 }
 
@@ -102,7 +79,7 @@ function setChipText(id, text) {
 async function loadSecuritiesGroups() {
     const container = document.getElementById('securities-groups-container');
     try {
-        securitiesGroups = await apiGet('/api/securities/groups');
+        securitiesGroups = await API.get('/api/securities/groups');
 
         if (!securitiesGroups || securitiesGroups.length === 0) {
             container.innerHTML = `
@@ -215,7 +192,7 @@ async function loadGroupData(groupId) {
     if (symbolsToFetch.length > 0) {
         try {
             if (statusInd) statusInd.textContent = 'Syncing...';
-            const data = await apiPost('/api/securities/data', { symbols: symbolsToFetch });
+            const data = await API.post('/api/securities/data', { symbols: symbolsToFetch });
             if (data) {
                 Object.entries(data).forEach(([sym, result]) => {
                     indicatorsCache.set(sym.toUpperCase(), result);
@@ -299,7 +276,7 @@ function createSecurityCardHtml(symbol, data) {
     const hvRank = data.historicalVolatilityRank ?? null;
     const ivPercentile = data.ivPercentile ?? null;
     const ivRank = data.ivRank ?? null;
-    const ivDays = data.ivDays ?? data.recordCount ?? null;
+    const ivDays = data.ivDays ?? null;
     const hasIvData = ivPercentile != null || ivRank != null;
     const isLessThanOneYear = ivDays != null && ivDays > 0 && ivDays < 252;
     const ivLabel = `IV Percentile / IV Rank${isLessThanOneYear ? ` (${ivDays})` : ''}`;
@@ -568,25 +545,10 @@ function toggleAllBlocks() {
     btn.textContent = isExpanding ? 'Collapse All' : 'Expand All';
 }
 
-function formatVolume(vol) {
-    if (vol == null || isNaN(vol) || vol === 0) return '0';
-    if (vol >= 1_000_000_000) return (vol / 1_000_000_000).toFixed(2) + 'B';
-    if (vol >= 1_000_000) return (vol / 1_000_000).toFixed(2) + 'M';
-    if (vol >= 1_000) return (vol / 1_000).toFixed(1) + 'K';
-    return String(Math.round(vol));
-}
-
-function escapeHtml(str) {
-    if (!str) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
-
 if (typeof module !== 'undefined' && module.exports) {
+    const utils = require('./utils');
+    Object.assign(global, utils);
+
     module.exports = {
         initSecuritiesPage,
         loadFilterConfig,
@@ -600,8 +562,8 @@ if (typeof module !== 'undefined' && module.exports) {
         handleGlobalSearch,
         clearSearch,
         toggleAllBlocks,
-        formatVolume,
-        escapeHtml
+        formatVolume: utils.formatVolume,
+        escapeHtml: utils.escapeHtml
     };
 }
 

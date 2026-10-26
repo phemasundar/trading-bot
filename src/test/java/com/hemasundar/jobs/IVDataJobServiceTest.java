@@ -14,6 +14,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -82,7 +83,7 @@ public class IVDataJobServiceTest {
         spyService.runIVDataCollection();
 
         // Verify data was saved
-        verify(supabaseService, times(1)).upsertIVData(dataPoint);
+        verify(supabaseService, times(1)).upsertIVDataBatch(List.of(dataPoint));
 
         // Verify summary was sent
         verify(telegramUtils, atLeastOnce()).sendMessage(anyString());
@@ -116,7 +117,7 @@ public class IVDataJobServiceTest {
         spyService.runIVDataCollection();
 
         // Only AAPL should be persisted
-        verify(supabaseService, times(1)).upsertIVData(aaplDataPoint);
+        verify(supabaseService, times(1)).upsertIVDataBatch(List.of(aaplDataPoint));
         verify(supabaseService, never()).upsertIVData(nvrDataPoint);
 
         // Telegram summary should mention the skipped symbol
@@ -151,7 +152,7 @@ public class IVDataJobServiceTest {
 
         spyService.runIVDataCollection();
 
-        verify(supabaseService, times(9)).upsertIVData(any());
+        verify(supabaseService, times(1)).upsertIVDataBatch(anyList());
         verify(telegramUtils, atLeastOnce()).sendMessage(argThat(msg ->
                 msg.contains("FAIL_SYM")));
     }
@@ -223,6 +224,6 @@ public class IVDataJobServiceTest {
 
         spyService.runIVDataCollection();
 
-        verify(supabaseService, times(1)).upsertIVData(recovered);
+        verify(supabaseService, times(1)).upsertIVDataBatch(List.of(recovered));
     }
 }

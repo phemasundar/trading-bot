@@ -73,17 +73,102 @@ function updateThemeIcon(theme) {
     }
 }
 
+const SIDEBAR_NAV_SECTIONS = [
+    {
+        title: 'Options',
+        items: [
+            { href: '/', aliases: ['/index.html'], icon: '📊', label: 'Dashboard' },
+            { href: '/execute.html', aliases: ['/execute'], icon: '▶️', label: 'Execute Strategy' }
+        ]
+    },
+    {
+        title: 'Screeners',
+        items: [
+            { href: '/screeners.html', aliases: ['/screeners'], icon: '🔎', label: 'Dashboard' },
+            { href: '/execute-screener.html', aliases: ['/execute-screener'], icon: '🧪', label: 'Execute Screener' }
+        ]
+    },
+    {
+        title: 'Research',
+        items: [
+            { href: '/securities.html', aliases: ['/securities'], icon: '📁', label: 'Securities' },
+            { href: '/earnings-calendar.html', aliases: ['/earnings-calendar'], icon: '📅', label: 'Earnings Calendar' }
+        ]
+    },
+    {
+        title: 'Learning Center',
+        items: [
+            { href: '/option-strategies.html', aliases: ['/option-strategies', '/strategy-detail.html', '/strategy-detail'], icon: '📚', label: 'Option Strategies' },
+            { href: '/option-greeks.html', aliases: ['/option-greeks', '/greek-detail.html', '/greek-detail'], icon: '📐', label: 'Option Greeks' },
+            { href: '/volatility.html', aliases: ['/volatility'], icon: '🌊', label: 'Volatility' }
+        ]
+    },
+    {
+        title: 'System',
+        items: [
+            { href: '/config.html', aliases: ['/config'], icon: '⚙️', label: 'Config' },
+            { href: '/logs.html', aliases: ['/logs'], icon: '📋', label: 'Execution Logs' }
+        ]
+    }
+];
+
+function renderAppSidebar(targetEl, currentPathname) {
+    if (typeof document === 'undefined') return;
+    const sidebar = targetEl || document.querySelector('nav.sidebar[data-sidebar]');
+    if (!sidebar) return;
+
+    const pathname = currentPathname || (typeof window !== 'undefined' && window.location && window.location.pathname) || '/';
+    const sectionsHtml = SIDEBAR_NAV_SECTIONS.map(section => {
+        const linksHtml = section.items.map(item => {
+            const isActive = item.href === pathname || (item.aliases && item.aliases.includes(pathname));
+            return `
+                <a href="${item.href}" class="nav-link${isActive ? ' active' : ''}">
+                    <span class="nav-icon">${item.icon}</span>
+                    <span>${item.label}</span>
+                </a>`;
+        }).join('');
+        return `
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">${section.title}</div>${linksHtml}
+            </div>`;
+    }).join('');
+
+    sidebar.innerHTML = `
+        <div class="sidebar-brand">
+            Trading Bot
+            <small>Automated Systems</small>
+        </div>${sectionsHtml}
+        <div style="flex: 1;"></div>
+        <div class="sidebar-section" style="border:none; margin-bottom: 0;">
+            <button id="theme-toggle" class="btn btn-ghost" style="width:100%; justify-content:center; gap: 8px;" onclick="toggleTheme()">
+                <span id="theme-icon">☀️</span>
+                <span id="theme-text">Light Mode</span>
+            </button>
+        </div>`;
+
+    if (document.documentElement) {
+        updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'dark');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    renderAppSidebar();
     if (typeof document !== 'undefined' && document.documentElement) {
         updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'dark');
     }
 });
 
-// Conditionally export for testing
+const THEME_EXPORTS = {
+    SIDEBAR_NAV_SECTIONS,
+    renderAppSidebar,
+    toggleTheme,
+    updateThemeIcon,
+    applyEarlyRbac
+};
+
+if (typeof window !== 'undefined') {
+    Object.assign(window, THEME_EXPORTS);
+}
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        toggleTheme,
-        updateThemeIcon,
-        applyEarlyRbac
-    };
+    module.exports = THEME_EXPORTS;
 }

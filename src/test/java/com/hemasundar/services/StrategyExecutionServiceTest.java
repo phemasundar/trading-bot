@@ -161,7 +161,7 @@ public class StrategyExecutionServiceTest {
 
         assertNotNull(result);
         assertEquals(result.getResults().size(), 1);
-        verify(supabaseService).saveExecutionResult(any());
+        verify(supabaseService).clearIVStatsCache();
         verify(finnHubAPIs).getEarningsByTicker(eq("AAPL"), any(LocalDate.class));
     }
 
@@ -416,11 +416,6 @@ public class StrategyExecutionServiceTest {
         List<?> customResults = strategyExecutionService.getRecentCustomExecutions(5);
         assertNotNull(customResults);
         verify(supabaseService).getRecentCustomExecutions(5);
-
-        when(supabaseService.getLatestExecutionResult()).thenReturn(Optional.empty());
-        Optional<ExecutionResult> latestExec = strategyExecutionService.getLatestExecutionResult();
-        assertFalse(latestExec.isPresent());
-        verify(supabaseService).getLatestExecutionResult();
 
         when(supabaseService.getAllLatestStrategyResults()).thenReturn(Collections.emptyList());
         List<?> allResults = strategyExecutionService.getAllLatestStrategyResults();

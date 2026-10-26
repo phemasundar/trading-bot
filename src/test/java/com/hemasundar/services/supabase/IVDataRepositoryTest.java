@@ -1,5 +1,6 @@
 package com.hemasundar.services.supabase;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hemasundar.pojos.IVDataPoint;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
@@ -10,6 +11,9 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.time.LocalDate;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
@@ -27,10 +31,13 @@ public class IVDataRepositoryTest {
     private Response response;
 
     private IVDataRepository repository;
+    private ObjectMapper mapper;
 
     @BeforeMethod
     public void setup() {
         MockitoAnnotations.openMocks(this);
+        mapper = new ObjectMapper();
+        when(client.getObjectMapper()).thenReturn(mapper);
         when(client.request()).thenReturn(requestSpec);
         when(client.getUrl(anyString())).thenAnswer(invocation -> "https://test.supabase.co" + invocation.getArgument(0));
         repository = new IVDataRepository(client);
@@ -51,26 +58,37 @@ public class IVDataRepositoryTest {
     }
 
     @Test
+    public void testUpsertIVDataBatch_Success() throws IOException {
+        IVDataPoint dp1 = createSampleDataPoint();
+        IVDataPoint dp2 = createSampleDataPoint();
+        dp2.setSymbol("MSFT");
+
+        when(requestSpec.header(anyString(), anyString())).thenReturn(requestSpec);
+        when(requestSpec.body(anyString())).thenReturn(requestSpec);
+        when(requestSpec.post(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(201);
+
+        repository.upsertIVDataBatch(List.of(dp1, dp2));
+
+        verify(requestSpec).post(contains("iv_data"));
+    }
+
+    @Test
     public void testUpsertIVData_RetryOn429() throws IOException {
         IVDataPoint dataPoint = createSampleDataPoint();
 
         when(requestSpec.header(anyString(), anyString())).thenReturn(requestSpec);
         when(requestSpec.body(anyString())).thenReturn(requestSpec);
         when(requestSpec.post(anyString())).thenReturn(response);
-        
-        // Return 429 twice, then 201
-        when(response.getStatusCode()).thenReturn(429, 429, 201);
+
+        // Return 429 once, then 201
+        when(response.getStatusCode()).thenReturn(429, 201);
         when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
         when(response.getBody().asString()).thenReturn("{\"error\":\"rate_limited\"}");
 
-        // Reduce wait time for testing by mocking Thread.sleep if possible? 
-        // Or just let it run since it's only a few seconds.
-        // waitTime = (long) Math.pow(2, 1) * 1000 = 2000ms
-        // waitTime = (long) Math.pow(2, 2) * 1000 = 4000ms
-        // Overall: 6 seconds.
         repository.upsertIVData(dataPoint);
 
-        verify(requestSpec, times(3)).post(anyString());
+        verify(requestSpec, times(2)).post(anyString());
     }
 
     @Test(expectedExceptions = IOException.class)
@@ -80,7 +98,7 @@ public class IVDataRepositoryTest {
         when(requestSpec.header(anyString(), anyString())).thenReturn(requestSpec);
         when(requestSpec.body(anyString())).thenReturn(requestSpec);
         when(requestSpec.post(anyString())).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(400); // Non-429 error
+        when(response.getStatusCode()).thenReturn(400);
         when(response.getStatusLine()).thenReturn("Bad Request");
         when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
         when(response.getBody().asString()).thenReturn("{\"error\":\"bad\"}");
@@ -90,196 +108,61 @@ public class IVDataRepositoryTest {
 
     @Test
     public void testGetIVRank_Success() throws IOException {
-        // 21 records: row 0 (today) avg=0.35, row 1 avg=0.15 (min), row 2 avg=0.55 (max), rows 3-20 avg=0.35
-        // Historical baseline: 20 rows (indices 1-20). IV Rank = (0.35 - 0.15) / (0.55 - 0.15) * 100 = 50.0%
-        StringBuilder sb = new StringBuilder("[");
-        sb.append("{\"date\":\"2026-07-21\",\"put_iv\":0.40,\"call_iv\":0.30},");
-        sb.append("{\"date\":\"2026-07-20\",\"put_iv\":0.20,\"call_iv\":0.10},");
-        sb.append("{\"date\":\"2026-07-19\",\"put_iv\":0.60,\"call_iv\":0.50}");
-        for (int i = 3; i < 21; i++) {
-            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.35,\"call_iv\":0.35}", 21 - i));
-        }
-        sb.append("]");
-        String mockResponseString = sb.toString();
+        String mockRpcResponse = "[{" +
+                "\"symbol\":\"AAPL\"," +
+                "\"current_iv\":0.35," +
+                "\"min_iv\":0.15," +
+                "\"max_iv\":0.55," +
+                "\"iv_percentile\":50.0," +
+                "\"iv_rank\":50.0," +
+                "\"record_count\":21" +
+                "}]";
 
-        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
-        when(requestSpec.get(anyString())).thenReturn(response);
+        when(requestSpec.body(anyString())).thenReturn(requestSpec);
+        when(requestSpec.post(anyString())).thenReturn(response);
         when(response.getStatusCode()).thenReturn(200);
         when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
-        when(response.getBody().asString()).thenReturn(mockResponseString);
+        when(response.getBody().asString()).thenReturn(mockRpcResponse);
 
         Double ivRank = repository.getIVRank("AAPL");
 
         assertNotNull(ivRank);
         assertEquals(ivRank, 50.0, 0.01);
+        verify(requestSpec).post(contains("rpc/get_iv_stats_bulk"));
     }
 
     @Test
     public void testGetIVRank_InsufficientData() throws IOException {
-        // 20 rows total → only 19 historical rows after excluding today → insufficient
-        StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < 20; i++) {
-            if (i > 0) sb.append(",");
-            sb.append(String.format(java.util.Locale.US, "{\"date\":\"2026-07-%02d\",\"put_iv\":0.40,\"call_iv\":0.30}", i + 1));
-        }
-        sb.append("]");
-        String mockResponseString = sb.toString();
+        String mockRpcResponse = "[]";
 
-        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
-        when(requestSpec.get(anyString())).thenReturn(response);
+        when(requestSpec.body(anyString())).thenReturn(requestSpec);
+        when(requestSpec.post(anyString())).thenReturn(response);
         when(response.getStatusCode()).thenReturn(200);
         when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
-        when(response.getBody().asString()).thenReturn(mockResponseString);
+        when(response.getBody().asString()).thenReturn(mockRpcResponse);
 
         Double ivRank = repository.getIVRank("AAPL");
 
         assertNull(ivRank);
     }
 
-    @Test(expectedExceptions = IOException.class)
-    public void testGetIVRank_QueryError() throws IOException {
-        when(requestSpec.get(anyString())).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(500);
-        when(response.getStatusLine()).thenReturn("Internal Server Error");
-
-        repository.getIVRank("AAPL");
-    }
-
-    @Test(expectedExceptions = IOException.class)
-    public void testGetIVRank_ParseError() throws IOException {
-        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
-        when(requestSpec.get(anyString())).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(200);
-        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
-        when(response.getBody().asString()).thenReturn("invalid_json_data");
-
-        repository.getIVRank("AAPL");
-    }
-
-    @Test
-    public void testGetIVRank_MaxEqualsMin() throws IOException {
-        // 21 records all identical → historical baseline has 20 identical rows
-        StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < 21; i++) {
-            if (i > 0) sb.append(",");
-            sb.append(String.format(java.util.Locale.US, "{\"date\":\"2026-07-%02d\",\"put_iv\":0.30,\"call_iv\":0.30}", i + 1));
-        }
-        sb.append("]");
-        String mockResponseString = sb.toString();
-
-        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
-        when(requestSpec.get(anyString())).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(200);
-        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
-        when(response.getBody().asString()).thenReturn(mockResponseString);
-
-        Double ivRank = repository.getIVRank("AAPL");
-
-        assertNotNull(ivRank);
-        assertEquals(ivRank, 0.0, 0.01);
-    }
-
-    @Test
-    public void testGetIVRank_NullPutAndCallIV() throws IOException {
-        // 21 records with null put/call IV
-        StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < 21; i++) {
-            if (i > 0) sb.append(",");
-            sb.append(String.format(java.util.Locale.US, "{\"date\":\"2026-07-%02d\"}", i + 1));
-        }
-        sb.append("]");
-        String mockResponseString = sb.toString();
-
-        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
-        when(requestSpec.get(anyString())).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(200);
-        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
-        when(response.getBody().asString()).thenReturn(mockResponseString);
-
-        Double ivRank = repository.getIVRank("AAPL");
-
-        assertNotNull(ivRank);
-        assertEquals(ivRank, 0.0, 0.01);
-    }
-
-    @Test
-    public void testGetIVStats_Success() throws IOException {
-        // 21 records: row 0 (today) avg=0.35, row 1 avg=0.15 (min), row 2 avg=0.55 (max), rows 3-20 avg=0.35
-        // Historical baseline: 20 rows. IV Rank = 50%, recordCount = 20
-        StringBuilder sb = new StringBuilder("[");
-        sb.append("{\"date\":\"2026-07-21\",\"put_iv\":0.40,\"call_iv\":0.30},");
-        sb.append("{\"date\":\"2026-07-20\",\"put_iv\":0.20,\"call_iv\":0.10},");
-        sb.append("{\"date\":\"2026-07-19\",\"put_iv\":0.60,\"call_iv\":0.50}");
-        for (int i = 3; i < 21; i++) {
-            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.35,\"call_iv\":0.35}", 21 - i));
-        }
-        sb.append("]");
-        String mockResponseString = sb.toString();
-
-        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
-        when(requestSpec.get(anyString())).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(200);
-        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
-        when(response.getBody().asString()).thenReturn(mockResponseString);
-
-        java.util.Map<String, Object> stats = repository.getIVStats("AAPL");
-
-        assertNotNull(stats);
-        assertEquals(stats.get("currentIV"), 0.35);
-        assertEquals(stats.get("minIV"), 0.15);
-        assertEquals(stats.get("maxIV"), 0.55);
-        assertEquals(stats.get("ivRank"), 50.0);
-        assertEquals(stats.get("recordCount"), 20);
-
-        // Second call should hit the cache without calling client again
-        java.util.Map<String, Object> cachedStats = repository.getIVStats("AAPL");
-        assertEquals(cachedStats, stats);
-        verify(requestSpec, times(1)).get(anyString());
-    }
-
-    @Test
-    public void testGetIVStats_InsufficientData() throws IOException {
-        // 20 rows total → 19 historical rows after excluding today → insufficient
-        StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < 20; i++) {
-            if (i > 0) sb.append(",");
-            sb.append(String.format(java.util.Locale.US, "{\"date\":\"2026-07-%02d\",\"put_iv\":0.40,\"call_iv\":0.30}", i + 1));
-        }
-        sb.append("]");
-        String mockResponseString = sb.toString();
-
-        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
-        when(requestSpec.get(anyString())).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(200);
-        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
-        when(response.getBody().asString()).thenReturn(mockResponseString);
-
-        java.util.Map<String, Object> stats = repository.getIVStats("AAPL");
-
-        assertNull(stats);
-    }
-
     @Test
     public void testGetIVPercentile_Success() throws IOException {
-        // 21 records: row 0 is current (avg 0.35). Historical: 20 rows.
-        // 5 historical records below 0.35 (avg 0.20), 15 historical at or above 0.35.
-        // Percentile = 5 / 20 * 100 = 25.0%
-        StringBuilder sb = new StringBuilder("[");
-        sb.append("{\"date\":\"2026-07-21\",\"put_iv\":0.35,\"call_iv\":0.35}");
-        for (int i = 1; i <= 5; i++) {
-            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.20,\"call_iv\":0.20}", 21 - i));
-        }
-        for (int i = 6; i <= 20; i++) {
-            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.50,\"call_iv\":0.50}", 21 - i));
-        }
-        sb.append("]");
-        String mockResponseString = sb.toString();
+        String mockRpcResponse = "[{" +
+                "\"symbol\":\"AAPL\"," +
+                "\"current_iv\":0.35," +
+                "\"min_iv\":0.15," +
+                "\"max_iv\":0.55," +
+                "\"iv_percentile\":25.0," +
+                "\"iv_rank\":50.0," +
+                "\"record_count\":21" +
+                "}]";
 
-        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
-        when(requestSpec.get(anyString())).thenReturn(response);
+        when(requestSpec.body(anyString())).thenReturn(requestSpec);
+        when(requestSpec.post(anyString())).thenReturn(response);
         when(response.getStatusCode()).thenReturn(200);
         when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
-        when(response.getBody().asString()).thenReturn(mockResponseString);
+        when(response.getBody().asString()).thenReturn(mockRpcResponse);
 
         Double ivPercentile = repository.getIVPercentile("AAPL");
 
@@ -288,98 +171,125 @@ public class IVDataRepositoryTest {
     }
 
     @Test
-    public void testGetIVPercentile_InsufficientData() throws IOException {
-        // 20 rows total → 19 historical rows after excluding today → insufficient
-        StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < 20; i++) {
-            if (i > 0) sb.append(",");
-            sb.append(String.format(java.util.Locale.US, "{\"date\":\"2026-07-%02d\",\"put_iv\":0.40,\"call_iv\":0.30}", i + 1));
-        }
-        sb.append("]");
-        String mockResponseString = sb.toString();
+    public void testGetIVStats_SuccessAndCaching() throws IOException {
+        String mockRpcResponse = "[{" +
+                "\"symbol\":\"AAPL\"," +
+                "\"current_iv\":0.35," +
+                "\"min_iv\":0.15," +
+                "\"max_iv\":0.55," +
+                "\"iv_percentile\":50.0," +
+                "\"iv_rank\":50.0," +
+                "\"record_count\":21" +
+                "}]";
 
-        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
-        when(requestSpec.get(anyString())).thenReturn(response);
+        when(requestSpec.body(anyString())).thenReturn(requestSpec);
+        when(requestSpec.post(anyString())).thenReturn(response);
         when(response.getStatusCode()).thenReturn(200);
         when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
-        when(response.getBody().asString()).thenReturn(mockResponseString);
+        when(response.getBody().asString()).thenReturn(mockRpcResponse);
 
-        Double ivPercentile = repository.getIVPercentile("AAPL");
+        Map<String, Object> stats = repository.getIVStats("AAPL");
 
-        assertNull(ivPercentile);
+        assertNotNull(stats);
+        assertEquals(stats.get("currentIV"), 0.35);
+        assertEquals(stats.get("minIV"), 0.15);
+        assertEquals(stats.get("maxIV"), 0.55);
+        assertEquals(stats.get("ivRank"), 50.0);
+        assertEquals(stats.get("ivPercentile"), 50.0);
+        assertEquals(stats.get("recordCount"), 21);
+
+        // Second call should hit the cache without calling client again
+        Map<String, Object> cachedStats = repository.getIVStats("AAPL");
+        assertEquals(cachedStats, stats);
+        verify(requestSpec, times(1)).post(anyString());
     }
 
     @Test
-    public void testGetIVPercentile_CurrentHighest_Returns100() throws IOException {
-        // 21 records: row 0 (today) avg=0.60, all 20 historical rows avg=0.30 (all below)
-        // Percentile = 20 / 20 * 100 = 100.0%
-        StringBuilder sb = new StringBuilder("[");
-        sb.append("{\"date\":\"2026-07-21\",\"put_iv\":0.60,\"call_iv\":0.60}");
-        for (int i = 1; i <= 20; i++) {
-            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.30,\"call_iv\":0.30}", 21 - i));
-        }
-        sb.append("]");
-        String mockResponseString = sb.toString();
+    public void testGetIVStatsForSymbols_Success() {
+        String mockRpcResponse = "[{" +
+                "\"symbol\":\"AAPL\"," +
+                "\"current_iv\":0.35," +
+                "\"min_iv\":0.15," +
+                "\"max_iv\":0.55," +
+                "\"iv_percentile\":50.0," +
+                "\"iv_rank\":50.0," +
+                "\"record_count\":21" +
+                "},{" +
+                "\"symbol\":\"MSFT\"," +
+                "\"current_iv\":0.28," +
+                "\"min_iv\":0.18," +
+                "\"max_iv\":0.42," +
+                "\"iv_percentile\":65.0," +
+                "\"iv_rank\":41.6," +
+                "\"record_count\":35" +
+                "}]";
 
-        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
-        when(requestSpec.get(anyString())).thenReturn(response);
+        when(requestSpec.body(anyString())).thenReturn(requestSpec);
+        when(requestSpec.post(anyString())).thenReturn(response);
         when(response.getStatusCode()).thenReturn(200);
         when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
-        when(response.getBody().asString()).thenReturn(mockResponseString);
+        when(response.getBody().asString()).thenReturn(mockRpcResponse);
 
-        Double ivPercentile = repository.getIVPercentile("AAPL");
-
-        assertNotNull(ivPercentile);
-        assertEquals(ivPercentile, 100.0, 0.01);
-    }
-
-    @Test
-    public void testGetIVPercentile_CurrentLowest_Returns0() throws IOException {
-        // 21 records: row 0 (today) avg=0.10, all 20 historical rows avg=0.50 (all above)
-        // Percentile = 0 / 20 * 100 = 0.0%
-        StringBuilder sb = new StringBuilder("[");
-        sb.append("{\"date\":\"2026-07-21\",\"put_iv\":0.10,\"call_iv\":0.10}");
-        for (int i = 1; i <= 20; i++) {
-            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.50,\"call_iv\":0.50}", 21 - i));
-        }
-        sb.append("]");
-        String mockResponseString = sb.toString();
-
-        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
-        when(requestSpec.get(anyString())).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(200);
-        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
-        when(response.getBody().asString()).thenReturn(mockResponseString);
-
-        Double ivPercentile = repository.getIVPercentile("AAPL");
-
-        assertNotNull(ivPercentile);
-        assertEquals(ivPercentile, 0.0, 0.01);
-    }
-
-    @Test
-    public void testGetIVStatsForSymbols_Success() throws IOException {
-        StringBuilder sb = new StringBuilder("[");
-        sb.append("{\"date\":\"2026-07-21\",\"put_iv\":0.40,\"call_iv\":0.30},");
-        sb.append("{\"date\":\"2026-07-20\",\"put_iv\":0.20,\"call_iv\":0.10},");
-        sb.append("{\"date\":\"2026-07-19\",\"put_iv\":0.60,\"call_iv\":0.50}");
-        for (int i = 3; i < 21; i++) {
-            sb.append(String.format(java.util.Locale.US, ",{\"date\":\"2026-07-%02d\",\"put_iv\":0.35,\"call_iv\":0.35}", 21 - i));
-        }
-        sb.append("]");
-        String mockResponseString = sb.toString();
-
-        when(client.getObjectMapper()).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper());
-        when(requestSpec.get(anyString())).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(200);
-        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
-        when(response.getBody().asString()).thenReturn(mockResponseString);
-
-        java.util.Map<String, java.util.Map<String, Object>> map = repository.getIVStatsForSymbols(java.util.List.of("AAPL"));
+        Map<String, Map<String, Object>> map = repository.getIVStatsForSymbols(List.of("AAPL", "MSFT"));
         assertNotNull(map);
         assertTrue(map.containsKey("AAPL"));
+        assertTrue(map.containsKey("MSFT"));
         assertEquals(map.get("AAPL").get("currentIV"), 0.35);
-        assertEquals(map.get("AAPL").get("ivRank"), 50.0);
+        assertEquals(map.get("MSFT").get("currentIV"), 0.28);
+    }
+
+    @Test
+    public void testClearIVStatsCache() throws IOException {
+        String mockRpcResponse = "[{" +
+                "\"symbol\":\"AAPL\"," +
+                "\"current_iv\":0.35," +
+                "\"min_iv\":0.15," +
+                "\"max_iv\":0.55," +
+                "\"iv_percentile\":50.0," +
+                "\"iv_rank\":50.0," +
+                "\"record_count\":21" +
+                "}]";
+
+        when(requestSpec.body(anyString())).thenReturn(requestSpec);
+        when(requestSpec.post(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn(mockRpcResponse);
+
+        repository.getIVStats("AAPL");
+        repository.clearIVStatsCache();
+        repository.getIVStats("AAPL");
+
+        // With cache cleared, client post is called twice
+        verify(requestSpec, times(2)).post(anyString());
+    }
+
+    @Test
+    public void testGetIVStats_NegativeCaching() throws IOException {
+        // Mock empty RPC response ([]), meaning ticker has < 20 records
+        when(requestSpec.body(anyString())).thenReturn(requestSpec);
+        when(requestSpec.post(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(200);
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn("[]");
+
+        Map<String, Object> stats = repository.getIVStats("UNKNOWN");
+        assertNotNull(stats);
+        assertTrue(stats.isEmpty());
+
+        // Second call should hit the negative cache without sending another RPC request
+        Map<String, Object> cachedStats = repository.getIVStats("UNKNOWN");
+        assertNotNull(cachedStats);
+        assertTrue(cachedStats.isEmpty());
+        verify(requestSpec, times(1)).post(anyString());
+    }
+
+    @Test
+    public void testGetIVStats_BlankSymbol() throws IOException {
+        Map<String, Object> stats = repository.getIVStats("  ");
+        assertNotNull(stats);
+        assertTrue(stats.isEmpty());
+        verify(requestSpec, never()).post(anyString());
     }
 
     private IVDataPoint createSampleDataPoint() {

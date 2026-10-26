@@ -195,20 +195,21 @@ describe('Technical Screener Execution Tests', () => {
         expect(() => getTechnicalFiltersFromDOM()).toThrow('Min RSI and Max RSI are mandatory');
 
         document.body.innerHTML = `
-            <input data-tech-filter="SIMPLE_MOVING_AVERAGE" data-tech-field="rules" value="SMA20 > SMA50">
+            <div id="ma-conditions"></div>
             <input data-tech-filter="HISTORICAL_VOLATILITY" data-tech-field="period" value="20">
         `;
+        addConditionRow('ma-conditions', MA_VARIABLES, 'SMA20 > SMA50');
         const res = getTechnicalFiltersFromDOM();
         expect(res.SIMPLE_MOVING_AVERAGE.conditions).toEqual(['SMA20 > SMA50']);
         expect(res.HISTORICAL_VOLATILITY.config.period).toBe(20);
     });
 
-    test('promptDeleteCustomScreenerResult and deleteCustomScreenerResult', async () => {
+    test('confirmDeleteCustomScreenerResult and deleteCustomScreenerResult', async () => {
         document.body.innerHTML = '<div><div class="card">Screener Card</div></div>';
         const card = document.querySelector('.card');
         API.delete = jest.fn().mockResolvedValueOnce({ success: true });
 
-        promptDeleteCustomScreenerResult('scr-123', { stopPropagation: jest.fn(), target: card });
+        confirmDeleteCustomScreenerResult('scr-123', card);
         const confirmBtn = document.getElementById('confirm-delete-btn');
         expect(confirmBtn).not.toBeNull();
 

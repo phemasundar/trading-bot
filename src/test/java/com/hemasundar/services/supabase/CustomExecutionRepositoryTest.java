@@ -2,7 +2,6 @@ package com.hemasundar.services.supabase;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.hemasundar.dto.ExecutionResult;
 import com.hemasundar.dto.StrategyResult;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
@@ -13,10 +12,8 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
@@ -49,57 +46,6 @@ public class CustomExecutionRepositoryTest {
     }
 
     @Test
-    public void testSaveExecutionResult_Success() throws IOException {
-        ExecutionResult result = ExecutionResult.builder()
-                .executionId("exec-123")
-                .timestamp(LocalDateTime.now())
-                .results(Collections.singletonList(
-                        StrategyResult.builder()
-                                .strategyId("s1")
-                                .strategyName("strat")
-                                .tradesFound(1)
-                                .trades(Collections.emptyList())
-                                .executionTimeMs(100)
-                                .build()
-                ))
-                .totalTradesFound(1)
-                .totalExecutionTimeMs(500)
-                .telegramSent(true)
-                .build();
-
-        when(requestSpec.header(anyString(), anyString())).thenReturn(requestSpec);
-        when(requestSpec.body(anyString())).thenReturn(requestSpec);
-        when(requestSpec.post(anyString())).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(201);
-
-        repository.saveExecutionResult(result);
-
-        verify(requestSpec).post(contains("strategy_executions"));
-    }
-
-    @Test
-    public void testGetLatestExecutionResult_Success() throws IOException {
-        String jsonResponse = "[{" +
-                "\"execution_id\":\"exec-123\"," +
-                "\"executed_at\":\"2024-03-20T10:00:00\"," +
-                "\"total_trades_found\":5," +
-                "\"execution_time_ms\":1000," +
-                "\"telegram_sent\":true," +
-                "\"results\":[]" +
-                "}]";
-
-        when(requestSpec.get(anyString())).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(200);
-        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
-        when(response.getBody().asString()).thenReturn(jsonResponse);
-
-        Optional<ExecutionResult> result = repository.getLatestExecutionResult();
-
-        Assert.assertTrue(result.isPresent());
-        Assert.assertEquals(result.get().getExecutionId(), "exec-123");
-    }
-
-    @Test
     public void testSaveCustomExecutionResult_Success() throws IOException {
         StrategyResult result = StrategyResult.builder()
                 .strategyName("custom-strat")
@@ -119,6 +65,26 @@ public class CustomExecutionRepositoryTest {
         verify(requestSpec).post(contains("custom_execution_results"));
     }
 
+    @Test(expectedExceptions = IOException.class)
+    public void testSaveCustomExecutionResult_Error() throws IOException {
+        StrategyResult result = StrategyResult.builder()
+                .strategyName("custom-strat")
+                .trades(Collections.emptyList())
+                .tradesFound(0)
+                .executionTimeMs(50)
+                .build();
+
+        when(requestSpec.header(anyString(), anyString())).thenReturn(requestSpec);
+        when(requestSpec.body(anyString())).thenReturn(requestSpec);
+        when(requestSpec.post(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(500);
+        when(response.getStatusLine()).thenReturn("Internal Server Error");
+        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
+        when(response.getBody().asString()).thenReturn("error");
+
+        repository.saveCustomExecutionResult(result, List.of("AAPL"));
+    }
+
     @Test
     public void testUpdateCustomExecutionResult_Success() throws IOException {
         StrategyResult result = StrategyResult.builder()
@@ -126,55 +92,49 @@ public class CustomExecutionRepositoryTest {
                 .trades(Collections.emptyList())
                 .tradesFound(0)
                 .executionTimeMs(50)
-                .filterConfig("{\"key\":\"val\"}")
                 .build();
 
         when(requestSpec.header(anyString(), anyString())).thenReturn(requestSpec);
         when(requestSpec.body(anyString())).thenReturn(requestSpec);
         when(requestSpec.patch(anyString())).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(200);
-        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
-        when(response.getBody().asString()).thenReturn("[{\"id\":42}]");
+        when(response.getStatusCode()).thenReturn(204);
 
-        repository.updateCustomExecutionResult(42L, result, List.of("AAPL"));
+        repository.updateCustomExecutionResult(123L, result, List.of("AAPL"));
 
-        verify(requestSpec).patch(contains("custom_execution_results?id=eq.42"));
+        verify(requestSpec).patch(contains("custom_execution_results?id=eq.123"));
     }
 
-    @Test
-    public void testUpdateCustomExecutionResult_NotFound_FallbacksToSave() throws IOException {
+    @Test(expectedExceptions = IOException.class)
+    public void testUpdateCustomExecutionResult_Error() throws IOException {
         StrategyResult result = StrategyResult.builder()
                 .strategyName("custom-strat")
                 .trades(Collections.emptyList())
                 .tradesFound(0)
                 .executionTimeMs(50)
-                .filterConfig("{\"key\":\"val\"}")
                 .build();
 
         when(requestSpec.header(anyString(), anyString())).thenReturn(requestSpec);
         when(requestSpec.body(anyString())).thenReturn(requestSpec);
         when(requestSpec.patch(anyString())).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(200);
+        when(response.getStatusCode()).thenReturn(404);
+        when(response.getStatusLine()).thenReturn("Not Found");
         when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
-        when(response.getBody().asString()).thenReturn("[]");
-        when(requestSpec.post(anyString())).thenReturn(response);
+        when(response.getBody().asString()).thenReturn("not found");
 
-        repository.updateCustomExecutionResult(42L, result, List.of("AAPL"));
-
-        verify(requestSpec).patch(contains("custom_execution_results?id=eq.42"));
-        verify(requestSpec).post(contains("custom_execution_results"));
+        repository.updateCustomExecutionResult(123L, result, List.of("AAPL"));
     }
 
     @Test
     public void testGetRecentCustomExecutions_Success() throws IOException {
         String jsonResponse = "[{" +
-                "\"id\":123," +
-                "\"strategy_name\":\"custom\"," +
-                "\"execution_time_ms\":50," +
-                "\"trades_found\":0," +
+                "\"id\":1," +
+                "\"strategy_name\":\"custom-strat\"," +
+                "\"executed_at\":\"2024-03-20T10:00:00\"," +
                 "\"trades\":[]," +
-                "\"created_at\":\"2024-03-20T10:00:00Z\"," +
-                "\"filter_config\":null" +
+                "\"trades_found\":0," +
+                "\"execution_time_ms\":50," +
+                "\"securities\":[\"AAPL\"]," +
+                "\"filter_config\":\"{}\"" +
                 "}]";
 
         when(requestSpec.get(anyString())).thenReturn(response);
@@ -182,43 +142,20 @@ public class CustomExecutionRepositoryTest {
         when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
         when(response.getBody().asString()).thenReturn(jsonResponse);
 
-        List<StrategyResult> results = repository.getRecentCustomExecutions(5);
+        List<StrategyResult> results = repository.getRecentCustomExecutions(10);
 
         Assert.assertEquals(results.size(), 1);
-        Assert.assertEquals(results.get(0).getStrategyName(), "custom");
-    }
-
-    @Test(expectedExceptions = IOException.class)
-    public void testGetLatestExecutionResult_Error() throws IOException {
-        when(requestSpec.get(anyString())).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(500);
-        when(response.getStatusLine()).thenReturn("Internal Server Error");
-        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
-        when(response.getBody().asString()).thenReturn("error");
-
-        repository.getLatestExecutionResult();
+        Assert.assertEquals(results.get(0).getStrategyName(), "custom-strat");
     }
 
     @Test
-    public void testGetLatestExecutionResult_Empty() throws IOException {
-        when(requestSpec.get(anyString())).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(200);
-        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
-        when(response.getBody().asString()).thenReturn("[]");
+    public void testDeleteCustomExecution_Success() throws IOException {
+        when(requestSpec.delete(anyString())).thenReturn(response);
+        when(response.getStatusCode()).thenReturn(204);
 
-        Optional<ExecutionResult> result = repository.getLatestExecutionResult();
-        Assert.assertFalse(result.isPresent());
-    }
+        repository.deleteCustomExecution("123");
 
-    @Test(expectedExceptions = IOException.class)
-    public void testParseExecutionResult_MalformedJson() throws IOException {
-        String malformedJson = "[{\"execution_id\":\"exec-123\", \"executed_at\":\"invalid-date\"}]";
-        when(requestSpec.get(anyString())).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(200);
-        when(response.getBody()).thenReturn(mock(io.restassured.response.ResponseBody.class));
-        when(response.getBody().asString()).thenReturn(malformedJson);
-
-        repository.getLatestExecutionResult();
+        verify(requestSpec).delete(contains("custom_execution_results?id=eq.123"));
     }
 
     @Test

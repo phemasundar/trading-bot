@@ -294,7 +294,6 @@ public class AbstractTradingStrategyTest {
 
     @Test
     public void testFindTrades_PullsEarningsBeforeIVRankFilterRejects() throws Exception {
-        com.hemasundar.cache.IVRankCache.getInstance().clear();
         com.hemasundar.services.SupabaseService supabaseService = mock(com.hemasundar.services.SupabaseService.class);
         when(supabaseService.getIVRank("AAPL")).thenReturn(20.0);
 
@@ -353,7 +352,6 @@ public class AbstractTradingStrategyTest {
 
     @Test
     public void testFindTrades_CrossVolatilityExpression_Passes() throws Exception {
-        com.hemasundar.cache.IVRankCache.getInstance().clear();
         com.hemasundar.cache.TechnicalIndicatorCache.getInstance().clear();
 
         com.hemasundar.services.SupabaseService supabaseService = mock(com.hemasundar.services.SupabaseService.class);
@@ -393,7 +391,6 @@ public class AbstractTradingStrategyTest {
 
     @Test
     public void testFindTrades_CrossVolatilityExpression_Fails() throws Exception {
-        com.hemasundar.cache.IVRankCache.getInstance().clear();
         com.hemasundar.cache.TechnicalIndicatorCache.getInstance().clear();
 
         com.hemasundar.services.SupabaseService supabaseService = mock(com.hemasundar.services.SupabaseService.class);
@@ -425,7 +422,6 @@ public class AbstractTradingStrategyTest {
 
     @Test
     public void testFindTrades_CrossVolatilityExpression_FailOpenWhenDataUnavailable() throws Exception {
-        com.hemasundar.cache.IVRankCache.getInstance().clear();
         com.hemasundar.cache.TechnicalIndicatorCache.getInstance().clear();
 
         com.hemasundar.services.SupabaseService supabaseService = mock(com.hemasundar.services.SupabaseService.class);
