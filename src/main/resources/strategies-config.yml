@@ -1,4 +1,5 @@
 ---
+# Commenting hard value filter of IV Percentile as the historical IV values needs to be improved
 technicalIndicatorConfigs:
   default:
     RSI:
@@ -273,7 +274,7 @@ optionsStrategies:
         - "BREAKEVEN_CAGR <= 15"
         - "COST_SAVINGS_PCT >= 10"
         - "MAX_LOSS <= 5000"
-        - "IV_PERCENTILE <= 30"
+#        - "IV_PERCENTILE <= 30"
       longCall:
         conditions:
           - "DELTA >= 0.4"
@@ -294,7 +295,7 @@ optionsStrategies:
         - "BREAKEVEN_CAGR <= 15"
         - "COST_SAVINGS_PCT >= 10"
         - "MAX_LOSS <= 5000"
-        - "IV_PERCENTILE <= 30"
+#        - "IV_PERCENTILE <= 30"
       longCall:
         conditions:
           - "DELTA >= 0.4"
@@ -329,7 +330,7 @@ optionsStrategies:
         - "BREAKEVEN_CAGR <= 10"
         - "COST_SAVINGS_PCT >= 10"
         - "MAX_LOSS <= 5000"
-        - "IV_PERCENTILE <= 30"
+#        - "IV_PERCENTILE <= 30"
       longCall:
         conditions:
           - "DELTA >= 0.4"
@@ -351,7 +352,7 @@ optionsStrategies:
         - "OPTION_PRICE_PCT <= 50"
         - "BREAKEVEN_CAGR <= 20"
         - "COST_SAVINGS_PCT >= 5"
-        - "IV_PERCENTILE <= 30"
+#        - "IV_PERCENTILE <= 30"
       longCall:
         conditions:
           - "DELTA >= 0.3"
@@ -452,7 +453,7 @@ optionsStrategies:
         - "DTE <= 50"
         - "MAX_LOSS <= 20000"
         - "RETURN_ON_RISK >= 6"
-        - "IV_PERCENTILE >= 30"
+#        - "IV_PERCENTILE >= 30"
       shortLeg:
         conditions:
           - "DELTA <= 0.2"
@@ -473,7 +474,7 @@ optionsStrategies:
         - "DTE <= 185"
         - "MAX_LOSS <= 20000"
         - "RETURN_ON_RISK >= 12"
-        - "IV_PERCENTILE >= 30"
+#        - "IV_PERCENTILE >= 30"
       shortLeg:
         conditions:
           - "DELTA <= 0.2"
@@ -490,7 +491,7 @@ optionsStrategies:
         - "DTE >= 330"
         - "MAX_LOSS <= 20000"
         - "CAGR >= 18"
-        - "IV_PERCENTILE >= 30"
+#        - "IV_PERCENTILE >= 30"
       shortLeg:
         conditions:
           - "DELTA <= 0.2"
@@ -508,7 +509,7 @@ optionsStrategies:
         - "DTE <= 100"
         - "MAX_LOSS <= 20000"
         - "RETURN_ON_RISK >= 12"
-        - "IV_PERCENTILE >= 30"
+#        - "IV_PERCENTILE >= 30"
       putShortLeg:
         conditions:
           - "DELTA <= 0.2"
