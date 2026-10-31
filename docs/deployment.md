@@ -1,5 +1,16 @@
 # Deployment & CI/CD Configurations
 
+## Heap & Memory Optimization for Screener & Strategy Execution (2026-10-31)
+
+Resolved `java.lang.OutOfMemoryError: Java heap space` during full-universe strategy and screener execution:
+
+- **Inverted Micro-Batched Option Chain Streaming (`StrategyExecutionService`)**: Replaced the upfront 550-symbol `OptionChainCache.prewarm` with a two-phase pipeline that runs technical screening first, builds a symbol-to-strategy routing map, and streams surviving symbols in micro-batches of 16 (`OPTION_CHAIN_BATCH_SIZE = 16`). Each symbol's `OptionChainResponse` is fetched at most once across all strategies and immediately evicted at the end of its micro-batch.
+- **Bounded Caches (`AbstractApiCache`, `OptionChainCache`, `PriceHistoryCache`, `QuotesCache`, `TechnicalIndicatorCache`)**: Added explicit batch eviction (`evict`, `evictAll`), chunked parallel pre-warming (`PREWARM_BATCH_SIZE = 50`), and capacity ceilings (`100` for `OptionChainCache`, `750` for singleton caches).
+- **Iron Condor Mathematical Wing Pre-Pruning & Candidate-First Filtering (`IronCondorStrategy`, `BrokenWingButterflyStrategy`)**: Pre-prunes Put and Call credit spreads using `OptionsStrategyFilter.getEffectiveMaxLossLimit()` before the 4-leg Cartesian loop, and evaluates candidate filters on lightweight `IronCondorCandidate` records before instantiating `IronCondor` POJOs.
+- **Selective Option Chain Deserialization (`OptionChainResponse`)**: Retained all Schwab API fields in `OptionChainResponse` and `OptionData` for developer schema visibility while annotating unused `String`, `List<OptionDeliverable>`, and primitive fields with `@JsonIgnore` to prevent Jackson from allocating ~45,000 unused heap objects per deep option chain.
+- **Bounded Filter Log Store (`FilterLogStore`)**: Replaced `CopyOnWriteArrayList` with a bounded synchronized `ArrayList` (`MAX_ENTRIES = 50,000`) to eliminate $O(N^2)$ array-copy heap churn.
+- **JVM Heap Sizing**: Configured `-Xmx3g -Xms512m -XX:+UseG1GC` in GitHub Actions workflows (`ci.yml`, `daily-iv-collection.yml`), `-Xmx2g` in `pom.xml` (`spring-boot-maven-plugin`), and `-Xmx768m` in `Dockerfile`.
+
 ## Unit Test Infrastructure & CI Coverage Resolution (2026-03-08)
 
 Resolved the CI pipeline coverage failure through comprehensive test suite optimization and architectural realignment.
@@ -95,4 +106,3 @@ To run the application automatically as a background service on laptop startup:
 1. **Install**: Run `scripts/install-task.bat`.
    - Schedules a logon task `TradingBotTask` that launches `scripts/run-bot.bat` when logging into Windows.
 2. **Restart**: Run `scripts/restart-task.bat`.
-

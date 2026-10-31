@@ -7,10 +7,12 @@ import com.hemasundar.options.models.LegFilter;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionType;
 import com.hemasundar.options.models.TradeSetup;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import com.hemasundar.technical.MathExpression;
+import com.hemasundar.technical.RelationalOperator;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 import java.util.HashMap;
 import java.util.List;
@@ -31,19 +33,16 @@ public class IronCondorStrategyTest {
     @BeforeMethod
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        // Initialize real sub-strategies with mocks
         PutCreditSpreadStrategy putStrategy = new PutCreditSpreadStrategy(StrategyType.PUT_CREDIT_SPREAD, finnHubAPIs, ThinkOrSwimAPIs, java.util.Optional.empty());
         CallCreditSpreadStrategy callStrategy = new CallCreditSpreadStrategy(StrategyType.CALL_CREDIT_SPREAD, finnHubAPIs, ThinkOrSwimAPIs, java.util.Optional.empty());
-        
+
         strategy = new TestableIronCondorStrategy(finnHubAPIs, ThinkOrSwimAPIs, java.util.Optional.empty(), putStrategy, callStrategy);
     }
 
     @Test
     public void testFindValidTrades_IronCondorFilter() {
-        // Create synthetic OptionChainResponse with underlying price 100
         OptionChainResponse chain = createOptionChain(100.0);
 
-        // Setup filter
         IronCondorFilter filter = new IronCondorFilter();
         filter.setTargetDTE(30);
         filter.setMaxLossLimit(1000.0);
@@ -65,8 +64,6 @@ public class IronCondorStrategyTest {
         filter.setCallShortLeg(shortCallFilter);
 
         List<TradeSetup> trades = strategy.findValidTrades(chain, "2024-04-19", filter);
-        System.out.println("IronCondor trades found: " + (trades != null ? trades.size() : "null"));
-        // Based on our synthetic chain, we expect to find valid Iron Condors
         assertNotNull(trades);
         assertFalse(trades.isEmpty(), "Should find valid Iron Condors");
 
@@ -80,9 +77,39 @@ public class IronCondorStrategyTest {
     }
 
     @Test
+    public void testFindValidTrades_PrePrunesWithUnifiedMaxLossExpression() {
+        OptionChainResponse chain = createOptionChain(100.0);
+
+        IronCondorFilter filter = new IronCondorFilter();
+        filter.setTargetDTE(30);
+        filter.setFilterExpressions(List.of(
+                MathExpression.builder()
+                        .leftVariable("MAX_LOSS")
+                        .operator(RelationalOperator.LESS_THAN_OR_EQUAL)
+                        .rightVariable("450")
+                        .build()));
+
+        LegFilter shortPutFilter = new LegFilter();
+        shortPutFilter.setMaxDelta(0.4);
+        shortPutFilter.setMinDelta(0.1);
+        filter.setPutShortLeg(shortPutFilter);
+
+        LegFilter shortCallFilter = new LegFilter();
+        shortCallFilter.setMaxDelta(0.4);
+        shortCallFilter.setMinDelta(0.1);
+        filter.setCallShortLeg(shortCallFilter);
+
+        List<TradeSetup> trades = strategy.findValidTrades(chain, "2024-04-19", filter);
+        assertNotNull(trades);
+        assertFalse(trades.isEmpty(), "Should find narrow Iron Condors within 450 max loss");
+        for (TradeSetup trade : trades) {
+            assertTrue(trade.getMaxLoss() <= 450.0);
+        }
+    }
+
+    @Test
     public void testFindValidTrades_NoCallLegs() {
         OptionChainResponse chain = createOptionChain(100.0);
-        // Clear call map to simulate no call spreads found
         chain.getCallExpDateMap().clear();
 
         IronCondorFilter filter = new IronCondorFilter();
@@ -96,7 +123,6 @@ public class IronCondorStrategyTest {
     public void testFindValidTrades_CreditSpreadFilter() {
         OptionChainResponse chain = createOptionChain(100.0);
 
-        // Legacy format using CreditSpreadFilter directly for shared leg filter
         CreditSpreadFilter filter = new CreditSpreadFilter();
         filter.setTargetDTE(30);
         filter.setMaxLossLimit(1000.0);
@@ -120,29 +146,23 @@ public class IronCondorStrategyTest {
 
     @Test
     public void testFindValidTrades_OverlapStrikes() {
-        // Provide a chain where put and call don't have enough room and overlap
         OptionChainResponse chain = createOptionChain(100.0);
 
         IronCondorFilter filter = new IronCondorFilter();
         filter.setTargetDTE(30);
-        // Force the deltas such that short put strike >= short call strike (e.g.
-        // inverted)
         LegFilter putLeg = new LegFilter();
-        putLeg.setMinDelta(0.8); // High delta for deep ITM put -> high strike
+        putLeg.setMinDelta(0.8);
         filter.setPutShortLeg(putLeg);
 
         LegFilter callLeg = new LegFilter();
-        callLeg.setMinDelta(0.8); // High delta for deep ITM call -> low strike
+        callLeg.setMinDelta(0.8);
         filter.setCallShortLeg(callLeg);
 
         List<TradeSetup> trades = strategy.findValidTrades(chain, "2024-04-19", filter);
 
-        // Since all combinations will overlap (Put strike > Call strike), no condors
-        // should be formed
         assertTrue(trades.isEmpty(), "Should filter out overlapping wings");
     }
 
-    // Helper to create synthetic chain
     private OptionChainResponse createOptionChain(double price) {
         OptionChainResponse response = new OptionChainResponse();
         response.setSymbol("SYMBOL");
@@ -152,12 +172,10 @@ public class IronCondorStrategyTest {
         Map<String, List<OptionChainResponse.OptionData>> puts = new HashMap<>();
         Map<String, List<OptionChainResponse.OptionData>> calls = new HashMap<>();
 
-        // Put Strikes: 80, 85, 90
         puts.put("80.0", List.of(createOption(OptionType.PUT, 80.0, 0.15, 0.40, true)));
         puts.put("85.0", List.of(createOption(OptionType.PUT, 85.0, 0.25, 0.80, true)));
         puts.put("90.0", List.of(createOption(OptionType.PUT, 90.0, 0.35, 1.50, true)));
 
-        // Call Strikes: 110, 115, 120
         calls.put("110.0", List.of(createOption(OptionType.CALL, 110.0, 0.30, 1.20, false)));
         calls.put("115.0", List.of(createOption(OptionType.CALL, 115.0, 0.20, 0.70, false)));
         calls.put("120.0", List.of(createOption(OptionType.CALL, 120.0, 0.10, 0.30, false)));
@@ -181,18 +199,16 @@ public class IronCondorStrategyTest {
         data.setPutCall(type.toString());
         data.setExpirationDate("2024-04-19");
         data.setDaysToExpiration(30);
-        data.setExtrinsicValue(mark); // Simple assumption for testing
+        data.setExtrinsicValue(mark);
         data.setIntrinsicValue(0.0);
         return data;
     }
 
-    // Since findValidTrades calls sub-strategies, we use a test subclass that
-    // stubbs out sub-strategy behavior or provides real ones
     private static class TestableIronCondorStrategy extends IronCondorStrategy {
         public TestableIronCondorStrategy(com.hemasundar.apis.FinnHubAPIs finnHubAPIs,
                                          com.hemasundar.apis.ThinkOrSwimAPIs ThinkOrSwimAPIs,
                                          java.util.Optional<com.hemasundar.services.SupabaseService> supabaseService,
-                                         PutCreditSpreadStrategy putCreditSpreadStrategy, 
+                                         PutCreditSpreadStrategy putCreditSpreadStrategy,
                                          CallCreditSpreadStrategy callCreditSpreadStrategy) {
             super(StrategyType.IRON_CONDOR, finnHubAPIs, ThinkOrSwimAPIs, supabaseService, putCreditSpreadStrategy, callCreditSpreadStrategy);
         }

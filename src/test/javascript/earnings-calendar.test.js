@@ -10,6 +10,7 @@ const {
     formatDateKey,
     onDayClick,
     closeDetailPanel,
+    deduplicateCalendarEvents,
     API
 } = require('../../main/resources/static/app');
 
@@ -219,5 +220,37 @@ describe('Earnings Calendar Tests', () => {
 
         closeDetailPanel();
         expect(panel.style.display).toBe('none');
+    });
+
+    test('deduplicateCalendarEvents consolidates GOOGL into GOOG and avoids duplicates', () => {
+        const raw = [
+            { symbol: 'GOOGL', hour: 'amc', quarter: 3, year: 2026, epsEstimate: null },
+            { symbol: 'GOOG', hour: 'amc', quarter: 3, year: 2026, epsEstimate: 3.11, revenueEstimate: 132000000000 },
+            { symbol: 'MSFT', hour: 'amc', quarter: 1, year: 2026 }
+        ];
+        const result = deduplicateCalendarEvents(raw);
+        expect(result.length).toBe(2);
+        const symbols = result.map(e => e.symbol);
+        expect(symbols).toContain('GOOG');
+        expect(symbols).toContain('MSFT');
+        expect(symbols).not.toContain('GOOGL');
+        const goog = result.find(e => e.symbol === 'GOOG');
+        expect(goog.epsEstimate).toBe(3.11);
+    });
+
+    test('renderLastPulled adapts text prefix and year for mobile viewport', () => {
+        document.body.innerHTML = '<span id="cal-last-pulled-text"></span>';
+        const iso = '2026-10-26T12:43:00-05:00';
+
+        // Desktop
+        window.innerWidth = 1024;
+        renderLastPulled(iso);
+        expect(document.getElementById('cal-last-pulled-text').textContent).toContain('Last Pulled:');
+        expect(document.getElementById('cal-last-pulled-text').textContent).toContain('2026');
+
+        // Mobile
+        window.innerWidth = 400;
+        renderLastPulled(iso);
+        expect(document.getElementById('cal-last-pulled-text').textContent).toContain('Pulled:');
     });
 });

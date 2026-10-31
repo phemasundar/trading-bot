@@ -796,6 +796,31 @@ public class StrategyExecutionControllerTest {
     }
 
     @Test
+    public void testGetEarningsCalendar_DeduplicatesGoogAndGoogl() throws Exception {
+        java.time.LocalDate testDate = java.time.LocalDate.now().plusYears(10);
+        com.hemasundar.pojos.EarningsCalendarResponse.EarningCalendar earning1 =
+                new com.hemasundar.pojos.EarningsCalendarResponse.EarningCalendar();
+        earning1.setDate(testDate);
+        earning1.setSymbol("GOOGL");
+        earning1.setHour("amc");
+
+        com.hemasundar.pojos.EarningsCalendarResponse.EarningCalendar earning2 =
+                new com.hemasundar.pojos.EarningsCalendarResponse.EarningCalendar();
+        earning2.setDate(testDate);
+        earning2.setSymbol("GOOG");
+        earning2.setHour("amc");
+
+        com.hemasundar.utils.EarningsCacheManager.updateCache("GOOG", java.util.List.of(earning1));
+        com.hemasundar.utils.EarningsCacheManager.updateCache("GOOGL", java.util.List.of(earning2));
+
+        mockMvc.perform(get("/api/earnings-calendar"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.events['" + testDate.toString() + "']").isArray())
+                .andExpect(jsonPath("$.events['" + testDate.toString() + "'].length()").value(1))
+                .andExpect(jsonPath("$.events['" + testDate.toString() + "'][0].symbol").value("GOOG"));
+    }
+
+    @Test
     public void testRefreshEarningsCalendar_Success() throws Exception {
         when(executionService.isExecutionRunning()).thenReturn(false);
         when(securitiesResolver.loadSecuritiesMaps()).thenReturn(Map.of(

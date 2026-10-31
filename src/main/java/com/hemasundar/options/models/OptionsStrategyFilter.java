@@ -2,12 +2,21 @@ package com.hemasundar.options.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import java.util.function.BiConsumer;
+import com.hemasundar.technical.MathExpression;
+import com.hemasundar.technical.RelationalOperator;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
+import org.apache.commons.lang3.StringUtils;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.BiConsumer;
 
 /**
  * Base filter class containing common strategy-level filters.
@@ -38,7 +47,7 @@ public class OptionsStrategyFilter {
      * Values: "positive", "negative", or "neutral".
      * Serialized into the filterConfig JSON blob for UI rendering.
      */
-    private java.util.Map<String, String> greeks;
+    private Map<String, String> greeks;
 
     // Time-based filters
     private Integer targetDTE; // If > 0, uses single nearest expiry (backward compatible)
@@ -46,6 +55,15 @@ public class OptionsStrategyFilter {
     private Integer maxDTE; // Used with minDTE when targetDTE == null or 0
 
     // Risk/Return filters
+    /**
+     * Legacy maximum loss limit per trade (in dollars).
+     * <p>
+     * <b>Important for Iron Condor strategies:</b> Configuring a maximum loss bound (either via
+     * {@code MAX_LOSS <= ...} in {@link #conditions} or via {@code maxLossLimit}) is strongly
+     * recommended / practically mandatory on deep option chains (e.g., {@code SPY}, {@code QQQ},
+     * {@code NVDA} with 200+ strikes per expiry) so {@code IronCondorStrategy} can mathematically
+     * pre-prune wide single-wing credit spreads before evaluating the 4-leg Cartesian product.
+     */
     private Double maxLossLimit;
     private Integer minReturnOnRisk;
     /**
@@ -72,22 +90,25 @@ public class OptionsStrategyFilter {
     /**
      * Mathematical expression conditions for filtering trades, expiries, and options metrics.
      * Example: ["DTE >= 25", "DTE <= 50", "MAX_LOSS <= 1000", "ROR >= 12", "SHORT_LEG.DELTA <= 0.2"]
+     * <p>
+     * For {@code IRON_CONDOR} strategies, including a {@code MAX_LOSS <= <limit>} condition is
+     * strongly recommended / practically mandatory to bound the 4-leg combinatorial search space.
      */
-    private java.util.List<String> conditions;
+    private List<String> conditions;
 
     @JsonIgnore
     @lombok.Builder.Default
-    private java.util.List<com.hemasundar.technical.MathExpression> filterExpressions = new java.util.ArrayList<>();
+    private List<MathExpression> filterExpressions = new ArrayList<>();
 
     // Behavior flags
     @JsonIgnore
     @lombok.Builder.Default
-    private java.util.List<com.hemasundar.technical.MathExpression> earningsFilterExpressions = new java.util.ArrayList<>();
+    private List<MathExpression> earningsFilterExpressions = new ArrayList<>();
 
-    private java.util.Map<String, Object> earningsFilters;
+    private Map<String, Object> earningsFilters;
 
-    private java.util.List<String> includeOnly;
-    private java.util.List<String> excludeIf;
+    private List<String> includeOnly;
+    private List<String> excludeIf;
 
     /**
      * Number of top trades to return per stock. If null, returns all matching
@@ -105,7 +126,6 @@ public class OptionsStrategyFilter {
     private Double maxOptionPricePercent; // No default - must be explicitly set or left null
 
     // Volatility filters
-
 
     /**
      * Minimum IV Rank threshold (0–100) for the symbol.
@@ -154,13 +174,13 @@ public class OptionsStrategyFilter {
      * technical filter form fields when "Load Filters" is clicked.
      * Keys: "RSI", "BOLLINGER_BAND", "VOLUME", "HISTORICAL_VOLATILITY", "PRICE_DROP", "SIMPLE_MOVING_AVERAGE", "EXP_MOVING_AVERAGE".
      */
-    private java.util.Map<String, Object> technicalFilters;
+    private Map<String, Object> technicalFilters;
 
     // ========== VALIDATION METHODS ==========
 
     /**
      * Checks if a max loss value passes the maxLossLimit filter.
-     * 
+     *
      * @param maxLoss the calculated max loss for a trade
      * @return true if maxLoss is within the limit or limit is null
      */
@@ -169,8 +189,79 @@ public class OptionsStrategyFilter {
     }
 
     /**
+     * Resolves the tightest constant upper bound on {@code MAX_LOSS} configured either via the
+     * legacy {@link #maxLossLimit} field or via unified {@link #filterExpressions}
+     * (e.g., {@code MAX_LOSS <= 1000}).
+     * <p>
+     * Used by {@code IronCondorStrategy} to mathematically pre-prune single-leg put/call credit
+     * spreads before evaluating the 4-leg Cartesian product. Without a configured {@code MAX_LOSS}
+     * upper bound, deep option chains (200+ strikes) can produce millions of 4-leg combinations.
+     *
+     * @return the effective maximum loss limit in dollars, or {@code null} if unconstrained
+     */
+    @JsonIgnore
+    public Double getEffectiveMaxLossLimit() {
+        Double effective = this.maxLossLimit;
+        if (filterExpressions != null) {
+            for (MathExpression expr : filterExpressions) {
+                if ("MAX_LOSS".equalsIgnoreCase(expr.getLeftVariable())
+                        && (expr.getOperator() == RelationalOperator.LESS_THAN_OR_EQUAL
+                                || expr.getOperator() == RelationalOperator.LESS_THAN
+                                || expr.getOperator() == RelationalOperator.EQUAL)) {
+                    Double bound = resolveConstantRightValue(expr);
+                    if (bound != null) {
+                        effective = (effective == null) ? bound : Math.min(effective, bound);
+                    }
+                }
+            }
+        }
+        return effective;
+    }
+
+    /**
+     * Resolves the highest constant lower bound on {@code RETURN_ON_RISK} configured either via the
+     * legacy {@link #minReturnOnRisk} field or via unified {@link #filterExpressions}
+     * (e.g., {@code RETURN_ON_RISK >= 20}).
+     *
+     * @return the effective minimum Return on Risk percentage, or {@code null} if unconstrained
+     */
+    @JsonIgnore
+    public Double getEffectiveMinReturnOnRisk() {
+        Double effective = this.minReturnOnRisk != null ? this.minReturnOnRisk.doubleValue() : null;
+        if (filterExpressions != null) {
+            for (MathExpression expr : filterExpressions) {
+                String var = expr.getLeftVariable();
+                if (("RETURN_ON_RISK".equalsIgnoreCase(var) || "ROR".equalsIgnoreCase(var))
+                        && (expr.getOperator() == RelationalOperator.GREATER_THAN_OR_EQUAL
+                                || expr.getOperator() == RelationalOperator.GREATER_THAN
+                                || expr.getOperator() == RelationalOperator.EQUAL)) {
+                    Double bound = resolveConstantRightValue(expr);
+                    if (bound != null) {
+                        effective = (effective == null) ? bound : Math.max(effective, bound);
+                    }
+                }
+            }
+        }
+        return effective;
+    }
+
+    private Double resolveConstantRightValue(MathExpression expr) {
+        if (StringUtils.isBlank(expr.getRightVariable())) {
+            return null;
+        }
+        try {
+            double base = Double.parseDouble(expr.getRightVariable().trim());
+            double scale = expr.getRightScale() != null ? expr.getRightScale() : 1.0;
+            double offset = expr.getRightOffset() != null ? expr.getRightOffset() : 0.0;
+            return (base * scale) + offset;
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
      * Checks if a total debit passes the maxTotalDebit filter.
-     * 
+     *
      * @param debit the calculated total debit for a trade
      * @return true if debit is within limit or no limit is set
      */
@@ -180,7 +271,7 @@ public class OptionsStrategyFilter {
 
     /**
      * Checks if a total credit passes the maxTotalCredit filter.
-     * 
+     *
      * @param credit the calculated total credit for a trade
      * @return true if credit is within limit or no limit is set
      */
@@ -190,7 +281,7 @@ public class OptionsStrategyFilter {
 
     /**
      * Checks if a total credit passes the minTotalCredit filter.
-     * 
+     *
      * @param credit the calculated total credit for a trade
      * @return true if credit is greater than or equal to limit or no limit is set
      */
@@ -200,7 +291,7 @@ public class OptionsStrategyFilter {
 
     /**
      * Checks if profit meets the minimum return on risk requirement.
-     * 
+     *
      * @param profit  the net profit (credit) for the trade
      * @param maxLoss the maximum loss for the trade
      * @return true if return on risk meets the minimum threshold
@@ -234,7 +325,7 @@ public class OptionsStrategyFilter {
 
     /**
      * Checks if a break-even percentage passes the maxBreakEvenPercentage filter.
-     * 
+     *
      * @param breakEvenPercentage the calculated break-even percentage for a trade
      * @return true if percentage is within limit or no limit is set
      */
@@ -250,7 +341,7 @@ public class OptionsStrategyFilter {
     /**
      * Checks if a net extrinsic value percentage passes the
      * minNetExtrinsicValueToPricePercentage filter.
-     * 
+     *
      * @param netExtrinsicValueToPricePercentage the calculated net extrinsic value
      *                                           relative to underlying price
      * @return true if percentage is within limit or no limit is set
@@ -298,8 +389,8 @@ public class OptionsStrategyFilter {
      * Returns math expressions targeting DTE.
      */
     @JsonIgnore
-    public java.util.List<com.hemasundar.technical.MathExpression> getDteExpressions() {
-        if (filterExpressions == null) return java.util.Collections.emptyList();
+    public List<MathExpression> getDteExpressions() {
+        if (filterExpressions == null) return Collections.emptyList();
         return filterExpressions.stream()
                 .filter(e -> "DTE".equalsIgnoreCase(e.getLeftVariable()))
                 .toList();
@@ -311,9 +402,9 @@ public class OptionsStrategyFilter {
      * all stock-level volatility metrics evaluated in a unified context.
      */
     @JsonIgnore
-    public java.util.List<com.hemasundar.technical.MathExpression> getIvExpressions() {
-        if (filterExpressions == null) return java.util.Collections.emptyList();
-        java.util.Set<String> volatilityVars = java.util.Set.of("IV_RANK", "IV_PERCENTILE", "HV_RANK", "CURRENT_IV");
+    public List<MathExpression> getIvExpressions() {
+        if (filterExpressions == null) return Collections.emptyList();
+        Set<String> volatilityVars = Set.of("IV_RANK", "IV_PERCENTILE", "HV_RANK", "CURRENT_IV");
         return filterExpressions.stream()
                 .filter(e -> volatilityVars.contains(e.getLeftVariable().toUpperCase()))
                 .toList();

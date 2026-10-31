@@ -111,7 +111,12 @@ public class EarningsCacheManager {
         if (CollectionUtils.isNotEmpty(earnings)) {
             earnings.stream()
                     .filter(e -> e.getDate() == null || !e.getDate().isBefore(today))
-                    .forEach(updatedEarnings::add);
+                    .forEach(e -> {
+                        if (StringUtils.isBlank(e.getSymbol()) || !e.getSymbol().equalsIgnoreCase(symbol)) {
+                            e.setSymbol(symbol);
+                        }
+                        updatedEarnings.add(e);
+                    });
         }
 
         updatedEarnings.sort(Comparator.comparing(
@@ -149,6 +154,9 @@ public class EarningsCacheManager {
                                 entry.setLastFetched(lastUpdated);
                             }
                         });
+                    }
+                    if (earningsCache.getCache() != null && earningsCache.getCache().containsKey("GOOG")) {
+                        earningsCache.getCache().remove("GOOGL");
                     }
                 }
                 return;

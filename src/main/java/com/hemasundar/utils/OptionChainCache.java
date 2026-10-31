@@ -1,32 +1,37 @@
 package com.hemasundar.utils;
 
 import com.hemasundar.apis.ThinkOrSwimAPIs;
+import com.hemasundar.cache.AbstractApiCache;
 import com.hemasundar.options.models.OptionChainResponse;
-import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import com.hemasundar.cache.AbstractApiCache;
 
 /**
- * Lazy-loading cache for OptionChainResponse data.
- * Fetches from API only when a symbol is requested for the first time.
- * Subsequent requests for the same symbol return the cached response.
- * This minimizes API calls when multiple strategies use overlapping symbols.
+ * Lazy-loading, bounded cache for {@link OptionChainResponse} data.
+ * Fetches from API only when a symbol is requested for the first time in a micro-batch.
+ * Subsequent requests for the same symbol within the batch return the cached response.
  * <p>
  * Note: This is NOT a Spring bean — it is created per-execution by
- * StrategyExecutionService.
+ * {@code StrategyExecutionService}, which streams symbols in micro-batches and evicts
+ * option chains immediately after all strategies subscribed to a batch finish evaluating.
  */
 @Log4j2
-@lombok.RequiredArgsConstructor
 public class OptionChainCache extends AbstractApiCache<OptionChainResponse> {
 
+    public static final int DEFAULT_MAX_SIZE = 100;
+
     private final ThinkOrSwimAPIs schwabApi;
+
+    public OptionChainCache(ThinkOrSwimAPIs schwabApi) {
+        this(schwabApi, DEFAULT_MAX_SIZE);
+    }
+
+    public OptionChainCache(ThinkOrSwimAPIs schwabApi, int maxSize) {
+        super(maxSize);
+        this.schwabApi = schwabApi;
+    }
 
     /**
      * Gets the OptionChainResponse for a symbol.
@@ -35,16 +40,21 @@ public class OptionChainCache extends AbstractApiCache<OptionChainResponse> {
      * @param symbol The stock symbol
      * @return OptionChainResponse for the symbol
      */
+    @Override
     public OptionChainResponse get(String symbol) {
-        if (cache.containsKey(symbol)) {
-            return cache.get(symbol);
+        OptionChainResponse cached = cache.get(symbol);
+        if (cached != null) {
+            hits.incrementAndGet();
+            return cached;
         }
 
-        // cache miss — time the actual Schwab API call
+        misses.incrementAndGet();
         apiCallCounter.incrementAndGet();
         log.debug("Fetching from API: {} (API call #{})", symbol, apiCallCounter.get());
         OptionChainResponse response = schwabApi.getOptionChain(symbol);
-        cache.put(symbol, response);
+        if (response != null) {
+            put(symbol, response);
+        }
         return response;
     }
 
@@ -52,7 +62,7 @@ public class OptionChainCache extends AbstractApiCache<OptionChainResponse> {
      * Pre-warms the cache by fetching all {@code symbols} in parallel via
      * the supplied {@link SchwabApiExecutor}.
      *
-     * @param symbols  union of all securities across selected strategies
+     * @param symbols  union of securities in the active micro-batch
      * @param executor shared parallel executor
      */
     public void prewarm(List<String> symbols, SchwabApiExecutor executor) {
@@ -78,11 +88,10 @@ public class OptionChainCache extends AbstractApiCache<OptionChainResponse> {
         return responses;
     }
 
-
-
     /**
      * Prints cache statistics.
      */
+    @Override
     public void printStats() {
         log.debug("Cache Stats - Total API calls: {} | Cached symbols: {}", apiCallCounter.get(), cache.size());
     }

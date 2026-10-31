@@ -35,10 +35,14 @@ The Iron Condor strategy utilizes the unified mathematical expression filtering 
 ### 1. Trade-Level Conditions (`conditions: [...]`)
 Applied to the assembled four-leg Iron Condor structure:
 
+> [!IMPORTANT]
+> **`MAX_LOSS` Filter Requirement (Practically Mandatory for Iron Condors):**
+> Because an Iron Condor pairs every valid Put Credit Spread ($O(S^2)$) with every valid Call Credit Spread ($O(S^2)$), an unconstrained 4-leg search scales as $O(S^4)$ across strikes $S$ (producing over 1,000,000 combinations per expiry on deep option chains like `SPY`, `QQQ`, or `NVDA`). Always include a `MAX_LOSS <= <limit>` condition (e.g., `MAX_LOSS <= 1000` or `MAX_LOSS <= 2000`) so `IronCondorStrategy` can mathematically pre-prune overly wide single-wing credit spreads (`putSpread.maxLoss <= MAX_LOSS + maxCallCredit` and `callSpread.maxLoss <= MAX_LOSS + maxPutCredit`) before pairing.
+
 | Filter (LHS) | Description | Possible LHS Values | Possible RHS Values & Syntax | Example Condition |
 |---|---|---|---|---|
 | `DTE` | Days to expiration (Daily 0-1 DTE, Medium 40-65 DTE, Long 55-185 DTE) | `DTE` (integer days) | Numeric constant range | `DTE >= 40`<br>`DTE <= 65` |
-| `MAX_LOSS` | Maximum risk: `max(Put Width, Call Width) * 100 - Net Credit` | Dollars ($) | Numeric constant dollar ceiling | `MAX_LOSS <= 2000` |
+| `MAX_LOSS` | **Recommended / Mandatory** — Maximum risk: `max(Put Width, Call Width) * 100 - Net Credit`. Enables exact wing pre-pruning prior to 4-leg pairing. | Dollars ($) | Numeric constant dollar ceiling | `MAX_LOSS <= 1000`<br>`MAX_LOSS <= 2000` |
 | `NET_CREDIT` | Combined net credit collected from both wings | Dollars ($) | Numeric constant minimum credit | `NET_CREDIT >= 200` |
 | `RETURN_ON_RISK` | Return on Risk: `(Total Net Credit / Max Loss) * 100` | Percentage (%) | Numeric constant or percentage literal | `RETURN_ON_RISK >= 24%`<br>`RETURN_ON_RISK >= 36` |
 | `CAGR` | Annualized Return on Risk: `((Credit/Loss + 1)^(365/DTE) - 1) * 100` | Percentage (%) | Numeric constant or percentage literal | `CAGR >= 30%` |

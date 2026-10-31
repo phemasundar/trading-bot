@@ -2,10 +2,9 @@ package com.hemasundar.utils;
 
 import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.options.models.OptionChainResponse;
-import org.mockito.MockedStatic;
-import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.anyString;
@@ -28,20 +27,20 @@ public class OptionChainCacheTest {
         String symbol = "AAPL";
         OptionChainResponse mockResponse = new OptionChainResponse();
         mockResponse.setSymbol(symbol);
-        
+
         when(ThinkOrSwimAPIs.getOptionChain(symbol)).thenReturn(mockResponse);
-        
+
         // First call - should fetch from API
         OptionChainResponse result1 = cache.get(symbol);
         assertNotNull(result1);
         assertEquals(result1.getSymbol(), symbol);
         assertEquals(cache.getApiCallCounter().get(), 1);
-        
+
         // Second call - should return from cache
         OptionChainResponse result2 = cache.get(symbol);
         assertSame(result1, result2);
         assertEquals(cache.getApiCallCounter().get(), 1);
-        
+
         verify(ThinkOrSwimAPIs, times(1)).getOptionChain(symbol);
     }
 
@@ -49,22 +48,40 @@ public class OptionChainCacheTest {
     public void testIsCached() {
         String symbol = "TSLA";
         assertFalse(cache.isCached(symbol));
-        
+
         when(ThinkOrSwimAPIs.getOptionChain(symbol)).thenReturn(new OptionChainResponse());
         cache.get(symbol);
-        
+
         assertTrue(cache.isCached(symbol));
     }
 
     @Test
     public void testClear() {
-        // Mock API call to avoid null pointer or actual network call
         when(ThinkOrSwimAPIs.getOptionChain(anyString())).thenReturn(new OptionChainResponse());
-        
-        cache.get("AAPL"); 
+
+        cache.get("AAPL");
         cache.clear();
         assertEquals(cache.size(), 0);
         assertEquals(cache.getApiCallCounter().get(), 0);
+    }
+
+    @Test
+    public void testEvictAndMaxSizeBound() {
+        OptionChainCache smallCache = new OptionChainCache(ThinkOrSwimAPIs, 2);
+        when(ThinkOrSwimAPIs.getOptionChain(anyString())).thenReturn(new OptionChainResponse());
+
+        smallCache.get("AAPL");
+        smallCache.get("MSFT");
+        assertEquals(smallCache.size(), 2);
+
+        smallCache.get("NVDA");
+        assertEquals(smallCache.size(), 2, "Cache size should remain bounded by maxSize=2");
+
+        smallCache.evict("NVDA");
+        assertFalse(smallCache.isCached("NVDA"));
+
+        smallCache.evictAll(List.of("AAPL", "MSFT"));
+        assertEquals(smallCache.size(), 0);
     }
 
     @Test

@@ -108,6 +108,11 @@ public class FinnHubAPIs {
 
         // 3. Update Cache
         if (result != null && result.getEarningsCalendar() != null) {
+            for (var earning : result.getEarningsCalendar()) {
+                if (earning != null) {
+                    earning.setSymbol(ticker);
+                }
+            }
             EarningsCacheManager.updateCache(ticker, result.getEarningsCalendar());
 
             // Filter fresh result for return

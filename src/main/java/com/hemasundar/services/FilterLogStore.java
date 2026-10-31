@@ -5,20 +5,23 @@ import lombok.extern.log4j.Log4j2;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Thread-safe singleton store for filter-stage execution log entries.
  * Strategy classes write entries directly here during execution.
  * The store is cleared at the start of each execution.
  * The UI polls /api/filter-logs to display these entries in real-time.
+ * <p>
+ * Backed by a bounded synchronized {@link ArrayList} (instead of {@code CopyOnWriteArrayList})
+ * to avoid O(N^2) array-copy heap churn across tens of thousands of filter stage logs.
  */
 @Log4j2
 public class FilterLogStore {
 
+    public static final int MAX_ENTRIES = 50_000;
     private static final FilterLogStore INSTANCE = new FilterLogStore();
 
-    private final CopyOnWriteArrayList<ExecutionLogEntry> entries = new CopyOnWriteArrayList<>();
+    private final List<ExecutionLogEntry> entries = new ArrayList<>();
 
     private FilterLogStore() {}
 
@@ -63,7 +66,7 @@ public class FilterLogStore {
                 strategyName, symbol, expiry != null ? expiry : "symbol-level",
                 filterStage, details != null ? " (" + details + ")" : "", tradesIn, tradesOut, filtered);
 
-        entries.add(ExecutionLogEntry.builder()
+        ExecutionLogEntry entry = ExecutionLogEntry.builder()
                 .strategyName(strategyName)
                 .symbol(symbol)
                 .expiry(expiry)
@@ -71,21 +74,31 @@ public class FilterLogStore {
                 .details(details)
                 .tradesIn(tradesIn)
                 .tradesOut(tradesOut)
-                .build());
+                .build();
+
+        synchronized (entries) {
+            if (entries.size() < MAX_ENTRIES) {
+                entries.add(entry);
+            }
+        }
     }
 
     /**
      * Returns a snapshot of all collected log entries.
      */
     public List<ExecutionLogEntry> getEntries() {
-        return new ArrayList<>(entries);
+        synchronized (entries) {
+            return new ArrayList<>(entries);
+        }
     }
 
     /**
      * Clears all log entries. Called at the start of each execution.
      */
     public void clear() {
-        entries.clear();
+        synchronized (entries) {
+            entries.clear();
+        }
         log.debug("[FILTER] Filter log store cleared for new execution");
     }
 }
