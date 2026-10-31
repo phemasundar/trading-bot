@@ -2,8 +2,10 @@ package com.hemasundar.services;
 
 import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.apis.ThinkOrSwimAPIs;
+import com.hemasundar.cache.QuotesCache;
 import com.hemasundar.config.StrategiesConfigLoader;
 import com.hemasundar.dto.*;
+import com.hemasundar.events.StrategyExecutionCompletedEvent;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionsConfig;
 import com.hemasundar.options.models.OptionsStrategyFilter;
@@ -16,17 +18,16 @@ import com.hemasundar.utils.SchwabApiExecutor;
 import com.hemasundar.utils.SecuritiesResolver;
 import com.hemasundar.utils.TelegramUtils;
 import com.hemasundar.utils.VolatilityCalculator;
-import org.apache.commons.collections4.CollectionUtils;
-import org.springframework.context.ApplicationEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.apache.commons.collections4.CollectionUtils;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
-
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
@@ -34,12 +35,27 @@ import java.util.stream.Collectors;
 
 /**
  * Service layer for executing trading strategies.
- * Encapsulates the business logic previously in SampleTestNG.
+ * <p>
+ * Uses an inverted symbol-to-strategy micro-batched streaming pipeline:
+ * <ol>
+ *   <li>Phase 1: Pre-warms lightweight quotes and technical indicators, then runs technical
+ *       screening per strategy to determine each strategy's surviving symbol universe.</li>
+ *   <li>Phase 2: Streams the union of surviving symbols in micro-batches ({@link #OPTION_CHAIN_BATCH_SIZE}),
+ *       fetching each symbol's {@link OptionChainResponse} at most once, evaluating all subscribed
+ *       strategies against that symbol, and immediately evicting the micro-batch's option chains
+ *       from memory before advancing to the next batch.</li>
+ * </ol>
  */
 @Service
 @Log4j2
 @RequiredArgsConstructor
 public class StrategyExecutionService {
+
+    /**
+     * Number of option chains fetched and held in memory per micro-batch during Phase 2 streaming.
+     * Bounds peak option-chain heap usage to at most 16 symbols (~80-160 MB) regardless of universe size.
+     */
+    public static final int OPTION_CHAIN_BATCH_SIZE = 16;
 
     private final SupabaseService supabaseService;
     private final SecuritiesResolver securitiesResolver;
@@ -162,136 +178,67 @@ public class StrategyExecutionService {
      * @return List of enabled strategy configurations
      */
     public List<OptionsConfig> getEnabledStrategies() throws IOException {
-        // Load securities maps
         Map<String, List<String>> securitiesMap = securitiesResolver.loadSecuritiesMaps();
-
-        // Load and return enabled strategies
         return strategiesConfigLoader.load(FilePaths.strategiesConfig, securitiesMap);
     }
 
     /**
-     * Executes selected strategies.
+     * Executes selected strategies using the micro-batched symbol-to-strategy streaming pipeline.
      *
      * @param strategyIndices Set of strategy indices to execute (0-based)
      * @return ExecutionResult containing results from all executed strategies
      */
     public ExecutionResult executeStrategies(Set<Integer> strategyIndices) throws IOException {
-        // The lock is now managed by the controller (via startGlobalExecution) to allow
-        // chained screener execution.
         long startTime = executionStartTimeMs > 0 ? executionStartTimeMs : System.currentTimeMillis();
         String executionId = "exec_" + startTime;
 
-        try {
-            log.info("Starting execution: {}", executionId);
-            if (supabaseService != null) {
-                supabaseService.clearIVStatsCache();
-            }
+        log.info("Starting execution: {}", executionId);
+        if (supabaseService != null) {
+            supabaseService.clearIVStatsCache();
+        }
 
-            // Load all enabled strategies
-            List<OptionsConfig> allStrategies = getEnabledStrategies();
+        List<OptionsConfig> allStrategies = getEnabledStrategies();
 
-            // Filter selected strategies
-            List<OptionsConfig> selectedStrategies = strategyIndices.stream()
-                    .filter(i -> i >= 0 && i < allStrategies.size())
-                    .map(allStrategies::get)
-                    .collect(Collectors.toList());
+        List<OptionsConfig> selectedStrategies = strategyIndices.stream()
+                .filter(i -> i >= 0 && i < allStrategies.size())
+                .map(allStrategies::get)
+                .collect(Collectors.toList());
 
-            if (selectedStrategies.isEmpty()) {
-                log.warn("No valid strategies selected for execution");
-                return ExecutionResult.builder()
-                        .executionId(executionId)
-                        .timestamp(LocalDateTime.now())
-                        .results(Collections.emptyList())
-                        .totalTradesFound(0)
-                        .totalExecutionTimeMs(System.currentTimeMillis() - startTime)
-                        .telegramSent(false)
-                        .build();
-            }
-
-            // Shared cache for option chains
-            OptionChainCache cache = new OptionChainCache(ThinkOrSwimAPIs);
-
-            // ── Parallel Cache Pre-warm (Track A) ──
-            // Option chain pre-warming for strategies without technical filter (strategies
-            // with technical filters
-            // defer option chain fetching to the screened survivor set)
-            List<String> optionChainSymbolsToPrewarm = selectedStrategies.stream()
-                    .filter(c -> !c.hasTechnicalFilter())
-                    .flatMap(c -> c.getSecurities().stream())
-                    .distinct()
-                    .collect(Collectors.toList());
-
-            if (!optionChainSymbolsToPrewarm.isEmpty()) {
-                log.debug("Pre-warming option chain cache for {} unique symbols across {} strategies",
-                        optionChainSymbolsToPrewarm.size(), selectedStrategies.size());
-                cache.prewarm(optionChainSymbolsToPrewarm, schwabApiExecutor);
-            }
-
-            // For ALL symbols (including ones used in technical filters), pre-warm
-            // QuotesCache & run indicator pre-calculation
-            List<String> allSymbolsAcrossStrategies = selectedStrategies.stream()
-                    .flatMap(c -> c.getSecurities().stream())
-                    .distinct()
-                    .collect(Collectors.toList());
-
-            if (!allSymbolsAcrossStrategies.isEmpty()) {
-                log.debug("Pre-warming quotes cache for {} unique symbols", allSymbolsAcrossStrategies.size());
-                com.hemasundar.cache.QuotesCache.getInstance().prewarm(allSymbolsAcrossStrategies, schwabApiExecutor,
-                        symbol -> ThinkOrSwimAPIs.getQuote(symbol, null),
-                        (sourceContext, errorMsg) -> log.warn("Quotes prewarm error: {}", errorMsg));
-
-                technicalIndicatorPreCalculationService.preCalculateAll(allSymbolsAcrossStrategies,
-                        (sourceContext, errorMsg) -> log.warn("Technical pre-calc error: {}", errorMsg));
-            }
-
-            // Execute each strategy
-            List<StrategyResult> results = new ArrayList<>();
-            int totalTrades = 0;
-
-            for (int i = 0; i < selectedStrategies.size(); i++) {
-                if (cancellationRequested.get()) {
-                    log.info("Execution cancelled after {}/{} strategies", i, selectedStrategies.size());
-                    break;
-                }
-                if (authFailed.get()) {
-                    log.warn("Auth failure — stopping after {}/{} strategies", i, selectedStrategies.size());
-                    break;
-                }
-                OptionsConfig config = selectedStrategies.get(i);
-                setCurrentExecutionTask(config.getName());
-                log.info("Executing strategy {}/{}: {}", i + 1, selectedStrategies.size(), config.getName());
-
-                StrategyResult result = executeStrategy(config, cache, false);
-
-                results.add(result);
-                totalTrades += result.getTradesFound();
-            }
-
-            // Build execution result
-            ExecutionResult executionResult = ExecutionResult.builder()
+        if (selectedStrategies.isEmpty()) {
+            log.warn("No valid strategies selected for execution");
+            return ExecutionResult.builder()
                     .executionId(executionId)
                     .timestamp(LocalDateTime.now())
-                    .results(results)
-                    .totalTradesFound(totalTrades)
+                    .results(Collections.emptyList())
+                    .totalTradesFound(0)
                     .totalExecutionTimeMs(System.currentTimeMillis() - startTime)
-                    .telegramSent(true) // Telegram is sent during strategy execution
+                    .telegramSent(false)
                     .build();
-
-            // Print cache statistics
-            cache.printStats();
-
-            log.info("Execution completed: {} strategies, {} total trades, {}ms",
-                    results.size(), totalTrades, executionResult.getTotalExecutionTimeMs());
-
-            return executionResult;
-        } finally {
-            // Lock handled externally
         }
+
+        OptionChainCache cache = new OptionChainCache(ThinkOrSwimAPIs);
+        List<StrategyResult> results = executeStrategyBatch(selectedStrategies, null, cache, false);
+        int totalTrades = results.stream().mapToInt(StrategyResult::getTradesFound).sum();
+
+        ExecutionResult executionResult = ExecutionResult.builder()
+                .executionId(executionId)
+                .timestamp(LocalDateTime.now())
+                .results(results)
+                .totalTradesFound(totalTrades)
+                .totalExecutionTimeMs(System.currentTimeMillis() - startTime)
+                .telegramSent(true)
+                .build();
+
+        cache.printStats();
+
+        log.info("Execution completed: {} strategies, {} total trades, {}ms",
+                results.size(), totalTrades, executionResult.getTotalExecutionTimeMs());
+
+        return executionResult;
     }
 
     /**
      * Executes a custom strategy with inline dynamically built OptionsConfig.
-     * This is useful for UI-driven execution rather than reading from JSON.
      *
      * @param config The custom OptionsConfig
      * @return ExecutionResult containing the single strategy's result
@@ -320,7 +267,8 @@ public class StrategyExecutionService {
     }
 
     /**
-     * Executes a batch of custom strategies sequentially in a single global execution.
+     * Executes a batch of custom strategies in a single global execution using the
+     * micro-batched symbol-to-strategy streaming pipeline.
      *
      * @param configs list of resolved strategy configurations to execute
      * @param customResultIds corresponding list of database IDs to update in place (or null/0 to save)
@@ -346,77 +294,9 @@ public class StrategyExecutionService {
             }
 
             OptionChainCache cache = new OptionChainCache(ThinkOrSwimAPIs);
+            List<StrategyResult> results = executeStrategyBatch(configs, customResultIds, cache, true);
+            int totalTrades = results.stream().mapToInt(StrategyResult::getTradesFound).sum();
 
-            // Pre-warm quotes and technical indicators across all unique symbols
-            List<String> allSymbols = configs.stream()
-                    .filter(c -> c.getSecurities() != null)
-                    .flatMap(c -> c.getSecurities().stream())
-                    .distinct()
-                    .collect(Collectors.toList());
-
-            if (!allSymbols.isEmpty()) {
-                // Symbols without technical filters can prewarm option chains upfront
-                List<String> symbolsWithoutTechFilter = configs.stream()
-                        .filter(c -> !c.hasTechnicalFilter() && c.getSecurities() != null)
-                        .flatMap(c -> c.getSecurities().stream())
-                        .distinct()
-                        .collect(Collectors.toList());
-
-                if (!symbolsWithoutTechFilter.isEmpty()) {
-                    log.debug("Pre-warming option chain cache for {} symbols", symbolsWithoutTechFilter.size());
-                    cache.prewarm(symbolsWithoutTechFilter, schwabApiExecutor);
-                }
-
-                log.debug("Pre-warming quotes cache for {} unique symbols (custom execution)", allSymbols.size());
-                com.hemasundar.cache.QuotesCache.getInstance().prewarm(allSymbols, schwabApiExecutor,
-                        symbol -> ThinkOrSwimAPIs.getQuote(symbol, null),
-                        (sourceContext, errorMsg) -> log.warn("Quotes prewarm error: {}", errorMsg));
-
-                technicalIndicatorPreCalculationService.preCalculateAll(allSymbols,
-                        (sourceContext, errorMsg) -> log.warn("Technical pre-calc error: {}", errorMsg));
-            }
-
-            List<StrategyResult> results = new ArrayList<>();
-            int totalTrades = 0;
-
-            for (int i = 0; i < configs.size(); i++) {
-                if (cancellationRequested.get() || authFailed.get()) {
-                    log.info("Custom execution batch cancelled or auth failed (cancelled={}, authFailed={})",
-                            cancellationRequested.get(), authFailed.get());
-                    break;
-                }
-
-                OptionsConfig config = configs.get(i);
-                Long customResultId = (customResultIds != null && i < customResultIds.size()) ? customResultIds.get(i) : null;
-                setCurrentExecutionTask(String.format("Custom Strategy: %s (%d of %d)", config.getName(), i + 1, configs.size()));
-
-                try {
-                    StrategyResult result = executeStrategy(config, cache, true);
-                    results.add(result);
-                    totalTrades += result.getTradesFound();
-
-                    try {
-                        if (customResultId != null && customResultId > 0) {
-                            supabaseService.updateCustomExecutionResult(customResultId, result, config.getSecurities());
-                            log.debug("Updated custom execution result in Supabase: id={}", customResultId);
-                        } else {
-                            supabaseService.saveCustomExecutionResult(result, config.getSecurities());
-                            log.debug("Saved custom execution result to Supabase: {}", config.getName());
-                        }
-                    } catch (IOException e) {
-                        addAlert(ExecutionAlert.Severity.WARNING, AlertMessages.SRC_SUPABASE,
-                                customResultId != null && customResultId > 0
-                                        ? AlertMessages.UPDATE_CUSTOM_RESULT_FAILED
-                                        : AlertMessages.SAVE_CUSTOM_RESULT_FAILED);
-                    }
-                } catch (Throwable t) {
-                    log.error("Error executing custom strategy: {}", config.getName(), t);
-                    addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_EXECUTION,
-                            String.format("Error executing %s: %s", config.getName(), t.getMessage()));
-                }
-            }
-
-            // Print cache statistics
             cache.printStats();
 
             ExecutionResult executionResult = ExecutionResult.builder()
@@ -448,121 +328,367 @@ public class StrategyExecutionService {
     }
 
     /**
-     * Executes a single strategy and returns its result.
+     * Executes a batch of strategies using the inverted symbol-to-strategy micro-batched streaming pipeline.
+     * <p>
+     * Phase 1 pre-calculates lightweight quotes and technical indicators, then runs technical screening per
+     * strategy to resolve each strategy's surviving symbol list. Phase 2 streams unique surviving symbols in
+     * micro-batches of {@link #OPTION_CHAIN_BATCH_SIZE}, evaluating all subscribed strategies per symbol and
+     * immediately evicting the batch's option chains from {@link OptionChainCache}.
      */
-    private StrategyResult executeStrategy(OptionsConfig config, OptionChainCache cache, boolean isCustomExecution) {
-        long strategyStartTime = System.currentTimeMillis();
+    private List<StrategyResult> executeStrategyBatch(
+            List<OptionsConfig> strategies,
+            List<Long> customResultIds,
+            OptionChainCache cache,
+            boolean isCustomExecution) {
 
-        List<String> securities = config.getSecurities() != null
-                ? config.getSecurities().stream().distinct().collect(Collectors.toList())
-                : Collections.emptyList();
+        List<String> allSymbols = strategies.stream()
+                .filter(c -> c.getSecurities() != null)
+                .flatMap(c -> c.getSecurities().stream())
+                .distinct()
+                .collect(Collectors.toList());
 
-        // Pull earnings upfront for every symbol before any pipeline filter, irrespective of earningsFilters
-        pullEarningsForSymbols(securities, false);
+        if (!allSymbols.isEmpty()) {
+            log.debug("Pre-warming quotes cache for {} unique symbols", allSymbols.size());
+            QuotesCache.getInstance().prewarm(allSymbols, schwabApiExecutor,
+                    symbol -> ThinkOrSwimAPIs.getQuote(symbol, null),
+                    (sourceContext, errorMsg) -> log.warn("Quotes prewarm error: {}", errorMsg));
 
-        Map<String, TechnicalScreener.ScreeningResult> techResultsMap = new HashMap<>();
-
-        // Apply technical filter if configured
-        if (config.hasTechnicalFilter()) {
-            BiConsumer<String, String> alertCallback = (symbol, errorMsg) -> {
-                String source = String.format("Technical Filter: %s (%s)", config.getName(), symbol);
-                addAlert(ExecutionAlert.Severity.ERROR, source,
-                        String.format(AlertMessages.SYMBOL_PROCESSING_FAILED_FMT, errorMsg));
-            };
-
-            List<TechnicalScreener.ScreeningResult> screeningResults = technicalScreener.screenStocks(
-                    securities, config.getTechnicalFilterChain(), alertCallback, config.getStrategyId());
-
-            for (TechnicalScreener.ScreeningResult sr : screeningResults) {
-                techResultsMap.put(sr.getSymbol(), sr);
-            }
-
-            securities = screeningResults.stream()
-                    .map(TechnicalScreener.ScreeningResult::getSymbol)
-                    .collect(Collectors.toList());
-            log.debug("[{}] Found {} stocks matching technical criteria: {}",
-                    config.getName(), securities.size(), securities);
-
-            // Pre-warm option chain cache in parallel for surviving symbols
-            if (!securities.isEmpty()) {
-                log.debug("[{}] Pre-warming option chain cache for {} technical filter survivors",
-                        config.getName(), securities.size());
-                cache.prewarm(securities, schwabApiExecutor);
-            }
+            technicalIndicatorPreCalculationService.preCalculateAll(allSymbols,
+                    (sourceContext, errorMsg) -> log.warn("Technical pre-calc error: {}", errorMsg));
         }
 
-        // Find trades using the strategy
-        Map<String, List<TradeSetup>> allTrades = new LinkedHashMap<>();
+        List<StrategyExecutionContext> contexts = new ArrayList<>(strategies.size());
+        Map<String, List<StrategyExecutionContext>> symbolToContexts = new LinkedHashMap<>();
 
-        if (!securities.isEmpty()) {
-            allTrades = findTradesForStrategy(cache, securities, config);
-        }
+        // Phase 1: Prepare strategy contexts (upfront earnings + technical screening)
+        for (int i = 0; i < strategies.size(); i++) {
+            OptionsConfig config = strategies.get(i);
+            Long customResultId = (customResultIds != null && i < customResultIds.size()) ? customResultIds.get(i) : null;
+            StrategyExecutionContext ctx = new StrategyExecutionContext(i, config, customResultId, isCustomExecution);
+            contexts.add(ctx);
 
-        // Build StrategyResult from trades map (uses shared Trade.fromTradeSetup)
-        long executionTime = System.currentTimeMillis() - strategyStartTime;
+            try {
+                List<String> securities = config.getSecurities() != null
+                        ? config.getSecurities().stream().distinct().collect(Collectors.toList())
+                        : Collections.emptyList();
 
-        // Enrich the filter with technical filter summary so it gets persisted in
-        // filterConfig JSON
-        if (config.hasTechnicalFilter() && config.getFilter() != null) {
-            config.getFilter().setTechnicalFilterSummary(
-                    config.getTechnicalFilterChain().getConditions() != null
-                            ? config.getTechnicalFilterChain().getConditions().getSummary()
-                            : null);
-        }
+                pullEarningsForSymbols(securities, false);
 
-        StrategyResult result = StrategyResult.fromTrades(config.getStrategyId(), config.getName(), allTrades,
-                executionTime,
-                config.getFilter(), config.getDescriptionFile());
+                if (config.hasTechnicalFilter()) {
+                    BiConsumer<String, String> alertCallback = (symbol, errorMsg) -> {
+                        String source = String.format("Technical Filter: %s (%s)", config.getName(), symbol);
+                        addAlert(ExecutionAlert.Severity.ERROR, source,
+                                String.format(AlertMessages.SYMBOL_PROCESSING_FAILED_FMT, errorMsg));
+                    };
 
-        // Attach technical indicators to trades
-        if (!techResultsMap.isEmpty()) {
-            for (Trade trade : result.getTrades()) {
-                TechnicalScreener.ScreeningResult sr = techResultsMap.get(trade.getSymbol());
-                if (sr != null) {
-                    trade.setTechIndicators(
-                            sr.getAllTechnicalIndicatorsSummary() != null ? sr.getAllTechnicalIndicatorsSummary()
-                                    : sr.getFormattedSummary());
+                    List<TechnicalScreener.ScreeningResult> screeningResults = technicalScreener.screenStocks(
+                            securities, config.getTechnicalFilterChain(), alertCallback, config.getStrategyId());
+
+                    for (TechnicalScreener.ScreeningResult sr : screeningResults) {
+                        ctx.techResultsMap.put(sr.getSymbol(), sr);
+                    }
+
+                    securities = screeningResults.stream()
+                            .map(TechnicalScreener.ScreeningResult::getSymbol)
+                            .collect(Collectors.toList());
+                    log.debug("[{}] Found {} stocks matching technical criteria: {}",
+                            config.getName(), securities.size(), securities);
+                }
+
+                ctx.targetSecurities = securities;
+                ctx.remainingSymbols = securities.size();
+
+                for (String symbol : securities) {
+                    symbolToContexts.computeIfAbsent(symbol, k -> new ArrayList<>()).add(ctx);
+                }
+            } catch (Throwable t) {
+                log.error("Error preparing strategy {}: {}", config.getName(), t.getMessage(), t);
+                ctx.failedDuringPrep = true;
+                if (isCustomExecution) {
+                    addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_EXECUTION,
+                            String.format("Error executing %s: %s", config.getName(), t.getMessage()));
                 }
             }
         }
 
-        // Send to Telegram using pre-formatted Trade DTOs
-        if (!allTrades.isEmpty()) {
+        // Finalize any leading strategies that already have 0 surviving symbols before option-chain streaming starts
+        finalizeReadyZeroSymbolStrategies(contexts, strategies.size());
+
+        // Phase 2: Micro-batched option chain streaming across unique surviving symbols
+        List<String> orderedSymbols = new ArrayList<>(symbolToContexts.keySet());
+        for (int batchStart = 0; batchStart < orderedSymbols.size(); batchStart += OPTION_CHAIN_BATCH_SIZE) {
+            if (cancellationRequested.get() || authFailed.get()) {
+                break;
+            }
+
+            int batchEnd = Math.min(batchStart + OPTION_CHAIN_BATCH_SIZE, orderedSymbols.size());
+            List<String> microBatch = orderedSymbols.subList(batchStart, batchEnd);
+
             try {
-                telegramUtils.sendTradeAlerts(result);
-            } catch (Exception e) {
-                addAlert(ExecutionAlert.Severity.WARNING, config.getName(),
-                        AlertMessages.TELEGRAM_SEND_FAILED);
+                log.debug("Streaming option chain micro-batch {}-{} of {} symbols",
+                        batchStart + 1, batchEnd, orderedSymbols.size());
+                cache.prewarm(microBatch, schwabApiExecutor);
+
+                for (String symbol : microBatch) {
+                    if (cancellationRequested.get() || authFailed.get()) {
+                        break;
+                    }
+
+                    List<StrategyExecutionContext> subscribedContexts = symbolToContexts.getOrDefault(symbol, Collections.emptyList());
+                    for (StrategyExecutionContext ctx : subscribedContexts) {
+                        if (ctx.finalized || ctx.failedDuringPrep) {
+                            continue;
+                        }
+                        if (cancellationRequested.get() || authFailed.get()) {
+                            break;
+                        }
+
+                        updateCurrentExecutionTask(ctx, strategies.size());
+                        evaluateSymbolForStrategy(ctx, symbol, cache);
+
+                        if (ctx.remainingSymbols <= 0) {
+                            finalizeStrategyContext(ctx);
+                            finalizeReadyZeroSymbolStrategies(contexts, strategies.size());
+                        }
+                    }
+                }
+            } finally {
+                // Immediately evict all option chains in this micro-batch so they can be garbage-collected
+                cache.evictAll(microBatch);
             }
         }
 
-        // Save individual strategy result to database for per-strategy persistence if
-        // not a custom execution
-        if (!isCustomExecution) {
-            try {
-                supabaseService.saveStrategyResult(result);
-                log.debug("[{}] Saved strategy result to database", config.getName());
-            } catch (IOException e) {
-                addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE,
-                        AlertMessages.SAVE_STRATEGY_RESULT_FAILED + " (" + e.getMessage() + ")");
+        // If cancellation or auth failure occurred mid-strategy, finalize any partially evaluated active strategy
+        for (StrategyExecutionContext ctx : contexts) {
+            if (!ctx.finalized && !ctx.failedDuringPrep && ctx.evaluatedAtLeastOneSymbol) {
+                finalizeStrategyContext(ctx);
             }
         }
+        finalizeReadyZeroSymbolStrategies(contexts, strategies.size());
 
-        // Publish event for historical trade persistence
-        if (result != null && result.getTradesFound() > 0) {
-            try {
-                eventPublisher.publishEvent(
-                        new com.hemasundar.events.StrategyExecutionCompletedEvent(result, isCustomExecution));
-            } catch (Exception e) {
-                log.error("[{}] Failed to publish strategy execution completed event: {}", config.getName(),
-                        e.getMessage());
-                addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE,
-                        AlertMessages.SAVE_HISTORICAL_TRADES_FAILED + ": " + config.getName() + " (" + e.getMessage()
-                                + ")");
+        return contexts.stream()
+                .filter(ctx -> ctx.result != null)
+                .map(ctx -> ctx.result)
+                .collect(Collectors.toList());
+    }
+
+    private void updateCurrentExecutionTask(StrategyExecutionContext ctx, int totalStrategies) {
+        if (ctx.isCustomExecution) {
+            setCurrentExecutionTask(String.format("Custom Strategy: %s (%d of %d)",
+                    ctx.config.getName(), ctx.index + 1, totalStrategies));
+        } else {
+            setCurrentExecutionTask(ctx.config.getName());
+        }
+    }
+
+    /**
+     * Finalizes strategies with zero surviving symbols only once all preceding strategies have
+     * completed and neither cancellation nor auth failure has been triggered.
+     */
+    private void finalizeReadyZeroSymbolStrategies(List<StrategyExecutionContext> contexts, int totalStrategies) {
+        for (int i = 0; i < contexts.size(); i++) {
+            if (cancellationRequested.get() || authFailed.get()) {
+                break;
+            }
+            StrategyExecutionContext ctx = contexts.get(i);
+            if (ctx.failedDuringPrep) {
+                continue;
+            }
+            if (!ctx.finalized) {
+                if (ctx.remainingSymbols == 0) {
+                    updateCurrentExecutionTask(ctx, totalStrategies);
+                    finalizeStrategyContext(ctx);
+                } else {
+                    // Wait until this strategy finishes its symbols before finalizing subsequent 0-symbol strategies
+                    break;
+                }
             }
         }
+    }
 
-        return result;
+    /**
+     * Evaluates a single symbol against a single subscribed strategy using the micro-batch's cached option chain.
+     */
+    private void evaluateSymbolForStrategy(StrategyExecutionContext ctx, String symbol, OptionChainCache cache) {
+        OptionsConfig config = ctx.config;
+        AbstractTradingStrategy strategy = config.getStrategy();
+        int maxTradesToSend = config.getMaxTradesToSend();
+
+        ctx.evaluatedAtLeastOneSymbol = true;
+        ctx.remainingSymbols--;
+
+        try {
+            OptionChainResponse optionChainResponse = cache.get(symbol);
+
+            log.debug("[{}] Processing symbol: {}", strategy.getStrategyName(), symbol);
+
+            OptionsStrategyFilter filter = config.getFilter();
+            if (filter != null) {
+                filter.setStrategyId(config.getStrategyId());
+            }
+
+            List<TradeSetup> trades = strategy.findTrades(optionChainResponse, filter);
+
+            if (CollectionUtils.isNotEmpty(trades)) {
+                List<TradeSetup> mutableTrades = new ArrayList<>(trades);
+                mutableTrades.sort((t1, t2) -> Double.compare(t2.getReturnOnRisk(), t1.getReturnOnRisk()));
+
+                List<TradeSetup> topTrades = mutableTrades;
+                if (mutableTrades.size() > maxTradesToSend) {
+                    topTrades = mutableTrades.subList(0, maxTradesToSend);
+                    log.debug("[{}] Found {} trades, limiting to top {} for Telegram",
+                            symbol, mutableTrades.size(), maxTradesToSend);
+                }
+
+                Map<String, List<TradeSetup>> tradesByExpiry = topTrades.stream()
+                        .collect(Collectors.groupingBy(
+                                TradeSetup::getExpiryDate,
+                                LinkedHashMap::new,
+                                Collectors.toList()));
+
+                for (Map.Entry<String, List<TradeSetup>> entry : tradesByExpiry.entrySet()) {
+                    ctx.allTrades.put(symbol + "_" + entry.getKey(), entry.getValue());
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error processing {}: {}", symbol, e.getMessage());
+            String source = String.format(AlertMessages.SRC_STRATEGY_SYMBOL_FMT, strategy.getStrategyName(), symbol);
+            if (isAuthError(e)) {
+                authFailed.set(true);
+                addAlert(ExecutionAlert.Severity.ERROR, source, AlertMessages.AUTH_FAILED);
+            } else {
+                addAlert(ExecutionAlert.Severity.ERROR, source,
+                        String.format(AlertMessages.SYMBOL_PROCESSING_FAILED_FMT, e.getMessage()));
+            }
+        }
+    }
+
+    /**
+     * Finalizes a strategy's execution once all of its symbols have been evaluated:
+     * builds {@link StrategyResult}, enriches technical indicator summaries, sends Telegram alerts,
+     * persists results to Supabase, and releases transient trade maps.
+     */
+    private void finalizeStrategyContext(StrategyExecutionContext ctx) {
+        if (ctx.finalized) {
+            return;
+        }
+        ctx.finalized = true;
+
+        OptionsConfig config = ctx.config;
+        long executionTime = System.currentTimeMillis() - ctx.strategyStartTime;
+
+        try {
+            if (config.hasTechnicalFilter() && config.getFilter() != null) {
+                config.getFilter().setTechnicalFilterSummary(
+                        config.getTechnicalFilterChain().getConditions() != null
+                                ? config.getTechnicalFilterChain().getConditions().getSummary()
+                                : null);
+            }
+
+            StrategyResult result = StrategyResult.fromTrades(
+                    config.getStrategyId(),
+                    config.getName(),
+                    ctx.allTrades,
+                    executionTime,
+                    config.getFilter(),
+                    config.getDescriptionFile());
+
+            if (!ctx.techResultsMap.isEmpty()) {
+                for (Trade trade : result.getTrades()) {
+                    TechnicalScreener.ScreeningResult sr = ctx.techResultsMap.get(trade.getSymbol());
+                    if (sr != null) {
+                        trade.setTechIndicators(
+                                sr.getAllTechnicalIndicatorsSummary() != null
+                                        ? sr.getAllTechnicalIndicatorsSummary()
+                                        : sr.getFormattedSummary());
+                    }
+                }
+            }
+
+            if (!ctx.allTrades.isEmpty()) {
+                try {
+                    telegramUtils.sendTradeAlerts(result);
+                } catch (Exception e) {
+                    addAlert(ExecutionAlert.Severity.WARNING, config.getName(),
+                            AlertMessages.TELEGRAM_SEND_FAILED);
+                }
+            }
+
+            if (!ctx.isCustomExecution) {
+                try {
+                    supabaseService.saveStrategyResult(result);
+                    log.debug("[{}] Saved strategy result to database", config.getName());
+                } catch (IOException e) {
+                    addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE,
+                            AlertMessages.SAVE_STRATEGY_RESULT_FAILED + " (" + e.getMessage() + ")");
+                }
+            } else {
+                try {
+                    if (ctx.customResultId != null && ctx.customResultId > 0) {
+                        supabaseService.updateCustomExecutionResult(ctx.customResultId, result, config.getSecurities());
+                        log.debug("Updated custom execution result in Supabase: id={}", ctx.customResultId);
+                    } else {
+                        supabaseService.saveCustomExecutionResult(result, config.getSecurities());
+                        log.debug("Saved custom execution result to Supabase: {}", config.getName());
+                    }
+                } catch (IOException e) {
+                    addAlert(ExecutionAlert.Severity.WARNING, AlertMessages.SRC_SUPABASE,
+                            ctx.customResultId != null && ctx.customResultId > 0
+                                    ? AlertMessages.UPDATE_CUSTOM_RESULT_FAILED
+                                    : AlertMessages.SAVE_CUSTOM_RESULT_FAILED);
+                }
+            }
+
+            if (result.getTradesFound() > 0) {
+                try {
+                    eventPublisher.publishEvent(
+                            new StrategyExecutionCompletedEvent(result, ctx.isCustomExecution));
+                } catch (Exception e) {
+                    log.error("[{}] Failed to publish strategy execution completed event: {}", config.getName(),
+                            e.getMessage());
+                    addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_SUPABASE,
+                            AlertMessages.SAVE_HISTORICAL_TRADES_FAILED + ": " + config.getName() + " (" + e.getMessage()
+                                    + ")");
+                }
+            }
+
+            ctx.result = result;
+        } catch (Throwable t) {
+            log.error("Error finalizing strategy {}: {}", config.getName(), t.getMessage(), t);
+            if (ctx.isCustomExecution) {
+                addAlert(ExecutionAlert.Severity.ERROR, AlertMessages.SRC_EXECUTION,
+                        String.format("Error executing %s: %s", config.getName(), t.getMessage()));
+            }
+        } finally {
+            ctx.allTrades.clear();
+            ctx.techResultsMap.clear();
+        }
+    }
+
+    /**
+     * Per-strategy execution state used during inverted symbol-to-strategy micro-batched streaming.
+     */
+    private static final class StrategyExecutionContext {
+        private final int index;
+        private final OptionsConfig config;
+        private final Long customResultId;
+        private final boolean isCustomExecution;
+        private final long strategyStartTime = System.currentTimeMillis();
+        private final Map<String, TechnicalScreener.ScreeningResult> techResultsMap = new HashMap<>();
+        private final Map<String, List<TradeSetup>> allTrades = new LinkedHashMap<>();
+        private List<String> targetSecurities = Collections.emptyList();
+        private int remainingSymbols;
+        private boolean evaluatedAtLeastOneSymbol;
+        private boolean failedDuringPrep;
+        private boolean finalized;
+        private StrategyResult result;
+
+        StrategyExecutionContext(int index, OptionsConfig config, Long customResultId, boolean isCustomExecution) {
+            this.index = index;
+            this.config = config;
+            this.customResultId = customResultId;
+            this.isCustomExecution = isCustomExecution;
+        }
     }
 
     /**
@@ -598,86 +724,6 @@ public class StrategyExecutionService {
     }
 
     /**
-     * Finds trades for a strategy across all symbols.
-     * Extracted from SampleTestNG.findTradesForStrategy()
-     */
-    private Map<String, List<TradeSetup>> findTradesForStrategy(
-            OptionChainCache cache,
-            List<String> symbols,
-            OptionsConfig config) {
-
-        AbstractTradingStrategy strategy = config.getStrategy();
-        int maxTradesToSend = config.getMaxTradesToSend();
-
-        log.debug("\\n" +
-                "******************************************************************\\n" +
-                "************* {} **************\\n" +
-                "****************************************************************",
-                strategy.getStrategyName());
-
-        Map<String, List<TradeSetup>> allTrades = new LinkedHashMap<>();
-
-        for (String symbol : symbols) {
-            if (authFailed.get()) {
-                log.warn("[{}] Skipping {} — auth already failed", strategy.getStrategyName(), symbol);
-                continue;
-            }
-            try {
-                OptionChainResponse optionChainResponse = cache.get(symbol);
-
-                log.debug("Processing symbol: {}", symbol);
-
-                OptionsStrategyFilter filter = config.getFilter();
-                if (filter != null) {
-                    filter.setStrategyId(config.getStrategyId());
-                }
-
-                List<TradeSetup> trades = strategy.findTrades(optionChainResponse, filter);
-
-                // trades.forEach(trade -> log.debug("Trade: {}", trade));
-
-                if (!trades.isEmpty()) {
-                    // Sort by Return on Risk (Descending)
-                    trades.sort((t1, t2) -> Double.compare(t2.getReturnOnRisk(), t1.getReturnOnRisk()));
-
-                    // Limit trades for Telegram
-                    List<TradeSetup> topTrades = trades;
-                    if (trades.size() > maxTradesToSend) {
-                        topTrades = trades.subList(0, maxTradesToSend);
-                        log.debug("[{}] Found {} trades, limiting to top {} for Telegram",
-                                symbol, trades.size(), maxTradesToSend);
-                    }
-
-                    // Group by expiry date
-                    Map<String, List<TradeSetup>> tradesByExpiry = topTrades.stream()
-                            .collect(Collectors.groupingBy(
-                                    TradeSetup::getExpiryDate,
-                                    LinkedHashMap::new,
-                                    Collectors.toList()));
-
-                    for (Map.Entry<String, List<TradeSetup>> entry : tradesByExpiry.entrySet()) {
-                        allTrades.put(symbol + "_" + entry.getKey(), entry.getValue());
-                    }
-                }
-            } catch (Exception e) {
-                log.error("Error processing {}: {}", symbol, e.getMessage());
-                String source = String.format(AlertMessages.SRC_STRATEGY_SYMBOL_FMT, strategy.getStrategyName(),
-                        symbol);
-                if (isAuthError(e)) {
-                    authFailed.set(true);
-                    addAlert(ExecutionAlert.Severity.ERROR, source, AlertMessages.AUTH_FAILED);
-                    break; // Auth error is unrecoverable — stop processing remaining symbols
-                } else {
-                    addAlert(ExecutionAlert.Severity.ERROR, source,
-                            String.format(AlertMessages.SYMBOL_PROCESSING_FAILED_FMT, e.getMessage()));
-                }
-            }
-        }
-
-        return allTrades;
-    }
-
-    /**
      * Retrieves all latest strategy results from the database (per-strategy
      * persistence).
      *
@@ -688,7 +734,7 @@ public class StrategyExecutionService {
             return supabaseService.getAllLatestStrategyResults();
         } catch (IOException e) {
             log.error("Failed to retrieve strategy results: {}", e.getMessage());
-            return java.util.Collections.emptyList();
+            return Collections.emptyList();
         }
     }
 

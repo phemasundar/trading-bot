@@ -1,23 +1,21 @@
 package com.hemasundar.cache;
 
-import com.hemasundar.pojos.PriceHistoryResponse;
 import com.hemasundar.apis.ThinkOrSwimAPIs;
-import com.hemasundar.utils.VolatilityCalculator;
+import com.hemasundar.pojos.PriceHistoryResponse;
 import lombok.extern.log4j.Log4j2;
 
 /**
- * Thread-safe singleton cache for price history and calculated historical
+ * Thread-safe bounded singleton cache for price history and calculated historical
  * volatility.
- * Caches both raw price data and the calculated annualized volatility to
- * minimize
- * API calls and avoid redundant calculations.
  */
 @Log4j2
 public class PriceHistoryCache extends AbstractApiCache<PriceHistoryCache.HistoricalData> {
 
+    public static final int DEFAULT_MAX_SIZE = 750;
     private static final PriceHistoryCache INSTANCE = new PriceHistoryCache();
 
     private PriceHistoryCache() {
+        super(DEFAULT_MAX_SIZE);
     }
 
     public static PriceHistoryCache getInstance() {
@@ -55,7 +53,7 @@ public class PriceHistoryCache extends AbstractApiCache<PriceHistoryCache.Histor
         apiCallCounter.incrementAndGet();
         log.debug("[PriceHistoryCache] Fetching price history for {}", symbol);
         PriceHistoryResponse priceHistory = schwabApi.getYearlyPriceHistory(symbol, 1);
-        
+
         data = new HistoricalData(priceHistory);
         put(symbol, data);
         return data;
@@ -67,8 +65,9 @@ public class PriceHistoryCache extends AbstractApiCache<PriceHistoryCache.Histor
      * @param symbol Stock symbol
      * @param data   Historical data to cache
      */
+    @Override
     public void put(String symbol, HistoricalData data) {
-        cache.put(symbol, data);
+        super.put(symbol, data);
         log.debug("[PriceHistoryCache] Cached data for {}", symbol);
     }
 

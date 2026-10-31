@@ -1,14 +1,10 @@
 package com.hemasundar.cache;
 
-import com.hemasundar.apis.ThinkOrSwimAPIs;
 import com.hemasundar.pojos.QuotesResponse;
 import lombok.extern.log4j.Log4j2;
 
-import java.util.List;
-import java.util.Map;
-
 /**
- * Thread-safe singleton cache for Schwab quote + fundamental data.
+ * Thread-safe bounded singleton cache for Schwab quote + fundamental data.
  *
  * <p>
  * Stores {@link QuotesResponse.QuoteData} keyed by symbol. Populated in bulk
@@ -19,13 +15,14 @@ import java.util.Map;
 @Log4j2
 public class QuotesCache extends AbstractApiCache<QuotesResponse.QuoteData> {
 
+    public static final int DEFAULT_MAX_SIZE = 750;
     private static final QuotesCache INSTANCE = new QuotesCache();
 
     private QuotesCache() {
+        super(DEFAULT_MAX_SIZE);
     }
 
     public static QuotesCache getInstance() {
         return INSTANCE;
     }
 }
-

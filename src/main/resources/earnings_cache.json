@@ -132,7 +132,7 @@
         "quarter" : 1,
         "revenueActual" : null,
         "revenueEstimate" : 136432992737,
-        "symbol" : "GOOGL",
+        "symbol" : "GOOG",
         "year" : 2027
       }, {
         "date" : "2027-02-02",
@@ -142,7 +142,7 @@
         "quarter" : 4,
         "revenueActual" : null,
         "revenueEstimate" : 140967325625,
-        "symbol" : "GOOGL",
+        "symbol" : "GOOG",
         "year" : 2026
       }, {
         "date" : "2026-10-27",
@@ -152,7 +152,7 @@
         "quarter" : 3,
         "revenueActual" : null,
         "revenueEstimate" : 130756122172,
-        "symbol" : "GOOGL",
+        "symbol" : "GOOG",
         "year" : 2026
       } ]
     },
@@ -506,40 +506,6 @@
         "revenueEstimate" : 112518333304,
         "symbol" : "UNH",
         "year" : 2026
-      } ]
-    },
-    "GOOGL" : {
-      "lastFetched" : "2026-01-14",
-      "earnings" : [ {
-        "date" : "2026-07-21",
-        "epsActual" : null,
-        "epsEstimate" : "2.7695",
-        "hour" : "amc",
-        "quarter" : 2,
-        "revenueActual" : null,
-        "revenueEstimate" : 113350539597,
-        "symbol" : "GOOGL",
-        "year" : 2026
-      }, {
-        "date" : "2026-04-22",
-        "epsActual" : null,
-        "epsEstimate" : "2.6123",
-        "hour" : "amc",
-        "quarter" : 1,
-        "revenueActual" : null,
-        "revenueEstimate" : 106641168583,
-        "symbol" : "GOOGL",
-        "year" : 2026
-      }, {
-        "date" : "2026-02-04",
-        "epsActual" : null,
-        "epsEstimate" : "2.708",
-        "hour" : "amc",
-        "quarter" : 4,
-        "revenueActual" : null,
-        "revenueEstimate" : 114549525929,
-        "symbol" : "GOOGL",
-        "year" : 2025
       } ]
     },
     "AVGO" : {

@@ -578,13 +578,23 @@ public class StrategyExecutionController {
             EarningsCache cache = EarningsCacheManager.getEarningsCache();
             Map<String, List<Map<String, Object>>> eventsByDate = new TreeMap<>();
             if (cache != null && cache.getCache() != null) {
+                Map<String, Map<String, Map<String, Object>>> dateEventsMap = new TreeMap<>();
                 cache.getCache().forEach((symbol, entry) -> {
                     if (entry.getEarnings() == null) return;
                     for (var earning : entry.getEarnings()) {
                         if (earning.getDate() == null) continue;
                         String dateKey = earning.getDate().toString();
+
+                        String sym = StringUtils.isNotBlank(symbol) ? symbol : earning.getSymbol();
+                        if (StringUtils.isBlank(sym)) continue;
+                        sym = sym.trim().toUpperCase();
+
+                        // Treat GOOG and GOOGL as the same underlying company (Alphabet), canonicalizing to GOOG
+                        String dedupeKey = "GOOGL".equals(sym) ? "GOOG" : sym;
+                        String displaySymbol = dedupeKey;
+
                         Map<String, Object> event = new LinkedHashMap<>();
-                        event.put("symbol", earning.getSymbol());
+                        event.put("symbol", displaySymbol);
                         event.put("date", dateKey);
                         event.put("quarter", earning.getQuarter());
                         event.put("year", earning.getYear());
@@ -594,8 +604,21 @@ public class StrategyExecutionController {
                         event.put("revenueEstimate", earning.getRevenueEstimate());
                         event.put("revenueActual", earning.getRevenueActual());
                         event.put("lastFetched", entry.getLastFetched());
-                        eventsByDate.computeIfAbsent(dateKey, k -> new ArrayList<>()).add(event);
+
+                        Map<String, Map<String, Object>> dayMap = dateEventsMap.computeIfAbsent(dateKey, k -> new LinkedHashMap<>());
+                        dayMap.merge(dedupeKey, event, (existing, replacement) -> {
+                            if (existing.get("epsEstimate") != null || existing.get("revenueEstimate") != null) {
+                                return existing;
+                            }
+                            return replacement;
+                        });
                     }
+                });
+
+                dateEventsMap.forEach((dateKey, dayMap) -> {
+                    List<Map<String, Object>> dayEvents = new ArrayList<>(dayMap.values());
+                    dayEvents.sort(Comparator.comparing(e -> (String) e.get("symbol")));
+                    eventsByDate.put(dateKey, dayEvents);
                 });
             }
 

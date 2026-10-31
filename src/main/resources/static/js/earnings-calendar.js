@@ -114,19 +114,21 @@ function renderLastPulled(isoStr) {
         el.textContent = 'Last Pulled: —';
         return;
     }
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 640;
     const formatted = new Date(isoStr).toLocaleString('en-US', {
         timeZone: 'America/Chicago',
         month: 'short',
         day: 'numeric',
-        year: 'numeric',
+        ...(isMobile ? {} : { year: 'numeric' }),
         hour: 'numeric',
         minute: '2-digit',
         timeZoneName: 'short'
     });
     const age = typeof timeAgo === 'function' ? timeAgo(isoStr) : '';
+    const prefix = isMobile ? 'Pulled: ' : 'Last Pulled: ';
     el.textContent = age && age !== 'Unknown'
-        ? `Last Pulled: ${formatted} (${age})`
-        : `Last Pulled: ${formatted}`;
+        ? `${prefix}${formatted} (${age})`
+        : `${prefix}${formatted}`;
 }
 
 function calNavigate(delta) {
@@ -186,6 +188,29 @@ function renderCalendar() {
     }
 }
 
+/**
+ * Deduplicates earnings events for a single day by symbol.
+ * Canonicalizes Alphabet (GOOGL -> GOOG) to ensure Alphabet is only rendered once per release date.
+ */
+function deduplicateCalendarEvents(events) {
+    if (!Array.isArray(events)) return [];
+    const map = new Map();
+    for (const ev of events) {
+        if (!ev || !ev.symbol) continue;
+        const rawSym = String(ev.symbol).trim().toUpperCase();
+        const dedupeKey = rawSym === 'GOOGL' ? 'GOOG' : rawSym;
+        if (!map.has(dedupeKey)) {
+            map.set(dedupeKey, { ...ev, symbol: dedupeKey });
+        } else {
+            const existing = map.get(dedupeKey);
+            if (existing && (!existing.epsEstimate && !existing.revenueEstimate) && (ev.epsEstimate || ev.revenueEstimate)) {
+                map.set(dedupeKey, { ...ev, symbol: dedupeKey });
+            }
+        }
+    }
+    return Array.from(map.values());
+}
+
 function createDayCell(date, isOtherMonth, isToday = false) {
     const cell = document.createElement('div');
     cell.className = 'cal-day';
@@ -200,7 +225,8 @@ function createDayCell(date, isOtherMonth, isToday = false) {
     num.textContent = date.getDate();
     cell.appendChild(num);
 
-    const events = _calEvents[dateStr] || [];
+    const rawEvents = _calEvents[dateStr] || [];
+    const events = deduplicateCalendarEvents(rawEvents);
     if (events.length > 0) {
         const eventsDiv = document.createElement('div');
         eventsDiv.className = 'cal-day-events';
@@ -244,7 +270,8 @@ function onDayClick(dateStr, date) {
     _calSelectedDate = dateStr;
     renderCalendar();
 
-    const events = _calEvents[dateStr] || [];
+    const rawEvents = _calEvents[dateStr] || [];
+    const events = deduplicateCalendarEvents(rawEvents);
     const panel = document.getElementById('cal-detail-panel');
     const dateLabel = document.getElementById('cal-detail-date');
     const body = document.getElementById('cal-detail-body');
@@ -323,6 +350,7 @@ if (typeof module !== 'undefined' && module.exports) {
         createDayCell,
         formatDateKey,
         onDayClick,
-        closeDetailPanel
+        closeDetailPanel,
+        deduplicateCalendarEvents
     };
 }

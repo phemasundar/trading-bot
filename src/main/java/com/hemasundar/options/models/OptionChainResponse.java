@@ -1,20 +1,29 @@
 package com.hemasundar.options.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.hemasundar.technical.MathExpression;
+import com.hemasundar.technical.MathExpressionEvaluator;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
+import org.apache.commons.collections4.CollectionUtils;
 
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-import lombok.ToString;
-import org.apache.commons.collections4.CollectionUtils;
-import com.hemasundar.technical.MathExpression;
-import com.hemasundar.technical.MathExpressionEvaluator;
 
+/**
+ * Represents the Schwab API option chain response.
+ * <p>
+ * Unused API response fields are retained in this class and {@link OptionData} for developer
+ * schema discoverability, but annotated with {@link JsonIgnore} so Jackson skips deserializing
+ * and allocating unused {@link String} and {@link List} objects across thousands of option contracts.
+ * If a field is needed in the future, simply remove its {@code @JsonIgnore} annotation.
+ */
 @Data
 @Log4j2
 @NoArgsConstructor
@@ -22,21 +31,21 @@ import com.hemasundar.technical.MathExpressionEvaluator;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class OptionChainResponse {
     public String symbol;
-    public String status;
+    @JsonIgnore public String status;
     public Object underlying;
-    public String strategy;
-    public int interval;
-    public boolean isDelayed;
-    public boolean isIndex;
+    @JsonIgnore public String strategy;
+    @JsonIgnore public int interval;
+    @JsonIgnore public boolean isDelayed;
+    @JsonIgnore public boolean isIndex;
     public double interestRate;
     public double underlyingPrice;
     public double volatility;
     public int daysToExpiration;
     public double dividendYield;
-    public int numberOfContracts;
-    public String assetMainType;
-    public String assetSubType;
-    public boolean isChainTruncated;
+    @JsonIgnore public int numberOfContracts;
+    @JsonIgnore public String assetMainType;
+    @JsonIgnore public String assetSubType;
+    @JsonIgnore public boolean isChainTruncated;
 
     // Map keys: Expiration Date String (e.g., "2026-01-02:6")
     // Nested Map keys: Strike Price String (e.g., "110.0")
@@ -63,14 +72,10 @@ public class OptionChainResponse {
         Map<ExpirationDateKey, Map<String, List<OptionData>>> expDateMap = (optionType == OptionType.PUT)
                 ? this.getPutExpDateMap()
                 : this.getCallExpDateMap();
-        Map<String, List<OptionChainResponse.OptionData>> putMap = expDateMap.entrySet().stream()
-                .filter(entry ->
-                // Access the 'date' field within the complex key object
-                entry.getKey().getDate().equals(targetExpiryDate))
+        return expDateMap.entrySet().stream()
+                .filter(entry -> entry.getKey().getDate().equals(targetExpiryDate))
                 .map(Map.Entry::getValue)
                 .findFirst().orElse(Map.of());
-        // System.out.println(putMap);
-        return putMap;
     }
 
     public String getExpiryDateBasedOnDTE(int targetDays) {
@@ -111,13 +116,7 @@ public class OptionChainResponse {
                 if (options == null)
                     continue;
 
-                options.removeIf(option -> {
-                    // Check logic: abs(delta) > 10 usually indicates error code like -999.00
-                    if (Math.abs(option.getDelta()) > 10) {
-                        return true;
-                    }
-                    return false;
-                });
+                options.removeIf(option -> Math.abs(option.getDelta()) > 10);
             }
         }
     }
@@ -142,7 +141,7 @@ public class OptionChainResponse {
     /**
      * Returns all expiry dates where DTE falls within the specified range
      * (inclusive).
-     * 
+     *
      * @param minDTE Minimum days to expiration
      * @param maxDTE Maximum days to expiration
      * @return List of expiry date strings (YYYY-MM-DD format)
@@ -231,30 +230,39 @@ public class OptionChainResponse {
         }
     }
 
+    /**
+     * Individual option contract data from Schwab's option chain response.
+     * <p>
+     * All fields returned by the Schwab API are declared here so developers can inspect the complete
+     * contract schema in IDE autocomplete. Fields not used by strategy filtering, trade construction,
+     * or IV collection are annotated with {@link JsonIgnore} to avoid allocating thousands of unused
+     * {@link String} and {@link List} objects per option chain. Remove {@code @JsonIgnore} on any
+     * field if needed by new strategy logic.
+     */
     @Data
     @ToString(of = {"symbol", "mark"})
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class OptionData {
         public String putCall;
         public String symbol;
-        public String description;
-        public String exchangeName;
+        @JsonIgnore public String description;
+        @JsonIgnore public String exchangeName;
         public double bid;
         public double ask;
         public double last;
         public double mark;
-        public int bidSize;
-        public int askSize;
-        public String bidAskSize;
-        public double lastSize;
-        public double highPrice;
-        public double lowPrice;
-        public double openPrice;
-        public double closePrice;
+        @JsonIgnore public int bidSize;
+        @JsonIgnore public int askSize;
+        @JsonIgnore public String bidAskSize;
+        @JsonIgnore public double lastSize;
+        @JsonIgnore public double highPrice;
+        @JsonIgnore public double lowPrice;
+        @JsonIgnore public double openPrice;
+        @JsonIgnore public double closePrice;
         public int totalVolume;
-        public long tradeTimeInLong;
+        @JsonIgnore public long tradeTimeInLong;
         public long quoteTimeInLong;
-        public double netChange;
+        @JsonIgnore public double netChange;
         public double volatility;
         public double delta;
         public double gamma;
@@ -263,30 +271,30 @@ public class OptionChainResponse {
         public double rho;
         public int openInterest;
         public double timeValue;
-        public double theoreticalOptionValue;
-        public double theoreticalVolatility;
-        public List<OptionDeliverable> optionDeliverablesList;
+        @JsonIgnore public double theoreticalOptionValue;
+        @JsonIgnore public double theoreticalVolatility;
+        @JsonIgnore public List<OptionDeliverable> optionDeliverablesList;
         public double strikePrice;
         public String expirationDate;
         public int daysToExpiration;
-        public String expirationType;
-        public long lastTradingDay;
-        public int multiplier;
-        public String settlementType;
-        public String deliverableNote;
-        public double percentChange;
-        public double markChange;
-        public double markPercentChange;
+        @JsonIgnore public String expirationType;
+        @JsonIgnore public long lastTradingDay;
+        @JsonIgnore public int multiplier;
+        @JsonIgnore public String settlementType;
+        @JsonIgnore public String deliverableNote;
+        @JsonIgnore public double percentChange;
+        @JsonIgnore public double markChange;
+        @JsonIgnore public double markPercentChange;
         public double intrinsicValue;
         public double extrinsicValue;
-        public String optionRoot;
-        public String exerciseType;
-        public double high52Week; // 52-week high for the option
-        public double low52Week; // 52-week low for the option
-        public boolean pennyPilot;
-        public boolean inTheMoney;
-        public boolean mini;
-        public boolean nonStandard;
+        @JsonIgnore public String optionRoot;
+        @JsonIgnore public String exerciseType;
+        @JsonIgnore public double high52Week; // 52-week high for the option
+        @JsonIgnore public double low52Week; // 52-week low for the option
+        @JsonIgnore public boolean pennyPilot;
+        @JsonIgnore public boolean inTheMoney;
+        @JsonIgnore public boolean mini;
+        @JsonIgnore public boolean nonStandard;
 
         public double getAbsDelta() {
             return Math.abs(this.getDelta());

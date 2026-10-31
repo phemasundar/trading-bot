@@ -2297,6 +2297,10 @@ textarea::placeholder {
     margin-bottom: 20px;
 }
 
+.cal-today-btn {
+    margin-left: 12px;
+}
+
 .cal-month-label {
     font-size: 1.2rem;
     font-weight: 700;
@@ -2441,6 +2445,11 @@ textarea::placeholder {
     font-size: 1rem;
     font-weight: 700;
     color: var(--text-primary);
+}
+
+#cal-detail-body {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .cal-detail-table {
@@ -3404,6 +3413,7 @@ textarea::placeholder {
 }
 
 @media (max-width: 640px) {
+    .page-header,
     .page-header-flex {
         flex-direction: column;
         align-items: stretch;
@@ -3411,11 +3421,58 @@ textarea::placeholder {
         margin-bottom: 14px;
     }
 
+    .page-header-actions,
     .header-actions {
         display: flex;
+        flex-wrap: wrap;
         justify-content: space-between;
         align-items: center;
+        gap: 8px;
         width: 100%;
+    }
+
+    .cal-sync-badge {
+        flex: 1 1 auto;
+        min-width: 0;
+        font-size: 0.75rem;
+        padding: 5px 8px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .cal-refresh-btn {
+        flex: 0 0 auto;
+        padding: 5px 10px;
+        font-size: 0.78rem;
+        white-space: nowrap;
+    }
+
+    .cal-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        margin-bottom: 14px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .cal-month-label {
+        font-size: 1rem;
+        min-width: 0;
+        flex: 1 1 auto;
+        text-align: center;
+    }
+
+    .cal-nav .btn {
+        padding: 5px 8px;
+        font-size: 0.78rem;
+        flex-shrink: 0;
+    }
+
+    .cal-today-btn {
+        margin-left: 0;
     }
 
     .securities-toolbar {

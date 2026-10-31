@@ -168,7 +168,7 @@ Clean, modular, and directly reflects the domain model hierarchy. Leg-level metr
       conditions:
         - "DTE >= 40"
         - "DTE <= 65"
-        - "MAX_LOSS <= 1000"
+        - "MAX_LOSS <= 1000" # Strongly recommended / practically mandatory for Iron Condors to pre-prune 4-leg wing combinations
         - "RETURN_ON_RISK >= 24"
       putShortLeg:
         conditions:
@@ -181,6 +181,8 @@ Clean, modular, and directly reflects the domain model hierarchy. Leg-level metr
       earningsFilters:
         conditions:
           - "DAYS_TO_NEXT_EARNINGS >= DTE"
+
+> **Note (`IRON_CONDOR` & `MAX_LOSS` Pre-Pruning):** An Iron Condor pairs every valid Put Credit Spread ($O(S^2)$) with every valid Call Credit Spread ($O(S^2)$), resulting in an $O(S^4)$ 4-leg search space across strikes $S$. On deep option chains (`SPY`, `QQQ`, `NVDA` with 200+ strikes per expiration), configuring `MAX_LOSS <= <limit>` (e.g., `MAX_LOSS <= 1000` or `MAX_LOSS <= 2000`) in `filter.conditions` is **practically mandatory**. `IronCondorStrategy` uses `OptionsStrategyFilter.getEffectiveMaxLossLimit()` to mathematically pre-prune single-wing spreads (`putSpread.maxLoss <= MAX_LOSS + maxCallCredit` and `callSpread.maxLoss <= MAX_LOSS + maxPutCredit`) before running the Cartesian product loop.
 
   - alias: "Short Strangle"
     enabled: true

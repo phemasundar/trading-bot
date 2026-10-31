@@ -12,7 +12,6 @@ import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.CollectionUtils;
 
 import org.apache.commons.collections4.MapUtils;
-import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -143,13 +142,20 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
 
     /**
      * Generates all valid 3-leg combinations as a stream of BWBCandidate records.
+     * Pre-prunes the inner {@code k} loop via {@code takeWhile} once {@code upperWing > 2 * lowerWing}
+     * since strikes are sorted ascending and any larger {@code k} would also violate the mandatory
+     * 2:1 wing width ratio constraint.
      */
     private Stream<BWBCandidate> generateCandidates(Map<String, List<OptionData>> callMap,
             List<Double> strikes, double currentPrice) {
         return IntStream.range(0, strikes.size()).boxed()
                 .flatMap(i -> IntStream.range(i + 1, strikes.size()).boxed()
-                        .flatMap(j -> IntStream.range(j + 1, strikes.size()).boxed()
-                                .map(k -> createCandidate(callMap, strikes, i, j, k, currentPrice))))
+                        .flatMap(j -> {
+                            double maxUpperWing = 2.0 * (strikes.get(j) - strikes.get(i));
+                            return IntStream.range(j + 1, strikes.size())
+                                    .takeWhile(k -> (strikes.get(k) - strikes.get(j)) <= maxUpperWing)
+                                    .mapToObj(k -> createCandidate(callMap, strikes, i, j, k, currentPrice));
+                        }))
                 .filter(Optional::isPresent)
                 .map(Optional::get);
     }
@@ -204,8 +210,6 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
     private Predicate<BWBCandidate> defaultDebitFilter() {
         return candidate -> {
             double leg1Cost = candidate.leg1().getAsk() * 100;
-            // Allow small buffer or strict inequality? User said "debit amount should be
-            // less than".
             if (candidate.totalDebit() >= leg1Cost / 2) {
                 log.trace("[BWB] Rejected by Default Debit validation: Debit {} >= Leg1 Cost {}",
                         String.format("%.2f", candidate.totalDebit()), String.format("%.2f", leg1Cost));
@@ -221,8 +225,6 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
      */
     private Predicate<BWBCandidate> wingWidthRatioFilter() {
         return candidate -> {
-            // Upper Wing = Leg 3 Strike - Leg 2 Strike
-            // Lower Wing = Leg 2 Strike - Leg 1 Strike
             double upperWing = candidate.upperWingWidth();
             double lowerWing = candidate.lowerWingWidth();
 
@@ -237,13 +239,6 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
 
     /**
      * Optional requirement: The total debit should be less than the underlying
-     * price.
-     * This ensures the cost of the trade is not excessive relative to the stock
-     * price.
-     * Only applied if validateDebitVsPrice is true in the filter config.
-     */
-    /**
-     * Optional requirement: The total debit should be less than the underlying
      * price * ratio.
      * This ensures the cost of the trade is not excessive relative to the stock
      * price.
@@ -256,9 +251,6 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
             }
 
             double ratio = filter.getPriceVsMaxDebitRatio();
-            // Note: totalDebit() is the full contract debit (e.g. $50).
-            // currentPrice() is the price per share (e.g. $100).
-            // The requirement is Total Debit < Underlying Price * Ratio.
             double totalDebit = candidate.totalDebit();
             double underlyingPrice = candidate.currentPrice();
             double maxAllowedDebit = underlyingPrice * ratio;
@@ -289,17 +281,14 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
 
     private Predicate<BWBCandidate> creditFilter(OptionsStrategyFilter filter) {
         return candidate -> {
-            // Net Credit is -TotalDebit
             double netCredit = -candidate.totalDebit();
 
-            // Check max credit limit (if set)
             if (!filter.passesCreditLimit(netCredit)) {
                 log.debug("[BWB] Rejected by Max Credit Limit: {} > Max={}",
                         String.format("%.2f", netCredit), filter.getMaxTotalCredit());
                 return false;
             }
 
-            // Check min credit limit (if set)
             if (!filter.passesMinCredit(netCredit)) {
                 log.debug("[BWB] Rejected by Min Credit Limit: {} < Min={}",
                         String.format("%.2f", netCredit), filter.getMinTotalCredit());

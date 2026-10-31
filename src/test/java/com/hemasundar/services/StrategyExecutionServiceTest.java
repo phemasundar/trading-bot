@@ -424,4 +424,43 @@ public class StrategyExecutionServiceTest {
         assertNotNull(allResults);
         verify(supabaseService).getAllLatestStrategyResults();
     }
+
+    @Test
+    public void testExecuteStrategies_SharesOptionChainAcrossStrategiesInMicroBatches() throws IOException {
+        List<String> twentySymbols = new ArrayList<>();
+        for (int i = 1; i <= 20; i++) {
+            twentySymbols.add("SYM" + i);
+        }
+
+        OptionsConfig config1 = mock(OptionsConfig.class);
+        when(config1.getName()).thenReturn("Strategy 1");
+        when(config1.getSecurities()).thenReturn(twentySymbols);
+        AbstractTradingStrategy strat1 = mock(AbstractTradingStrategy.class);
+        when(config1.getStrategy()).thenReturn(strat1);
+        when(strat1.getStrategyName()).thenReturn("Strategy 1");
+        when(strat1.getStrategyType()).thenReturn(com.hemasundar.options.strategies.StrategyType.PUT_CREDIT_SPREAD);
+        when(strat1.findTrades(any(), any())).thenReturn(Collections.emptyList());
+
+        OptionsConfig config2 = mock(OptionsConfig.class);
+        when(config2.getName()).thenReturn("Strategy 2");
+        when(config2.getSecurities()).thenReturn(twentySymbols);
+        AbstractTradingStrategy strat2 = mock(AbstractTradingStrategy.class);
+        when(config2.getStrategy()).thenReturn(strat2);
+        when(strat2.getStrategyName()).thenReturn("Strategy 2");
+        when(strat2.getStrategyType()).thenReturn(com.hemasundar.options.strategies.StrategyType.IRON_CONDOR);
+        when(strat2.findTrades(any(), any())).thenReturn(Collections.emptyList());
+
+        when(strategiesConfigLoader.load(anyString(), anyMap()))
+                .thenReturn(List.of(config1, config2));
+
+        strategyExecutionService.startGlobalExecution("Test MicroBatch");
+        ExecutionResult result = strategyExecutionService.executeStrategies(new LinkedHashSet<>(List.of(0, 1)));
+
+        assertNotNull(result);
+        assertEquals(result.getResults().size(), 2);
+        // Each of the 20 symbols should have its option chain fetched from Schwab API only ONCE across both strategies
+        for (String sym : twentySymbols) {
+            verify(ThinkOrSwimAPIs, times(1)).getOptionChain(sym);
+        }
+    }
 }
