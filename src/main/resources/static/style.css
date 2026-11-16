@@ -375,11 +375,40 @@ a:hover {
     overflow: hidden;
     transition: max-height 0.3s ease, padding 0.3s ease;
     padding: 0;
+    --scrollbar-thumb: #334155;
+    --scrollbar-track: transparent;
+}
+
+[data-theme="light"] .collapsible-body {
+    --scrollbar-thumb: #94a3b8;
 }
 
 .collapsible-body.open {
     max-height: 500px;
-    padding: 8px 0 0 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    padding: 8px 4px 4px 0;
+}
+
+@supports not (scrollbar-color: auto) {
+    .collapsible-body.open::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+
+    .collapsible-body.open::-webkit-scrollbar-thumb {
+        background: var(--scrollbar-thumb);
+        border-radius: 4px;
+    }
+
+    .collapsible-body.open::-webkit-scrollbar-track {
+        background: var(--scrollbar-track);
+    }
 }
 
 /* ── Results Header & Term-Type Group Section (Dashboard) ── */
@@ -581,6 +610,11 @@ textarea::placeholder {
     margin: 12px 0;
 }
 
+.checkbox-group > div {
+    max-width: 100%;
+    min-width: 0;
+}
+
 .checkbox-label {
     display: flex;
     align-items: center;
@@ -593,6 +627,8 @@ textarea::placeholder {
     cursor: pointer;
     transition: all 0.15s;
     user-select: none;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .checkbox-label:hover {
@@ -601,6 +637,12 @@ textarea::placeholder {
 
 .checkbox-label input[type="checkbox"] {
     accent-color: var(--primary);
+    flex-shrink: 0;
+}
+
+.checkbox-label span {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .checkbox-label input[type="checkbox"]:checked+span {
@@ -1336,6 +1378,11 @@ textarea::placeholder {
 
     .page-title {
         font-size: 1.4rem;
+    }
+
+    .collapsible-body.open {
+        max-height: 50vh;
+        max-height: 50dvh;
     }
 }
 
