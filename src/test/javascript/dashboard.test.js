@@ -37,6 +37,10 @@ const {
     executeSelected,
     cancelExecution,
     fetchAndRenderMarketStatus,
+    createFilterBarConfig,
+    handleFilterInputKeydown,
+    renderResultsFilterBar,
+    initResultsFilterBars,
     showDashboardFilterBar,
     hideDashboardFilterBar,
     resetDashboardFilter,
@@ -1110,6 +1114,111 @@ describe('Dashboard & Table Rendering Tests', () => {
             });
 
             expect(toastSpy).toHaveBeenCalledWith('No valid custom strategies found to execute', 'error');
+        });
+    });
+
+    describe('Shared Results Filter Bar Component', () => {
+        test('createFilterBarConfig builds standard IDs with and without date support', () => {
+            const customCfg = createFilterBarConfig('custom-options', 'custom-results', true);
+            expect(customCfg.barId).toBe('custom-options-filter-bar');
+            expect(customCfg.dateGroupId).toBe('custom-options-filter-date-group');
+            expect(customCfg.containerId).toBe('custom-results');
+            expect(customCfg.supportsDate).toBe(true);
+
+            const screenerCfg = createFilterBarConfig('screeners', 'screener-results-container', false);
+            expect(screenerCfg.dateGroupId).toBeNull();
+            expect(screenerCfg.dateInputId).toBeNull();
+            expect(screenerCfg.supportsDate).toBe(false);
+        });
+
+        test('initResultsFilterBars mounts options, custom-options, and screeners filter bars without duplication', () => {
+            document.body.innerHTML = `
+                <div id="options-filter-bar" class="results-filter-bar" data-results-filter="options" style="display:none;"></div>
+                <div id="custom-options-filter-bar" class="results-filter-bar" data-results-filter="custom-options" style="display:none;"></div>
+                <div id="screeners-filter-bar" class="results-filter-bar" data-results-filter="screeners" style="display:none;"></div>
+            `;
+
+            initResultsFilterBars();
+            // Second call should be idempotent
+            initResultsFilterBars();
+
+            const customCol = document.getElementById('custom-options-filter-column');
+            expect(customCol).not.toBeNull();
+            expect(Array.from(customCol.options).map(o => o.value)).toEqual(['ticker', 'expiry']);
+            expect(document.getElementById('custom-options-filter-date-group')).not.toBeNull();
+            const customInput = document.getElementById('custom-options-filter-text');
+            expect(customInput.getAttribute('autocorrect')).toBe('off');
+            expect(customInput.getAttribute('spellcheck')).toBe('false');
+
+            const screenerCol = document.getElementById('screeners-filter-column');
+            expect(screenerCol).not.toBeNull();
+            expect(Array.from(screenerCol.options).map(o => o.value)).toEqual(['ticker']);
+            expect(document.getElementById('screeners-filter-date-group')).toBeNull();
+
+            expect(renderResultsFilterBar('unknown-prefix')).toBeNull();
+        });
+
+        test('handleFilterInputKeydown ignores IME composition Enter and triggers filter on regular Enter', () => {
+            document.body.innerHTML = `
+                <div id="custom-options-filter-bar" class="results-filter-bar" data-results-filter="custom-options"></div>
+                <div id="custom-results"></div>
+            `;
+            initResultsFilterBars();
+            const input = document.getElementById('custom-options-filter-text');
+            input.value = 'AAPL';
+
+            const summary = document.getElementById('custom-options-filter-summary');
+
+            // IME composing Enter should be ignored
+            handleFilterInputKeydown({ key: 'Enter', isComposing: true, preventDefault: jest.fn() }, 'custom-options');
+            expect(summary.innerHTML).toBe('');
+
+            // Safari keyCode 229 fallback should be ignored
+            handleFilterInputKeydown({ key: 'Enter', isComposing: false, keyCode: 229, preventDefault: jest.fn() }, 'custom-options');
+            expect(summary.innerHTML).toBe('');
+
+            // Regular Enter triggers filter
+            const preventDefault = jest.fn();
+            handleFilterInputKeydown({ key: 'Enter', isComposing: false, keyCode: 13, preventDefault }, 'custom-options');
+            expect(preventDefault).toHaveBeenCalled();
+            expect(summary.innerHTML).toContain('No matches found');
+        });
+
+        test('applyDashboardFilter filters multi-expiry rows of the same ticker independently using row data-expiry', () => {
+            document.body.innerHTML = `
+                <div id="custom-options-filter-bar" class="results-filter-bar" data-results-filter="custom-options"></div>
+                <div id="custom-results"></div>
+            `;
+            initResultsFilterBars();
+
+            const container = document.getElementById('custom-results');
+            const card = buildResultCard({
+                strategyId: '501',
+                strategyName: 'AAPL Multi Expiry PCS',
+                tradesFound: 2,
+                trades: [
+                    { symbol: 'AAPL', expiryDate: '2026-12-18', dte: 24, returnOnRisk: 12, maxLoss: 400, legs: [] },
+                    { symbol: 'AAPL', expiryDate: '2027-02-19', dte: 87, returnOnRisk: 18, maxLoss: 400, legs: [] }
+                ]
+            }, 'Custom');
+            container.appendChild(card);
+
+            const colSelect = document.getElementById('custom-options-filter-column');
+            colSelect.value = 'expiry';
+            onFilterColumnChange('custom-options');
+
+            document.getElementById('custom-options-filter-date-mode').value = 'before';
+            document.getElementById('custom-options-filter-date').value = '2026-12-31';
+
+            applyDashboardFilter('custom-options');
+
+            const rows = card.querySelectorAll('tbody .trade-row');
+            expect(rows.length).toBe(2);
+            expect(rows[0].classList.contains('filter-match')).toBe(true);
+            expect(rows[0].classList.contains('filter-hidden')).toBe(false);
+            expect(rows[1].classList.contains('filter-match')).toBe(false);
+            expect(rows[1].classList.contains('filter-hidden')).toBe(true);
+            expect(document.getElementById('custom-options-filter-summary').textContent).toContain('1 match across 1 strategy.');
         });
     });
 });

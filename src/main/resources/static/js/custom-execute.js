@@ -683,6 +683,7 @@ async function loadCustomResults(updatedResultId = null) {
         emptyMessage: 'No custom executions yet',
         errorPrefix: 'Failed to load',
         updatedResultId,
+        filterPrefix: 'custom-options',
         buildCardFn: r => buildResultCard(r, 'Custom'),
         getIdFn: r => r.strategyId || r.screenerId || '',
         hasItemsFn: r => r.trades && r.trades.length > 0,
