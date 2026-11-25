@@ -15,7 +15,6 @@ securities:
   - "ORCL" # Oracle
   - "V" # Visa
   - "AMD" # Advanced Micro Devices
-  - "INTU" # Intuit
   - "SPGI" # S&P Global
   - "BKNG" # Booking Holdings
   - "HOOD" # Robinhood
@@ -25,3 +24,4 @@ securities:
   - "RDDT" # Reddit
   - "SPGI"
   - "AVGO"
+  - "TSM"
