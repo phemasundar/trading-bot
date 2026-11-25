@@ -498,7 +498,7 @@ function confirmDeleteCustomResult(resultId, card) {
     });
 }
 
-async function deleteCustomCardAndRefreshCount({ card, apiDeleteFn, toastMessage, containerId, btnId, countBadgeId }) {
+async function deleteCustomCardAndRefreshCount({ card, apiDeleteFn, toastMessage, containerId, btnId, countBadgeId, filterPrefix = null }) {
     await deleteCardWithAnimation(card, apiDeleteFn, toastMessage);
     const container = document.getElementById(containerId);
     if (container) {
@@ -508,6 +508,10 @@ async function deleteCustomCardAndRefreshCount({ card, apiDeleteFn, toastMessage
             countBadgeId,
             count: Math.max(0, remaining)
         });
+        if (filterPrefix && remaining <= 0) {
+            resetDashboardFilter(filterPrefix);
+            hideDashboardFilterBar(filterPrefix);
+        }
     }
 }
 
@@ -518,7 +522,8 @@ async function deleteCustomResult(resultId, card) {
         toastMessage: 'Execution result deleted.',
         containerId: 'custom-results',
         btnId: 'execute-all-custom-btn',
-        countBadgeId: 'custom-results-count-badge'
+        countBadgeId: 'custom-results-count-badge',
+        filterPrefix: 'custom-options'
     });
 }
 
@@ -550,6 +555,7 @@ async function loadCustomCardsList({
     emptyMessage,
     errorPrefix = 'Failed to load',
     updatedResultId = null,
+    filterPrefix = null,
     buildCardFn,
     getIdFn,
     hasItemsFn,
@@ -558,6 +564,7 @@ async function loadCustomCardsList({
 }) {
     const container = document.getElementById(containerId);
     if (!container) return;
+    if (filterPrefix) resetDashboardFilter(filterPrefix);
     try {
         const openCardIds = new Set();
         container.querySelectorAll('.card-content.open').forEach(el => {
@@ -579,6 +586,7 @@ async function loadCustomCardsList({
         }
         if (!results || results.length === 0) {
             container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔬</div>${emptyMessage}</div>`;
+            if (filterPrefix) hideDashboardFilterBar(filterPrefix);
             return;
         }
         for (const r of results) {
@@ -600,9 +608,11 @@ async function loadCustomCardsList({
                 if (filterArrow) filterArrow.classList.add('open');
             }
         }
+        if (filterPrefix) showDashboardFilterBar(filterPrefix);
         if (onLoadedFn) onLoadedFn(container);
     } catch (e) {
         container.innerHTML = `<div class="empty-state text-danger">${errorPrefix}: ${e.message}</div>`;
+        if (filterPrefix) hideDashboardFilterBar(filterPrefix);
         if (typeof updateExecuteAllButtonState === 'function') {
             updateExecuteAllButtonState({
                 btnId: executeAllBtnId,
@@ -1290,7 +1300,7 @@ function buildTradeTable(tradesOrOpts, cardId = null, strategyId = null, isHisto
                 ? new Date(Number(t.executionTimeMs)).toISOString().slice(0, 10)
                 : '--');
 
-        html += `<tr class="trade-row" data-card-id="${escapeAttr(cardId || '')}" data-row-index="${idx}" data-details="${detailsEscaped}" data-tech-indicators="${techIndicatorsAttr}" data-legs-option-data="${legsAttr}" data-symbol="${escapeAttr(sym)}">
+        html += `<tr class="trade-row" data-card-id="${escapeAttr(cardId || '')}" data-row-index="${idx}" data-details="${detailsEscaped}" data-tech-indicators="${techIndicatorsAttr}" data-legs-option-data="${legsAttr}" data-symbol="${escapeAttr(sym)}" data-expiry="${escapeAttr(formatExpiryDate(t.expiryDate))}">
             ${isHistoryModal ? `<td><span class="text-muted text-mono">${escapeHtmlContent(foundDateDisplay)}</span></td>` : ''}
             ${columns.map(col => col.render(t)).join('\n            ')}
             ${!isHistoryModal ? `<td onclick="event.stopPropagation(); showTradeHistoryModal('${escapeAttr(effectiveStrategyId)}', this.dataset.trade, event)" data-trade="${tradeEscaped}">
@@ -1646,7 +1656,10 @@ function showTradeHistoryModal(cardId, tradeRaw, event) {
 }
 
 if (typeof document !== 'undefined') {
-    document.addEventListener('DOMContentLoaded', initTradeRowClicks);
+    document.addEventListener('DOMContentLoaded', () => {
+        initTradeRowClicks();
+        initResultsFilterBars();
+    });
 }
 
 // ── Filter Params Formatter ──
@@ -2193,42 +2206,113 @@ async function fetchAndRenderMarketStatus() {
     }
 }
 
-// ── Dashboard Results Filter Bar ──
+// ── Shared Results Filter Bar Component ──
+
+/**
+ * Builds standard element ID mappings for a results filter bar instance.
+ */
+function createFilterBarConfig(prefix, containerId, supportsDate = true) {
+    return {
+        barId: `${prefix}-filter-bar`,
+        columnSelectId: `${prefix}-filter-column`,
+        textInputId: `${prefix}-filter-text`,
+        dateGroupId: supportsDate ? `${prefix}-filter-date-group` : null,
+        dateModeId: supportsDate ? `${prefix}-filter-date-mode` : null,
+        dateInputId: supportsDate ? `${prefix}-filter-date` : null,
+        searchBtnId: `${prefix}-filter-btn`,
+        clearBtnId: `${prefix}-filter-clear`,
+        summaryId: `${prefix}-filter-summary`,
+        containerId,
+        supportsDate
+    };
+}
 
 const DASHBOARD_FILTER_CONFIG = {
-    options: {
-        barId: 'options-filter-bar',
-        columnSelectId: 'options-filter-column',
-        textInputId: 'options-filter-text',
-        dateGroupId: 'options-filter-date-group',
-        dateModeId: 'options-filter-date-mode',
-        dateInputId: 'options-filter-date',
-        searchBtnId: 'options-filter-btn',
-        clearBtnId: 'options-filter-clear',
-        summaryId: 'options-filter-summary',
-        containerId: 'results-container',
-        supportsDate: true
-    },
-    screeners: {
-        barId: 'screeners-filter-bar',
-        columnSelectId: 'screeners-filter-column',
-        textInputId: 'screeners-filter-text',
-        dateGroupId: null,
-        dateModeId: null,
-        dateInputId: null,
-        searchBtnId: 'screeners-filter-btn',
-        clearBtnId: 'screeners-filter-clear',
-        summaryId: 'screeners-filter-summary',
-        containerId: 'screener-results-container',
-        supportsDate: false
-    }
+    options: createFilterBarConfig('options', 'results-container', true),
+    'custom-options': createFilterBarConfig('custom-options', 'custom-results', true),
+    screeners: createFilterBarConfig('screeners', 'screener-results-container', false)
 };
+
+/**
+ * Triggers results filtering on Enter while ignoring IME composition confirmation keystrokes.
+ */
+function handleFilterInputKeydown(event, prefix) {
+    if (event && event.key === 'Enter') {
+        if (typeof event.preventDefault === 'function') event.preventDefault();
+        if (event.isComposing || event.keyCode === 229) return;
+        applyDashboardFilter(prefix);
+    }
+}
+
+/**
+ * Renders the shared results filter bar component into its mount element.
+ */
+function renderResultsFilterBar(prefix, targetEl = null) {
+    const cfg = DASHBOARD_FILTER_CONFIG[prefix];
+    if (!cfg || typeof document === 'undefined') return null;
+
+    const bar = targetEl || document.getElementById(cfg.barId);
+    if (!bar) return null;
+    if (document.getElementById(cfg.columnSelectId)) return bar;
+
+    const dateOptionHtml = cfg.supportsDate
+        ? '<option value="expiry">Expiry Date</option>'
+        : '';
+    const dateGroupHtml = cfg.supportsDate ? `
+        <div id="${cfg.dateGroupId}" class="filter-date-group" style="display:none;">
+            <select id="${cfg.dateModeId}" class="filter-select filter-select-sm" aria-label="Expiry date comparison">
+                <option value="before">On or Before</option>
+                <option value="after">On or After</option>
+            </select>
+            <input type="date" id="${cfg.dateInputId}" class="filter-input filter-input-date"
+                   aria-label="Expiry date"
+                   onkeydown="handleFilterInputKeydown(event, '${prefix}')" />
+        </div>` : '';
+
+    bar.innerHTML = `
+        <search class="filter-bar-row">
+            <select id="${cfg.columnSelectId}" class="filter-select" aria-label="Filter column" onchange="onFilterColumnChange('${prefix}')">
+                <option value="ticker" selected>Ticker</option>
+                ${dateOptionHtml}
+            </select>
+            <input type="text" id="${cfg.textInputId}" class="filter-input"
+                   aria-label="Ticker symbol"
+                   placeholder="e.g. AAPL"
+                   autocorrect="off" autocapitalize="none" spellcheck="false"
+                   onkeydown="handleFilterInputKeydown(event, '${prefix}')" />${dateGroupHtml}
+            <button type="button" id="${cfg.searchBtnId}" class="btn btn-primary btn-sm filter-search-btn"
+                    onclick="applyDashboardFilter('${prefix}')">
+                🔍 Search
+            </button>
+            <button type="button" id="${cfg.clearBtnId}" class="btn btn-ghost btn-sm"
+                    style="display:none;" onclick="clearDashboardFilter('${prefix}')">
+                ✕ Clear
+            </button>
+        </search>
+        <div id="${cfg.summaryId}" class="filter-summary-text" role="status" aria-live="polite"></div>`;
+
+    return bar;
+}
+
+/**
+ * Mounts all declarative `[data-results-filter]` filter bar placeholders in the document.
+ */
+function initResultsFilterBars() {
+    if (typeof document === 'undefined') return;
+    document.querySelectorAll('[data-results-filter]').forEach(el => {
+        const prefix = el.getAttribute('data-results-filter');
+        if (prefix) renderResultsFilterBar(prefix, el);
+    });
+}
 
 function showDashboardFilterBar(prefix) {
     const cfg = DASHBOARD_FILTER_CONFIG[prefix];
     if (!cfg) return;
     const bar = document.getElementById(cfg.barId);
-    if (bar) bar.style.display = '';
+    if (bar) {
+        if (bar.hasAttribute('data-results-filter')) renderResultsFilterBar(prefix, bar);
+        bar.style.display = '';
+    }
 }
 
 function hideDashboardFilterBar(prefix) {
@@ -2241,6 +2325,9 @@ function hideDashboardFilterBar(prefix) {
 function resetDashboardFilter(prefix) {
     const cfg = DASHBOARD_FILTER_CONFIG[prefix];
     if (!cfg) return;
+
+    const bar = document.getElementById(cfg.barId);
+    if (bar && bar.hasAttribute('data-results-filter')) renderResultsFilterBar(prefix, bar);
 
     const colSelect = document.getElementById(cfg.columnSelectId);
     const textInput = document.getElementById(cfg.textInputId);
@@ -2381,7 +2468,10 @@ function applyDashboardFilter(prefix) {
 
             let isMatch;
             if (columnKey === 'expiry') {
-                const rawItem = rawData.find(d => (d.symbol || '').toLowerCase() === sym);
+                const rowExpiry = row.dataset ? row.dataset.expiry : '';
+                const rawItem = rowExpiry
+                    ? { symbol: sym, expiryDate: rowExpiry }
+                    : rawData.find(d => (d.symbol || '').toLowerCase() === sym);
                 isMatch = rawItem ? matchesDashboardFilter({ item: rawItem, columnKey, filterValue, dateMode }) : false;
             } else {
                 isMatch = matchingSymbols.has(sym);
@@ -2546,6 +2636,10 @@ const DASHBOARD_EXPORTS = {
     cancelExecution,
     fetchAndRenderMarketStatus,
     DASHBOARD_FILTER_CONFIG,
+    createFilterBarConfig,
+    handleFilterInputKeydown,
+    renderResultsFilterBar,
+    initResultsFilterBars,
     showDashboardFilterBar,
     hideDashboardFilterBar,
     resetDashboardFilter,

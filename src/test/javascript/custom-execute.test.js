@@ -28,6 +28,9 @@ const {
     EARNINGS_PRESETS,
     onEarningsPresetChange,
     syncEarningsPresetFromInput,
+    applyDashboardFilter,
+    clearDashboardFilter,
+    deleteCustomResult,
     API,
     escapeAttr
 } = require('../../main/resources/static/app');
@@ -978,6 +981,70 @@ describe('Custom Options Execute Tests', () => {
         const execAllBtn = document.getElementById('execute-all-custom-btn');
         expect(execAllBtn.disabled).toBe(false);
         expect(execAllBtn.innerHTML).toBe('▶ Execute All');
+    });
+
+    test('loadCustomResults mounts and toggles shared filter bar and supports filtering & clearing custom executions', async () => {
+        document.body.innerHTML = `
+            <select id="strategy-type"></select>
+            <div id="custom-options-filter-bar" class="results-filter-bar" data-results-filter="custom-options" style="display:none;"></div>
+            <div id="custom-results"></div>
+        `;
+
+        API.get = jest.fn().mockImplementation(url => {
+            if (url === '/api/results/custom') {
+                return Promise.resolve([
+                    {
+                        strategyId: '301',
+                        strategyName: 'PCS Run 1',
+                        tradesFound: 1,
+                        trades: [{ symbol: 'NVDA', expiryDate: '2026-12-18', dte: 24, returnOnRisk: 14, maxLoss: 500, legs: [] }]
+                    },
+                    {
+                        strategyId: '302',
+                        strategyName: 'PCS Run 2',
+                        tradesFound: 1,
+                        trades: [{ symbol: 'MSFT', expiryDate: '2027-01-15', dte: 52, returnOnRisk: 11, maxLoss: 500, legs: [] }]
+                    }
+                ]);
+            }
+            return Promise.resolve([]);
+        });
+
+        await loadCustomResults();
+
+        const bar = document.getElementById('custom-options-filter-bar');
+        expect(bar.style.display).toBe('');
+        const textInput = document.getElementById('custom-options-filter-text');
+        expect(textInput).not.toBeNull();
+
+        textInput.value = 'NVDA';
+        applyDashboardFilter('custom-options');
+
+        expect(document.getElementById('content-301').classList.contains('open')).toBe(true);
+        expect(document.getElementById('content-302').classList.contains('open')).toBe(false);
+        expect(document.getElementById('custom-options-filter-summary').textContent).toContain('1 match across 1 strategy.');
+
+        clearDashboardFilter('custom-options');
+        expect(textInput.value).toBe('');
+        expect(document.getElementById('content-301').classList.contains('open')).toBe(false);
+
+        // Empty custom results hides the filter bar
+        API.get = jest.fn().mockResolvedValueOnce([]);
+        await loadCustomResults();
+        expect(bar.style.display).toBe('none');
+    });
+
+    test('deleteCustomResult hides custom-options filter bar when last card is deleted', async () => {
+        document.body.innerHTML = `
+            <div id="custom-options-filter-bar" class="results-filter-bar" data-results-filter="custom-options" style="display:block;"></div>
+            <div id="custom-results">
+                <div class="card" id="only-card"></div>
+            </div>
+        `;
+        API.delete = jest.fn().mockResolvedValueOnce({ success: true });
+
+        await deleteCustomResult('301', document.getElementById('only-card'));
+        expect(document.getElementById('custom-options-filter-bar').style.display).toBe('none');
     });
 });
 
