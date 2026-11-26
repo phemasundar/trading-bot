@@ -9,6 +9,9 @@ window.tradeDataMap = window.tradeDataMap || {};
 window.tradeStrategyIdMap = window.tradeStrategyIdMap || {};
 window.tradeStrategyTypeMap = window.tradeStrategyTypeMap || {};
 window.strategyColumnsConfig = window.strategyColumnsConfig || null;
+window.activeDashboardFilters = window.activeDashboardFilters || {};
+
+const TABLE_SORT_COLLATOR = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
 const CardStore = {
     getTrades(cardId) {
@@ -911,11 +914,12 @@ function buildScreenerCard(result, isCustom = false) {
 /** Shared builder for sortable table column headers */
 function createSortableHeaderFn(cardId, state) {
     return (key, label) => {
-        if (!cardId) return `<th>${label}</th>`;
-        const active = state && state.column === key;
+        if (!cardId) return `<th scope="col">${label}</th>`;
+        const active = !!(state && state.column === key && state.direction);
         const arrow = active ? (state.direction === 'asc' ? ' ↑' : ' ↓') : '';
         const cls = active ? 'sort-header active' : 'sort-header';
-        return `<th class="${cls}" onclick="handleTableSort('${cardId}', '${key}')" title="Sort by ${label}">${label}${arrow}</th>`;
+        const ariaSort = active ? ` aria-sort="${state.direction === 'asc' ? 'ascending' : 'descending'}"` : '';
+        return `<th scope="col" class="${cls}" data-sort-key="${escapeAttr(key)}" data-sort-label="${escapeAttr(label)}"${ariaSort} onclick="handleTableSort('${cardId}', '${key}')" title="Sort by ${label}">${label}${arrow}</th>`;
     };
 }
 
@@ -962,7 +966,8 @@ function buildScreenerTable(results, cardId = null) {
             ${maPeriods.map(p => th(`ma_${p}`, `SMA ${p}`)).join('\n            ')}
         </tr></thead><tbody>`;
 
-    for (const r of results) {
+    for (let idx = 0; idx < results.length; idx++) {
+        const r = results[idx];
         const typeClass = r.signalType === 'BULLISH' ? 'text-success' : (r.signalType === 'BEARISH' ? 'text-danger' : 'text-muted');
         
         const price = (typeof r.currentPrice === 'number') ? `$${r.currentPrice.toFixed(2)}` : '-';
@@ -1015,7 +1020,7 @@ function buildScreenerTable(results, cardId = null) {
         const detailStr = escapeAttr(detailLines.join('\n'));
         const techIndicatorsAttr = escapeAttr(r.allTechnicalIndicatorsSummary || r.formattedSummary || '');
 
-        html += `<tr class="trade-row" data-details="${detailStr}" data-tech-indicators="${techIndicatorsAttr}">
+        html += `<tr class="trade-row" data-row-index="${idx}" data-details="${detailStr}" data-tech-indicators="${techIndicatorsAttr}">
             <td><strong class="${typeClass}">${r.symbol || ''}</strong></td>
             <td><span class="text-muted" title="${r.companyName || ''}">${formatCompanyName(r.companyName)}</span></td>
             <td class="text-mono">${price}</td>
@@ -1052,12 +1057,12 @@ function buildDropScreenerTable(results, cardId = null) {
             <th>Type</th>
         </tr></thead><tbody>`;
 
-    let sorted = results;
+    const sorted = results.map((item, idx) => ({ item, idx }));
     if (!state || !state.column) {
-        sorted = [...results].sort((a, b) => (b.dropPercent || 0) - (a.dropPercent || 0));
+        sorted.sort((a, b) => (b.item.dropPercent || 0) - (a.item.dropPercent || 0));
     }
 
-    for (const r of sorted) {
+    for (const { item: r, idx } of sorted) {
         const price = (typeof r.currentPrice === 'number') ? `$${r.currentPrice.toFixed(2)}` : '-';
         const refPrice = (typeof r.referencePrice === 'number') ? `$${r.referencePrice.toFixed(2)}` : '-';
         const dropPct = (typeof r.dropPercent === 'number') ? r.dropPercent.toFixed(2) : '0';
@@ -1077,7 +1082,7 @@ function buildDropScreenerTable(results, cardId = null) {
         const detailStr = escapeAttr(detailLines.join('\n'));
         const techIndicatorsAttr = escapeAttr(r.allTechnicalIndicatorsSummary || r.formattedSummary || '');
 
-        html += `<tr class="trade-row" data-details="${detailStr}" data-tech-indicators="${techIndicatorsAttr}">
+        html += `<tr class="trade-row" data-row-index="${idx}" data-details="${detailStr}" data-tech-indicators="${techIndicatorsAttr}">
             <td><strong class="text-danger">${r.symbol || ''}</strong></td>
             <td><span class="text-muted" title="${r.companyName || ''}">${formatCompanyName(r.companyName)}</span></td>
             <td class="text-mono">${price}</td>
@@ -1325,57 +1330,131 @@ const SCREENER_SORT_EXTRACTORS = {
     dropPct: a => a.dropPercent || 0
 };
 
+/**
+ * Compares two trade or screener rows for a given sort column and direction multiplier.
+ */
+function compareTableRows(a, b, col, dirMultiplier) {
+    if (col === 'ticker') {
+        return TABLE_SORT_COLLATOR.compare(a.symbol || '', b.symbol || '') * dirMultiplier;
+    }
+    if (col === 'breakeven') {
+        const hasCagr = a.breakevenCAGR != null && b.breakevenCAGR != null;
+        const valA = hasCagr ? a.breakevenCAGR : (a.breakEvenPercent || 0);
+        const valB = hasCagr ? b.breakevenCAGR : (b.breakEvenPercent || 0);
+        return (valA - valB) * dirMultiplier;
+    }
+    if (col.startsWith('ma_')) {
+        const period = col.slice(3);
+        const valA = (a.maValues && a.maValues[period]) || 0;
+        const valB = (b.maValues && b.maValues[period]) || 0;
+        return (valA - valB) * dirMultiplier;
+    }
+    const extractor = SCREENER_SORT_EXTRACTORS[col] || (AVAILABLE_TRADE_COLUMNS[col] && AVAILABLE_TRADE_COLUMNS[col].getSortVal);
+    if (extractor) {
+        return (extractor(a) - extractor(b)) * dirMultiplier;
+    }
+    return 0;
+}
+
+/**
+ * Reorders existing `<tr>` elements in place within `<tbody>` so row-level filter state
+ * (`.filter-hidden`/`.filter-match`) and live quote cells are preserved across sorts.
+ */
+function reorderExistingTableRows(contentDiv, indexedData, state) {
+    const table = contentDiv.querySelector('table.data-table');
+    const tbody = table && table.tBodies && table.tBodies[0];
+    if (!tbody) return false;
+
+    const existingRows = Array.from(tbody.querySelectorAll('tr.trade-row'));
+    if (existingRows.length !== indexedData.length) return false;
+
+    const rowByIndex = new Map();
+    for (const row of existingRows) {
+        if (row.dataset.rowIndex === undefined) return false;
+        const idx = Number(row.dataset.rowIndex);
+        if (Number.isNaN(idx)) return false;
+        rowByIndex.set(idx, row);
+    }
+    if (rowByIndex.size !== indexedData.length) return false;
+
+    tbody.querySelectorAll('.trade-detail-panel').forEach(panel => panel.remove());
+    existingRows.forEach(row => row.classList.remove('selected'));
+
+    const moveRow = typeof tbody.moveBefore === 'function'
+        ? (row) => tbody.moveBefore(row, null)
+        : (row) => tbody.appendChild(row);
+
+    for (const entry of indexedData) {
+        const row = rowByIndex.get(entry.idx);
+        if (row) moveRow(row);
+    }
+
+    const headers = table.querySelectorAll('thead th.sort-header[data-sort-key]');
+    headers.forEach(th => {
+        const key = th.dataset.sortKey;
+        const label = th.dataset.sortLabel || th.textContent.replace(/\s*[↑↓]$/, '');
+        const isActive = !!(state && state.column === key && state.direction);
+        th.classList.toggle('active', isActive);
+        if (isActive) {
+            th.setAttribute('aria-sort', state.direction === 'asc' ? 'ascending' : 'descending');
+            th.textContent = `${label}${state.direction === 'asc' ? ' ↑' : ' ↓'}`;
+        } else {
+            th.removeAttribute('aria-sort');
+            th.textContent = label;
+        }
+    });
+
+    return true;
+}
+
 function handleTableSort(cardId, column) {
     const originalData = CardStore.getTrades(cardId);
     if (!originalData || originalData.length === 0) return;
 
     const state = CardStore.toggleSort(cardId, column);
-    let data = [...originalData];
+    const tableType = originalData._type;
+    const indexedData = originalData.map((item, idx) => ({ item, idx }));
 
     if (state && state.column && state.direction) {
         const dirMultiplier = state.direction === 'asc' ? 1 : -1;
         const col = state.column;
-
-        data.sort((a, b) => {
-            if (col === 'ticker') {
-                return (a.symbol || '').localeCompare(b.symbol || '') * dirMultiplier;
-            }
-            if (col === 'breakeven') {
-                const hasCagr = a.breakevenCAGR != null && b.breakevenCAGR != null;
-                const valA = hasCagr ? a.breakevenCAGR : (a.breakEvenPercent || 0);
-                const valB = hasCagr ? b.breakevenCAGR : (b.breakEvenPercent || 0);
-                return (valA - valB) * dirMultiplier;
-            }
-            if (col.startsWith('ma_')) {
-                const period = col.slice(3);
-                const valA = (a.maValues && a.maValues[period]) || 0;
-                const valB = (b.maValues && b.maValues[period]) || 0;
-                return (valA - valB) * dirMultiplier;
-            }
-            const extractor = SCREENER_SORT_EXTRACTORS[col] || (AVAILABLE_TRADE_COLUMNS[col] && AVAILABLE_TRADE_COLUMNS[col].getSortVal);
-            if (extractor) {
-                return (extractor(a) - extractor(b)) * dirMultiplier;
-            }
-            return 0;
-        });
+        indexedData.sort((a, b) => compareTableRows(a.item, b.item, col, dirMultiplier));
+    } else if (tableType === 'drop') {
+        indexedData.sort((a, b) => (b.item.dropPercent || 0) - (a.item.dropPercent || 0));
     }
 
     const contentDiv = document.getElementById(`content-${cardId}`);
-    if (contentDiv) {
-        const tableType = originalData._type;
-        if (tableType === 'drop') {
-            contentDiv.innerHTML = buildDropScreenerTable(data, cardId);
-        } else if (tableType === 'screener') {
-            contentDiv.innerHTML = buildScreenerTable(data, cardId);
-        } else {
-            const actualStrategyId = CardStore.getStrategyId(cardId);
-            const strategyType = CardStore.getStrategyType(cardId);
-            contentDiv.innerHTML = buildTradeTable({ trades: data, cardId, strategyId: actualStrategyId, isHistoryModal: false, strategyType });
-            const symbols = [...new Set(data.map(t => t.symbol).filter(Boolean))];
-            if (symbols.length > 0) {
-                injectTodayPerformance(symbols, contentDiv);
-            }
+    if (!contentDiv) return;
+
+    if (reorderExistingTableRows(contentDiv, indexedData, state)) {
+        return;
+    }
+
+    const data = indexedData.map(entry => entry.item);
+    if (tableType === 'drop') {
+        contentDiv.innerHTML = buildDropScreenerTable(data, cardId);
+    } else if (tableType === 'screener') {
+        contentDiv.innerHTML = buildScreenerTable(data, cardId);
+    } else {
+        const actualStrategyId = CardStore.getStrategyId(cardId);
+        const strategyType = CardStore.getStrategyType(cardId);
+        contentDiv.innerHTML = buildTradeTable({ trades: data, cardId, strategyId: actualStrategyId, isHistoryModal: false, strategyType });
+        const symbols = [...new Set(data.map(t => t.symbol).filter(Boolean))];
+        if (symbols.length > 0) {
+            injectTodayPerformance(symbols, contentDiv);
         }
+    }
+
+    const renderedRows = contentDiv.querySelectorAll('tbody tr.trade-row');
+    renderedRows.forEach((row, i) => {
+        if (indexedData[i]) {
+            row.dataset.rowIndex = String(indexedData[i].idx);
+        }
+    });
+
+    const activeFilter = getActiveFilterForElement(contentDiv);
+    if (activeFilter) {
+        applyFilterToCardRows(contentDiv, cardId, activeFilter);
     }
 }
 
@@ -2326,6 +2405,10 @@ function resetDashboardFilter(prefix) {
     const cfg = DASHBOARD_FILTER_CONFIG[prefix];
     if (!cfg) return;
 
+    if (window.activeDashboardFilters) {
+        delete window.activeDashboardFilters[prefix];
+    }
+
     const bar = document.getElementById(cfg.barId);
     if (bar && bar.hasAttribute('data-results-filter')) renderResultsFilterBar(prefix, bar);
 
@@ -2411,6 +2494,64 @@ function matchesDashboardFilter(itemOrOpts, columnKey, filterValue, dateMode = '
     return itemValue.includes(filterValue.toLowerCase().trim());
 }
 
+/**
+ * Resolves the active dashboard filter state for a DOM element based on its owning results container.
+ */
+function getActiveFilterForElement(el) {
+    if (!el || !window.activeDashboardFilters) return null;
+    for (const [prefix, cfg] of Object.entries(DASHBOARD_FILTER_CONFIG)) {
+        const activeFilter = window.activeDashboardFilters[prefix];
+        if (!activeFilter) continue;
+        const container = document.getElementById(cfg.containerId);
+        if (container && container.contains(el)) {
+            return activeFilter;
+        }
+    }
+    return null;
+}
+
+/**
+ * Applies an active dashboard filter to all `.trade-row` elements inside a card or table container,
+ * toggling `.filter-hidden` and `.filter-match` classes and returning the matched row count.
+ */
+function applyFilterToCardRows(scopeEl, cardId, filterState) {
+    if (!scopeEl || !cardId || !filterState) return 0;
+    const rawData = CardStore.getTrades(cardId);
+    if (!rawData || !Array.isArray(rawData)) return 0;
+
+    const { columnKey, filterValue, dateMode } = filterState;
+    const matchingSymbols = new Set();
+    rawData.forEach(item => {
+        if (matchesDashboardFilter({ item, columnKey, filterValue, dateMode })) {
+            matchingSymbols.add(getDashboardItemValue(item, 'ticker'));
+        }
+    });
+
+    const rows = scopeEl.querySelectorAll('tbody .trade-row');
+    let cardMatchCount = 0;
+
+    rows.forEach(row => {
+        const sym = (row.dataset.symbol || row.querySelector('td strong')?.textContent || '').toLowerCase();
+
+        let isMatch;
+        if (columnKey === 'expiry') {
+            const rowExpiry = row.dataset ? row.dataset.expiry : '';
+            const rawItem = rowExpiry
+                ? { symbol: sym, expiryDate: rowExpiry }
+                : rawData.find(d => (d.symbol || '').toLowerCase() === sym);
+            isMatch = rawItem ? matchesDashboardFilter({ item: rawItem, columnKey, filterValue, dateMode }) : false;
+        } else {
+            isMatch = matchingSymbols.has(sym);
+        }
+
+        row.classList.toggle('filter-hidden', !isMatch);
+        row.classList.toggle('filter-match', isMatch);
+        if (isMatch) cardMatchCount++;
+    });
+
+    return cardMatchCount;
+}
+
 function applyDashboardFilter(prefix) {
     const cfg = DASHBOARD_FILTER_CONFIG[prefix];
     if (!cfg) return;
@@ -2440,6 +2581,9 @@ function applyDashboardFilter(prefix) {
     }
 
     const dateMode = dateModeSelect ? dateModeSelect.value : 'before';
+    const activeFilter = { columnKey, filterValue, dateMode };
+    if (!window.activeDashboardFilters) window.activeDashboardFilters = {};
+    window.activeDashboardFilters[prefix] = activeFilter;
 
     const cards = container ? container.querySelectorAll('.card') : [];
     let totalMatches = 0;
@@ -2453,34 +2597,7 @@ function applyDashboardFilter(prefix) {
         const rawData = CardStore.getTrades(cardId);
         if (!rawData || !Array.isArray(rawData)) return;
 
-        const matchingSymbols = new Set();
-        rawData.forEach(item => {
-            if (matchesDashboardFilter({ item, columnKey, filterValue, dateMode })) {
-                matchingSymbols.add(getDashboardItemValue(item, 'ticker'));
-            }
-        });
-
-        const rows = card.querySelectorAll('tbody .trade-row');
-        let cardMatchCount = 0;
-
-        rows.forEach(row => {
-            const sym = (row.dataset.symbol || row.querySelector('td strong')?.textContent || '').toLowerCase();
-
-            let isMatch;
-            if (columnKey === 'expiry') {
-                const rowExpiry = row.dataset ? row.dataset.expiry : '';
-                const rawItem = rowExpiry
-                    ? { symbol: sym, expiryDate: rowExpiry }
-                    : rawData.find(d => (d.symbol || '').toLowerCase() === sym);
-                isMatch = rawItem ? matchesDashboardFilter({ item: rawItem, columnKey, filterValue, dateMode }) : false;
-            } else {
-                isMatch = matchingSymbols.has(sym);
-            }
-
-            row.classList.toggle('filter-hidden', !isMatch);
-            row.classList.toggle('filter-match', isMatch);
-            if (isMatch) cardMatchCount++;
-        });
+        const cardMatchCount = applyFilterToCardRows(card, cardId, activeFilter);
 
         const detailPanels = card.querySelectorAll('.trade-detail-panel');
         detailPanels.forEach(panel => panel.remove());
@@ -2537,6 +2654,10 @@ function applyDashboardFilter(prefix) {
 function clearDashboardFilter(prefix) {
     const cfg = DASHBOARD_FILTER_CONFIG[prefix];
     if (!cfg) return;
+
+    if (window.activeDashboardFilters) {
+        delete window.activeDashboardFilters[prefix];
+    }
 
     const textInput = document.getElementById(cfg.textInputId);
     const dateInput = cfg.dateInputId ? document.getElementById(cfg.dateInputId) : null;

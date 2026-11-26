@@ -68,6 +68,7 @@ describe('Dashboard & Table Rendering Tests', () => {
         jest.restoreAllMocks();
         window.tableSortState = {};
         window.tradeDataMap = {};
+        window.activeDashboardFilters = {};
         global.fetch = jest.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve([]) });
     });
 
@@ -1219,6 +1220,150 @@ describe('Dashboard & Table Rendering Tests', () => {
             expect(rows[1].classList.contains('filter-match')).toBe(false);
             expect(rows[1].classList.contains('filter-hidden')).toBe(true);
             expect(document.getElementById('custom-options-filter-summary').textContent).toContain('1 match across 1 strategy.');
+        });
+
+        test('Dashboard: sorting any column retains ticker search results and Clear restores all rows', () => {
+            document.body.innerHTML = `
+                <div id="options-filter-bar" class="results-filter-bar" data-results-filter="options"></div>
+                <div id="results-container"></div>
+            `;
+            initResultsFilterBars();
+
+            const container = document.getElementById('results-container');
+            const card = buildResultCard({
+                strategyId: 'pcs-dash',
+                strategyName: 'PCS Dashboard',
+                tradesFound: 4,
+                trades: [
+                    { symbol: 'AAPL', expiryDate: '2026-12-18', dte: 30, returnOnRisk: 18, maxLoss: 500, legs: [] },
+                    { symbol: 'MSFT', expiryDate: '2026-12-18', dte: 30, returnOnRisk: 25, maxLoss: 400, legs: [] },
+                    { symbol: 'AAPL', expiryDate: '2027-01-15', dte: 58, returnOnRisk: 12, maxLoss: 300, legs: [] },
+                    { symbol: 'NVDA', expiryDate: '2026-12-18', dte: 30, returnOnRisk: 30, maxLoss: 600, legs: [] }
+                ]
+            }, 'Standard');
+            container.appendChild(card);
+
+            document.getElementById('options-filter-text').value = 'AAPL';
+            applyDashboardFilter('options');
+
+            // Sort ascending by ROR%
+            handleTableSort('pcs-dash', 'ror');
+            let visibleRows = Array.from(card.querySelectorAll('tbody .trade-row:not(.filter-hidden)'));
+            let hiddenRows = Array.from(card.querySelectorAll('tbody .trade-row.filter-hidden'));
+            expect(visibleRows.length).toBe(2);
+            expect(hiddenRows.length).toBe(2);
+            expect(visibleRows.every(r => r.dataset.symbol === 'AAPL' && r.classList.contains('filter-match'))).toBe(true);
+            expect(visibleRows.map(r => r.dataset.expiry)).toEqual(['2027-01-15', '2026-12-18']);
+            expect(card.querySelector('th[data-sort-key="ror"]').getAttribute('aria-sort')).toBe('ascending');
+
+            // Sort descending by ROR%
+            handleTableSort('pcs-dash', 'ror');
+            visibleRows = Array.from(card.querySelectorAll('tbody .trade-row:not(.filter-hidden)'));
+            expect(visibleRows.length).toBe(2);
+            expect(visibleRows.map(r => r.dataset.expiry)).toEqual(['2026-12-18', '2027-01-15']);
+            expect(card.querySelector('th[data-sort-key="ror"]').getAttribute('aria-sort')).toBe('descending');
+
+            // 3rd click resets sort order while still keeping filter active
+            handleTableSort('pcs-dash', 'ror');
+            visibleRows = Array.from(card.querySelectorAll('tbody .trade-row:not(.filter-hidden)'));
+            expect(visibleRows.length).toBe(2);
+            expect(visibleRows.map(r => r.dataset.expiry)).toEqual(['2026-12-18', '2027-01-15']);
+            expect(card.querySelector('th[data-sort-key="ror"]').getAttribute('aria-sort')).toBeNull();
+
+            // Clear restores all 4 rows
+            clearDashboardFilter('options');
+            expect(card.querySelectorAll('tbody .trade-row.filter-hidden').length).toBe(0);
+            expect(card.querySelectorAll('tbody .trade-row').length).toBe(4);
+        });
+
+        test('Execute Strategy: sorting any column retains expiry date search results across multi-expiry rows', () => {
+            document.body.innerHTML = `
+                <div id="custom-options-filter-bar" class="results-filter-bar" data-results-filter="custom-options"></div>
+                <div id="custom-results"></div>
+            `;
+            initResultsFilterBars();
+
+            const container = document.getElementById('custom-results');
+            const card = buildResultCard({
+                strategyId: '601',
+                strategyName: 'Custom Multi Expiry PCS',
+                tradesFound: 3,
+                trades: [
+                    { symbol: 'MSFT', expiryDate: '2026-12-18', dte: 24, returnOnRisk: 14, maxLoss: 500, legs: [] },
+                    { symbol: 'AAPL', expiryDate: '2027-02-19', dte: 87, returnOnRisk: 22, maxLoss: 450, legs: [] },
+                    { symbol: 'AAPL', expiryDate: '2026-12-11', dte: 17, returnOnRisk: 10, maxLoss: 350, legs: [] }
+                ]
+            }, 'Custom');
+            container.appendChild(card);
+
+            const colSelect = document.getElementById('custom-options-filter-column');
+            colSelect.value = 'expiry';
+            onFilterColumnChange('custom-options');
+            document.getElementById('custom-options-filter-date-mode').value = 'before';
+            document.getElementById('custom-options-filter-date').value = '2026-12-31';
+            applyDashboardFilter('custom-options');
+
+            // Sort by ticker ascending -> AAPL (2026-12-11) before MSFT (2026-12-18); AAPL (2027-02-19) remains hidden
+            handleTableSort('601', 'ticker');
+            let visibleRows = Array.from(card.querySelectorAll('tbody .trade-row:not(.filter-hidden)'));
+            let hiddenRows = Array.from(card.querySelectorAll('tbody .trade-row.filter-hidden'));
+            expect(visibleRows.length).toBe(2);
+            expect(hiddenRows.length).toBe(1);
+            expect(hiddenRows[0].dataset.expiry).toBe('2027-02-19');
+            expect(visibleRows.map(r => `${r.dataset.symbol}:${r.dataset.expiry}`)).toEqual([
+                'AAPL:2026-12-11',
+                'MSFT:2026-12-18'
+            ]);
+
+            // Sort by maxLoss descending -> MSFT (500) before AAPL (350); 2027-02-19 still hidden
+            handleTableSort('601', 'maxLoss');
+            handleTableSort('601', 'maxLoss');
+            visibleRows = Array.from(card.querySelectorAll('tbody .trade-row:not(.filter-hidden)'));
+            expect(visibleRows.map(r => r.dataset.symbol)).toEqual(['MSFT', 'AAPL']);
+            expect(card.querySelectorAll('tbody .trade-row.filter-hidden').length).toBe(1);
+
+            // Clear restores all 3 rows
+            clearDashboardFilter('custom-options');
+            expect(card.querySelectorAll('tbody .trade-row.filter-hidden').length).toBe(0);
+            expect(card.querySelectorAll('tbody .trade-row').length).toBe(3);
+        });
+
+        test('Screeners & fallback re-render: sorting retains active search results', () => {
+            document.body.innerHTML = `
+                <div id="screeners-filter-bar" class="results-filter-bar" data-results-filter="screeners"></div>
+                <div id="screener-results-container"></div>
+            `;
+            initResultsFilterBars();
+
+            const container = document.getElementById('screener-results-container');
+            const card = buildScreenerCard({
+                screenerId: 'scr-1',
+                screenerName: 'RSI Oversold',
+                resultsFound: 3,
+                results: [
+                    { symbol: 'AAPL', currentPrice: 180, rsi: 28 },
+                    { symbol: 'AMZN', currentPrice: 190, rsi: 24 },
+                    { symbol: 'MSFT', currentPrice: 410, rsi: 29 }
+                ]
+            });
+            container.appendChild(card);
+
+            document.getElementById('screeners-filter-text').value = 'A';
+            applyDashboardFilter('screeners');
+
+            handleTableSort('scr-1', 'rsi');
+            const visibleSymbols = Array.from(card.querySelectorAll('tbody .trade-row:not(.filter-hidden)'))
+                .map(r => r.querySelector('td strong').textContent);
+            expect(visibleSymbols).toEqual(['AMZN', 'AAPL']);
+            expect(card.querySelectorAll('tbody .trade-row.filter-hidden').length).toBe(1);
+
+            // Simulate fallback path where rows have no data-row-index
+            card.querySelectorAll('tbody .trade-row').forEach(r => delete r.dataset.rowIndex);
+            handleTableSort('scr-1', 'rsi');
+            const visibleSymbolsDesc = Array.from(card.querySelectorAll('tbody .trade-row:not(.filter-hidden)'))
+                .map(r => r.querySelector('td strong').textContent);
+            expect(visibleSymbolsDesc).toEqual(['AAPL', 'AMZN']);
+            expect(card.querySelectorAll('tbody .trade-row.filter-hidden').length).toBe(1);
         });
     });
 });
