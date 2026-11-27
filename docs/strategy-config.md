@@ -95,6 +95,14 @@ Options strategies support declarative, mathematical formula-like filter conditi
 | **Trade Level** | `UPPER_BREAK_EVEN_PRICE` | Upper breakeven price for 2-sided strategies (IC, Strangle)   |
 | **Trade Level** | `UPPER_BREAK_EVEN_PCT` | Upper breakeven distance percentage                           |
 | **Trade Level** | `UPPER_BREAK_EVEN_DELTA` | Upper breakeven delta                                         |
+| **Trade Level** | `LOWER_BREAKEVEN_PRICE` | Strategy lower breakeven price (`$` — PCS, Short Put, IC, Strangle, BWB) |
+| **Trade Level** | `UPPER_BREAKEVEN_PRICE` | Strategy upper breakeven price (`$` — CCS, IC, Strangle, BWB, LEAP, ZEBRA) |
+| **Expected Move** | `LOWER_EXPECTED_MOVE_PRICE` | Lower $1\sigma$ Expected Move price boundary (`$`) — see [docs/expected-move.md](file:///c:/Projects/trading-bot/docs/expected-move.md) |
+| **Expected Move** | `UPPER_EXPECTED_MOVE_PRICE` | Upper $1\sigma$ Expected Move price boundary (`$`)            |
+| **Expected Move** | `DOWNSIDE_EXPECTED_MOVE_DOLLARS` | Downside $1\sigma$ Expected Move distance (`$`)               |
+| **Expected Move** | `UPSIDE_EXPECTED_MOVE_DOLLARS` | Upside $1\sigma$ Expected Move distance (`$`)                 |
+| **Expected Move** | `DOWNSIDE_EXPECTED_MOVE_PCT` | Downside $1\sigma$ Expected Move percentage of spot (`%`)     |
+| **Expected Move** | `UPSIDE_EXPECTED_MOVE_PCT` | Upside $1\sigma$ Expected Move percentage of spot (`%`)       |
 | **Trade Level** | `ANNUALIZED_EXTRINSIC_PCT` | Annualized net extrinsic value percentage relative to capital |
 | **Trade Level** | `CURRENT_PRICE` | Current underlying stock price                                |
 | **Trade Level** | `OPTION_PRICE_PCT` | Option price percentage relative to stock price (LEAP)        |

@@ -1583,6 +1583,35 @@ function renderOptionDataTable(legsOptionData) {
     return html;
 }
 
+function formatExpectedMoveDetail(trade) {
+    if (!trade || trade.expectedMoveLowerPrice == null || trade.expectedMoveUpperPrice == null) {
+        return '';
+    }
+    const tier = trade.expectedMoveTier || 'EM';
+    const lower = Number(trade.expectedMoveLowerPrice).toFixed(2);
+    const upper = Number(trade.expectedMoveUpperPrice).toFixed(2);
+    const up = trade.expectedMoveUpsideDollars != null ? Number(trade.expectedMoveUpsideDollars) : null;
+    const down = trade.expectedMoveDownsideDollars != null ? Number(trade.expectedMoveDownsideDollars) : null;
+    const upPct = trade.expectedMoveUpsidePct != null ? Number(trade.expectedMoveUpsidePct) : null;
+    const downPct = trade.expectedMoveDownsidePct != null ? Number(trade.expectedMoveDownsidePct) : null;
+
+    let line;
+    if (up != null && down != null && Math.abs(up - down) > 0.01) {
+        const pctSuffix = (upPct != null && downPct != null)
+            ? `, -${downPct.toFixed(2)}% / +${upPct.toFixed(2)}%`
+            : '';
+        line = `EM (1σ, ${tier}): $${lower} – $${upper} (-$${down.toFixed(2)} / +$${up.toFixed(2)}${pctSuffix})`;
+    } else if (up != null) {
+        const pctSuffix = upPct != null ? ` / ±${upPct.toFixed(2)}%` : '';
+        line = `EM (1σ, ${tier}): $${lower} – $${upper} (±$${up.toFixed(2)}${pctSuffix})`;
+    } else {
+        line = `EM (1σ, ${tier}): $${lower} – $${upper}`;
+    }
+
+    const reason = trade.expectedMoveReason ? String(trade.expectedMoveReason).trim() : '';
+    return reason ? `${line}\nEM tier selection notes: ${reason}` : line;
+}
+
 function initTradeRowClicks() {
     document.addEventListener('click', (e) => {
         const row = e.target.closest('.trade-row');
@@ -1608,8 +1637,9 @@ function initTradeRowClicks() {
 
         const symbol = row.querySelector('td strong')?.textContent || '';
         let legsOptionData = null;
+        let cachedTrade = null;
         if (row.dataset.cardId && row.dataset.rowIndex !== undefined) {
-            const cachedTrade = CardStore.getTrades(row.dataset.cardId)[Number(row.dataset.rowIndex)];
+            cachedTrade = CardStore.getTrades(row.dataset.cardId)[Number(row.dataset.rowIndex)];
             if (cachedTrade && Array.isArray(cachedTrade.legs)) {
                 legsOptionData = cachedTrade.legs.map(l => ({ action: l.action, optionType: l.optionType, optionData: l.optionData || null }));
             }
@@ -1619,6 +1649,20 @@ function initTradeRowClicks() {
                 const raw = row.dataset.legsOptionData ? decodeAttr(row.dataset.legsOptionData) : null;
                 legsOptionData = raw ? JSON.parse(raw) : null;
             } catch(e) {}
+        }
+
+        let renderedDetails = decodeAttr(details);
+        if (cachedTrade) {
+            if (!renderedDetails.includes('EM (1σ')) {
+                const emLine = formatExpectedMoveDetail(cachedTrade);
+                if (emLine) {
+                    renderedDetails += `\n${emLine}`;
+                }
+            } else if (cachedTrade.expectedMoveReason
+                    && !renderedDetails.includes('EM tier selection notes:')
+                    && !renderedDetails.includes('EM Reason:')) {
+                renderedDetails += `\nEM tier selection notes: ${String(cachedTrade.expectedMoveReason).trim()}`;
+            }
         }
         
         const panel = document.createElement('tr');
@@ -1630,7 +1674,7 @@ function initTradeRowClicks() {
                     <div class="trade-detail-header">
                         ▶ ${symbol} — Trade Details
                     </div>
-                    <pre class="trade-detail-body">${decodeAttr(details)}</pre>
+                    <pre class="trade-detail-body">${escapeHtmlContent(renderedDetails)}</pre>
                     ${techIndicators ? `
                     <div class="trade-detail-header" style="margin-top: 15px;">
                         ▶ ${symbol} — Tech Indicators
@@ -2741,6 +2785,7 @@ const DASHBOARD_EXPORTS = {
     injectTodayPerformance,
     fetchAndInjectTodayPerformance,
     renderOptionDataTable,
+    formatExpectedMoveDetail,
     initTradeRowClicks,
     showTradeHistoryModal,
     formatTechFilterValue,

@@ -853,6 +853,78 @@ async function initVolatilityPage() {
     }
 }
 
+/**
+ * Converts fenced ```mermaid blocks rendered by marked into <div class="mermaid">
+ * elements and runs Mermaid.js rendering if available in the browser environment.
+ */
+async function renderMermaidDiagrams(container) {
+    if (!container || typeof document === 'undefined') return;
+    const codeBlocks = container.querySelectorAll('pre > code.language-mermaid');
+    if (!codeBlocks || codeBlocks.length === 0) return;
+
+    const nodes = [];
+    codeBlocks.forEach(codeEl => {
+        const preEl = codeEl.parentElement;
+        if (!preEl || !preEl.parentNode) return;
+        const mermaidDiv = document.createElement('div');
+        mermaidDiv.className = 'mermaid';
+        mermaidDiv.textContent = codeEl.textContent || '';
+        preEl.parentNode.replaceChild(mermaidDiv, preEl);
+        nodes.push(mermaidDiv);
+    });
+
+    if (nodes.length > 0 && typeof mermaid !== 'undefined') {
+        try {
+            const currentTheme = (document.documentElement && document.documentElement.getAttribute('data-theme')) || 'dark';
+            if (typeof mermaid.initialize === 'function') {
+                mermaid.initialize({
+                    startOnLoad: false,
+                    theme: currentTheme === 'light' ? 'default' : 'dark'
+                });
+            }
+            if (typeof mermaid.run === 'function') {
+                await mermaid.run({ nodes });
+            }
+        } catch (err) {
+            console.warn('Failed to render Mermaid diagrams:', err);
+        }
+    }
+}
+
+/**
+ * Initializes the Expected Move Learning Center page.
+ */
+async function initExpectedMovePage() {
+    const contentEl = document.getElementById('expected-move-markdown-content');
+    if (!contentEl) return;
+
+    try {
+        renderGuideLoadingState(contentEl, 'Loading Expected Move guide...');
+
+        const markdownText = await fetchFirstAvailableMarkdown(
+            ['/descriptions/expected-move.md', '/descriptions/ExpectedMove.md'],
+            (status) => `Expected Move guide not found (HTTP ${status})`
+        );
+
+        const firstLine = markdownText.split('\n')[0] || '';
+        if (firstLine.startsWith('# ')) {
+            document.title = `${firstLine.substring(2).trim()} — Learning Center`;
+        }
+
+        renderMarkdownIntoElement(contentEl, markdownText);
+        await renderMermaidDiagrams(contentEl);
+    } catch (err) {
+        console.error('Failed to load expected move guide:', err);
+        renderGuideErrorState(
+            contentEl,
+            'Expected Move Guide Not Found',
+            'Could not load documentation for Expected Move.',
+            '/option-strategies.html',
+            '← Back to Learning Center'
+        );
+    }
+}
+
 const LEARNING_CENTER_EXPORTS = {
     DEFAULT_OPTION_STRATEGIES,
     STRATEGY_TYPE_MAP,
@@ -873,7 +945,9 @@ const LEARNING_CENTER_EXPORTS = {
     clearGreekSearch,
     initOptionGreeksPage,
     initGreekDetailPage,
-    initVolatilityPage
+    initVolatilityPage,
+    initExpectedMovePage,
+    renderMermaidDiagrams
 };
 
 if (typeof window !== 'undefined') {

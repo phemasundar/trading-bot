@@ -1,6 +1,8 @@
 # Implied Volatility (IV) & Volatility Metrics Documentation
 
-This document provides a detailed technical specification of how **IV Percentile**, **IV Rank**, and all other volatility-related indicators are gathered, computed, cached, and utilized across the trading bot.
+This document provides a detailed technical specification of how **IV Percentile**, **IV Rank**, **Constant-Maturity 30-Day ATM IV**, and realized volatility indicators (**HV Rank**, **ATR**) are gathered, computed, cached, and utilized across the trading bot.
+
+For the complete specification of the **3-Tier Waterfall + LEAPS Expected Move ($1\sigma$) Engine**, how all IV sources feed Expected Move, and how strategy breakeven filters (`LOWER_BREAKEVEN_PRICE`, `UPPER_BREAKEVEN_PRICE`, `LOWER_EXPECTED_MOVE_PRICE`, `UPPER_EXPECTED_MOVE_PRICE`) work, see [docs/expected-move.md](file:///c:/Projects/trading-bot/docs/expected-move.md).
 
 ---
 
@@ -185,17 +187,24 @@ The system calculates several complementary volatility metrics:
 
 ---
 
-### 3. Option Contract Leg Implied Volatility (`passesVolatility`)
+### 3. Option Contract Leg Implied Volatility (`passesVolatility` / `leg.IV`)
 - **Purpose**: Validates implied volatility on specific option contract legs within a strategy (e.g. Long Call, Short Put).
-- **Code**: [LegFilter.java:L79-L84](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/options/models/LegFilter.java#L79-L84)
+- **Code**: [LegFilter.java:L79-L84](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/options/models/LegFilter.java#L79-L84) and [OptionFilterValueResolver.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/options/models/OptionFilterValueResolver.java) (`IV`, `SHORT_LEG.IV`, `LONG_LEG.IV`, etc.)
 - **Conditions**:
-  - `minVolatility`: If configured, requires `leg.getVolatility() >= minVolatility`.
-  - `maxVolatility`: If configured, requires `leg.getVolatility() <= maxVolatility`.
-- **Source**: Directly obtained from the real-time Schwab option chain quote (`OptionChainResponse.OptionData`).
+  - Math expression conditions: e.g. `SHORT_LEG.IV >= 25` or nested leg `IV <= 60`.
+  - Legacy bounds: `minVolatility` (`leg.getVolatility() >= minVolatility`) and `maxVolatility` (`leg.getVolatility() <= maxVolatility`).
+- **Source**: Directly obtained from the real-time Schwab option chain contract quote (`OptionChainResponse.OptionData.getVolatility()`).
 
 ---
 
-### 4. Historical Volatility (HV) & HV Rank
+### 4. Chain-Wide Smoothed Underlying Implied Volatility (`chain.getVolatility()`)
+- **Purpose**: Provides a broker-smoothed theoretical implied volatility at the option chain root level when historical `public.iv_data` has fewer than 20 daily observations.
+- **Code**: [OptionChainResponse.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/options/models/OptionChainResponse.java) (`getVolatility()`) and [ExpectedMoveCalculator.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/options/expectedmove/ExpectedMoveCalculator.java)
+- **Usage**: Secondary IV source in **Tier 3 Expected Move** (`ExpectedMoveTier.TIER_3_IV_LINEAR`) after `IVDataRepository.getCurrentIV(symbol)`.
+
+---
+
+### 5. Historical Volatility (HV) & HV Rank
 - **Purpose**: Measures actual underlying stock price volatility calculated from daily log returns, independent of option pricing.
 - **Code**: [VolatilityCalculator.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/utils/VolatilityCalculator.java) and [TechnicalScreener.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/technical/TechnicalScreener.java#L450-L465)
 - **Calculation Steps**:
@@ -213,7 +222,7 @@ The system calculates several complementary volatility metrics:
 
 ---
 
-### 5. Average True Range (ATR 14)
+### 6. Average True Range (ATR 14)
 - **Purpose**: Measures absolute price movement volatility in dollars per day.
 - **Code**: Evaluated in [TechnicalScreener.java:L489-L491](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/technical/TechnicalScreener.java#L489-L491) using Ta4j's `ATRIndicator` (14-day default).
 - **True Range formula**:
@@ -240,17 +249,15 @@ During options strategy execution ([AbstractTradingStrategy.java:L49-L77](file:/
 
 ---
 
-## 5. Architectural Separation: Technical Indicators vs. Options IV Pipeline
+## 5. Architectural Separation: Technical Indicators vs. Options IV vs. Expected Move
 
-| Dimension | **Technical Indicators Pipeline** (SMA, EMA, RSI, BB, ATR, **HV**) | **Options IV Pipeline** (**IV Rank, IV Percentile**) |
-| :--- | :--- | :--- |
-| **Underlying Data Source** | Equity price history (daily OHLCV candles / bars) from Schwab Price History API | Option chains (strikes, expiries, call/put bids, asks, Greeks) from Schwab Option Chain API |
-| **Engine / Calculator** | [TechnicalScreener.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/technical/TechnicalScreener.java), [TechnicalIndicatorUtils.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/technical/TechnicalIndicatorUtils.java), and [VolatilityCalculator.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/utils/VolatilityCalculator.java) | [IVDataCollector.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/IVDataCollector.java) and [IVDataRepository.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java) |
-| **Pre-Calculation Service** | [TechnicalIndicatorPreCalculationService.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/TechnicalIndicatorPreCalculationService.java) | [IVDataJobService.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/jobs/IVDataJobService.java) (scheduled daily job `IV_DATA`) |
-| **Supabase Destination** | Table `latest_security_indicators` (JSONB columns: `moving_averages`, `rsi`, `bollinger`, `volatility.historicalVolatility`) | Table `public.iv_data` (1 row per symbol per day: `put_iv`, `call_iv`, `strike`, `dte`) |
-| **In-Memory Cache** | [TechnicalIndicatorCache.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/cache/TechnicalIndicatorCache.java) | [IVDataRepository.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java) (`ivStatsCache`) |
-| **Is HV included?** | **YES**: Historical Volatility (`HV Rank`, `ATR`) is calculated directly alongside SMAs, EMAs, and RSI. | **NO**: HV is realized price volatility, not implied volatility. |
-| **Is IV included?** | **NO**: Implied Volatility is not calculated from equity price bars. | **YES**: Dedicated option-implied volatility metric. |
+| Dimension | **Technical Indicators Pipeline** (SMA, EMA, RSI, BB, ATR, **HV**) | **Options IV Pipeline** (**`currentIV`, IV Rank, IV Percentile**) | **Expected Move ($1\sigma$) Pipeline** (**LEAPS, Tier 1, Tier 2, Tier 3**) |
+| :--- | :--- | :--- | :--- |
+| **Underlying Data Source** | Equity price history (daily OHLCV candles / bars) from Schwab Price History API | Option chains (~30 DTE bracketing expiries, ATM Call/Put IV) from Schwab Option Chain API | Live option chain strikes/quotes + `QuotesCache` spot + `IVDataRepository.getCurrentIV()` + FinnHub `DAYS_TO_NEXT_EARNINGS` |
+| **Engine / Calculator** | [TechnicalScreener.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/technical/TechnicalScreener.java), [TechnicalIndicatorUtils.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/technical/TechnicalIndicatorUtils.java), and [VolatilityCalculator.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/utils/VolatilityCalculator.java) | [IVDataCollector.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/IVDataCollector.java) and [IVDataRepository.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java) | [ExpectedMoveCalculator.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/options/expectedmove/ExpectedMoveCalculator.java) |
+| **Pre-Calculation / Pre-Warm** | [TechnicalIndicatorPreCalculationService.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/TechnicalIndicatorPreCalculationService.java) | [IVDataJobService.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/jobs/IVDataJobService.java) (`IV_DATA` job) + `preloadIVStats()` per micro-batch | Computed on demand & memoized once per `(symbol, expiryDate)` during strategy execution |
+| **Supabase Destination** | Table `latest_security_indicators` (JSONB columns: `moving_averages`, `rsi`, `bollinger`, `volatility.historicalVolatility`) | Table `public.iv_data` (1 row per symbol per day: `put_iv`, `call_iv`, `strike`, `dte`) | Persisted on resulting `Trade` JSON inside `latest_strategy_results`, `custom_execution_results`, and `historical_trades` |
+| **In-Memory Cache** | [TechnicalIndicatorCache.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/cache/TechnicalIndicatorCache.java) | [IVDataRepository.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/services/supabase/IVDataRepository.java) (`ivStatsCache`) | [OptionChainResponse.java](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/options/models/OptionChainResponse.java) (`expectedMoveCache`) |
 
 ---
 
@@ -297,5 +304,30 @@ Both **IV** (Implied Volatility Rank / Percentile / Current 30-day IV) and **HV*
 - In technical screening, `TechnicalScreener.ScreeningResult.getIndicatorValue()` dynamically resolves `IV_PERCENTILE`, `IV_RANK`, `CURRENT_IV`, and `HV_RANK`.
 - In options strategy execution, `AbstractTradingStrategy` injects `HV_RANK` and `CURRENT_IV` from `TechnicalIndicatorCache` into the IV evaluation map (`ivVars`).
 - If either IV or HV historical data is unavailable for a symbol, evaluation preserves fail-open behavior to prevent unwarranted trade candidate rejections.
+
+---
+
+## 7. 3-Tier Waterfall + LEAPS Expected Move Engine
+
+> **Full Specification**: See [docs/expected-move.md](file:///c:/Projects/trading-bot/docs/expected-move.md) for complete phase-by-phase guardrails, worked dollar examples, polymorphic breakeven mappings across all 8 strategies, and caching architecture.
+
+To compute reliable $\pm 1\sigma$ (~68.2% probability) price boundaries per `(symbol, expiryDate)`, [`ExpectedMoveCalculator.java`](file:///c:/Projects/trading-bot/src/main/java/com/hemasundar/options/expectedmove/ExpectedMoveCalculator.java) evaluates a strict priority waterfall memoized once per expiration on `OptionChainResponse`:
+
+1. **LEAPS Regime (`DTE > 365`, `minutesToExp > 525,600`) — Geometric Lognormal Model**:
+   - Uses saved 1Y 30-day ATM `currentIV` from `IVDataRepository` (`>= 20` historical records):
+     $$\text{Upper Bound} = S \cdot e^{+\text{IV}\sqrt{T}}, \qquad \text{Lower Bound} = S \cdot e^{-\text{IV}\sqrt{T}}$$
+   - Falls back directly to Tier 2 $\rightarrow$ Tier 3 if `currentIV` is unavailable (`< 20` historical rows).
+2. **Tier 1 (`1` to `365` DTE) — Institutional 5-Strike Blend (`60% / 30% / 10%`)**:
+   - Requires `DAYS_TO_NEXT_EARNINGS > 10`, equal strike spacing across `atmIdx - 2 .. atmIdx + 2`, all 6 contracts passing `bid >= $0.05`, relative spread `<= 15%`, intrinsic parity, and `blendedEm <= 1.05 * atmStraddle`:
+     $$\text{EM} = 0.60 \times (\text{ATM Straddle}) + 0.30 \times (\text{1st OTM Strangle}) + 0.10 \times (\text{2nd OTM Strangle})$$
+3. **Tier 2 (`0DTE` or Wing Fallback) — `0.85 × ATM Straddle`**:
+   - Primary engine for `0DTE` (`minutesToExp < 1,440`) and automatic fallback whenever Tier 1 or LEAPS is skipped, provided ATM Call & Put pass `bid >= $0.01`, relative spread `<= 25%`, and intrinsic parity:
+     $$\text{EM} = 0.85 \times (\text{ATM Call Mid} + \text{ATM Put Mid})$$
+4. **Tier 3 (Quote-Degraded Fallback) — Annualized IV Linear Model**:
+   - Uses `IVDataRepository` `currentIV` first (`>= 20` records), falling back to Schwab's chain-wide smoothed `chain.getVolatility()`:
+     $$\text{EM} = S \times \text{IV} \times \sqrt{\frac{\max(\text{minutesToExp},\ 1.0)}{525,600}}$$
+5. **Filter Integration & Trade Details**:
+   - Exposes `LOWER_EXPECTED_MOVE_PRICE`, `UPPER_EXPECTED_MOVE_PRICE`, `DOWNSIDE_EXPECTED_MOVE_DOLLARS`, `UPSIDE_EXPECTED_MOVE_DOLLARS`, `DOWNSIDE_EXPECTED_MOVE_PCT`, `UPSIDE_EXPECTED_MOVE_PCT`, `LOWER_BREAKEVEN_PRICE`, and `UPPER_BREAKEVEN_PRICE` in `filter.conditions` and renders `EM (1σ, <Tier>)` in the row-click Trade Details view and Telegram alerts.
+
 
 

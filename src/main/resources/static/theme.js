@@ -100,7 +100,8 @@ const SIDEBAR_NAV_SECTIONS = [
         items: [
             { href: '/option-strategies.html', aliases: ['/option-strategies', '/strategy-detail.html', '/strategy-detail'], icon: '📚', label: 'Option Strategies' },
             { href: '/option-greeks.html', aliases: ['/option-greeks', '/greek-detail.html', '/greek-detail'], icon: '📐', label: 'Option Greeks' },
-            { href: '/volatility.html', aliases: ['/volatility'], icon: '🌊', label: 'Volatility' }
+            { href: '/volatility.html', aliases: ['/volatility'], icon: '🌊', label: 'Volatility' },
+            { href: '/expected-move.html', aliases: ['/expected-move'], icon: '🎯', label: 'Expected Move' }
         ]
     },
     {

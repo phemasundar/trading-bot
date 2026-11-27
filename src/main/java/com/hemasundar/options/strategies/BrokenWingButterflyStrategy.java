@@ -134,7 +134,7 @@ public class BrokenWingButterflyStrategy extends AbstractTradingStrategy {
             tradePipeline.step(FilterStage.BREAK_EVEN_FILTER, trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()));
         }
 
-        List<TradeSetup> result = applyTradeMathFilterExpressions(tradePipeline, filter).run(mapped);
+        List<TradeSetup> result = applyTradeMathFilterExpressions(tradePipeline, filter, chain, expiryDate).run(mapped);
 
         log.debug("[BWB] Found {} valid trades", result.size());
         return result;

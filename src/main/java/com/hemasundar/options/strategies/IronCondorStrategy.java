@@ -111,7 +111,7 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
             }
         }
 
-        return findValidIronCondors(chain.getSymbol(), expiryDate, putSpreads, callSpreads, chain.getUnderlyingPrice(), filter);
+        return findValidIronCondors(chain, expiryDate, putSpreads, callSpreads, chain.getUnderlyingPrice(), filter);
     }
 
     /**
@@ -119,10 +119,11 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
      * pre-pruning when {@code MAX_LOSS} is configured, followed by lightweight candidate filtering
      * before instantiating {@link IronCondor} trade setups.
      */
-    private List<TradeSetup> findValidIronCondors(String symbol, String expiryDate, List<PutCreditSpread> putSpreads,
+    private List<TradeSetup> findValidIronCondors(OptionChainResponse chain, String expiryDate, List<PutCreditSpread> putSpreads,
             List<CallCreditSpread> callSpreads,
             double currentPrice,
             OptionsStrategyFilter filter) {
+        String symbol = chain.getSymbol();
 
         if (putSpreads.isEmpty() || callSpreads.isEmpty()) {
             FilterLogStore.getInstance().logFilter(
@@ -237,7 +238,7 @@ public class IronCondorStrategy extends AbstractTradingStrategy {
             tradePipeline.step(FilterStage.MIN_EXTRINSIC_VALUE_FILTER, commonMinNetExtrinsicValueToPricePercentageFilter(filter));
         }
 
-        return applyTradeMathFilterExpressions(tradePipeline, filter).run(mapped);
+        return applyTradeMathFilterExpressions(tradePipeline, filter, chain, expiryDate).run(mapped);
     }
 
     private TradeSetup buildTradeSetup(IronCondorCandidate c) {

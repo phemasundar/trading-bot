@@ -51,6 +51,9 @@ public class LearningCenterServiceTest {
         boolean hasVolatility = strategies.stream().anyMatch(s -> "volatility".equalsIgnoreCase(s.getId()));
         Assert.assertFalse(hasVolatility, "Option strategies list should exclude educational volatility guides");
 
+        boolean hasExpectedMove = strategies.stream().anyMatch(s -> "expected-move".equalsIgnoreCase(s.getId()));
+        Assert.assertFalse(hasExpectedMove, "Option strategies list should exclude educational Expected Move guides");
+
         boolean hasTechSpreads = strategies.stream().anyMatch(s -> s.getId().toLowerCase().contains("tech_"));
         Assert.assertFalse(hasTechSpreads, "Option strategies list must exclude legacy tech spread strategies");
     }
@@ -85,6 +88,19 @@ public class LearningCenterServiceTest {
 
         boolean hasVolatility = all.stream().anyMatch(s -> "volatility".equalsIgnoreCase(s.getId()));
         Assert.assertTrue(hasVolatility, "All descriptions should include Volatility");
+
+        boolean hasExpectedMove = all.stream().anyMatch(s -> "expected-move".equalsIgnoreCase(s.getId()));
+        Assert.assertTrue(hasExpectedMove, "All descriptions should include expected-move");
+    }
+
+    @Test
+    public void testGetStrategyById_ExpectedMove() {
+        Optional<StrategyDescriptionDto> res = service.getStrategyById("expected-move");
+        Assert.assertTrue(res.isPresent());
+        StrategyDescriptionDto em = res.get();
+        Assert.assertEquals(em.getCategory(), "Educational");
+        Assert.assertEquals(em.getBias(), "Market Metric");
+        Assert.assertFalse(em.getSummary().isEmpty());
     }
 
     @Test

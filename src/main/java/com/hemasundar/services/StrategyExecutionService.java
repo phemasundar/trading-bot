@@ -428,6 +428,13 @@ public class StrategyExecutionService {
                 log.debug("Streaming option chain micro-batch {}-{} of {} symbols",
                         batchStart + 1, batchEnd, orderedSymbols.size());
                 cache.prewarm(microBatch, schwabApiExecutor);
+                if (supabaseService != null) {
+                    try {
+                        supabaseService.preloadIVStats(microBatch);
+                    } catch (Exception e) {
+                        log.warn("Failed to preload IV stats for micro-batch: {}", e.getMessage());
+                    }
+                }
 
                 for (String symbol : microBatch) {
                     if (cancellationRequested.get() || authFailed.get()) {

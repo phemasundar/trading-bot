@@ -183,6 +183,23 @@ public class IVDataRepository {
     }
 
     /**
+     * Retrieves the latest saved 30-day ATM Implied Volatility percentage for a symbol
+     * from the PostgreSQL get_iv_stats_bulk RPC (requires {@code >= minIVRecords} historical rows).
+     *
+     * @param symbol stock ticker
+     * @return current IV percentage (e.g. {@code 32.5}), or {@code null} if insufficient data
+     * @throws IOException if the Supabase API call fails
+     */
+    public Double getCurrentIV(String symbol) throws IOException {
+        validateConfig();
+        Map<String, Object> stats = getIVStats(symbol);
+        if (stats.get("currentIV") instanceof Number num) {
+            return num.doubleValue();
+        }
+        return null;
+    }
+
+    /**
      * Returns a map of IV statistics for a symbol over the past 1 year:
      * {@code currentIV}, {@code minIV}, {@code maxIV}, {@code ivPercentile}, {@code ivRank},
      * and {@code recordCount}.

@@ -1,5 +1,6 @@
 package com.hemasundar.options.models;
 
+import com.hemasundar.options.expectedmove.ExpectedMoveResult;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -26,6 +27,17 @@ public class LongCallLeap implements TradeSetup {
     private double costSavingsPercent; // Cost savings compared to buying stock on margin
     private Double breakevenCAGR; // CAGR needed to reach breakeven
     private double optionPrice;
+    private ExpectedMoveResult expectedMove;
+
+    @Override
+    public Double getEffectiveLowerBreakEvenPrice() {
+        return null;
+    }
+
+    @Override
+    public Double getEffectiveUpperBreakEvenPrice() {
+        return breakEvenPrice > 0 ? breakEvenPrice : null;
+    }
 
     @Override
     public double getNetCredit() {

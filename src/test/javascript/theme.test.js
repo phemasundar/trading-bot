@@ -80,4 +80,15 @@ describe('Theme Manager', () => {
         expect(activeLink).not.toBeNull();
         expect(activeLink.getAttribute('href')).toBe('/execute.html');
     });
+
+    test('renderAppSidebar should render and activate Expected Move under Learning Center', () => {
+        document.body.innerHTML = '<nav class="sidebar" data-sidebar></nav>';
+        const sidebar = document.querySelector('nav.sidebar');
+        renderAppSidebar(sidebar, '/expected-move.html');
+
+        const emLink = sidebar.querySelector('.nav-link[href="/expected-move.html"]');
+        expect(emLink).not.toBeNull();
+        expect(emLink.textContent).toContain('Expected Move');
+        expect(emLink.classList.contains('active')).toBe(true);
+    });
 });

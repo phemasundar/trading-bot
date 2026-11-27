@@ -8,6 +8,7 @@
             <package name="com.hemasundar.api" />
             <package name="com.hemasundar.config" />
             <package name="com.hemasundar.jobs" />
+            <package name="com.hemasundar.options.expectedmove" />
             <package name="com.hemasundar.options.models" />
             <package name="com.hemasundar.options.strategies" />
             <package name="com.hemasundar.serializers" />

@@ -1,5 +1,6 @@
 package com.hemasundar.options.models;
 
+import com.hemasundar.options.expectedmove.ExpectedMoveResult;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -20,6 +21,17 @@ public class ZebraTrade implements TradeSetup {
     private double breakEvenPercentage;
     private double returnOnRisk;
     private double currentPrice; // Underlying stock price
+    private ExpectedMoveResult expectedMove;
+
+    @Override
+    public Double getEffectiveLowerBreakEvenPrice() {
+        return null;
+    }
+
+    @Override
+    public Double getEffectiveUpperBreakEvenPrice() {
+        return breakEvenPrice > 0 ? breakEvenPrice : null;
+    }
 
     @Override
     public double getNetCredit() {

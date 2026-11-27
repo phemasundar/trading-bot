@@ -1,5 +1,7 @@
 package com.hemasundar.options.models;
 
+import com.hemasundar.options.expectedmove.ExpectedMoveResult;
+
 import java.util.List;
 
 public interface TradeSetup {
@@ -46,6 +48,33 @@ public interface TradeSetup {
      */
     default double getUpperBreakEvenDelta() {
         return 0;
+    }
+
+    /**
+     * Strategy-aware lower breakeven price in dollars, or {@code null} for upside-only strategies.
+     */
+    default Double getEffectiveLowerBreakEvenPrice() {
+        return getBreakEvenPrice() > 0 ? getBreakEvenPrice() : null;
+    }
+
+    /**
+     * Strategy-aware upper breakeven price in dollars, or {@code null} for downside-only strategies.
+     */
+    default Double getEffectiveUpperBreakEvenPrice() {
+        return getUpperBreakEvenPrice() > 0 ? getUpperBreakEvenPrice() : null;
+    }
+
+    /**
+     * Expected Move result computed for this trade's underlying and expiration date.
+     */
+    default ExpectedMoveResult getExpectedMove() {
+        return null;
+    }
+
+    /**
+     * Attaches the computed Expected Move result to this trade setup.
+     */
+    default void setExpectedMove(ExpectedMoveResult expectedMove) {
     }
 
     // Optional metric for strategies like LEAPs
