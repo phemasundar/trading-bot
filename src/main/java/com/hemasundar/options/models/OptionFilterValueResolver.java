@@ -1,5 +1,6 @@
 package com.hemasundar.options.models;
 
+import com.hemasundar.options.expectedmove.ExpectedMoveResult;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -103,6 +104,22 @@ public class OptionFilterValueResolver {
             }
         }
 
+        if (isExpectedMoveVariable(normalized)) {
+            ExpectedMoveResult em = trade.getExpectedMove();
+            if (em == null || !em.isValid()) {
+                return null;
+            }
+            return switch (normalized) {
+                case "UPPER_EXPECTED_MOVE_PRICE" -> em.getUpperBound();
+                case "LOWER_EXPECTED_MOVE_PRICE" -> em.getLowerBound();
+                case "UPSIDE_EXPECTED_MOVE_DOLLARS" -> em.getUpsideMove();
+                case "DOWNSIDE_EXPECTED_MOVE_DOLLARS" -> em.getDownsideMove();
+                case "UPSIDE_EXPECTED_MOVE_PCT" -> em.getUpsideMovePct();
+                case "DOWNSIDE_EXPECTED_MOVE_PCT" -> em.getDownsideMovePct();
+                default -> null;
+            };
+        }
+
         return switch (normalized) {
             case "MAX_LOSS" -> trade.getMaxLoss();
             case "NET_CREDIT" -> trade.getNetCredit();
@@ -114,6 +131,8 @@ public class OptionFilterValueResolver {
             case "UPPER_BREAK_EVEN_PRICE" -> trade.getUpperBreakEvenPrice();
             case "UPPER_BREAK_EVEN_PCT" -> trade.getUpperBreakEvenPercentage();
             case "UPPER_BREAK_EVEN_DELTA" -> trade.getUpperBreakEvenDelta();
+            case "LOWER_BREAKEVEN_PRICE" -> trade.getEffectiveLowerBreakEvenPrice();
+            case "UPPER_BREAKEVEN_PRICE" -> trade.getEffectiveUpperBreakEvenPrice();
             case "CURRENT_PRICE" -> trade.getCurrentPrice();
             case "DTE" -> (double) trade.getDaysToExpiration();
             case "NET_EXTRINSIC_VALUE" -> trade.getNetExtrinsicValue();
@@ -250,9 +269,28 @@ public class OptionFilterValueResolver {
         };
     }
 
+    /**
+     * Returns true if {@code var} is one of the Expected Move variables resolved per expiration.
+     */
+    public static boolean isExpectedMoveVariable(String var) {
+        if (StringUtils.isBlank(var)) {
+            return false;
+        }
+        return switch (var.trim().toUpperCase()) {
+            case "UPPER_EXPECTED_MOVE_PRICE", "LOWER_EXPECTED_MOVE_PRICE",
+                 "UPSIDE_EXPECTED_MOVE_DOLLARS", "DOWNSIDE_EXPECTED_MOVE_DOLLARS",
+                 "UPSIDE_EXPECTED_MOVE_PCT", "DOWNSIDE_EXPECTED_MOVE_PCT" -> true;
+            default -> false;
+        };
+    }
+
     public static boolean isSupportedTradeVariable(String var) {
         if (StringUtils.isBlank(var)) return false;
-        return switch (var.trim().toUpperCase()) {
+        String upper = var.trim().toUpperCase();
+        if (isExpectedMoveVariable(upper)) {
+            return true;
+        }
+        return switch (upper) {
             case "MAX_LOSS",
                  "NET_CREDIT",
                  "TOTAL_DEBIT",
@@ -262,6 +300,8 @@ public class OptionFilterValueResolver {
                  "UPPER_BREAK_EVEN_PRICE",
                  "UPPER_BREAK_EVEN_PCT",
                  "UPPER_BREAK_EVEN_DELTA",
+                 "LOWER_BREAKEVEN_PRICE",
+                 "UPPER_BREAKEVEN_PRICE",
                  "CURRENT_PRICE",
                  "DTE",
                  "NET_EXTRINSIC_VALUE",

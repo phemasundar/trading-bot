@@ -1,5 +1,6 @@
 package com.hemasundar.options.models;
 
+import com.hemasundar.options.expectedmove.ExpectedMoveResult;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -23,6 +24,7 @@ public class IronCondor implements TradeSetup {
     private double lowerBreakEvenPercentage;
     private double upperBreakEvenPercentage;
     private double currentPrice; // Underlying stock price
+    private ExpectedMoveResult expectedMove;
 
     @Override
     public double getBreakEvenPrice() {

@@ -2,33 +2,41 @@ package com.hemasundar.options.strategies;
 
 import com.hemasundar.apis.FinnHubAPIs;
 import com.hemasundar.apis.ThinkOrSwimAPIs;
-import com.hemasundar.cache.PriceHistoryCache;
+import com.hemasundar.cache.QuotesCache;
+import com.hemasundar.cache.TechnicalIndicatorCache;
+import com.hemasundar.options.expectedmove.ExpectedMoveCalculator;
+import com.hemasundar.options.expectedmove.ExpectedMoveResult;
+import com.hemasundar.options.models.LegFilter;
 import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.OptionChainResponse.ExpirationDateKey;
+import com.hemasundar.options.models.OptionFilterValueResolver;
 import com.hemasundar.options.models.OptionsStrategyFilter;
 import com.hemasundar.options.models.TradeSetup;
-import com.hemasundar.pojos.EarningsCalendarResponse;
-import com.hemasundar.pojos.PriceHistoryResponse;
+import com.hemasundar.pojos.QuotesResponse.QuoteData;
+import com.hemasundar.services.EarningsDataResolver;
 import com.hemasundar.services.FilterLogStore;
 import com.hemasundar.services.SupabaseService;
-import com.hemasundar.services.EarningsDataResolver;
 import com.hemasundar.technical.MathExpression;
-import com.hemasundar.technical.MathExpressionEvaluator;
-import com.hemasundar.options.models.OptionFilterValueResolver;
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
+import com.hemasundar.technical.TechnicalScreener.ScreeningResult;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 @Log4j2
 @RequiredArgsConstructor
@@ -45,6 +53,10 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
      * Absent when Supabase is disabled — IV Rank filter is skipped (fail-open).
      */
     protected final Optional<SupabaseService> supabaseService;
+
+    @Getter
+    @Setter
+    private ExpectedMoveCalculator expectedMoveCalculator = new ExpectedMoveCalculator();
 
     @Override
     public List<TradeSetup> findTrades(OptionChainResponse chain, OptionsStrategyFilter filter) {
@@ -216,6 +228,14 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
 
             // Find trades for this expiry
             List<TradeSetup> trades = findValidTrades(chain, expiryDate, filter);
+            if (CollectionUtils.isNotEmpty(trades)) {
+                ExpectedMoveResult emResult = resolveExpectedMove(chain, expiryDate);
+                for (TradeSetup trade : trades) {
+                    if (trade != null && trade.getExpectedMove() == null) {
+                        trade.setExpectedMove(emResult);
+                    }
+                }
+            }
             log.debug("[{}] Found {} trades for expiry {}", symbol, trades.size(), expiryDate);
             allTrades.addAll(trades);
         }
@@ -365,26 +385,114 @@ public abstract class AbstractTradingStrategy implements TradingStrategy {
     /**
      * Applies math filter expressions configured in the filter to the TradeSetup pipeline.
      */
-    protected FilterPipeline<TradeSetup> applyTradeMathFilterExpressions(FilterPipeline<TradeSetup> pipeline,
-                                                                         OptionsStrategyFilter filter) {
+    protected FilterPipeline<TradeSetup> applyTradeMathFilterExpressions(
+            FilterPipeline<TradeSetup> pipeline,
+            OptionsStrategyFilter filter) {
+        return applyTradeMathFilterExpressions(pipeline, filter, null, null);
+    }
+
+    /**
+     * Applies trade-level math filter expressions (including Expected Move expressions) to the
+     * {@link TradeSetup} pipeline, lazily resolving and memoizing {@link ExpectedMoveResult}
+     * per {@code (chain, expiryDate)} when needed.
+     */
+    protected FilterPipeline<TradeSetup> applyTradeMathFilterExpressions(
+            FilterPipeline<TradeSetup> pipeline,
+            OptionsStrategyFilter filter,
+            OptionChainResponse chain,
+            String expiryDate) {
         if (filter == null || CollectionUtils.isEmpty(filter.getFilterExpressions())) {
             return pipeline;
         }
 
         for (MathExpression expr : filter.getFilterExpressions()) {
-            String left = expr.getLeftVariable() != null ? expr.getLeftVariable().toUpperCase() : "";
-            // Skip symbol/expiry level expressions (already evaluated in execute) and leg expressions (evaluated in candidate pipeline)
+            String left = expr.getLeftVariable() != null ? expr.getLeftVariable().trim().toUpperCase() : "";
+            String right = expr.getRightVariable() != null ? expr.getRightVariable().trim() : "";
+            boolean isPureLegExpression = left.contains(".")
+                    && (StringUtils.isBlank(right)
+                        || isNumericLiteral(right)
+                        || OptionFilterValueResolver.isSupportedLegVariable(right));
+
+            // Skip symbol/expiry level expressions (already evaluated in execute) and pure leg expressions (evaluated in candidate pipeline)
             if (left.equals("DTE")
                     || left.equals("IV_RANK") || left.equals("IV_PERCENTILE")
                     || left.equals("HV_RANK") || left.equals("CURRENT_IV")
                     || left.contains("EARNINGS")
-                    || left.contains(".")) {
+                    || isPureLegExpression) {
                 continue;
             }
 
-            pipeline.step(expr.toString(), trade -> expr.evaluate(var -> OptionFilterValueResolver.resolveTradeValue(trade, var)));
+            pipeline.step(expr.toString(), trade -> {
+                if (trade.getExpectedMove() == null && chain != null) {
+                    String targetExpiry = StringUtils.isNotBlank(expiryDate) ? expiryDate : trade.getExpiryDate();
+                    trade.setExpectedMove(resolveExpectedMove(chain, targetExpiry));
+                }
+                return expr.evaluate(var -> OptionFilterValueResolver.resolveTradeValue(trade, var));
+            });
         }
         return pipeline;
+    }
+
+    /**
+     * Resolves and caches the 1-standard-deviation {@link ExpectedMoveResult} for {@code (chain, expiryDate)}.
+     */
+    protected ExpectedMoveResult resolveExpectedMove(OptionChainResponse chain, String expiryDate) {
+        if (chain == null || StringUtils.isBlank(expiryDate)) {
+            return null;
+        }
+        return chain.computeIfAbsentExpectedMove(expiryDate, cleanExpiry -> {
+            String symbol = chain.getSymbol();
+            QuoteData quoteData = StringUtils.isNotBlank(symbol)
+                    ? QuotesCache.getInstance().get(symbol)
+                    : null;
+            Double savedCurrentIv = resolveCurrentIV(symbol);
+            Double daysToNextEarnings = null;
+            if (finnHubAPIs != null && StringUtils.isNotBlank(symbol)) {
+                Map<String, Double> earningsVars = EarningsDataResolver.resolve(symbol, cleanExpiry, finnHubAPIs);
+                daysToNextEarnings = earningsVars.get("DAYS_TO_NEXT_EARNINGS");
+            }
+            ExpectedMoveResult result = expectedMoveCalculator.calculateExpectedMoveWaterfall(
+                    chain, cleanExpiry, quoteData, savedCurrentIv, daysToNextEarnings);
+            if (result != null && result.isValid()) {
+                log.debug("[{}] Expected Move [{}]: tier={}, bounds=[${} - ${}], reason={}",
+                        symbol, cleanExpiry, result.getTierUsed(),
+                        String.format("%.2f", result.getLowerBound()),
+                        String.format("%.2f", result.getUpperBound()),
+                        result.getReason());
+            } else if (result != null) {
+                log.warn("[{}] Expected Move unavailable [{}]: tier={}, reason={}",
+                        symbol, cleanExpiry, result.getTierUsed(), result.getReason());
+            }
+            return result;
+        });
+    }
+
+    /**
+     * Resolves the latest saved 30-day ATM Current IV percentage for {@code symbol}
+     * from {@link SupabaseService} (requiring {@code >= 20} historical records).
+     */
+    protected Double resolveCurrentIV(String symbol) {
+        if (StringUtils.isBlank(symbol) || supabaseService.isEmpty()) {
+            return null;
+        }
+        try {
+            return supabaseService.get().getCurrentIV(symbol);
+        } catch (IllegalStateException e) {
+            log.error("[{}] Configuration error fetching Current IV: {}", symbol, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.warn("[{}] Error fetching Current IV from Supabase: {}", symbol, e.getMessage());
+            return null;
+        }
+    }
+
+    private static boolean isNumericLiteral(String value) {
+        try {
+            Double.parseDouble(value);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     /**

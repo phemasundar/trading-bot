@@ -1,13 +1,16 @@
 package com.hemasundar.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.hemasundar.cache.QuotesCache;
+import com.hemasundar.options.expectedmove.ExpectedMoveResult;
 import com.hemasundar.options.models.LongCallLeap;
-import com.hemasundar.options.models.OptionChainResponse;
 import com.hemasundar.options.models.TradeSetup;
+import com.hemasundar.pojos.QuotesResponse.QuoteData;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
 
@@ -117,6 +120,46 @@ public class Trade {
     private double upperBreakEvenPercent;
 
     /**
+     * Expected Move lower 1-sigma price boundary
+     */
+    private Double expectedMoveLowerPrice;
+
+    /**
+     * Expected Move upper 1-sigma price boundary
+     */
+    private Double expectedMoveUpperPrice;
+
+    /**
+     * Expected Move upside dollar move from spot price
+     */
+    private Double expectedMoveUpsideDollars;
+
+    /**
+     * Expected Move downside dollar move from spot price
+     */
+    private Double expectedMoveDownsideDollars;
+
+    /**
+     * Expected Move upside move as percentage of spot price
+     */
+    private Double expectedMoveUpsidePct;
+
+    /**
+     * Expected Move downside move as percentage of spot price
+     */
+    private Double expectedMoveDownsidePct;
+
+    /**
+     * Active waterfall tier label used to compute Expected Move (e.g. "Tier 1", "Tier 2", "Tier 3", "LEAPS")
+     */
+    private String expectedMoveTier;
+
+    /**
+     * Diagnostic reason explaining why this Expected Move tier was selected (e.g. fallback cause)
+     */
+    private String expectedMoveReason;
+
+    /**
      * Net extrinsic value of the strategy
      */
     private double netExtrinsicValue;
@@ -197,6 +240,43 @@ public class Trade {
             details.append(" [CAGR: ").append(String.format("%.2f", cagr)).append("%]");
         }
 
+        ExpectedMoveResult em = setup.getExpectedMove();
+        Double emLower = null;
+        Double emUpper = null;
+        Double emUpside = null;
+        Double emDownside = null;
+        Double emUpsidePct = null;
+        Double emDownsidePct = null;
+        String emTier = null;
+        String emReason = null;
+
+        if (em != null && em.isValid()) {
+            emLower = em.getLowerBound();
+            emUpper = em.getUpperBound();
+            emUpside = em.getUpsideMove();
+            emDownside = em.getDownsideMove();
+            emUpsidePct = em.getUpsideMovePct();
+            emDownsidePct = em.getDownsideMovePct();
+            emTier = em.getTierUsed() != null ? em.getTierUsed().getShortLabel() : "EM";
+            emReason = StringUtils.isNotBlank(em.getReason()) ? em.getReason().trim() : null;
+
+            details.append("\nEM (1σ, ").append(emTier).append("): $")
+                    .append(String.format("%.2f", emLower))
+                    .append(" – $").append(String.format("%.2f", emUpper));
+            if (em.isLognormal()) {
+                details.append(" (-$").append(String.format("%.2f", emDownside))
+                        .append(" / +$").append(String.format("%.2f", emUpside))
+                        .append(", -").append(String.format("%.2f", emDownsidePct))
+                        .append("% / +").append(String.format("%.2f", emUpsidePct)).append("%)");
+            } else {
+                details.append(" (±$").append(String.format("%.2f", emUpside))
+                        .append(" / ±").append(String.format("%.2f", emUpsidePct)).append("%)");
+            }
+            if (emReason != null) {
+                details.append("\nEM tier selection notes: ").append(emReason);
+            }
+        }
+
         Double costSavings = setup.getCostSavingsPercent();
         String strategyType = setup.getStrategyType();
         if (setup instanceof LongCallLeap leap) {
@@ -224,7 +304,7 @@ public class Trade {
                     .append("%)");
         }
 
-        com.hemasundar.pojos.QuotesResponse.QuoteData quoteData = com.hemasundar.cache.QuotesCache.getInstance().get(symbol);
+        QuoteData quoteData = QuotesCache.getInstance().get(symbol);
         String compName = (quoteData != null && quoteData.getReference() != null) ? quoteData.getReference().getDescription() : null;
 
         return Trade.builder()
@@ -244,6 +324,14 @@ public class Trade {
                 .breakEvenPercent(setup.getBreakEvenPercentage())
                 .upperBreakEvenPrice(setup.getUpperBreakEvenPrice())
                 .upperBreakEvenPercent(setup.getUpperBreakEvenPercentage())
+                .expectedMoveLowerPrice(emLower)
+                .expectedMoveUpperPrice(emUpper)
+                .expectedMoveUpsideDollars(emUpside)
+                .expectedMoveDownsideDollars(emDownside)
+                .expectedMoveUpsidePct(emUpsidePct)
+                .expectedMoveDownsidePct(emDownsidePct)
+                .expectedMoveTier(emTier)
+                .expectedMoveReason(emReason)
                 .breakevenCAGR(setup.getBreakevenCAGR())
                 .netExtrinsicValue(setup.getNetExtrinsicValue())
                 .AnnualizedNetExtrinsicValueToCapitalPercentage(setup.getAnnualizedNetExtrinsicValueToCapitalPercentage())

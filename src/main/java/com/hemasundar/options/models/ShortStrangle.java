@@ -1,5 +1,6 @@
 package com.hemasundar.options.models;
 
+import com.hemasundar.options.expectedmove.ExpectedMoveResult;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -26,6 +27,7 @@ public class ShortStrangle implements TradeSetup {
     private double lowerBreakEvenPercentage;
     private double upperBreakEvenPercentage;
     private double currentPrice; // Underlying stock price
+    private ExpectedMoveResult expectedMove;
 
     @Override
     public double getBreakEvenPrice() {

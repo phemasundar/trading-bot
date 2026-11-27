@@ -1046,6 +1046,29 @@ describe('Custom Options Execute Tests', () => {
         await deleteCustomResult('301', document.getElementById('only-card'));
         expect(document.getElementById('custom-options-filter-bar').style.display).toBe('none');
     });
+
+    test('TRADE_VARIABLES includes Expected Move and directional breakeven variables and round-trips conditions', () => {
+        const values = TRADE_VARIABLES.map(v => v.value);
+        expect(values).toEqual(expect.arrayContaining([
+            'LOWER_BREAKEVEN_PRICE',
+            'UPPER_BREAKEVEN_PRICE',
+            'LOWER_EXPECTED_MOVE_PRICE',
+            'UPPER_EXPECTED_MOVE_PRICE',
+            'DOWNSIDE_EXPECTED_MOVE_DOLLARS',
+            'UPSIDE_EXPECTED_MOVE_DOLLARS',
+            'DOWNSIDE_EXPECTED_MOVE_PCT',
+            'UPSIDE_EXPECTED_MOVE_PCT'
+        ]));
+
+        document.body.innerHTML = '<div id="trade-conditions"></div>';
+        addConditionRow('trade-conditions', TRADE_VARIABLES, 'LOWER_BREAKEVEN_PRICE <= LOWER_EXPECTED_MOVE_PRICE');
+        addConditionRow('trade-conditions', TRADE_VARIABLES, 'UPPER_BREAKEVEN_PRICE >= UPPER_EXPECTED_MOVE_PRICE');
+
+        expect(getConditionsFromContainer('trade-conditions')).toEqual([
+            'LOWER_BREAKEVEN_PRICE <= LOWER_EXPECTED_MOVE_PRICE',
+            'UPPER_BREAKEVEN_PRICE >= UPPER_EXPECTED_MOVE_PRICE'
+        ]);
+    });
 });
 
 

@@ -175,7 +175,7 @@ public class ShortStrangleStrategy extends AbstractTradingStrategy {
             tradePipeline.step(FilterStage.BREAK_EVEN_FILTER, trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()) && filter.passesMaxBreakEvenPercentage(trade.getUpperBreakEvenPercentage()));
         }
 
-        return applyTradeMathFilterExpressions(tradePipeline, filter).run(mapped);
+        return applyTradeMathFilterExpressions(tradePipeline, filter, chain, expiryDate).run(mapped);
     }
 
     // ========== FILTER PREDICATES ==========

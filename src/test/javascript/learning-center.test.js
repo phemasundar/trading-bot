@@ -16,6 +16,7 @@ const {
     initOptionGreeksPage,
     initGreekDetailPage,
     initVolatilityPage,
+    initExpectedMovePage,
     API
 } = require('../../main/resources/static/app');
 
@@ -705,5 +706,61 @@ describe('Learning Center & Option Strategies Tests', () => {
     test('initVolatilityPage handles missing container element gracefully', async () => {
         document.body.innerHTML = '';
         await expect(initVolatilityPage()).resolves.not.toThrow();
+    });
+
+    test('initExpectedMovePage uses renderMarkdown, sets title, and renders Mermaid diagrams', async () => {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.body.innerHTML = `
+            <div id="expected-move-markdown-content"></div>
+        `;
+
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            text: () => Promise.resolve("# Implied Volatility (IV) & Expected Move Engine\n```mermaid\nflowchart TD\nA-->B\n```")
+        });
+
+        const mockRenderMarkdown = jest.fn(() =>
+            '<h1>Implied Volatility (IV) &amp; Expected Move Engine</h1><pre><code class="language-mermaid">flowchart TD\nA-->B</code></pre>'
+        );
+        global.renderMarkdown = mockRenderMarkdown;
+        global.mermaid = {
+            initialize: jest.fn(),
+            run: jest.fn().mockResolvedValue()
+        };
+
+        await initExpectedMovePage();
+
+        expect(mockRenderMarkdown).toHaveBeenCalled();
+        expect(document.title).toBe('Implied Volatility (IV) & Expected Move Engine — Learning Center');
+        const container = document.getElementById('expected-move-markdown-content');
+        expect(container.querySelector('.mermaid')).not.toBeNull();
+        expect(container.querySelector('.mermaid').textContent).toContain('flowchart TD');
+        expect(global.mermaid.initialize).toHaveBeenCalledWith({ startOnLoad: false, theme: 'dark' });
+        expect(global.mermaid.run).toHaveBeenCalledTimes(1);
+
+        delete global.renderMarkdown;
+        delete global.mermaid;
+    });
+
+    test('initExpectedMovePage renders empty error state when fetch fails', async () => {
+        document.body.innerHTML = `
+            <div id="expected-move-markdown-content"></div>
+        `;
+
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: false,
+            status: 404
+        });
+
+        await initExpectedMovePage();
+
+        const container = document.getElementById('expected-move-markdown-content');
+        expect(container.innerHTML).toContain('Expected Move Guide Not Found');
+        expect(container.innerHTML).toContain('empty-state');
+    });
+
+    test('initExpectedMovePage handles missing container element gracefully', async () => {
+        document.body.innerHTML = '';
+        await expect(initExpectedMovePage()).resolves.not.toThrow();
     });
 });

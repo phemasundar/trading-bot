@@ -69,6 +69,7 @@ optionsStrategies:
         - "MAX_LOSS <= 1000"
         - "RETURN_ON_RISK >= 12"
         - "IV_PERCENTILE >= HV_RANK * 1.5"
+        - "LOWER_BREAKEVEN_PRICE <= LOWER_EXPECTED_MOVE_PRICE"
       shortLeg:
         conditions:
           - "DELTA <= 0.2"
@@ -95,6 +96,7 @@ optionsStrategies:
         - "DTE <= 185"
         - "MAX_LOSS <= 2000"
         - "RETURN_ON_RISK >= 24"
+        - "LOWER_BREAKEVEN_PRICE <= LOWER_EXPECTED_MOVE_PRICE"
       shortLeg:
         conditions:
           - "DELTA <= 0.2"
@@ -117,6 +119,7 @@ optionsStrategies:
       conditions:
         - "MAX_LOSS <= 1000"
         - "RETURN_ON_RISK >= 12"
+        - "LOWER_BREAKEVEN_PRICE <= LOWER_EXPECTED_MOVE_PRICE"
       shortLeg:
         conditions:
           - "DELTA <= 0.3"
@@ -137,6 +140,7 @@ optionsStrategies:
       conditions:
         - "MAX_LOSS <= 1000"
         - "RETURN_ON_RISK >= 12"
+        - "UPPER_BREAKEVEN_PRICE >= UPPER_EXPECTED_MOVE_PRICE"
       shortLeg:
         conditions:
           - "DELTA <= 0.2"
@@ -162,6 +166,7 @@ optionsStrategies:
       conditions:
         - "MAX_LOSS <= 1000"
         - "RETURN_ON_RISK >= 12"
+        - "UPPER_BREAKEVEN_PRICE >= UPPER_EXPECTED_MOVE_PRICE"
       shortLeg:
         conditions:
           - "DELTA <= 0.3"
@@ -183,6 +188,8 @@ optionsStrategies:
         - "DTE <= 1"
         - "MAX_LOSS <= 500"
         - "RETURN_ON_RISK >= 12"
+        - "LOWER_BREAKEVEN_PRICE <= LOWER_EXPECTED_MOVE_PRICE"
+        - "UPPER_BREAKEVEN_PRICE >= UPPER_EXPECTED_MOVE_PRICE"
       putShortLeg:
         conditions:
           - "DELTA <= 0.15"
@@ -213,6 +220,8 @@ optionsStrategies:
         - "DTE <= 65"
         - "MAX_LOSS <= 1000"
         - "RETURN_ON_RISK >= 24"
+        - "LOWER_BREAKEVEN_PRICE <= LOWER_EXPECTED_MOVE_PRICE"
+        - "UPPER_BREAKEVEN_PRICE >= UPPER_EXPECTED_MOVE_PRICE"
       putShortLeg:
         conditions:
           - "DELTA <= 0.15"
@@ -243,6 +252,8 @@ optionsStrategies:
         - "DTE <= 185"
         - "MAX_LOSS <= 2000"
         - "RETURN_ON_RISK >= 36"
+        - "LOWER_BREAKEVEN_PRICE <= LOWER_EXPECTED_MOVE_PRICE"
+        - "UPPER_BREAKEVEN_PRICE >= UPPER_EXPECTED_MOVE_PRICE"
       putShortLeg:
         conditions:
           - "DELTA <= 0.15"
@@ -453,6 +464,7 @@ optionsStrategies:
         - "DTE <= 50"
         - "MAX_LOSS <= 20000"
         - "RETURN_ON_RISK >= 6"
+        - "LOWER_BREAKEVEN_PRICE <= LOWER_EXPECTED_MOVE_PRICE"
 #        - "IV_PERCENTILE >= 30"
       shortLeg:
         conditions:
@@ -474,6 +486,7 @@ optionsStrategies:
         - "DTE <= 185"
         - "MAX_LOSS <= 20000"
         - "RETURN_ON_RISK >= 12"
+        - "LOWER_BREAKEVEN_PRICE <= LOWER_EXPECTED_MOVE_PRICE"
 #        - "IV_PERCENTILE >= 30"
       shortLeg:
         conditions:
@@ -491,6 +504,7 @@ optionsStrategies:
         - "DTE >= 330"
         - "MAX_LOSS <= 20000"
         - "CAGR >= 18"
+        - "LOWER_BREAKEVEN_PRICE <= LOWER_EXPECTED_MOVE_PRICE"
 #        - "IV_PERCENTILE >= 30"
       shortLeg:
         conditions:

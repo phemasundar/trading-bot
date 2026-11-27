@@ -1,5 +1,6 @@
 package com.hemasundar.options.models;
 
+import com.hemasundar.options.expectedmove.ExpectedMoveResult;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -29,6 +30,7 @@ public class BrokenWingButterfly implements TradeSetup {
     private double upperBreakEvenPrice;
     private double upperBreakEvenPercentage;
     private double upperBreakEvenDelta;
+    private ExpectedMoveResult expectedMove;
 
     @Override
     public double getNetCredit() {

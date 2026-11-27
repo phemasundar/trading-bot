@@ -1164,7 +1164,11 @@ public class StrategiesConfigLoader {
                  "BB_LOWER", "BB_MIDDLE", "BB_UPPER",
                  "HV_RANK", "IV_RANK", "IV_PERCENTILE", "CURRENT_IV",
                  "DROP_PCT", "MARKET_CAP_B", "ATR", "NATR",
-                 "DAYS_TO_NEXT_EARNINGS", "DTE" -> true;
+                 "DAYS_TO_NEXT_EARNINGS", "DTE",
+                 "UPPER_EXPECTED_MOVE_PRICE", "LOWER_EXPECTED_MOVE_PRICE",
+                 "UPSIDE_EXPECTED_MOVE_DOLLARS", "DOWNSIDE_EXPECTED_MOVE_DOLLARS",
+                 "UPSIDE_EXPECTED_MOVE_PCT", "DOWNSIDE_EXPECTED_MOVE_PCT",
+                 "LOWER_BREAKEVEN_PRICE", "UPPER_BREAKEVEN_PRICE" -> true;
             default -> false;
         };
     }

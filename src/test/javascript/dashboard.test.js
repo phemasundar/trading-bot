@@ -22,6 +22,7 @@ const {
     injectTodayPerformance,
     fetchAndInjectTodayPerformance,
     renderOptionDataTable,
+    formatExpectedMoveDetail,
     initTradeRowClicks,
     showTradeHistoryModal,
     formatTechFilterValue,
@@ -1364,6 +1365,105 @@ describe('Dashboard & Table Rendering Tests', () => {
                 .map(r => r.querySelector('td strong').textContent);
             expect(visibleSymbolsDesc).toEqual(['AAPL', 'AMZN']);
             expect(card.querySelectorAll('tbody .trade-row.filter-hidden').length).toBe(1);
+        });
+
+        test('formatExpectedMoveDetail and row click Trade Details display Expected Move without duplication', () => {
+            expect(formatExpectedMoveDetail(null)).toBe('');
+            expect(formatExpectedMoveDetail({
+                expectedMoveLowerPrice: 475,
+                expectedMoveUpperPrice: 525,
+                expectedMoveUpsideDollars: 25,
+                expectedMoveDownsideDollars: 25,
+                expectedMoveUpsidePct: 5,
+                expectedMoveDownsidePct: 5,
+                expectedMoveTier: 'Tier 1'
+            })).toBe('EM (1σ, Tier 1): $475.00 – $525.00 (±$25.00 / ±5.00%)');
+
+            expect(formatExpectedMoveDetail({
+                expectedMoveLowerPrice: 410,
+                expectedMoveUpperPrice: 610,
+                expectedMoveUpsideDollars: 110,
+                expectedMoveDownsideDollars: 90,
+                expectedMoveUpsidePct: 22,
+                expectedMoveDownsidePct: 18,
+                expectedMoveTier: 'LEAPS',
+                expectedMoveReason: 'LEAPS geometric lognormal model (DTE > 365)'
+            })).toBe('EM (1σ, LEAPS): $410.00 – $610.00 (-$90.00 / +$110.00, -18.00% / +22.00%)\nEM tier selection notes: LEAPS geometric lognormal model (DTE > 365)');
+
+            document.body.innerHTML = '<div id="results-container"></div>';
+            API.get = jest.fn().mockResolvedValue({
+                currentIV: 20.0,
+                ivRank: 50.0,
+                ivPercentile: 55.0,
+                minIV: 12.0,
+                maxIV: 35.0
+            });
+            global.API = API;
+            initTradeRowClicks();
+
+            const card = buildResultCard({
+                strategyId: 'ic-em-1',
+                strategyName: 'Iron Condor',
+                tradesFound: 1,
+                trades: [{
+                    symbol: 'SPY',
+                    underlyingPrice: 500,
+                    expiryDate: '2026-12-26',
+                    dte: 30,
+                    netCredit: 200,
+                    maxLoss: 300,
+                    returnOnRisk: 66.7,
+                    breakEvenPrice: 471,
+                    breakEvenPercent: 5.8,
+                    upperBreakEvenPrice: 529,
+                    upperBreakEvenPercent: 5.8,
+                    expectedMoveLowerPrice: 475,
+                    expectedMoveUpperPrice: 525,
+                    expectedMoveUpsideDollars: 25,
+                    expectedMoveDownsideDollars: 25,
+                    expectedMoveUpsidePct: 5,
+                    expectedMoveDownsidePct: 5,
+                    expectedMoveTier: 'Tier 1',
+                    expectedMoveReason: 'Tier 1 5-strike blend (60/30/10)',
+                    tradeDetails: 'SELL 473 PUT\nBE: $471.00 | Upper BE: $529.00',
+                    legs: []
+                }, {
+                    symbol: 'QQQ',
+                    underlyingPrice: 400,
+                    expiryDate: '2026-12-26',
+                    dte: 30,
+                    netCredit: 150,
+                    maxLoss: 350,
+                    returnOnRisk: 42.9,
+                    breakEvenPrice: 375,
+                    breakEvenPercent: 6.25,
+                    expectedMoveLowerPrice: 380,
+                    expectedMoveUpperPrice: 420,
+                    expectedMoveUpsideDollars: 20,
+                    expectedMoveDownsideDollars: 20,
+                    expectedMoveUpsidePct: 5,
+                    expectedMoveDownsidePct: 5,
+                    expectedMoveTier: 'Tier 2',
+                    expectedMoveReason: 'Tier 1 skipped: earnings within 10 days; Fallback to Tier 2 (0.85x ATM straddle)',
+                    tradeDetails: 'SELL 380 PUT\nEM (1σ, Tier 2): $380.00 – $420.00 (±$20.00 / ±5.00%)',
+                    legs: []
+                }]
+            });
+            document.getElementById('results-container').appendChild(card);
+
+            const rows = card.querySelectorAll('tbody tr.trade-row');
+            rows[0].click();
+
+            let detailBody = card.querySelector('.trade-detail-body');
+            expect(detailBody).not.toBeNull();
+            expect(detailBody.textContent).toContain('EM (1σ, Tier 1): $475.00 – $525.00 (±$25.00 / ±5.00%)');
+            expect(detailBody.textContent).toContain('EM tier selection notes: Tier 1 5-strike blend (60/30/10)');
+
+            rows[1].click();
+            detailBody = card.querySelector('.trade-detail-body');
+            expect(detailBody.textContent).toContain('EM (1σ, Tier 2): $380.00 – $420.00 (±$20.00 / ±5.00%)');
+            expect(detailBody.textContent).toContain('EM tier selection notes: Tier 1 skipped: earnings within 10 days; Fallback to Tier 2 (0.85x ATM straddle)');
+            expect(detailBody.textContent.match(/EM \(1σ/g).length).toBe(1);
         });
     });
 });

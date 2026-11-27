@@ -92,6 +92,27 @@ public class SupabaseService {
     }
 
     /**
+     * Retrieves the latest saved 30-day ATM Implied Volatility percentage for a symbol
+     * when at least {@code minIVRecords} historical records exist in {@code public.iv_data}.
+     *
+     * @param symbol stock ticker
+     * @return current IV percentage, or {@code null} if unavailable
+     * @throws IOException if the Supabase API call fails
+     */
+    public Double getCurrentIV(String symbol) throws IOException {
+        return ivDataRepository.getCurrentIV(symbol);
+    }
+
+    /**
+     * Preloads IV statistics into memory for a batch of symbols in a single bulk RPC request.
+     *
+     * @param symbols collection of stock tickers
+     */
+    public void preloadIVStats(Collection<String> symbols) {
+        ivDataRepository.preloadIVStats(symbols);
+    }
+
+    /**
      * Computes the IV statistics (including IV Rank and IV Percentile) for a symbol.
      *
      * @param symbol stock ticker

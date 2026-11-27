@@ -94,7 +94,9 @@ public class LearningCenterService {
             if (rootResources != null) {
                 for (Resource r : rootResources) {
                     String name = r.getFilename();
-                    if (name != null && ("atr_screener.md".equalsIgnoreCase(name) || "volatility.md".equalsIgnoreCase(name))) {
+                    if (name != null && ("atr_screener.md".equalsIgnoreCase(name)
+                            || "volatility.md".equalsIgnoreCase(name)
+                            || "expected-move.md".equalsIgnoreCase(name))) {
                         resourceList.add(r);
                     }
                 }
@@ -219,7 +221,7 @@ public class LearningCenterService {
             if (id.toLowerCase().contains("screener")) {
                 category = "Screener";
                 bias = "Technical";
-            } else if (id.toLowerCase().contains("volatility")) {
+            } else if (id.toLowerCase().contains("volatility") || id.toLowerCase().contains("expected-move")) {
                 category = "Educational";
                 bias = "Market Metric";
             }

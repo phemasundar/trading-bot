@@ -323,6 +323,13 @@ public class FilterParser {
         for (MathExpression expr : filter.getFilterExpressions()) {
             String left = expr.getLeftVariable();
             if (left != null && left.contains(".")) {
+                String right = expr.getRightVariable();
+                if (StringUtils.isNotBlank(right)
+                        && !isNumeric(right.trim())
+                        && !OptionFilterValueResolver.isSupportedLegVariable(right)) {
+                    // Keep cross-scope expressions (e.g. SHORT_LEG.STRIKE_PRICE <= LOWER_EXPECTED_MOVE_PRICE) in tradePipeline
+                    continue;
+                }
                 String[] parts = left.split("\\.", 2);
                 String legPrefix = parts[0].toUpperCase();
                 String legProp = parts[1];

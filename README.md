@@ -24,7 +24,7 @@ A Java-based options trading analysis bot that integrates with the Schwab API to
   - Volatility Screener (IV over HV / cross-volatility screening)
   - Multi-day Price Drop (Selectable lookback from 0-N days, with pre-configured Intraday Drop, 5-Day Drop, 1-Month Drop, and 3-Month Drop templates)
   - 52-Week High Drop (Percentage decline from yearly high)
-- **Unified Mathematical Filter System**: Options strategies, individual option legs, and technical screeners use a unified, declarative mathematical expression filtering engine (`MathExpression`, `MathExpressionParser`, `MathExpressionEvaluator`). Filter criteria are defined via declarative math expressions under `conditions: [...]` (e.g. `DTE >= 25`, `MAX_LOSS <= 1000`, `RETURN_ON_RISK >= 12%`, `SHORT_LEG.DELTA <= 0.2`, `DAYS_TO_NEXT_EARNINGS >= DTE`), with support for arithmetic offsets (`DTE - 10`), percentages, and multi-leg dotted navigation. The Execute Strategy UI provides dynamic dropdown condition builders with predefined metrics (moving averages, Bollinger bands, volume averages) and inline companion custom text fields (revealed seamlessly when selecting `✏️ Custom...` without modal popups). custom execution history (`custom_execution_results`), and latest strategy results (`latest_strategy_results`) have been migrated from legacy property names (`minDTE`, `maxLossLimit`, etc.) to the unified expression condition syntax.
+- **Unified Mathematical Filter System**: Options strategies, individual option legs, and technical screeners use a unified, declarative mathematical expression filtering engine (`MathExpression`, `MathExpressionParser`, `MathExpressionEvaluator`). Filter criteria are defined via declarative math expressions under `conditions: [...]` (e.g. `DTE >= 25`, `MAX_LOSS <= 1000`, `RETURN_ON_RISK >= 12%`, `LOWER_BREAKEVEN_PRICE <= LOWER_EXPECTED_MOVE_PRICE`, `UPPER_BREAKEVEN_PRICE >= UPPER_EXPECTED_MOVE_PRICE`, `SHORT_LEG.DELTA <= 0.2`, `DAYS_TO_NEXT_EARNINGS >= DTE`), with support for arithmetic offsets (`DTE - 10`), percentages, and multi-leg dotted navigation. Includes a **3-Tier Waterfall + LEAPS Expected Move ($1\sigma$) Engine** (`ExpectedMoveCalculator`) memoized per `(symbol, expiryDate)` across LEAPS geometric lognormal (`DTE > 365`), Tier 1 5-strike `60/30/10` blend (`1–365 DTE`), Tier 2 `0.85x` ATM straddle (`0DTE` / fallback), and Tier 3 annualized IV linear fallback, surfaced in the row-click Trade Details panel and Telegram notifications. The Execute Strategy UI provides dynamic dropdown condition builders with predefined metrics (moving averages, Bollinger bands, volume averages, Expected Move bounds) and inline companion custom text fields (revealed seamlessly when selecting `✏️ Custom...` without modal popups). custom execution history (`custom_execution_results`), and latest strategy results (`latest_strategy_results`) have been migrated from legacy property names (`minDTE`, `maxLossLimit`, etc.) to the unified expression condition syntax.
 - **Strategy History & Similar Trades**: Synchronously records historical trade executions into Supabase (`historical_trades` table) upon strategy completion using SHA-256 deterministic trade hashes for duplicate prevention. Trade hashes incorporate strategy ID, ticker symbol, expiry date, calendar day, and full leg details (`action`, `optionType`, `strike`, `quantity`) to ensure distinct strike setups on the same ticker and expiry are uniquely persisted. Uses PostgREST upsert (`on_conflict=trade_hash` with `resolution=merge-duplicates`) so that when the same trade opportunity is scanned multiple times on a specific day (e.g. morning vs. evening execution), the **latest** trade details (such as updated underlying price, return on risk, net credit, and execution timestamp) are saved into the history table rather than retaining stale earlier entries. In-memory batch deduplication prevents intra-batch PostgreSQL unique constraint conflicts. Any database save failure is recorded with `ERROR` severity and immediately surfaced on the frontend dashboard and fails scheduled GitHub Action workflows (exit code `1`). Each trade row on the dashboard includes a **History button (🕒)** that opens an interactive modal listing matching historical trades filtered dynamically by symbol, expiry date, and leg structure, with automatic candidate deduplication and a dedicated **Date Found** column.
 
 
@@ -88,7 +88,7 @@ telegram_chat_id=YOUR_CHAT_ID_HERE
 
 ### IV Data Tracking & Filtering
 
-The bot can automatically collect and store daily Implied Volatility (IV) data for your securities. This data is used for calculating **IV Rank and IV Percentile** for better trade timing. Users can filter trades using either metric, and the UI provides a detailed "Volatility Context (1Y)" panel when clicking on individual trades. For full calculation details, see [docs/implied-volatility.md](docs/implied-volatility.md).
+The bot can automatically collect and store daily Implied Volatility (IV) data for your securities. This data is used for calculating **IV Rank**, **IV Percentile**, and **Expected Move ($1\sigma$)** price boundaries for better trade timing and strike selection. Users can filter trades using any of these metrics, and the UI provides a detailed "Volatility Context (1Y)" panel and expandable `EM (1σ, <Tier>)` Trade Details line when clicking on individual trades. For full calculation details, see [docs/implied-volatility.md](docs/implied-volatility.md) and [docs/expected-move.md](docs/expected-move.md).
 
 **IV Rank** measures where current IV sits within its 1-year absolute high/low range:
 `(currentIV - minIV) / (maxIV - minIV) × 100`
@@ -154,6 +154,7 @@ The user interface features a clean, highly structured scrollable sidebar naviga
 - **Option Strategies (`/option-strategies.html`)**: Learning Center directory displaying educational guides, Greek polarities, directional biases, and structural mechanics for options strategies. Clicking any strategy card redirects to a dedicated full-page guide (`/strategy-detail.html?strategy=<file>.md`) rendering the markdown documentation from `static/descriptions/` with an interactive strategy switcher.
 - **Option Greeks (`/option-greeks.html`)**: Learning Center directory detailing core risk parameters, sensitivity derivatives, and mathematical mechanics for options pricing and automated risk management. Displays interactive cards with Greek symbols ($\Delta, \Gamma, \Theta, \mathcal{V}, \rho$, Vanna, Charm, Volga), order classification chips (First-Order vs. Second-Order), partial derivatives ($\partial V / \partial S, \partial^2 V / \partial S^2$, etc.), position exposures, and impact summaries. Clicking any Greek card opens a dedicated markdown guide (`/greek-detail.html?greek=<id>`) loaded from `static/descriptions/greeks/` with a quick Greek switcher dropdown and direct links to Option Strategies.
 - **Volatility Guide (`/volatility.html`)**: Learning Center reference and deep-dive into Historical Volatility (HV), Implied Volatility (IV), IV Rank (IVR), IV Percentile (IVP), post-earnings IV crush, and CBOE VIX market regime filters with dynamic KaTeX mathematical formulations and bot decision rules.
+- **Expected Move Guide (`/expected-move.html`)**: Learning Center technical specification for how Implied Volatility feeds the 3-Tier Waterfall + LEAPS Expected Move ($1\sigma$) Engine, pre-flight guardrails, worked dollar examples, and strategy breakeven normalization with interactive Mermaid diagrams and KaTeX equations.
 - **Strategy Config (`/config.html`)**: Read-only view of all strategy configurations with full parameter descriptions including configured securities universes and technical filters.
 - **Execution Logs (`/logs.html`)**: Real-time per-filter logs featuring a two-tier funnel: a top-level **Stock Screening Funnel** (aggregating universe-level technical and fundamental filters with qualified stock badges and an expandable eliminated failure breakdown) followed by qualified-only **Options Analysis** symbol cards (displaying expiration dates, candidate trade flows, and leg filter tables).
 - **Swagger API Docs (`/swagger-ui.html`)**: Interactive REST API documentation.
@@ -331,9 +332,9 @@ A dedicated research interface accessible at `/securities.html` under the **Rese
    - `GET /api/securities/filter-config`: Returns parsed active filter settings.
    - `POST /api/securities/data`: Accepts `{ "symbols": ["NVDA", "AAPL", ...] }` and returns precalculated indicators from Supabase.
 
-## Learning Center (Option Strategies, Option Greeks & Volatility)
+## Learning Center (Option Strategies, Option Greeks, Volatility & Expected Move)
 
-A dedicated educational and strategy guide portal accessible under the **Learning Center** sidebar navigation (`/option-strategies.html`, `/option-greeks.html`, and `/volatility.html`).
+A dedicated educational and strategy guide portal accessible under the **Learning Center** sidebar navigation (`/option-strategies.html`, `/option-greeks.html`, `/volatility.html`, and `/expected-move.html`).
 
 ### Architecture & Capabilities
 
@@ -367,7 +368,11 @@ A dedicated educational and strategy guide portal accessible under the **Learnin
    - CBOE Volatility Index (VIX) market regimes ($<20$, $20-30$, $>30$) and diagnostic rules for differentiating idiosyncratic (company-specific) catalysts from systemic market-wide panic.
    - Rendered from `src/main/resources/static/descriptions/Volatility.md` via `renderMarkdown` with complete KaTeX mathematical formatting.
 
-6. **REST Endpoints**:
+6. **Expected Move Guide (`/expected-move.html`)**:
+   - Complete technical documentation for how IV is calculated across the codebase (`IVDataCollector` 30-day variance interpolation, `IVDataRepository`, contract IV, chain IV) and how the 3-Tier Waterfall + LEAPS Expected Move ($1\sigma$) Engine computes, memoizes, and filters trade setups.
+   - Rendered from `src/main/resources/static/descriptions/expected-move.md` via `renderMarkdown` and Mermaid.js with full KaTeX mathematical formatting and architecture flowcharts.
+
+7. **REST Endpoints**:
    - `GET /api/learning/strategies`: Returns catalog metadata for all option strategies.
    - `GET /api/learning/strategies/{id}`: Returns parsed metadata for a single strategy by filename or ID.
    - `GET /api/learning/greeks`: Returns catalog metadata for all Option Greeks.
@@ -457,8 +462,16 @@ Options strategy filters are configured using declarative mathematical expressio
 | **Expiry & IV** | `DTE` | Days until option contract expiration |
 | | `IV_RANK` | Implied Volatility rank (0–100) from historical IV cache |
 | | `IV_PERCENTILE` | Implied Volatility percentile (0–100) from historical IV cache |
+| | `CURRENT_IV` | Saved 30-day constant-maturity ATM implied volatility (`%`) |
+| | `HV_RANK` | 20-day realized Historical Volatility rank (0–100) |
 | **Earnings** | `DAYS_TO_NEXT_EARNINGS` | Calendar days until the company's next earnings announcement |
 | | `EARNINGS_NEAREST_TO_DTE` | Days until the earnings event closest to the expiry date |
+| **Expected Move ($1\sigma$)** | `LOWER_EXPECTED_MOVE_PRICE` | Lower $1\sigma$ Expected Move price boundary (`$`) |
+| | `UPPER_EXPECTED_MOVE_PRICE` | Upper $1\sigma$ Expected Move price boundary (`$`) |
+| | `DOWNSIDE_EXPECTED_MOVE_DOLLARS` | Downside $1\sigma$ Expected Move dollar distance (`$`) |
+| | `UPSIDE_EXPECTED_MOVE_DOLLARS` | Upside $1\sigma$ Expected Move dollar distance (`$`) |
+| | `DOWNSIDE_EXPECTED_MOVE_PCT` | Downside $1\sigma$ Expected Move percentage of spot (`%`) |
+| | `UPSIDE_EXPECTED_MOVE_PCT` | Upside $1\sigma$ Expected Move percentage of spot (`%`) |
 | **Trade Risk & Return** | `MAX_LOSS` | Maximum dollar loss for the trade setup |
 | | `NET_CREDIT` | Total credit received for the trade |
 | | `TOTAL_DEBIT` | Total debit paid for the trade |
@@ -469,6 +482,8 @@ Options strategy filters are configured using declarative mathematical expressio
 | | `UPPER_BREAK_EVEN_PRICE` | Upper breakeven price (Strangle, Iron Condor, BWB) |
 | | `UPPER_BREAK_EVEN_PCT` | Upper breakeven percentage distance |
 | | `UPPER_BREAK_EVEN_DELTA` | Upper breakeven delta |
+| | `LOWER_BREAKEVEN_PRICE` | Strategy-aware lower breakeven price (`$` — PCS, Short Put, IC, Strangle, BWB) |
+| | `UPPER_BREAKEVEN_PRICE` | Strategy-aware upper breakeven price (`$` — CCS, IC, Strangle, BWB, LEAP, ZEBRA) |
 | | `ANNUALIZED_EXTRINSIC_PCT` | Annualized net extrinsic value to capital percentage |
 | | `CURRENT_PRICE` | Current underlying stock price |
 | | `OPTION_PRICE_PCT` | Option price percentage relative to stock price (LEAP) |

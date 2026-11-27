@@ -118,7 +118,7 @@ public class CallCreditSpreadStrategy extends AbstractTradingStrategy {
             tradePipeline.step(FilterStage.BREAK_EVEN_FILTER, trade -> filter.passesMaxBreakEvenPercentage(trade.getBreakEvenPercentage()));
         }
 
-        return applyTradeMathFilterExpressions(tradePipeline, filter).run(mapped);
+        return applyTradeMathFilterExpressions(tradePipeline, filter, chain, expiryDate).run(mapped);
     }
 
     /**

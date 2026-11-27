@@ -2,6 +2,7 @@ package com.hemasundar.options.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.hemasundar.options.expectedmove.ExpectedMoveResult;
 import com.hemasundar.technical.MathExpression;
 import com.hemasundar.technical.MathExpressionEvaluator;
 import lombok.AllArgsConstructor;
@@ -10,10 +11,13 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
@@ -51,6 +55,23 @@ public class OptionChainResponse {
     // Nested Map keys: Strike Price String (e.g., "110.0")
     public Map<ExpirationDateKey, Map<String, List<OptionData>>> callExpDateMap;
     public Map<ExpirationDateKey, Map<String, List<OptionData>>> putExpDateMap;
+
+    @JsonIgnore
+    private final Map<String, ExpectedMoveResult> expectedMoveCache = new ConcurrentHashMap<>();
+
+    /**
+     * Returns the cached {@link ExpectedMoveResult} for {@code expiryDate}, computing and memoizing
+     * it once per expiration across all strategies sharing this option chain instance.
+     */
+    public ExpectedMoveResult computeIfAbsentExpectedMove(
+            String expiryDate,
+            Function<String, ExpectedMoveResult> computer) {
+        if (StringUtils.isBlank(expiryDate) || computer == null) {
+            return null;
+        }
+        String cleanKey = expiryDate.length() >= 10 ? expiryDate.substring(0, 10) : expiryDate.trim();
+        return expectedMoveCache.computeIfAbsent(cleanKey, computer);
+    }
 
     public double getUnderlyingPrice() {
         if (this.underlyingPrice > 0) {

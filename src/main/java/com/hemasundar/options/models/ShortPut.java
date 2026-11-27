@@ -1,5 +1,6 @@
 package com.hemasundar.options.models;
 
+import com.hemasundar.options.expectedmove.ExpectedMoveResult;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -41,6 +42,9 @@ public class ShortPut implements TradeSetup {
 
     /** Net credit as a percentage of maximum risk (= netCredit / maxLoss × 100). */
     private double returnOnRisk;
+
+    /** Expected Move boundaries for this expiration. */
+    private ExpectedMoveResult expectedMove;
 
     // ── TradeSetup interface ──────────────────────────────────────────────
 
